@@ -61,7 +61,7 @@
 #define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))
 #define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))
 
-#define CPU_NORMAL_FREQ_MAX             (800000000)        //800MHz
+#define CPU_NORMAL_FREQ_MAX             (800)        //800MHz
 
 void core_timer_delay(u32 us);
 u32 ca53_get_cycle_count(void);
@@ -294,7 +294,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	u32 uiReg;
 #ifdef CONFIG_NVT_FPGA_EMULATION
 #else
-	/* TODO should be fixed on realchip */	
+	/* TODO should be fixed on realchip */
 	int code;
 	code = otp_key_manager(4);
 	if (code == 0) {
@@ -303,10 +303,10 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	} else {
 		if (value > CPU_NORMAL_FREQ_MAX) {
 			value = CPU_NORMAL_FREQ_MAX;
-			printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX/1000000));
-		}		
+			printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX));
+		}
 	}
-	
+
 #endif
 	switch (argc) {
 	case 2:
@@ -403,7 +403,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				}
 			}
 			break;
-		
+
 		case 800:
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
@@ -424,10 +424,10 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x34, (IOADDR_CG_REG_BASE + 0xA0));
 				while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
 				writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
-			}			
+			}
 			writel(0x55, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x55, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x85, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2			
+			writel(0x85, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
 			printf("Set CPU clk 800MHz\n");
 			break;
 
@@ -455,9 +455,9 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			//CPU 1400 MHz -> CPU-MPLL-150Mhz = 0x074AAA
 			writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x64, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2			
+			writel(0x64, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
 			printf("Set CPU clk 600MHz\n");
-			break;		
+			break;
 
 		case 360:
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
@@ -533,7 +533,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x34, (IOADDR_CG_REG_BASE + 0xA0));
 				while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
 				writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
-			}			
+			}
 			writel(0x55, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x55, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
 			writel(0x35, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
@@ -593,7 +593,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			//CPU 1200 MHz -> CPU-MPLL-125Mhz = 0x14D555
 			writel(0x55, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x55, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x85, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2			
+			writel(0x85, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
 			printf("Set CPU clk 800MHz\n");
 			break;
 #endif
@@ -620,7 +620,7 @@ U_BOOT_CMD(
 	"nvt_cpu_freq  320(PLL)\n"
 	"nvt_cpu_freq  480(Fix480)\n"
 	"nvt_cpu_freq 600\n"
-	"nvt_cpu_freq 800(default)\n"	
+	"nvt_cpu_freq 800(default)\n"
 #endif
 );
 
@@ -634,7 +634,7 @@ int do_nvt_apb_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 		uiReg &= ~(0x300);
 		switch (value) {
-		case 48:			
+		case 48:
 			uiReg |= PLL_CLKSEL_APB48;
 			writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 			break;
@@ -648,7 +648,7 @@ int do_nvt_apb_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			uiReg |= PLL_CLKSEL_APB80;
 			writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 			break;
-		
+
 		case 120:
 			uiReg |= PLL_CLKSEL_APB120;
 			writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
@@ -717,7 +717,7 @@ int do_nvt_ddr_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		freq_ratio = (freq_ratio << 3);
 		printf("DMA2 clock rate = %d => [%d]MHz\r\n", (12 * freq_ratio / 131072), ((12 * freq_ratio / 131072) >> 1));
 	}
-*/	
+*/
 	return 0;
 }
 

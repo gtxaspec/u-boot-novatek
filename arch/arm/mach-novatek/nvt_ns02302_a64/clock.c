@@ -66,8 +66,8 @@
 #define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))
 #define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))
 
-#define CPU_NORMAL_FREQ_MAX             (1100000000)        //1.1GHz
-#define CPU_OVER_CLKING_FREQ_MAX        (1300000000)        //1.3GHz
+#define CPU_NORMAL_FREQ_MAX             (1100)        //1.1GHz
+#define CPU_OVER_CLKING_FREQ_MAX        (1300)        //1.3GHz
 
 
 
@@ -363,7 +363,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		} else {
 			if (value > CPU_NORMAL_FREQ_MAX) {
 				value = CPU_NORMAL_FREQ_MAX;
-				printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX/1000000));
+				printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX));
 			}
 		}
 	}

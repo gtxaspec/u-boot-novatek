@@ -62,9 +62,9 @@
 #define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))
 #define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))
 
-#define CPU_LOWER_FREQ_MAX             	(1400000000)        //1.4GHz
-#define CPU_NORMAL_FREQ_MAX             (1500000000)        //1.5GHz
-#define CPU_OVER_CLKING_FREQ_MAX        (1600000000)        //1.6GHz
+#define CPU_LOWER_FREQ_MAX             	(1400)        //1.4GHz
+#define CPU_NORMAL_FREQ_MAX             (1500)        //1.5GHz
+#define CPU_OVER_CLKING_FREQ_MAX        (1600)        //1.6GHz
 
 void core_timer_delay(u32 us);
 u64 ca53_get_cycle_count(void);
@@ -423,7 +423,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			} else {
 				if (value > CPU_NORMAL_FREQ_MAX) {
 					value = CPU_NORMAL_FREQ_MAX;
-					printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX/1000000));
+					printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX));
 				}
 			}
 		}
