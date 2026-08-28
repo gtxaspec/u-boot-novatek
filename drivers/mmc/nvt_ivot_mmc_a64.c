@@ -21,6 +21,27 @@
 #include <asm/nvt-common/nvt_common.h>
 #include <linux/libfdt.h>
 
+static unsigned use_dma = 1;
+
+/* Log debug interface */
+static unsigned int debug_mask = (1 << SDIO_HOST_ID_COUNT) - 1;
+
+static unsigned int flow_debug_on = 0;
+#define SDIO_FLOW(fmt, ...) do { \
+		if (flow_debug_on && host && (debug_mask & (1 << host->id))) \
+			printf("SDIO%d: "fmt, host->id, ##__VA_ARGS__); \
+		else \
+			debug("SDIO%d: "fmt, host->id, ##__VA_ARGS__); \
+	} while (0)
+
+static unsigned int warn_debug_on = 1;
+#define SDIO_WARN(fmt, ...) do { \
+		if (warn_debug_on && host && (debug_mask & (1 << host->id))) \
+			printf("SDIO%d: "fmt, host->id, ##__VA_ARGS__); \
+		else \
+			debug("SDIO%d: "fmt, host->id, ##__VA_ARGS__); \
+	} while (0)
+
 #define mmc_resp_type (MMC_RSP_PRESENT | MMC_RSP_136 | MMC_RSP_CRC | MMC_RSP_BUSY | MMC_RSP_OPCODE)
 
 int mmc_nvt_start_command(struct mmc_nvt_host *host);
@@ -62,7 +83,7 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 		for (i = 0; i < SDIO_MAX_MODE_DRIVING; i++) {
 			host->pad_driving[i] = default_pad_driving[i];
 		}
-		printf("\nUse default driving table\n");
+		SDIO_WARN("Use default driving table\n");
 	} else {
 		for (i = 0; i < SDIO_MAX_MODE_DRIVING; i++) {
 			host->pad_driving[i] = __be32_to_cpu(cell[i]);
@@ -94,7 +115,7 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
 	if (cell > 0) {
 		host->pinmux_value = __be32_to_cpu(cell[0]);
-		printf("sdio pinmux(0x%x)\n", host->pinmux_value);
+		SDIO_WARN("sdio pinmux(0x%x)\n", host->pinmux_value);
 	}
 }
 
@@ -155,7 +176,7 @@ static void sdiohost_setphyrst(struct mmc_nvt_host *host)
 	}
 
 	if (i == RESET_TIMEOUT) {
-		printf("phy reset timeout\n");
+		SDIO_WARN("phy reset timeout\n");
 	}
 }
 
@@ -787,12 +808,20 @@ void sdiohost_setupdatatransferdma(struct mmc_nvt_host *host,
 	/* patch for sd fifo bug end */
 
 	datactrlreg.reg = sdiohost_getreg(host, SDIO_DATA_CTRL_REG_OFS);
+
+#if 0
 	/* multiple read => disable SDIO INT detection after transfer end */
-	if (bisread && (uidatalength > datactrlreg.bit.BLK_SIZE)) {
+	if (bisread && (uidatalength > datactrlreg.bit.BLK_SIZE))
 		datactrlreg.bit.DIS_SDIO_INT_PERIOD = 1;
-	} else {
+	else
 		datactrlreg.bit.DIS_SDIO_INT_PERIOD = 0;
-	}
+#else
+	/*
+	 * The DIS_SDIO_INT_PERIOD is designed for reading infinite blocks.
+	 * But there are some compatibility and performance issues, so it should not be used.
+	 */
+	datactrlreg.bit.DIS_SDIO_INT_PERIOD = 0;
+#endif
 
 	/*move data en after fifo en*/
 	/*datactrlreg.bit.DATA_EN = 1;*/
@@ -967,7 +996,7 @@ ER sdiohost_writeblock(struct mmc_nvt_host *host, u8 *pbuf, u32 uilength)
 		stsreg.reg = sdiohost_getreg(host, SDIO_STATUS_REG_OFS);
 
 		if (stsreg.bit.DATA_CRC_FAIL || stsreg.bit.DATA_TIMEOUT) {
-			printf("write block fail\n");
+			SDIO_WARN("write block fail\n");
 			return E_SYS;
 		}
 	}
@@ -1205,6 +1234,7 @@ void sdiohost_getshortrsp(struct mmc_nvt_host *host, u32 *prsp)
 static void mmc_nvt_cmd_done(struct mmc_nvt_host *host)
 {
 	struct mmc_cmd *cmd = host->cmd;
+	unsigned int time_start, time_now, mmcst = 0;
 	host->cmd = NULL;
 
 	if (cmd->resp_type & MMC_RSP_PRESENT) {
@@ -1216,6 +1246,22 @@ static void mmc_nvt_cmd_done(struct mmc_nvt_host *host)
 			debug("lrsp 0x%x 0x%x 0x%x 0x%x\n", cmd->response[0], cmd->response[1], cmd->response[2], cmd->response[3]);
 		} else {
 			/* response types 1, 1b, 3, 4, 5, 6 */
+			if ((cmd->resp_type & mmc_resp_type) == MMC_RSP_R1b) {
+				time_start = get_timer (0);
+				while (1) {
+					mmcst = sdiohost_getrdy(host);
+					if (mmcst == true)
+						break;
+					time_now = get_timer (0);
+					if ((time_now - time_start) > 1000)
+						break;
+				}
+
+				if (mmcst == false) {
+					SDIO_WARN("still busy\n");
+					return;
+				}
+			}
 			sdiohost_getshortrsp(host, (u32 *)&cmd->response[0]);
 			debug("rsp 0x%x\n", cmd->response[0]);
 		}
@@ -1224,158 +1270,167 @@ static void mmc_nvt_cmd_done(struct mmc_nvt_host *host)
 
 static ER sdiohost_transfer(struct mmc_nvt_host *host)
 {
-	u32 status, qstatus = 0;
+	u32 qstatus = 0;
 	long end_command = 0;
 	long end_transfer = 0;
 	long err_sts = 1, timeout = 0;
 	struct mmc_data *data = host->data;
 
-
+	/* Polling CMD status */
 	while (1) {
-		status = sdiohost_getstatus(host);
-		//printf("cmd status is 0x%x\n", status);
-		if (status & SDIO_STATUS_REG_CMD_SEND) {
-			qstatus = status;
-			sdiohost_setstatus(host, SDIO_STATUS_REG_CMD_SEND);
+		qstatus = sdiohost_getstatus(host);
+		//SDIO_WARN("CMD status is 0x%x\n", qstatus);
+		if (qstatus & MMCST_CMD_SENT) {
 			break;
 		}
 	}
 
-	if (data && host->do_dma) {
-		while (1) {
-			status = sdiohost_getstatus(host);
-			//printf("data status is 0x%x\n", status);
-			if ((status & SDIO_STATUS_REG_DATA_END) || \
-				(status & SDIO_STATUS_REG_DATA_TIMEOUT)) {
-				qstatus = status;
-				sdiohost_setstatus(host, SDIO_STATUS_REG_DATA_END);
-				break;
-			} else if ((status & SDIO_STATUS_REG_RSP_CRC_FAIL) || \
-					   (status & SDIO_STATUS_REG_DATA_CRC_FAIL)) {
-				qstatus = status;
-				//printf("crc status is 0x%x\n", status);
-				break;
-			}
-		}
-	}
-
-
-	if ((qstatus & SDIO_STATUS_REG_RSP_CRC_FAIL) ||
-		(qstatus & SDIO_STATUS_REG_DATA_CRC_FAIL) ||
-		(qstatus & SDIO_STATUS_REG_RSP_TIMEOUT) ||
-		(qstatus & SDIO_STATUS_REG_DATA_TIMEOUT)) {
-		err_sts = 1;
-	} else {
-		err_sts = 0;
-	}
-	//printf("qstatus is 0x%x, err_sts %d\n", qstatus, err_sts);
-
-	if (qstatus & MMCST_RSP_TIMEOUT) {
-		/* Command timeout */
-		if (host->cmd) {
-			printf("CMD%d timeout, status %x\n", host->cmd->cmdidx, qstatus);
-			if (host->data) {
-				sdiohost_resetdata(host);
-			}
-		}
-		//printf("MMCST_RSP_TIMEOUT\r\n");
-		sdiohost_setstatus(host, MMCST_RSP_TIMEOUT);
-		timeout = 1;
-	}
-
-	if (qstatus & MMCST_DATA_TIMEOUT) {
-		
-		if (host->cmd) {
-			printf("data timeout (CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
-		}
-
-		if (host->data) {
-			sdiohost_resetdata(host);
-		}
-
-		//printf("MMCST_DATA_TIMEOUT\r\n");
-		sdiohost_setstatus(host, MMCST_DATA_TIMEOUT);
-	}
-
-	if (qstatus & MMCST_RSP_CRC_FAIL) {
-		/* Command CRC error */
-		printf("Command CRC error\n");
-		//printf("MMCST_RSP_CRC_FAIL\r\n");
-		sdiohost_setstatus(host, MMCST_RSP_CRC_FAIL);
-	}
-
-	if (qstatus & MMCST_DATA_CRC_FAIL) {
-		/* Data CRC error */
-		if (host->data) {
-			printf("data %s error\n", \
-			   (host->data->flags & MMC_DATA_WRITE) ? "write" : "read");
-
-			if (host->cmd)
-				printf("(CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
-			
-			sdiohost_resetdata(host);
-			//printf("MMCST_DATA_CRC_FAIL\r\n");
-			sdiohost_setstatus(host, MMCST_DATA_CRC_FAIL);	
-		} else {
-			printf("MMCST_DATA_CRC_FAIL & DATA IS NULL\r\n");
-		}
-		
-	}
-
-	if (((qstatus & MMCST_RSP_CRC_OK) || (qstatus & MMCST_CMD_SENT)) && !timeout) {
-		/* End of command phase */
-		if (data == NULL) {
-			end_command = (uintptr_t) host->cmd;
-		} else {
-			if ((host->bytes_left > 0) && (host->do_dma == 0)) {
-				/* if datasize < rw_threshold
-				 * no RX ints are generated
-				 */
+	/* Polling DATA status */
+	if (((qstatus & MMCST_RSP_CRC_OK) || (qstatus & MMCST_CMD_SENT)) && !(qstatus & MMCST_RSP_TIMEOUT)) {
+		if (data) {
+			if (host->do_dma) {
+				while (1) {
+					qstatus = sdiohost_getstatus(host);
+					//SDIO_WARN("[DMA] DATA status is 0x%x\n", qstatus);
+					if ((qstatus & MMCST_DATA_END) || (qstatus & MMCST_DATA_TIMEOUT)) {
+						sdiohost_setstatus(host, MMCST_DATA_END);
+						sdiohost_setstatus(host, MMCST_DATA_CRC_OK);
+						break;
+					} else if ((qstatus & MMCST_RSP_CRC_FAIL) || (qstatus & MMCST_DATA_CRC_FAIL)) {
+						SDIO_WARN("[DMA] ERROR status is 0x%x\n", qstatus);
+						break;
+					}
+				}
+			} else if ((host->do_dma == 0) && (host->bytes_left > 0)) {
+				/* if datasize < rw_threshold, no RX ints are generated */
 				sdiohost_fifo_data_trans(host, host->bytes_left);
+
+				while (1) {
+					qstatus = sdiohost_getstatus(host);
+					//SDIO_WARN("[PIO] DATA status is 0x%x\n", qstatus);
+					if ((qstatus & MMCST_DATA_END) || (qstatus & MMCST_DATA_TIMEOUT)) {
+						break;
+					} else if ((qstatus & MMCST_RSP_CRC_FAIL) || (qstatus & MMCST_DATA_CRC_FAIL)) {
+						SDIO_WARN("[PIO] ERROR status is 0x%x\n", qstatus);
+						break;
+					}
+				}
 			}
 		}
+
 		if (qstatus & MMCST_RSP_CRC_OK) {
 			sdiohost_setstatus(host, MMCST_RSP_CRC_OK);
 		}
-
 		if (qstatus & MMCST_CMD_SENT) {
 			sdiohost_setstatus(host, MMCST_CMD_SENT);
 		}
 	}
 
-	if ((qstatus & MMCST_RSP_CRC_OK)) {
+	if ((qstatus & MMCST_RSP_TIMEOUT) ||
+		(qstatus & MMCST_RSP_CRC_FAIL) ||
+		(qstatus & MMCST_DATA_TIMEOUT) ||
+		(qstatus & MMCST_DATA_CRC_FAIL)) {
+		err_sts = 1;
+
+		if ((qstatus & MMCST_RSP_TIMEOUT) ||
+			(qstatus & MMCST_DATA_TIMEOUT)) {
+			timeout = 1;
+		} else {
+			timeout = 0;
+		}
+	} else {
+		err_sts = 0;
+	}
+
+	if (qstatus & MMCST_RSP_TIMEOUT) {
+		/* Command timeout */
+		if (host->cmd) {
+			if (data) {
+				end_transfer = 1;
+				end_command = 1;
+				sdiohost_resetdata(host);
+				SDIO_FLOW("cmd rsp timeout (CMD%d) with data, status(0x%x)\n", host->cmd->cmdidx, qstatus);
+			} else {
+				end_command = 1;
+				SDIO_FLOW("cmd rsp timeout (CMD%d) without data, status(0x%x)\n", host->cmd->cmdidx, qstatus);
+			}
+		}
+
+		sdiohost_setstatus(host, MMCST_RSP_TIMEOUT);
+	}
+
+	if (qstatus & MMCST_RSP_CRC_FAIL) {
+		/* Command CRC error */
+		if (host->cmd) {
+			end_command = 1;
+			SDIO_WARN("cmd CRC error (CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
+		} else {
+			SDIO_WARN("[WARN]cmd CRC error without cmd, status 0x%x\n", qstatus);
+		}
+
+		sdiohost_setstatus(host, MMCST_RSP_CRC_FAIL);
+	}
+
+	if (qstatus & MMCST_DATA_TIMEOUT) {
+		/* Data timeout */
+		if (data) {
+			end_transfer = 1;
+			sdiohost_resetdata(host);
+			if (host->cmd) {
+				SDIO_WARN("data timeout (CMD%d), status(0x%x)\n", host->cmd->cmdidx, qstatus);
+			} else {
+				SDIO_WARN("data timeout without cmd, status(0x%x)\n", qstatus);
+			}
+		} else {
+			if (host->cmd) {
+				SDIO_WARN("[WARN]data timeout without data, (CMD%d), status(0x%x)\n", host->cmd->cmdidx, qstatus);
+			} else {
+				SDIO_WARN("[WARN]data timeout without data, status(0x%x)\n", qstatus);
+			}
+		}
+
+		sdiohost_setstatus(host, MMCST_DATA_TIMEOUT);
+	}
+
+	if (qstatus & MMCST_DATA_CRC_FAIL) {
+		/* Data CRC error */
+		if (data) {
+			end_transfer = 1;
+			sdiohost_resetdata(host);
+			if (host->cmd) {
+				SDIO_WARN("data %s CRC error (CMD%d), status 0x%x\n",
+				   (data->flags & MMC_DATA_WRITE) ? "write" : "read", host->cmd->cmdidx, qstatus);
+			} else {
+				SDIO_WARN("data %s CRC error without cmd, status 0x%x\n",
+				   (data->flags & MMC_DATA_WRITE) ? "write" : "read", qstatus);
+			}
+		} else {
+			SDIO_WARN("[WARN] data CRC error without data, status 0x%x\r\n", qstatus);
+		}
+
+		sdiohost_setstatus(host, MMCST_DATA_CRC_FAIL);
+	}
+
+	if ((qstatus & MMCST_RSP_CRC_OK) ||
+		((qstatus & MMCST_CMD_SENT) && (host->cmd) && (host->cmd->cmdidx == MMC_CMD_GO_IDLE_STATE))) {
 		end_command = (uintptr_t) host->cmd;
 	}
 
-	if (data && !host->do_dma && !timeout) {
-		while (1) {
-			status = sdiohost_getstatus(host);
-			if ((status & SDIO_STATUS_REG_DATA_END) || \
-				(status & SDIO_STATUS_REG_DATA_TIMEOUT)) {
-				qstatus = status;
-				sdiohost_setstatus(host, SDIO_STATUS_REG_DATA_END);
-				break;
-			} else if ((status & SDIO_STATUS_REG_RSP_CRC_FAIL) || (status & SDIO_STATUS_REG_RSP_TIMEOUT) || \
-					   (status & SDIO_STATUS_REG_DATA_CRC_FAIL)) {
-				qstatus = status;
-				break;
-			}
-		}
-	}
-
 	if ((qstatus & MMCST_DATA_END) || (qstatus & MMCST_DATA_CRC_OK)) {
-		end_transfer = 1;
-		if (data)
+		if (data) {
+			end_transfer = 1;
 			data->dest += data->blocksize;
+		}
+
 		if (!sdiohost_getfifodir(host)) {
 			if (qstatus & MMCST_DATA_END) {
-				if ((qstatus & MMCST_DMA_ERROR)
-					!= MMCST_DMA_ERROR) {
+				if ((qstatus & MMCST_DMA_ERROR) != MMCST_DMA_ERROR) {
 					sdiohost_waitfifoempty(host);
 				}
 				sdiohost_clrfifoen(host);
 			}
 		}
+
 		if (qstatus & MMCST_DATA_END) {
 			sdiohost_setstatus(host, MMCST_DATA_END);
 		}
@@ -1388,7 +1443,7 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 	if (end_command && (host->cmd)) {
 		mmc_nvt_cmd_done(host);
 	} else {
-		printf("end_command IS NULL\r\n");
+		SDIO_WARN("[WARN] end_command is NULL\r\n");
 	}
 
 	if (end_transfer && (!host->cmd)) {
@@ -1401,10 +1456,11 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 			return -ETIMEDOUT;
 		}
 
-		status = sdiohost_getstatus(host);
-		if (status) {
-			printf("end status is 0x%x\n", status);
+		qstatus = sdiohost_getstatus(host);
+		if (qstatus) {
+			SDIO_FLOW("end status is 0x%x\n", qstatus);
 		}
+
 		return -ECOMM;
 	}
 
@@ -1520,7 +1576,7 @@ ER sdiohost_sendsdcmd(struct mmc_nvt_host *host, u32 cmdpart)
 	}
 
 	sdiohost_setreg(host, SDIO_ARGU_REG_OFS, param);
-	//printf("bEnIntDetect %d\r\n",benintdetect);
+	//SDIO_FLOW("bEnIntDetect %d\r\n",benintdetect);
 
 	return sdiohost_sendcmd(host, cmdpart & SDIO_CMD_REG_INDEX, \
 							rsptype, benintdetect);
@@ -1541,29 +1597,34 @@ static void mmc_nvt_prepare_data(struct mmc_nvt_host *host)
 	host->data_dir = ((host->data->flags & MMC_DATA_WRITE) ?
 					  SDIO_HOST_WRITE_DATA : SDIO_HOST_READ_DATA);
 
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NS02201) \
-		|| defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302))
-	if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((uintptr_t)host->buffer % ARCH_DMA_MINALIGN) || (host->mmc_input_clk < 24000000)) {
-		if (host->mmc_input_clk < 24000000) {
-			debug("clk(%dHz) < 24MHz, force to PIO\n", host->mmc_input_clk);
-		}
+	if (host->use_dma) {
+		/* DMA path */
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64))
+		if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((uintptr_t)host->buffer % ARCH_DMA_MINALIGN) || (host->mmc_input_clk < 24000000)) {
+			if (host->mmc_input_clk < 24000000) {
+				SDIO_FLOW("clk(%dHz) < 24MHz, force to PIO\n", host->mmc_input_clk);
+			}
 #else
-	if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((uintptr_t)host->buffer % ARCH_DMA_MINALIGN)) {
+		if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((uintptr_t)host->buffer % ARCH_DMA_MINALIGN)) {
 #endif
+			host->do_dma = 0;
+			host->buffer_bytes_left = host->bytes_left;
+		} else {
+			host->do_dma = 1;
+		}
+	} else {
+		/* PIO path */
 		host->do_dma = 0;
 		host->buffer_bytes_left = host->bytes_left;
-	} else {
-		host->do_dma = 1;
 	}
 
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NS02201) \
-		|| defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64))
 	if ((host->mmc_input_clk >= 50000000) && host->do_dma) {
 		if (host->data_dir == SDIO_HOST_WRITE_DATA) {
-			debug("over 50MHz and cmd write, blkfifoen = 0\n");
+			SDIO_FLOW("over 50MHz and cmd write, blkfifoen = 0\n");
 			sdiohost_setblkfifoen(host, false);
 		} else {
-			debug("blkfifoen = 1\n");
+			SDIO_FLOW("blkfifoen = 1\n");
 			sdiohost_setblkfifoen(host, true);
 		}
 	}
@@ -1602,7 +1663,6 @@ int mmc_nvt_start_command(struct mmc_nvt_host *host)
 		cmd_reg |= SDIO_CMD_REG_NEED_RSP;
 		break;
 	case MMC_RSP_R1b:
-		s = ", R1b";
 		/* There's some spec confusion about when R1B is
 		 * allowed, but if the card doesn't issue a BUSY
 		 * then it's harmless for us to allow it.
@@ -1610,7 +1670,16 @@ int mmc_nvt_start_command(struct mmc_nvt_host *host)
 		/*need to check card busy CARD_BUSY2READY bit or
 		 *send _SDIO_SD_SEND_STATUS to check
 		*/
-		cmd_reg |= SDIO_CMD_REG_NEED_RSP;
+		// for cmd12, read is R1, write is R1b
+		if (host->cmd->cmdidx == 12 &&\
+			host->data_dir == SDIO_HOST_READ_DATA) {
+			s = ", R1";
+			cmd_reg |= SDIO_CMD_REG_NEED_RSP;
+			host->cmd->resp_type = MMC_RSP_R1;
+		} else {
+			s = ", R1b";
+			cmd_reg |= SDIO_CMD_REG_NEED_RSP;
+		}
 		/* FALLTHROUGH */
 		break;
 	case MMC_RSP_R2: /* 136 bits, CRC */
@@ -1657,7 +1726,7 @@ static int host_request(struct udevice *udev,
 	static int cur_clk = 0;
 
 	if (!dev) {
-		printf("get mmc device fail\n");
+		SDIO_WARN("get mmc device fail\n");
 		return -1;
 	}
 
@@ -1688,7 +1757,7 @@ static int host_request(struct udevice *udev,
 		}
 
 		if (mmcst == false) {
-			printf("still busy\n");
+			SDIO_WARN("still busy\n");
 			return -ETIMEDOUT;
 		}
 	}
@@ -2044,8 +2113,6 @@ static int host_set_ios(struct udevice *udev)
 	struct mmc *dev = mmc_get_mmc_dev(udev);
 	struct mmc_nvt_host *host = dev_get_priv(udev);
 #endif
-	//kwinyee debug
-	//printf("%s called !,clk = %d, bwidth = %d\n",__func__, dev->clock, dev->bus_width);
 
 	if (!dev) {
 		printf("get mmc device fail\n");
@@ -2056,6 +2123,8 @@ static int host_set_ios(struct udevice *udev)
 		printf("invalid host id %d\n", host->id);
 		return -1;
 	}
+
+	SDIO_FLOW("%s called, clk = %d, bwidth = %d\n", __func__, dev->clock, dev->bus_width);
 
 	if (dev->bus_width) {
 		switch (dev->bus_width) {
@@ -2109,7 +2178,7 @@ static int host_set_ios(struct udevice *udev)
 
 			if (host->indly_sel >= 0) {
 				sdiohost_setphyclkindly(host, host->indly_sel);
-				printf("use dts indly(0x%x)\n", host->indly_sel);
+				SDIO_FLOW("use dts indly(0x%x)\n", host->indly_sel);
 			}
 
 			sdiohost_setinvoutdly(host, false, false);
@@ -2136,12 +2205,16 @@ static int mmc_host_getcd(struct udevice *dev)
 	return 1;
 }
 
-static char dev_name_0[] = "NVT_MMC0";
+#define NVT_MMC0_NAME  "V" NVT_MMC_UBOOT_DRV_VERSION "_NVT_MMC0"
+#define NVT_MMC1_NAME  "V" NVT_MMC_UBOOT_DRV_VERSION "_NVT_MMC1"
+#define NVT_MMC2_NAME  "V" NVT_MMC_UBOOT_DRV_VERSION "_NVT_MMC2"
+
+static char dev_name_0[] = NVT_MMC0_NAME;
 #if (SDIO_HOST_ID_COUNT > 1)
-static char dev_name_1[] = "NVT_MMC1";
+static char dev_name_1[] = NVT_MMC1_NAME;
 #endif
 #if (SDIO_HOST_ID_COUNT > 2)
-static char dev_name_2[] = "NVT_MMC2";
+static char dev_name_2[] = NVT_MMC2_NAME;
 #endif
 
 #if !CONFIG_IS_ENABLED(DM_MMC)
@@ -2181,16 +2254,27 @@ int nvt_mmc_init(int id)
 	if (id == SDIO_HOST_ID_1) {
 		host->base = IOADDR_SDIO_REG_BASE;
 		cfg->name = dev_name_0;
-	} else if (id == SDIO_HOST_ID_2) {
+	}
+#if (SDIO_HOST_ID_COUNT > 1)
+	else if (id == SDIO_HOST_ID_2) {
 		host->base = IOADDR_SDIO2_REG_BASE;
 		cfg->name = dev_name_1;
 	}
+#endif
+#if (SDIO_HOST_ID_COUNT > 2)
+	else {
+		host->base = IOADDR_SDIO3_REG_BASE;
+		cfg->name = dev_name_2;
+	}
+#endif
 
 	host->mmc_input_clk = 312500;
 
 	host->mmc_default_clk = 48000000;
 
 	host->mmc_default_width = 4;	// default 4bit: max compatibility (not all SOC package has 8 bit data bus)
+
+	host->use_dma = use_dma;
 
 	mmc_nvt_parse_driving(host);
 
@@ -2226,7 +2310,7 @@ int nvt_mmc_init(int id)
 
 	dev->priv = host;
 
-	debug("MMC DEBUG : %s done \n", __FUNCTION__);
+	SDIO_FLOW("MMC DEBUG : %s done \n", __FUNCTION__);
 
 	return 0;
 }
@@ -2370,19 +2454,19 @@ static int nvt_mmc_auto_tuning(struct udevice *dev, uint opcode)
 	}
 
 	if (mmc->signal_voltage != MMC_SIGNAL_VOLTAGE_180) {
-		printf("signal_voltage %d not 1.8V, tuning cmd is illegal\n",
+		SDIO_WARN("signal_voltage %d not 1.8V, tuning cmd is illegal\n",
 			   mmc->signal_voltage);
 		return E_SYS;
 	}
 
 	if (mmc->clock <= 48000000) {
-		printf("clk %d is less/equal than 48MHz, skip tuning\n",
+		SDIO_WARN("clk %d is less/equal than 48MHz, skip tuning\n",
 			   mmc->clock);
 		return E_OK;
 	}
 
 	if (host->ext_caps & MMC_MODE_HS400) {
-		printf("skip tuning on HS400\n");
+		SDIO_WARN("skip tuning on HS400\n");
 		return E_OK;
 	}
 
@@ -2457,6 +2541,7 @@ static int nvt_mmc_probe(struct udevice *dev)
 
 	host->base = (void *)dev_read_addr(dev);
 	base_addr = (uintptr_t) host->base;
+
 	if (base_addr == (IOADDR_SDIO_REG_BASE)) {
 		host->id = SDIO_HOST_ID_1;
 		cfg->name = dev_name_0;
@@ -2486,7 +2571,7 @@ static int nvt_mmc_probe(struct udevice *dev)
 
 	host->ext_caps = 0;
 
-	host->do_dma = 1;
+	host->use_dma = use_dma;
 
 	mmc_nvt_parse_driving(host);
 

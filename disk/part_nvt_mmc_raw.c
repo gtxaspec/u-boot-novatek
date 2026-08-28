@@ -108,6 +108,9 @@ static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
 			case EMBTYPE_FDT:
 				strcpy((char *)info->name, "fdt");
 				break;
+			case EMBTYPE_FDTFAST:
+				strcpy((char *)info->name, "fdtfast");
+				break;
 			case EMBTYPE_ATF:
 				strcpy((char *)info->name, "atf");
 				break;
@@ -131,7 +134,7 @@ static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
 				strcpy((char *)info->name, "unknow");
 				break;
 
-		}	
+		}
 		info->size = p->PartitionSize / info->blksz;
 		info->start = p->PartitionOffset / info->blksz;
 #endif

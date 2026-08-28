@@ -14,7 +14,7 @@
 #include "nvt_ivot_mmcplat.h"
 #include <linux/bitops.h>
 
-#define NVT_MMC_UBOOT_DRV_VERSION  "0.00.003"
+#define NVT_MMC_UBOOT_DRV_VERSION  "0.00.007"
 
 /************************
  *        Common        *
@@ -69,6 +69,7 @@ struct mmc_nvt_host {
 	u8 *buffer;
 	u32 buffer_bytes_left;
 	u32 bytes_left;
+	bool use_dma;
 	bool do_dma;
 	/*early data*/
 	bool data_early;

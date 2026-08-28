@@ -137,7 +137,7 @@ config MTK_AHCI
 
 config AHCI_NVT
 	bool "Enable Novatek AHCI SATA support"
-	depends on TARGET_NS02201_A64
+	depends on (TARGET_NA51090 || TARGET_NA51090_A64 || TARGET_NA51102 || TARGET_NA51102_A64 || TARGET_NA51103 || TARGET_NA51103_A64 || TARGET_NS02201_A64)
 	help
 	  Enable this driver to support the SATA controller found in
 	  some Novatek SoCs. The CONFIG_AHCI_NVT will automatically

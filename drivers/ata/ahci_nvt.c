@@ -71,6 +71,7 @@ static int nvt_ahci_probe(struct udevice *dev)
 
 static const struct udevice_id nvt_ahci_ids[] = {
 	{ .compatible = "snps,dwc-ahci" },
+	{ .compatible = "novatech,nvt_sata100" },
 	{ }
 };
 

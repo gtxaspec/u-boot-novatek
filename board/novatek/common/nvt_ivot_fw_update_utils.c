@@ -25,6 +25,19 @@
 #include <asm/nvt-common/modelext/emb_partition_info.h>
 #include <asm/nvt-common/shm_info.h>
 #include <asm/nvt-common/nvt_common.h>
+#include <asm/nvt-common/nvt_ivot_optee.h>
+#include <asm/nvt-common/nvt_ivot_efuse_smc.h>
+#include <asm/nvt-common/nvt_ivot_sha_smc.h>
+#include <asm/nvt-common/nvt_ivot_rsa_smc.h>
+#include <asm/nvt-common/nvt_ivot_aes_smc.h>
+#include <asm/nvt-common/nvt_ivot_ecdsa_smc.h>
+#include <asm/arch/nvt_crypto.h>
+#include <asm/arch/nvt_rsa.h>
+#include <asm/arch/nvt_hash.h>
+#if defined(CONFIG_SIGNATUREMETHOD_ECDSA)
+#include <asm/arch/nvt_ecdsa.h>
+#endif
+#include <asm/arch/crypto.h>
 #include <asm/arch/IOAddress.h>
 #include "nvt_ivot_pack.h"
 #include "nvt_ivot_soc_utils.h"
@@ -43,8 +56,8 @@ EMB_PARTITION_FDT_TRANSLATE_TABLE emb_part_fdt_map[EMBTYPE_TOTAL_SIZE] = {
 	{"partition_mbr", EMBTYPE_MBR},
 	{"partition_loader", EMBTYPE_LOADER},
 	{"partition_fdt", EMBTYPE_FDT},
-	{"partition_fdt.app", EMBTYPE_FDT},  // fastboot application.bin (fdt format)
-	{"partition_fdt.fast", EMBTYPE_FDT}, // fastboot nvt-fastboot.bin (fdt format)
+	{"partition_fdt.app", EMBTYPE_FDTFAST},  // fastboot application.bin (fdt format)
+	{"partition_fdt.fast", EMBTYPE_FDTFAST}, // fastboot nvt-fastboot.bin (fdt format)
 	{"partition_teeos", EMBTYPE_TEEOS},
 	{"partition_uboot", EMBTYPE_UBOOT},
 	{"partition_uenv", EMBTYPE_UENV},
@@ -120,8 +133,48 @@ int nvt_chk_mtd_fdt_is_null(void)
 
 	nvt_dbg(IND, "%s: cmd:%s\n",__func__, command);
 	ret = run_command(command, 0);
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
+	}
+
+#if defined(CONFIG_ENCRYPT_DTS)
+	HEADINFO *headinfo = (HEADINFO *)tmp_model_ptr;
+	unsigned int fdt_real_size =  headinfo->BinLength;
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+	if (is_secure_enable() != 0) {
+		if (nvt_chk_signature_on_uboot((ulong)tmp_model_ptr, fdt_real_size)) {
+			nvt_dbg(ERR, "check fdt signature fail\n");
+			free((void *)tmp_model_ptr);
+			return -1;
+
+		}
+		ret = nvt_decrypt_aes_on_uboot((unsigned long)tmp_model_ptr);
+		if (ret < 0) {
+			nvt_dbg(ERR, "Decrypt fdt fail, ret = %d\r\n", ret);
+			free((void *)tmp_model_ptr);
+			return ret;
+		}
+	}
+#elif defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+	NVT_SMC_EFUSE_DATA efuse_data = {0};
+	efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
+	if (nvt_ivot_optee_efuse_operation(&efuse_data) != 0) {
+		if (nvt_chk_signature((ulong)tmp_model_ptr, fdt_real_size)) {
+			nvt_dbg(ERR, "check fdt signature fail\n");
+			free((void *)tmp_model_ptr);
+			return -1;
+
+		}
+		ret = nvt_decrypt_aes((unsigned long)tmp_model_ptr);
+		if (ret < 0) {
+			nvt_dbg(ERR, "Decrypt fdt fail, ret = %d\r\n", ret);
+			free((void *)tmp_model_ptr);
+			return ret;
+		}
+	}
+#endif /* CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
+	nvt_dbg(IND, "Verify encrypted dts PASS\r\n");
+#endif /* CONFIG_ENCRYPT_DTS */
 
 	ret = nvt_check_isfdt((unsigned long)tmp_model_ptr);
 	free(tmp_model_ptr);
@@ -275,7 +328,7 @@ void lz_uncompress(unsigned char *in, unsigned char *out, unsigned int insize)
 	while( inpos < insize );
 }
 
-int get_part_and_flash_type(const char *partname, loff_t *off, loff_t *maxsize, nvt_flash_type_t* flash_type)
+int get_part_and_flash_type(const char *partname, loff_t *off, loff_t *maxsize, nvt_flash_type_t *flash_type)
 {
 #if defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
 	char cmdline[1024] = {0}, nvtemmcpart[32] = {0};

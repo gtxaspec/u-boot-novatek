@@ -18,6 +18,19 @@
 #include <asm/nvt-common/modelext/bin_info.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/shm_info.h>
+#include <asm/nvt-common/nvt_ivot_optee.h>
+#include <asm/nvt-common/nvt_ivot_efuse_smc.h>
+#include <asm/nvt-common/nvt_ivot_sha_smc.h>
+#include <asm/nvt-common/nvt_ivot_rsa_smc.h>
+#include <asm/nvt-common/nvt_ivot_aes_smc.h>
+#include <asm/nvt-common/nvt_ivot_ecdsa_smc.h>
+#include <asm/arch/nvt_crypto.h>
+#include <asm/arch/nvt_rsa.h>
+#include <asm/arch/nvt_hash.h>
+#if defined(CONFIG_SIGNATUREMETHOD_ECDSA)
+#include <asm/arch/nvt_ecdsa.h>
+#endif
+#include <asm/arch/crypto.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/cache.h>
 #include <lzma/LzmaTools.h>
@@ -268,12 +281,6 @@ int nvt_boot_rtos_bin_auto(void)
 	strcpy(rtos_name, "rtos");
 #endif
 
-
-#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
-	unsigned int is_secure = 0;
-	is_secure = is_secure_enable();
-#endif
-
 	rtos_addr = nvt_memory_cfg[MEMTYPE_RTOS].addr;
 	rtos_size = nvt_memory_cfg[MEMTYPE_RTOS].size;
 
@@ -299,6 +306,68 @@ int nvt_boot_rtos_bin_auto(void)
 #endif
 		printf("=>run cmd : %s\n", cmd);
 		run_command(cmd, 0);
+#if defined(CONFIG_ENCRYPT_RTOS)
+		HEADINFO *headinfo = (HEADINFO *)rtos_addr;
+		unsigned int size =  headinfo->BinLength;
+		dram_addr = nvt_memory_cfg[MEMTYPE_DRAM].addr;
+		dram_size = nvt_memory_cfg[MEMTYPE_DRAM].size;
+#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
+                || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))
+		sprintf(cmd, "nand read 0x%lx %s 0x%lx ", rtos_addr, rtos_name, size);
+#elif defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR))
+		sprintf(cmd, "sf read 0x%lx 0x%llx 0x%lx ", rtos_addr, part_off, size);
+#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
+		sprintf(cmd, "mmc read 0x%lx 0x%llx 0x%lx", rtos_addr, part_off / MMC_MAX_BLOCK_LEN, size / MMC_MAX_BLOCK_LEN);
+#endif
+		printf("=>run cmd : %s\n", cmd);
+		run_command(cmd, 0);
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+		if (is_secure_enable() != 0) {
+			if (nvt_chk_signature_on_uboot((ulong)rtos_addr, size)) {
+				nvt_dbg(ERR, "check rtos signature fail\n");
+				return -1;
+
+			}
+			ret = nvt_decrypt_aes_on_uboot((unsigned long)rtos_addr);
+			if (ret < 0) {
+				nvt_dbg(ERR, "Decrypt rtos fail, ret = %d\r\n", ret);
+				return ret;
+			}
+		}
+#elif defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+		NVT_SMC_EFUSE_DATA efuse_data = {0};
+		efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
+		if (nvt_ivot_optee_efuse_operation(&efuse_data) != 0) {
+			if (nvt_chk_signature((ulong)rtos_addr, size)) {
+				nvt_dbg(ERR, "check rtos signature fail\n");
+				return -1;
+
+			}
+			ret = nvt_decrypt_aes((unsigned long)rtos_addr);
+			if (ret < 0) {
+				nvt_dbg(ERR, "Decrypt rtos fail, ret = %d\r\n", ret);
+				return ret;
+			}
+		}
+#endif /* CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
+		nvt_dbg(IND, "Verify encrypted rtos PASS\r\n");
+
+		NVTPACK_BFC_HDR *pbfc = (NVTPACK_BFC_HDR *)rtos_addr;
+		if (pbfc->uiFourCC == MAKEFOURCC('B', 'C', 'L', '1')) {
+			nvt_dbg(ERR, "secured-rtos only support to FW_TYPE=FW_TYPE_NORMAL\r\n");
+			return -1;
+		}
+		pbininfo = (BININFO *)(rtos_addr + BIN_INFO_OFFSET_RTOS);
+		if (pbininfo->head.Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN) {
+			nvt_dbg(ERR, "secured-rtos only support to FW_TYPE=FW_TYPE_NORMAL\r\n");
+			return -1;
+		}
+		//update LdLoadSize
+		p_shminfo->boot.LdLoadSize = size;
+		flush_dcache_range((ulong)p_shminfo, (ulong)p_shminfo + sizeof(SHMINFO));
+		pbininfo->head.Resv1[HEADINFO_RESV_IDX_DRAM_SIZE] = dram_size;
+		flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + rtos_size));
+#else /* !defined(CONFIG_ENCRYPT_RTOS) */
 		// Reading rtos image
 		NVTPACK_BFC_HDR *pbfc = (NVTPACK_BFC_HDR *)rtos_addr;
 		if (pbfc->uiFourCC == MAKEFOURCC('B', 'C', 'L', '1')) {
@@ -356,21 +425,9 @@ int nvt_boot_rtos_bin_auto(void)
 			unsigned long size;
 			dram_addr = nvt_memory_cfg[MEMTYPE_DRAM].addr;
 			dram_size = nvt_memory_cfg[MEMTYPE_DRAM].size;
-#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
-			if (is_secure == 0) {
-				pbininfo = (BININFO *)(rtos_addr + BIN_INFO_OFFSET_RTOS);
-				partload = pbininfo->head.Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN;
-				size = pbininfo->head.BinLength;
-			} else {
-				HEADINFO *info = (HEADINFO *)(rtos_addr);
-				partload = info->Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN;
-				size = info->BinLength;
-			}
-#else
 			pbininfo = (BININFO *)(rtos_addr + BIN_INFO_OFFSET_RTOS);
 			partload = pbininfo->head.Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN;
 			size = pbininfo->head.BinLength;
-#endif
 
 			printf("Non-compressed rtos\n");
 
@@ -437,13 +494,9 @@ int nvt_boot_rtos_bin_auto(void)
 			// fllush whole rtos memory to invalidate cache
 			flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + rtos_size));
 		}
-	}
-#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
-	if (is_secure) {
-		/* Decrypt Date */
-		nvt_decrypt_aes_on_uboot(rtos_addr);
-	}
 #endif
+	}
+
 
 	pCodeInfo = (char *)(rtos_addr + RTOS_CODEINFO_OFFSET);
 	pbininfo = (BININFO *)(rtos_addr + BIN_INFO_OFFSET_RTOS);

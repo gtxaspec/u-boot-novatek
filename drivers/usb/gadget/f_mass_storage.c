@@ -2225,14 +2225,16 @@ reset:
 
 	/* Enable the endpoints */
 	d = fsg_ep_desc(common->gadget,
-			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc);
+			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc, &fsg_ss_bulk_in_desc);
+//	d = &fsg_ss_bulk_in_desc;
 	rc = enable_endpoint(common, fsg->bulk_in, d);
 	if (rc)
 		goto reset;
 	fsg->bulk_in_enabled = 1;
 
 	d = fsg_ep_desc(common->gadget,
-			&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc);
+			&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc, &fsg_ss_bulk_out_desc);
+//	d = &fsg_ss_bulk_out_desc;
 	rc = enable_endpoint(common, fsg->bulk_out, d);
 	if (rc)
 		goto reset;
@@ -2659,6 +2661,8 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	int			i;
 	struct usb_ep		*ep;
+	unsigned max_burst;
+
 	fsg->gadget = gadget;
 
 	/* New interface */
@@ -2698,6 +2702,21 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 			return -ENOMEM;
 		}
 	}
+
+	/* Calculate bMaxBurst, we know packet size is 1024 */
+	max_burst = min_t(unsigned, 16384 / 1024, 15);
+
+	fsg_ss_bulk_in_desc.bEndpointAddress =
+		fsg_fs_bulk_in_desc.bEndpointAddress;
+	fsg_ss_bulk_in_comp_desc.bMaxBurst = max_burst;
+
+	fsg_ss_bulk_out_desc.bEndpointAddress =
+		fsg_fs_bulk_out_desc.bEndpointAddress;
+	fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
+
+
+	f->ss_descriptors = usb_copy_descriptors(fsg_ss_function);
+
 	return 0;
 
 autoconf_fail:

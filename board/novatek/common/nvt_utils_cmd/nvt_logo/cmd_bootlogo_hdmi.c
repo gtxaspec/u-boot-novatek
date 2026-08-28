@@ -17,6 +17,7 @@
 #include "asm/arch/lcd310.h"
 #include "asm/arch/lcd210.h"
 #include "asm/arch/hdmi_if.h"
+#include <cpu_func.h>
 
 
 #include "logo_hdmi.dat"   //jpg bitstream binary

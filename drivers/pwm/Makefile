@@ -19,6 +19,8 @@ ifneq ($(CONFIG_TARGET_NA51089)$(CONFIG_TARGET_NA51089_A64),)
 obj-$(CONFIG_PWM_NVT)		+= nvt_pwm.o nvt_pwm_na51089.o
 else ifneq ($(CONFIG_TARGET_NA51102)$(CONFIG_TARGET_NA51102_A64),)
 obj-$(CONFIG_PWM_NVT)		+= nvt_pwm.o nvt_pwm_na51102.o
+else ifneq ($(CONFIG_TARGET_NA51103)$(CONFIG_TARGET_NA51103_A64),)
+obj-$(CONFIG_PWM_NVT)		+= nvt_pwm.o nvt_pwm_na51103.o
 else ifneq ($(CONFIG_TARGET_NS02201)$(CONFIG_TARGET_NS02201_A64),)
 obj-$(CONFIG_PWM_NVT)		+= nvt_pwm.o nvt_pwm_ns02201.o
 else ifneq ($(CONFIG_TARGET_NS02301)$(CONFIG_TARGET_NS02301_A64),)

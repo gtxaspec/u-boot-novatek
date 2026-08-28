@@ -19,6 +19,8 @@ obj-$(CONFIG_SANDBOX) += sata_sandbox.o
 obj-$(CONFIG_AHCI_MVEBU) += ahci_mvebu.o
 obj-$(CONFIG_SUNXI_AHCI) += ahci_sunxi.o
 obj-$(CONFIG_MTK_AHCI) += mtk_ahci.o
-ifneq ($(CONFIG_TARGET_NS02201)$(CONFIG_TARGET_NS02201_A64),)
+ifneq ($(CONFIG_TARGET_NA51103)$(CONFIG_TARGET_NA51103_A64),)
+obj-$(CONFIG_AHCI_NVT) += ahci_nvt.o ahci_nvt_na51103.o
+else ifneq ($(CONFIG_TARGET_NS02201)$(CONFIG_TARGET_NS02201_A64),)
 obj-$(CONFIG_AHCI_NVT) += ahci_nvt.o ahci_nvt_ns02201.o
 endif

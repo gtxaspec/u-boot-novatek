@@ -22,14 +22,14 @@
 
 #include <usb/fotg330.h>
 
-#define DRV_VERSION                     "1.00.14"
+#define DRV_VERSION                     "1.00.17"
 
 // result of setup packet
 #define CX_IDLE		0
 #define CX_FINISH	1
 #define CX_STALL	       2
 
-#define CFG_NUM_ENDPOINTS       4
+#define CFG_NUM_ENDPOINTS       8
 #define CFG_EP0_MAX_PACKET_SIZE	64
 #define CFG_EPX_MAX_PACKET_SIZE	512
 
@@ -380,7 +380,7 @@ static void nvt_phyinit(void)
 	//u8 u3_trim_swctrl;
 
 	if(fotg330_dbg)
-		pr_info("690 usb3_u2u3phyinit\r\n");
+		printf("690 usb3_u2u3phyinit\r\n");
 
 	// Bank 0
 	USB3PHY_SETREG(0xFF, 0x00);
@@ -1020,11 +1020,11 @@ static void nvtim_init_usbhc(void)
 
 	tmpval = readl((volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x10));
 	//tmpval &= ~0x2;
-	tmpval &= ~(0x1 << 11);
+	tmpval &= ~(0x1 << 11); //unmask RXTERM_EN_MASK
 	tmpval |= (0x3 << 0); //VBUSVALID & dev mode
-	tmpval |= (0x8 << 0); //HS
-	tmpval &= ~((0x7 << 16) | (0x7 << 24) | (0x1 << 4));
-	tmpval |= ((0x4 << 16) | (0x4 << 24));
+	//tmpval |= (0x1 << 3); //HS
+	tmpval &= ~((0x7 << 16) | (0x7 << 24) | (0x1 << 4)); //Clear U3 RESET CTRL & U2 RESET CTRL & ELASTICITY_BUF_MODE
+	tmpval |= ((0x4 << 16) | (0x4 << 24)); //U3 RESET CTRL(CTL1) + U2 RESET CTRL(CTL1) +
 	writel(tmpval, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x10));
 
 	udelay(100);
@@ -1339,7 +1339,7 @@ static int config_ep(struct nvt_udc_ep *ep,
 {
 	struct fusb300_ep_info info;
 
-	printk(KERN_INFO "config_ep %d\n", ep->id);
+	//printf("config_ep %d\n", ep->id);
 	ep->ep.desc = desc;
 
 	info.interval = 0;
@@ -1374,8 +1374,9 @@ static int config_ep(struct nvt_udc_ep *ep,
 		else if(info.type == USB_ENDPOINT_XFER_BULK)
 			printf("--[BULKn");
 
-		printk(KERN_INFO "info.epnum %d\n",info.epnum);
+		printf("info.epnum %d\n",info.epnum);
 		printf("maxburst = [%d]--\n", ep->ep.maxburst);
+		printf("max packet = [%d]--\n", info.maxpacket);
 		//printf("mult = [%d]--\n", ep->ep.mult);
 	}
 
@@ -1525,10 +1526,9 @@ static void fusb300_wrcxf(struct nvt_udc_ep *ep,
 
 	tmp = req->req.buf + req->req.actual;
 
-	writel(0x0F0F0002, (volatile unsigned long *)(IOADDR_USB3CTRL_REG_BASE+0x14));
-
+	writel(0x0F0F0002, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x14));
 	if(fotg330_dbg)
-		printf("fusb300_wrcxf   req->req.actual = 0x%x\n",req->req.actual);
+		printf("fusb300_wrcxf length = 0x%x   req->req.actual = 0x%x\n",length,req->req.actual);
 #if 0
 	if (length > SS_CTL_MAX_PACKET_SIZE) {
 		fotg330_set_cxlen(SS_CTL_MAX_PACKET_SIZE);
@@ -1573,7 +1573,7 @@ static void fusb300_wrcxf(struct nvt_udc_ep *ep,
 		}
 		req->req.actual += length;
 	}
-	//writel(0x0F0F0003, (volatile unsigned long *)(IOADDR_USB3CTRL_REG_BASE+0x14));
+	//writel(0x0F0F0003, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x14));
 }
 
 
@@ -1603,6 +1603,12 @@ static void done(struct nvt_udc_ep *ep, struct nvt_udc_request *req,
 #endif
 		list_del_init(&req->queue);
 
+	/* don't modify queue heads during completion callback */
+	//if (ep->fusb300->gadget.speed == USB_SPEED_UNKNOWN)
+	//	req->req.status = -ESHUTDOWN;
+	//else
+		req->req.status = status;
+
 	if(req->req.complete != NULL) {
 		req->req.complete(&ep->ep, &req->req);
 	}
@@ -1623,6 +1629,7 @@ static u32 fusb330_rdcxf(u8 *buffer, u32 length)
 	u32 data;
 
 	//printf("fusb330_rdcxf len =%d\n",length);
+//#if 0
 	do{
 		data = readl((volatile unsigned long *)(IOADDR_USB3_DEVMODE_BASE+FUSB300_OFFSET_CSR));	
 		//data = (data >>8)&0xFFFF;
@@ -1637,8 +1644,8 @@ static u32 fusb330_rdcxf(u8 *buffer, u32 length)
 		length = data;
 		//printf("fusb330_rdcxf len reset to =0x%x\n",data);
 	}
-
-	writel(0x0F0F0002, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x14));
+//#endif
+	//writel(0x0F0F0002, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x14));
 	
 	tmp = buffer;
 
@@ -1676,7 +1683,7 @@ static u32 fusb330_rdcxf(u8 *buffer, u32 length)
 		break;
 	}
 
-	writel(0x0F0F0003, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x14));
+	//writel(0x0F0F0003, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x14));
 	return length;
 }
 
@@ -1911,7 +1918,16 @@ static void pullup(struct nvt_udc_chip *chip, int is_on)
 	if (is_on) {
 		if(fotg330_dbg)
 			printf("pullup ON\n");
+#if 0
+		while(1){
+			tmpval = readl((volatile void __iomem *)(IOADDR_GPIO_REG_BASE+0xC));
+			printf("GPIO = 0x%lx\n",tmpval);
+			mdelay(500);
 
+			if((tmpval&0x10)==0x0)
+				break;
+		}
+#endif
 		tmpval = readl((volatile unsigned long *)(IOADDR_USB3_DEVMODE_BASE+FUSB300_OFFSET_EFCS));
 		tmpval &= 0xFFFFF000;
 		tmpval |= 0x200;//plug
@@ -1973,7 +1989,8 @@ static struct nvt_udc_chip ext_controller3 = {
 		.name = "nvt_udc",
 		.ops = &nvt_udc_gadget_ops,
 		.ep0 = &ext_controller3.ep[0].ep,
-		.speed = USB_SPEED_HIGH,
+		.speed = USB_SPEED_SUPER,
+		.max_speed = USB_SPEED_SUPER,
 		.is_dualspeed = 1,
 		.is_otg = 0,
 		.is_a_peripheral = 0,
@@ -2075,6 +2092,7 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 						fusb330_clr_seqnum(i);
 				}
 				ret = CX_IDLE;
+				fusb300_set_cxdone();
 				break;
 
 			case USB_REQ_SET_ADDRESS:
@@ -2092,8 +2110,11 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 				break;
 
 			case USB_REQ_SET_FEATURE:
-				printf("nvt_udc: set_feature(%d, %d)\n",
+				if(fotg330_dbg)
+					printf("nvt_udc: set_feature(%d, %d)\n",
 						req->wValue, req->wIndex & 0xf);
+				ret = CX_FINISH;
+				fusb300_set_cxdone();
 				break;
 
 			case USB_REQ_GET_STATUS:
@@ -2120,9 +2141,23 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 			ret = CX_FINISH;
 	}
 
+	//if(req->bRequest == 255)
+	//{
+	//	printf("nvt_udc: 255\n");
+	//	fusb300_set_cxdone();
+	//}
+
+	if(req->bRequest == USB_REQ_CLEAR_FEATURE)
+	{
+		ret = CX_FINISH;
+		fusb300_set_cxdone();
+	}
+
 	switch (ret) {
 		case CX_FINISH:
-			fusb300_set_cxdone();
+			if(fotg330_dbg)
+				printf("nvt_udc: CX_FINISHCX_FINISHCX_FINISH\n");
+			//fusb300_set_cxdone();
 			break;
 
 		case CX_STALL:
@@ -2411,6 +2446,33 @@ static void out_ep_fifo_handler(u32 epnum, struct nvt_udc_ep *ep)
 	}
 }
 
+#if 1
+static void check_device_mode(struct nvt_udc_chip *chip)
+{
+	u32 reg = readl(IOADDR_USB3_DEVMODE_BASE + FUSB300_OFFSET_GCR);
+
+	switch (reg & FUSB300_GCR_DEVEN_MSK) {
+	case FUSB300_GCR_DEVEN_SS:
+		chip->gadget.speed = USB_SPEED_SUPER;
+		printf("dev_mode = SS\n");
+		break;
+	case FUSB300_GCR_DEVEN_HS:
+		chip->gadget.speed = USB_SPEED_HIGH;
+		printf("dev_mode = HS\n");
+		break;
+	case FUSB300_GCR_DEVEN_FS:
+		chip->gadget.speed = USB_SPEED_FULL;
+		printf("dev_mode = FS\n");
+		break;
+	default:
+		chip->gadget.speed = USB_SPEED_UNKNOWN;
+		printk(KERN_INFO "dev_mode = UNKNOWN\n");
+		break;
+	}
+	//printk(KERN_INFO "dev_mode = %d\n", (reg & FUSB300_GCR_DEVEN_MSK));
+}
+#endif
+
 int usb_gadget_handle_interrupts(int index)
 {
 	struct nvt_udc_chip *chip = &ext_controller3;
@@ -2490,6 +2552,12 @@ int usb_gadget_handle_interrupts(int index)
 	if (int_grp1 & FUSB300_IGR1_SUSP_INT) {
 		if(fotg330_dbg)
 			printf(" FUSB300_IGR1_SUSP_INT\n");
+	}
+
+	if (int_grp1 & FUSB300_IGR1_DEV_MODE_CHG_INT) {
+		if(fotg330_dbg)
+			printf(" FUSB300_IGR1_DEV_MODE_CHG_INT\n");
+		check_device_mode(chip);
 	}
 
 	if (int_grp1 & FUSB300_IGR1_CX_SETUP_INT) {

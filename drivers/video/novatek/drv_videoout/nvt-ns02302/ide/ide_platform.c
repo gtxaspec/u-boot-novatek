@@ -3,6 +3,7 @@
 #include "./include/ide2_int.h"
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
+#include <asm/nvt-common/rcw_macro_bit.h>
 
 #define INREG32(x)          			(*((volatile UINT32*)(x)))
 #define OUTREG32(x, y)      			(*((volatile UINT32*)(x)) = (y))    ///< Write 32bits IO register
@@ -291,18 +292,21 @@ ER pll_set_pll_enable(PLL_ID id, BOOL b_enable)
 		return E_ID;
 	}
 
-	pll_en_reg.reg = PLL_STBC_GETREG(PLL_PLL_PWREN_REG_OFS);
+	pll_en_reg.reg = readl(IOADDR_STBC_CG_REG_BASE);
+	//printf("PLL_PLL_PWREN_REG_OFS = 0x%x\n", pll_en_reg.reg);
+
 	if (b_enable) {
 		pll_en_reg.reg |= 1 << id;
 	} else {
 		pll_en_reg.reg &= ~(1 << id);
 	}
-	PLL_STBC_SETREG(PLL_PLL_PWREN_REG_OFS, pll_en_reg.reg);
+	writel(pll_en_reg.reg, IOADDR_STBC_CG_REG_BASE);
 
 	if (b_enable) {
 		// Wait PLL power is powered on
 		while (1) {
-			pll_status_reg.reg = PLL_STBC_GETREG(PLL_PLL_STATUS_REG_OFS);
+			pll_status_reg.reg = readl(IOADDR_STBC_CG_REG_BASE+4);
+			//printf("IOADDR_STBC_CG_REG_BASE = 0x%x\n", pll_status_reg.reg);
 			if (pll_status_reg.reg & (1 << id)) {
 				break;
 			}

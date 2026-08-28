@@ -158,6 +158,7 @@ _NVTPACK_EXTERN_C NVTPACK_ER nvtpack_check_partition(EMB_PARTITION pemb, NVTPACK
 		case EMBTYPE_TEEOS:
 		case EMBTYPE_AI:
 		case EMBTYPE_ATF:
+		case EMBTYPE_FDTFAST:
 			break;
 		default:
 			if(!pemb.FileExist)

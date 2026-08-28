@@ -321,6 +321,13 @@
 #define HS_INT_MAX_PACKET_SIZE         0x400
 #define HS_ISO_MAX_PACKET_SIZE         0x400
 
+#define FUSB300_GCR_DEVEN_FS		0x3
+#define FUSB300_GCR_DEVEN_HS		0x2
+#define FUSB300_GCR_DEVEN_SS		0x1
+#define FUSB300_GCR_DEVDIS		0x0
+#define FUSB300_GCR_DEVEN_MSK		0x3
+
+
 
 struct fusb300_ep_info {
        u8      epnum;

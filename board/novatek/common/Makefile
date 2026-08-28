@@ -24,7 +24,14 @@ obj-$(CONFIG_NVT_IVOT_RSA_CMD) += nvt_utils_cmd/nvt_ivot_rsa_cmd.o
 obj-$(CONFIG_NVT_IVOT_ECDSA_CMD) += nvt_utils_cmd/nvt_ivot_ecdsa_cmd.o
 obj-$(CONFIG_NVT_IVOT_EFUSE_CMD) += nvt_utils_cmd/nvt_ivot_otp_cmd.o
 obj-$(CONFIG_NVT_IVOT_TZPC_SUPPORT) += nvt_utils_cmd/tzpc/nvt_ivot_tzpc_utils.o	nvt_utils_cmd/tzpc/nvt_ivot_protected.o
+
+ifeq ($(CONFIG_TARGET_NA51090_A64),y)
+obj-$(CONFIG_VIDEO_LOGO) += nvt_utils_cmd/nvt_logo/cmd_bootlogo_hdmi.o
+else ifeq ($(CONFIG_TARGET_NA51103)$(CONFIG_TARGET_NA51103_A64),y)
+obj-$(CONFIG_VIDEO_LOGO) += nvt_utils_cmd/nvt_logo/cmd_bootlogo_hdmi.o
+else
 obj-$(CONFIG_VIDEO_LOGO) += nvt_utils_cmd/nvt_logo/cmd_bootlogo.o
+endif
 
 obj-$(CONFIG_NVT_PCIE_DAUGHTER_BRD) += nvt_pcie_boot_utils.o
 obj-$(CONFIG_NVT_SWITCH_SECURE) += nvt_utils_cmd/nvt_switch_secure_cmd.o

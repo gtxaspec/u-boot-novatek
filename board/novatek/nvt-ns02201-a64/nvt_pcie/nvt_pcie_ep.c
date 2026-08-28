@@ -12,6 +12,7 @@
 #include <dm.h>
 //#include <dm/uclass.h>
 #include <linux/delay.h>
+#include <console.h>
 
 //#include "nvt_pcie_fdt.h"
 
@@ -79,7 +80,8 @@ static void pcie_set_atu(void)
 #define RECVRY_EQ0	0x20
 #define RECVRY_EQ1	0x21
 
-#define FOURCC_BOOT 0x544F4F42
+#define PCIE_STATUS_DRAM_DONE	0x5944524C
+#define FOURCC_BOOT		0x544F4F42
 static int utl_pcie_ep_load(void)
 {
 	u16	calc_sum = 0;
@@ -94,13 +96,14 @@ static int utl_pcie_ep_load(void)
 	// Enable link training (Start LTSSM)
 	writel(0x35, PCIE_TOP_REG_BASE+0x304);
 
+	volatile unsigned int *p_comm_reg = (volatile unsigned int *)CC_RC_EP_BOOT_COMM_REG;
+	writel(PCIE_STATUS_DRAM_DONE, CC_RC_EP_BOOT_COMM_REG);
 	// Never break loop
 	while (1) {
 		u32 reg;
 		u32 curr_ltssm;
-		volatile unsigned int *p_comm_reg = (volatile unsigned int *)CC_RC_EP_BOOT_COMM_REG;
 
-		if (*p_comm_reg == FOURCC_BOOT) break;
+		if (PCIE_STATUS_DRAM_DONE != readl(CC_RC_EP_BOOT_COMM_REG)) break;
 
 		reg = readl(PCIE_TOP_REG_BASE+0x08);
 		curr_ltssm = (reg>>4) & 0x3F;
@@ -120,10 +123,14 @@ static int utl_pcie_ep_load(void)
 		}
 
 		last_ltssm = curr_ltssm;
+
+		if (ctrlc()) {
+			puts("Abort\n");
+			return -1;
+		}
 	}
 
 	printf("%s: get RC continue command\r\n", __func__);
-
 	return 0;
 }
 
@@ -224,11 +231,15 @@ static int config_pcie_ep(void) {
 	printf("%s: define BAR0 %d\r\n", __func__, BAR0_SIZE);
 	if (BAR0_SIZE > 13) BAR0_SIZE = 5;	// default 32 MB
 #endif
+	writel(0xFF0, PCIE_DBI_REG_BASE+0x2F0);
 	val = readl(PCIE_DBI_REG_BASE+0x2F4);	// RESBAR_CTRL_REG_0_REG
 	val &= ~(0x3F<<8);
 	val |= (BAR0_SIZE<<8);		// 2^8 MB => 32MB
 	writel(val, PCIE_DBI_REG_BASE+0x2F4);
-	writel(0xFF0, PCIE_DBI_REG_BASE+0x2F0);
+	printf("%s: RESBAR_CTRL_REG_0_REG %x\n",__func__, readl(PCIE_DBI_REG_BASE+0x2F4));
+	val = readl(PCIE_TOP_REG_BASE + 0x4);
+	val |= 1<<28;
+	writel(val, PCIE_TOP_REG_BASE + 0x4);
 
 #if defined(CONFIG_NVT_PCIE_EP_VENDOR_ID)
 	PCIE_VENDOR_ID = CONFIG_NVT_PCIE_EP_VENDOR_ID;
@@ -306,8 +317,14 @@ static int config_pcie_ep(void) {
 	// 5. phy settings
 //	pcie_phy_settings();
 
-	utl_pcie_ep_load();
-	printf("%s: end\r\n", __func__);
+	if (utl_pcie_ep_load())
+		return -1;
+	printf("%s: end, start to boot EP\r\n", __func__);
+
+	/* Start to Boot up EP */
+	run_command("nvt_pcie", 0);
+
+	return 0;
 }
 
 

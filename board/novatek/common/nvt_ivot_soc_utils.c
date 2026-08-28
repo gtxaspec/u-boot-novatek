@@ -888,6 +888,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 
 		switch (p->EmbType) {
 			case EMBTYPE_FDT:
+			case EMBTYPE_FDTFAST:
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						if (p->OrderIdx == 0) {
@@ -1205,6 +1206,7 @@ static int nvt_on_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_me
 		printf("RUNFW: Ignore T.bin loader\n");
 		break;
 	case EMBTYPE_FDT:
+	case EMBTYPE_FDTFAST:
 		/**
 		 * for some all-in-one bin, there are many bin with fdt format in it.
 		 * Only system fdt (nvt-evb.bin) need to copy to nvt_fdt_buffer
@@ -1357,6 +1359,7 @@ static int nvt_runfw_bin_unpack_to_dest(ulong addr)
 		if (pEmb[i].PartitionSize != 0) {
 			switch (pEmb[i].EmbType) {
 			case EMBTYPE_FDT:
+			case EMBTYPE_FDTFAST:
 			case EMBTYPE_UBOOT:
 			case EMBTYPE_LINUX:
 #ifdef NVT_LINUX_RAMDISK_SUPPORT
@@ -1693,9 +1696,24 @@ static int nvt_boot_linux_bin_auto(void)
 #ifdef CONFIG_ENCRYPT_KERNEL
 	if (is_secure != 0) {
 #ifdef CONFIG_NVT_IVOT_SECBOOT_SUPPORT
+#ifdef CONFIG_CHECK_SIGNATURE_BEFORE_BOOT
+		if(nvt_chk_signature_on_uboot((ulong)nvt_ker_img_addr, size)) {
+			printf("check signature fail\n");
+			return -1;
+		}
+#endif /* CONFIG_CHECK_SIGNATURE_BEFORE_BOOT */
+
 		/* Decrypt Date */
 		ret = nvt_decrypt_aes_on_uboot(nvt_ker_img_addr);
 #elif defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+#ifdef CONFIG_CHECK_SIGNATURE_BEFORE_BOOT
+		if(nvt_chk_signature((ulong)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, size)) {
+			printf("check signature fail\n");
+			return -1;
+		}
+#endif /* CONFIG_CHECK_SIGNATURE_BEFORE_BOOT */
+
+		/* Decrypt Date */
 		ret = nvt_decrypt_aes((unsigned long)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr);
 #endif
 		if (ret < 0) {

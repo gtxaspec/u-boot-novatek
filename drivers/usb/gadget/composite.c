@@ -1071,8 +1071,13 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 		case USB_DT_CONFIG:
 			value = config_desc(cdev, w_value);
-			if (value >= 0)
-				value = min(w_length, (u16) value);
+
+			//if (gadget->speed >= USB_SPEED_SUPER){
+				if (value >= 0)
+			//		value = min(w_value, (u16) value);
+			//} else {
+					value = min(w_length, (u16) value);
+			//}
 			break;
 		case USB_DT_STRING:
 			value = get_string(cdev, req->buf,

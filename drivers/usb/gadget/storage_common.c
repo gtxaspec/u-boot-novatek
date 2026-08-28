@@ -310,7 +310,9 @@ static struct fsg_lun *fsg_lun_from_dev(struct device *dev)
 #define FSG_NUM_BUFFERS	2
 
 /* Default size of buffer length. */
-#define FSG_BUFLEN	((u32)131072)
+//#define FSG_BUFLEN	((u32)131072)
+#define FSG_BUFLEN	((u32)524288)
+
 
 /* Maximal number of LUNs supported in mass storage function */
 #define FSG_MAX_LUNS	8
@@ -534,8 +536,10 @@ static struct usb_descriptor_header *fsg_hs_function[] = {
 /* Maxpacket and other transfer characteristics vary by speed. */
 static struct usb_endpoint_descriptor *
 fsg_ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
-		struct usb_endpoint_descriptor *hs)
+		struct usb_endpoint_descriptor *hs, struct usb_endpoint_descriptor *ss)
 {
+	if(g->speed >= USB_SPEED_SUPER)
+		return ss;
 	if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
 		return hs;
 	return fs;
@@ -559,6 +563,51 @@ static struct usb_gadget_strings	fsg_stringtab = {
 };
 
 /*-------------------------------------------------------------------------*/
+
+struct usb_endpoint_descriptor fsg_ss_bulk_in_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	/* bEndpointAddress copied from fs_bulk_in_desc during fsg_bind() */
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+struct usb_ss_ep_comp_descriptor fsg_ss_bulk_in_comp_desc = {
+	.bLength =		sizeof(fsg_ss_bulk_in_comp_desc),
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	/*.bMaxBurst =		DYNAMIC, */
+};
+
+
+struct usb_endpoint_descriptor fsg_ss_bulk_out_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	/* bEndpointAddress copied from fs_bulk_out_desc during fsg_bind() */
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+struct usb_ss_ep_comp_descriptor fsg_ss_bulk_out_comp_desc = {
+	.bLength =		sizeof(fsg_ss_bulk_in_comp_desc),
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	/*.bMaxBurst =		DYNAMIC, */
+};
+
+struct usb_descriptor_header *fsg_ss_function[] = {
+	(struct usb_descriptor_header *) &fsg_intf_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_in_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_in_comp_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_out_desc,
+	(struct usb_descriptor_header *) &fsg_ss_bulk_out_comp_desc,
+	NULL,
+};
+
+
+ /*-------------------------------------------------------------------------*/
 
 /*
  * If the next two routines are called while the gadget is registered,
