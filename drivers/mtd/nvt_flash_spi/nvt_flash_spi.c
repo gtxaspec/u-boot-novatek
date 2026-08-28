@@ -13,6 +13,9 @@
 #include "nvt_flash_spi_reg.h"
 #include <cpu_func.h>
 #include <asm/nvt-common/nvt_reg.h>
+#if defined(CONFIG_TARGET_NS02501)
+#include <asm/arch/pad.h>
+#endif
 
 /*
 	Configure nand host transfer register
@@ -709,6 +712,22 @@ void nand_phy_config(struct drv_nand_dev_info *info)
 				phy_dly2.Bit.OUTDLY_SEL = 0;
 			}
 		}
+	} else if (chip_id == CHIP_NS02501) {
+		phy_dly.Bit.PHY_SRC_CLK_SEL = 0;
+		phy_dly.Bit.PHY_PAD_CLK_SEL = 1;
+		if (info->ops_freq >= 120000000) {
+			phy_dly2.Bit.OUTDLY_SEL = 3;
+			phy_dly2.Bit.INDLY_SEL = 0x28;
+			printf("nand dll lv2 \n");
+		} else if (info->ops_freq >= 48000000) {
+			phy_dly2.Bit.OUTDLY_SEL = 3;
+			phy_dly2.Bit.INDLY_SEL = 0x0;
+			printf("nand dll lv1 \n");
+		} else {	// ops_freq < 48M
+			phy_dly2.Bit.OUTDLY_SEL = 0;
+			phy_dly2.Bit.INDLY_SEL = 0x0;
+			printf("nand dll lv0 \n");
+		}
 	} else {
 		phy_dly.Bit.PHY_SRC_CLK_SEL = 0;
 		phy_dly.Bit.PHY_PAD_CLK_SEL = 1;
@@ -913,7 +932,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 			NAND_DBG_GLOBAL("dbg cgpio: 0x%x\r\n", reg);
 		}
 	} else if (info->chip_id == CHIP_NS02501) {
-		printf("%s: 533 pinctrl.h is not ready, fix 4-bit mode for fpga emulation \r\n", __func__);
+		#if !defined(CONFIG_PINCTRL_NS02501)
 		reg &= ~(0x3<<12);
 		reg |= (0x1<<12);
 		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
@@ -922,6 +941,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		reg &= ~(0x0000140F);
 		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
 		NAND_DBG_GLOBAL("dbg cgpio: 0x%x\r\n", reg);
+		#endif
 	} else {
 		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
 			flash_pinmux |= (1 << 2);
@@ -1213,12 +1233,46 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		OUTW(IOADDR_PAD_REG_BASE + 0x40, reg);
 		NAND_DBG_GLOBAL("dbg pad driving: 0x%x \n", reg);
 	} else if (info->chip_id == CHIP_NS02501) {
+#if defined(CONFIG_TARGET_NS02501)
+#if defined(CONFIG_PINCTRL_NS02501)
+		if (freq >= 120000000) {
+			pad_set_drivingsink(PAD_DS_CGPIO0,  PAD_DRIVINGSINK_LEVEL_2);
+			pad_set_drivingsink(PAD_DS_CGPIO1,  PAD_DRIVINGSINK_LEVEL_2);
+			pad_set_drivingsink(PAD_DS_CGPIO2,  PAD_DRIVINGSINK_LEVEL_2);
+			pad_set_drivingsink(PAD_DS_CGPIO3,  PAD_DRIVINGSINK_LEVEL_2);
+			pad_set_drivingsink(PAD_DS_CGPIO10, PAD_DRIVINGSINK_LEVEL_3);	// clk
+			pad_set_drivingsink(PAD_DS_CGPIO12, PAD_DRIVINGSINK_LEVEL_2);	// cs0
+			if ((fdt_pinmux&0x3) == 0x2) {	// octal, D4~D7
+				pad_set_drivingsink(PAD_DS_CGPIO4,  PAD_DRIVINGSINK_LEVEL_2);
+				pad_set_drivingsink(PAD_DS_CGPIO5,  PAD_DRIVINGSINK_LEVEL_2);
+				pad_set_drivingsink(PAD_DS_CGPIO6,  PAD_DRIVINGSINK_LEVEL_2);
+				pad_set_drivingsink(PAD_DS_CGPIO7,  PAD_DRIVINGSINK_LEVEL_2);
+			}
+		} else {
+			pad_set_drivingsink(PAD_DS_CGPIO0,  PAD_DRIVINGSINK_LEVEL_1);
+			pad_set_drivingsink(PAD_DS_CGPIO1,  PAD_DRIVINGSINK_LEVEL_1);
+			pad_set_drivingsink(PAD_DS_CGPIO2,  PAD_DRIVINGSINK_LEVEL_1);
+			pad_set_drivingsink(PAD_DS_CGPIO3,  PAD_DRIVINGSINK_LEVEL_1);
+			pad_set_drivingsink(PAD_DS_CGPIO10, PAD_DRIVINGSINK_LEVEL_2);	// clk
+			pad_set_drivingsink(PAD_DS_CGPIO12, PAD_DRIVINGSINK_LEVEL_1);	// cs0
+			if ((fdt_pinmux&0x3) == 0x2) {	// octal, D4~D7
+				pad_set_drivingsink(PAD_DS_CGPIO4,  PAD_DRIVINGSINK_LEVEL_1);
+				pad_set_drivingsink(PAD_DS_CGPIO5,  PAD_DRIVINGSINK_LEVEL_1);
+				pad_set_drivingsink(PAD_DS_CGPIO6,  PAD_DRIVINGSINK_LEVEL_1);
+				pad_set_drivingsink(PAD_DS_CGPIO7,  PAD_DRIVINGSINK_LEVEL_1);
+			}
+		}
+#else
 		OUTW(IOADDR_PAD_REG_BASE + 0x50, 0x33333333);// D7 ~ D0
 		reg = INW(IOADDR_PAD_REG_BASE + 0x54);
 		reg &= ~(0xF0F00);	// cs0/clk
 		reg |= 0x30500;
 		OUTW(IOADDR_PAD_REG_BASE + 0x54, reg);
-		printf("flash driving: clk lv5, other lv3 (best setting: TBD)\n");
+		printf("CONFIG_PINCTRL is not enabled, fix driving: clk lv5 / io lv3\r\n");
+#endif
+#endif
+		NAND_DBG_GLOBAL("pad 0x50: 0x%08x\n", INW(IOADDR_PAD_REG_BASE + 0x50));
+		NAND_DBG_GLOBAL("pad 0x54: 0x%08x\n", INW(IOADDR_PAD_REG_BASE + 0x54));
 	} else {
 		/* Release SRAM */
 		printf("Release sram: skip (TODO)\r\n");
@@ -1758,6 +1812,10 @@ int nand_host_create_edge_detect_pattern(struct drv_nand_dev_info *info, NAND_TY
 
 		// read back & verify pattern
 		rBuf = info->data_buff;
+		if (rBuf == NULL) {
+			printf("Error: data_buff is NULL\r\n");
+			return -1;
+		}
 
 		nand_cmd_read_operation(info, rBuf, pattern_addr, 1);
 		NAND_AUTOK_DBG(info, "rBuf: %p\r\n", rBuf);

@@ -516,6 +516,7 @@ void nvt_ddr_scan(void)
 	u32 iLibDRAMVersion;
 	int	 YY,MM,DD,VER;
 	int	 LD_MJ, LD_MIN, VER_Fix;
+	u32 offset;
 
 	iLibVersion = *(UINT32 *)(ddr_scan + (0x74/4));		//0x74
 	iLibDRAMVersion = *(UINT32 *)(ddr_scan + (0x78/4));	//0x78
@@ -531,16 +532,19 @@ void nvt_ddr_scan(void)
 	printf("DR[%d-%d-%d-%d]:", YY, MM, DD, VER);
 	printf("LD[%d.%d.%d]", LD_MJ, LD_MIN, VER_Fix);
 	void (*image_entry)(void) = NULL;
-	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
 
-
-	memcpy_toio((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
-	printf("->done\n");
 	flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
 	printf("flush->");
-	invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
+	// invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	//flush_dcache_all();
 	dcache_disable();
+
+	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
+	for(offset = 0; offset < sizeof(ddr_scan); offset+=4) {
+		*(volatile unsigned int*)(JUMP_ADDR + offset) = ddr_scan[offset/4];
+	}
+	printf("->done\n");
+
 	printf("done\r\n");
 	printf("Jump into sram\n");
 	image_entry = (LDR_GENERIC_CB)(*((unsigned long*)JUMP_ADDR));
