@@ -400,9 +400,15 @@ struct nvt_udc_ext_regs {
 #define FIFOCSR_BYTES(x)       ((x) & 0x7ff) /* Length(bytes) for OUT-EP/FIFO */
 
 /* DMA Target FIFO Register */
+#if defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+#define DMAFIFO_CX_NO       0x4
+#define DMAFIFO_CX          (1 << 4) /* DMA FIFO = CX FIFO */
+#define DMAFIFO_FIFO(x)     (1 << ((x) & 0x1f)) /* DMA FIFO = FIFOx */
+#else
 #define DMAFIFO_CX_NO       0x10
 #define DMAFIFO_CX          (1 << 16) /* DMA FIFO = CX FIFO */
 #define DMAFIFO_FIFO(x)     (1 << ((x) & 0x1f)) /* DMA FIFO = FIFOx */
+#endif
 
 /* DMA Control Register */
 #define DMACTRL_LEN(x)      (((x) & 0x1ffff) << 8) /* DMA length (Bytes) */
@@ -448,6 +454,14 @@ struct nvt_udc_ext_regs {
 #define USB_SRAM_SD_OFS 0x1000
 #define USB_SRAM_SD_BIT 19
 #define USB_PHYTOP_REG_OFS 0x400
+
+#elif defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+/* NA51103 */
+#define USB_CG_RST_OFS 0x98
+#define USB_RST_BIT    (0x1<<15)
+#define USB_SRAM_SD_OFS 0x1000
+#define USB_SRAM_SD_BIT 7
+#define USB_PHYTOP_REG_OFS 0x1D8
 
 #else
 #endif

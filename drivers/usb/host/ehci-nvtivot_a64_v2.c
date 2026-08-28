@@ -38,7 +38,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.07"
+#define DRV_VERSION                     "1.00.09"
 
 static REGVALUE usb_getreg(unsigned long usbbase, unsigned long offset)
 {
@@ -60,6 +60,14 @@ static void nvtim_set_gpio_power(int index)
 
 	if (index) {
 		//for two controller case
+		#if defined(NVT_ECHI_2ND_CTRL)
+#if defined(CONFIG_ARM64)
+		sprintf(path,"/usb20host@2,%lx",(IOADDR_USB2_REG_BASE & 0xFFFFFFFF));
+#else
+		sprintf(path,"/usb20host@%x",(IOADDR_USB2_REG_BASE & 0xFFFFFFFF));
+#endif
+		#endif
+
 	} else {
 #if defined(CONFIG_ARM64)
 		sprintf(path,"/usb20host@2,%lx",(IOADDR_USB_REG_BASE & 0xFFFFFFFF));
@@ -131,6 +139,47 @@ static void nvtim_init_usbhc(int index)
 
 	if (index) {
 		//for two controller case
+		#if defined(NVT_ECHI_2ND_CTRL)
+		usbbase = IOADDR_USB2_REG_BASE;
+
+		printf("%s %d: controller 1\n", __FUNCTION__, __LINE__);
+		/* Enable Reset */
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		tmpval &= ~(0x1<<CG_U2_1_RST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+
+		udelay(10);
+
+		/* Disable Reset */
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		tmpval |= 0x1<<CG_U2_1_RST_BIT;
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+
+		/* Release sram shutdown */
+		tmpval = readl((volatile unsigned long *)(IOADDR_TOP_REG_BASE+TOP_U2_1_SRAMSD));
+		tmpval &= ~(0x1<<TOP_U2_1_SRAMSD_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_TOP_REG_BASE+TOP_U2_1_SRAMSD));
+
+	#if defined(CG_U2_1_EN)
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_EN));
+		tmpval |= (0x1<<CG_U2_1_EN_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_EN));
+	#endif
+
+	#if defined(CG_U2_1_PHYRST)
+		// enable phy reset
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE + CG_U2_1_PHYRST));
+		tmpval &= ~(0x1 << CG_U2_1_PHYRST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE + CG_U2_1_PHYRST));
+
+		udelay(10);
+
+		// disable phy reset
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE + CG_U2_1_PHYRST));
+		tmpval |= (0x1 << CG_U2_1_PHYRST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE + CG_U2_1_PHYRST));
+	#endif
+		#endif
 	} else {
 		usbbase = IOADDR_USB_REG_BASE;
 
@@ -476,8 +525,86 @@ static void nvtim_init_usbhc(int index)
 		// r45 cali unlock
 		U2PHY_SETREG(MAP_PHY(0x144), 0x00);
 	}
+#elif defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+	{
+		u8 u2_trim_swctrl=4, u2_trim_sqsel=4, u2_trim_resint=8;
+		u32 trim;
+		int code;
+		bool is_found;
+
+		// get trim value of usb column
+		code = otp_key_manager(OTP_USB_SET1_TRIM_FIELD);
+		if(code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read USB trim error\r\n");
+		} else {
+			// check if usb trim value is valid
+			is_found = extract_2_set_type_trim_valid(TRIM_USB_FIELD, code, (u32 *)&trim);
+			if(is_found) {
+				if ((TRIM_RESINT_LOWER <= trim) && (trim <= TRIM_RESINT_UPPER)) {
+					u2_trim_resint = trim;
+					printf("is found [%d][%d][USB] = 0x%04x\r\n", is_found, OTP_USB_SET1_TRIM_FIELD, (int)trim);
+					printf("        => 12K_resistor[0x%04x]\r\n", (int)u2_trim_resint);
+				} else {
+					printf("data is out of valid range\n");
+				}
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][ USB] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		if (index)
+			usbbase = IOADDR_USB2PHY_REG_BASE;
+		else
+			usbbase = IOADDR_USBPHY_REG_BASE;
+		writel(0x20, (volatile unsigned long *)(usbbase+USB_PHYCTRL51_REG_OFS));
+		writel(0x30, (volatile unsigned long *)(usbbase+USB_PHYCTRL50_REG_OFS));
+		writel(0x60 + u2_trim_resint, (volatile unsigned long *)(usbbase+USB_PHYCTRL52_REG_OFS));
+		mdelay(5);
+		writel(0x00, (volatile unsigned long *)(usbbase+USB_PHYCTRL51_REG_OFS));
+		mdelay(5);
+
+		tmpval = readl((volatile unsigned long *)(usbbase+USB_PHYCTRL06_REG_OFS));
+		tmpval &= ~(0x7 << 1);
+		tmpval |= (u2_trim_swctrl << 0x1);
+		writel(tmpval, (volatile unsigned long *)(usbbase+USB_PHYCTRL06_REG_OFS));
+
+		tmpval = readl((volatile unsigned long *)(usbbase+USB_PHYCTRL05_REG_OFS));
+		tmpval &= ~(0x7 << 0x2);
+		tmpval |= (u2_trim_sqsel << 0x2);
+		writel(tmpval, (volatile unsigned long *)(usbbase+USB_PHYCTRL05_REG_OFS));
+
+
+		if (index)
+			usbbase = IOADDR_USB2_REG_BASE;
+		else
+			usbbase = IOADDR_USB_REG_BASE;
+
+		tmpval = readl((volatile unsigned long *)(usbbase+USB_PHYTOP_REG_OFS));
+		tmpval &= ~(0x1F << 8);
+		tmpval |= (u2_trim_resint << 8);
+		tmpval |= (0x1 << 15);
+		writel(tmpval, (volatile unsigned long *)(usbbase+USB_PHYTOP_REG_OFS));
+	}
 #endif
 #endif // #ifndef CONFIG_NVT_FPGA_EMULATION
+}
+
+static void nvtim_remove_power_save(void)
+{
+	printf("ehci_nvt: Enter powerdown script\r\n");
+
+	// IP provided to make PHY deeply sleeping
+	U2PHY_SETREG(MAP_PHY(0xD4), 0xB4);   // Port0 dmpulldown = 1, dppulldown = 0, suspendm = 1, termselect = 1, xcvrselect = 01, opmode = 00
+	U2PHY_SETREG(MAP_PHY(0xD0), 0xFF);   // Enable port0 sw reg 0xF060_10D4
+	U2PHY_SETREG(MAP_PHY(0x08), 0x14);   // Port0 pll_pdn = 0, pll_rstn = 0
+	U2PHY_SETREG(MAP_PHY(0x00), 0x8A);   // Port0 bias_pdn = 0, ldo_pdn = 0
+	U2PHY_SETREG(MAP_PHY(0x30), 0x13);   // Port0 datarpu1 = 0, datarpu2 = 1, spsel = 0, datarpusel = 0, datarpdp = 1, datarpdm = 1
+	U2PHY_SETREG(MAP_PHY(0x2C), 0xFF);   // Enable port0 sw reg 0x0030
+	U2PHY_SETREG(MAP_PHY(0x28), 0x20);   // Port0 usb_pwr_ok = 0
+	U2PHY_SETREG(MAP_PHY(0x24), 0xB3);   // Port0 u11_rx_pwd = 1
+	U2PHY_SETREG(MAP_PHY(0x34), 0x90);   // Port0 tx_pdn = 0
 }
 
 #ifndef CONFIG_DM_USB
@@ -492,6 +619,9 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 
 	if (index) {
 		//two controller case
+		#if defined(NVT_ECHI_2ND_CTRL)
+		*hccr = (struct ehci_hccr *)IOADDR_USB2_REG_BASE;
+		#endif
 	} else {
 		*hccr = (struct ehci_hccr *)IOADDR_USB_REG_BASE;
 	}
@@ -519,6 +649,9 @@ int ehci_hcd_stop(int index)
 
 	if (index) {
 		//two controller case
+		#if defined(NVT_ECHI_2ND_CTRL)
+		usbbase = IOADDR_USB2_REG_BASE;
+		#endif
 	} else {
 		usbbase = IOADDR_USB_REG_BASE;
 	}
@@ -542,6 +675,20 @@ int ehci_hcd_stop(int index)
 
 	if (index) {
 		//two controller case
+		#if defined(NVT_ECHI_2ND_CTRL)
+		printf("%s %d: controller 1\n", __FUNCTION__, __LINE__);
+		/* Enable Reset*/
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		tmpval &= ~(0x1<<CG_U2_1_RST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+
+		udelay(10);
+
+		/* Disable Reset*/
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		tmpval |= 0x1<<CG_U2_1_RST_BIT;
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		#endif
 	} else {
 		printf("%s %d: controller 0\n", __FUNCTION__, __LINE__);
 		/* Enable Reset*/
@@ -572,6 +719,10 @@ int ehci_hcd_stop(int index)
 	}
 #endif
 
+	if (nvt_get_chip_id() == CHIP_NS02301) {
+		nvtim_remove_power_save();
+	}
+
 	return 0;
 }
 
@@ -580,7 +731,15 @@ static void nvtim_init_usbhc_dm(int index, struct ehci_hccr **hccr, struct ehci_
 {
 	nvtim_init_usbhc(index);
 
-	*hccr = (struct ehci_hccr *)IOADDR_USB_REG_BASE;
+	if (index == 0)
+		*hccr = (struct ehci_hccr *)IOADDR_USB_REG_BASE;
+	else {
+		//two controller case
+		#if defined(NVT_ECHI_2ND_CTRL)
+		*hccr = (struct ehci_hccr *)IOADDR_USB2_REG_BASE;
+		#endif
+	}
+
 	*hcor = (struct ehci_hcor *)((unsigned long)*hccr +
 			HC_LENGTH(ehci_readl(&(*hccr)->cr_capbase)));
 }
@@ -646,6 +805,20 @@ static int ehci_usb_remove(struct udevice *dev)
 		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_0_RST));
 	} else {
 		//two controller case
+		#if defined(NVT_ECHI_2ND_CTRL)
+		printf("%s %d: controller 1\n", __FUNCTION__, __LINE__);
+		/* Enable Reset*/
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		tmpval &= ~(0x1<<CG_U2_1_RST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+
+		udelay(10);
+
+		/* Disable Reset*/
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		tmpval |= 0x1<<CG_U2_1_RST_BIT;
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+CG_U2_1_RST));
+		#endif
 	}
 
 #if defined(CONFIG_TARGET_NA51102_A64)
@@ -662,6 +835,10 @@ static int ehci_usb_remove(struct udevice *dev)
 		}
 	}
 #endif
+
+	if (nvt_get_chip_id() == CHIP_NS02301) {
+		nvtim_remove_power_save();
+	}
 
 	ret = ehci_deregister(dev);
 	if (ret)

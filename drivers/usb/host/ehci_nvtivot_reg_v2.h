@@ -1199,6 +1199,23 @@ union USB_PHYCTRL52_REG {
 #define TOP_U2_0_SRAMSD 0x1000
 #define TOP_U2_0_SRAMSD_BIT 19
 
+#elif defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+/* NA51103 */
+#define CG_U2_0_RST 0x98
+#define CG_U2_0_RST_BIT 15
+#define TOP_U2_0_SRAMSD 0x1000
+#define TOP_U2_0_SRAMSD_BIT 7
+#define CG_U2_0_EN 0x74
+#define CG_U2_0_EN_BIT 24
+
+#define CG_U2_1_RST 0x98
+#define CG_U2_1_RST_BIT 16
+#define TOP_U2_1_SRAMSD 0x1000
+#define TOP_U2_1_SRAMSD_BIT 8
+#define CG_U2_1_EN 0x74
+#define CG_U2_1_EN_BIT 25
+
+#define NVT_ECHI_2ND_CTRL 1
 #else
 //TODO: other project follow the macro pattern
 #endif

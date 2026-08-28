@@ -44,7 +44,7 @@
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.07"
+#define DRV_VERSION                     "1.00.09"
 
 struct nvt_udc_chip;
 
@@ -424,8 +424,80 @@ static void nvtim_init_usbhc(void)
 		// r45 cali unlock
 		U2PHY_SETREG(MAP_PHY(0x144), 0x00);
 	}
+#elif defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+	{
+		u32 temp;
+		u32 trim;
+		int code;
+		BOOL is_found;
+
+		u8 u2_trim_swctrl=4, u2_trim_sqsel=4;
+		u32 u2_trim_resint=8;
+
+		// get trim value of usb column
+		code = otp_key_manager(OTP_USB_SET1_TRIM_FIELD);
+		if(code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read USB trim error\r\n");
+			return -1;
+		} else {
+			// check if usb trim value is valid
+			is_found = extract_2_set_type_trim_valid(TRIM_USB_FIELD, code, (u32 *)&trim);
+			if(is_found) {
+				if ((TRIM_RESINT_LOWER <= trim) && (trim <= TRIM_RESINT_UPPER)) {
+					u2_trim_resint = trim;
+					printf("is found [%d][%d][USB] = 0x%04x\r\n", is_found, OTP_USB_SET1_TRIM_FIELD, (int)trim);
+					printf("        => 12K_resistor[0x%04x]\r\n", (int)u2_trim_resint);
+				} else {
+					printf("data is out of valid range\n");
+				}
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][ USB] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		U2PHY_SETREG(0x51, 0x20);
+		U2PHY_SETREG(0x50, 0x30);
+
+		temp = U2PHY_GETREG(0x06);
+		temp &= ~(0x7<<1);
+		temp |= (u2_trim_swctrl<<1);
+		U2PHY_SETREG(0x06, temp);
+
+		temp = U2PHY_GETREG(0x05);
+		temp &= ~(0x7<<2);
+		temp |= (u2_trim_sqsel<<2);
+		U2PHY_SETREG(0x05, temp);
+
+		U2PHY_SETREG(0x52, 0x60+u2_trim_resint);
+		U2PHY_SETREG(0x51, 0x0);
+
+		tmpval = readl((volatile unsigned long *)(usbbase+0x1D8));
+		tmpval &= ~(0x1F << 8);
+		tmpval |= (u2_trim_resint << 8);
+		tmpval |= (0x1 << 15);
+		writel(tmpval, (volatile unsigned long *)(usbbase + 0x1D8));
+
+	}
 #endif
 #endif // #ifndef CONFIG_NVT_FPGA_EMULATION
+}
+
+static void nvtim_remove_power_save(void)
+{
+	printf("nvt_udc: Enter powerdown script\r\n");
+
+	// IP provided to make PHY deeply sleeping
+	U2PHY_SETREG(MAP_PHY(0xD4), 0xB4);   // Port0 dmpulldown = 1, dppulldown = 0, suspendm = 1, termselect = 1, xcvrselect = 01, opmode = 00
+	U2PHY_SETREG(MAP_PHY(0xD0), 0xFF);   // Enable port0 sw reg 0xF060_10D4
+	U2PHY_SETREG(MAP_PHY(0x08), 0x14);   // Port0 pll_pdn = 0, pll_rstn = 0
+	U2PHY_SETREG(MAP_PHY(0x00), 0x8A);   // Port0 bias_pdn = 0, ldo_pdn = 0
+	U2PHY_SETREG(MAP_PHY(0x30), 0x13);   // Port0 datarpu1 = 0, datarpu2 = 1, spsel = 0, datarpusel = 0, datarpdp = 1, datarpdm = 1
+	U2PHY_SETREG(MAP_PHY(0x2C), 0xFF);   // Enable port0 sw reg 0x0030
+	U2PHY_SETREG(MAP_PHY(0x28), 0x20);   // Port0 usb_pwr_ok = 0
+	U2PHY_SETREG(MAP_PHY(0x24), 0xB3);   // Port0 u11_rx_pwd = 1
+	U2PHY_SETREG(MAP_PHY(0x34), 0x90);   // Port0 tx_pdn = 0
 }
 
 static inline int fifo_to_ep(struct nvt_udc_chip *chip, int id, int in)
@@ -1356,5 +1428,10 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		//do nothing.
 	}
 #endif
+
+	if (nvt_get_chip_id() == CHIP_NS02301) {
+		nvtim_remove_power_save();
+	}
+
 	return 0;
 }

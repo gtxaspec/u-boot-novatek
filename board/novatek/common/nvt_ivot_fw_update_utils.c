@@ -140,6 +140,14 @@ int nvt_chk_mtd_fdt_is_null(void)
 #if defined(CONFIG_ENCRYPT_DTS)
 	HEADINFO *headinfo = (HEADINFO *)tmp_model_ptr;
 	unsigned int fdt_real_size =  headinfo->BinLength;
+	/**
+	 * maybe dummy data in fdt partition before we burned
+	 * If data is dummy and we cast it to HEADINFO, the huge size we would get.
+	 */
+	if (fdt_real_size > pEmb[id].PartitionSize) {
+		free(tmp_model_ptr);
+		return 1;
+	}
 #if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
 	if (is_secure_enable() != 0) {
 		if (nvt_chk_signature_on_uboot((ulong)tmp_model_ptr, fdt_real_size)) {

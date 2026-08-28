@@ -19,11 +19,11 @@
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_MEM32
 #define CONFIG_SYS_NS16550_REG_SIZE			-1
-#define CONFIG_SYS_NS16550_COM1                         0x2f0130000
-#define CONFIG_SYS_NS16550_COM2                         0x2f0131000
-#define CONFIG_SYS_NS16550_COM3                         0x2f0132000
-#define CONFIG_SYS_NS16550_COM4                         0x2f0133000
-#define CONFIG_SYS_NS16550_COM5                         0x2f0134000
+#define CONFIG_SYS_NS16550_COM1                         0x4f0130000
+#define CONFIG_SYS_NS16550_COM2                         0x4f0131000
+#define CONFIG_SYS_NS16550_COM3                         0x4f0132000
+#define CONFIG_SYS_NS16550_COM4                         0x4f0133000
+#define CONFIG_SYS_NS16550_COM5                         0x4f0134000
 #ifdef CONFIG_NVT_FPGA_EMULATION
 #define CONFIG_SYS_NS16550_CLK                          24000000        /* COM1: 24M, other COM port 48M */
 #else

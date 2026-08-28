@@ -186,6 +186,9 @@
 /* PCI */
 #define CONFIG_SYS_PCI_64BIT      1       /* enable 64-bit PCI resources */
 
+/* DFU */
+#define CONFIG_SET_DFU_ALT_BUF_LEN      (SZ_1K)
+
 #if (defined(CONFIG_CMD_DFU) && defined(_EMBMEM_EMMC_))
 #define CONFIG_DFU_MMC  1
 #ifndef CONFIG_FS_EXT4

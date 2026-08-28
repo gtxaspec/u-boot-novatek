@@ -766,6 +766,10 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		reg |= (1);
 		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
 		OUTW(IOADDR_CG_REG_BASE + 0x84, reg);
+	} else if (info->chip_id == CHIP_NA51103) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x98);
+		reg |= (0x2);
+		OUTW(IOADDR_CG_REG_BASE + 0x98, reg);
 	} else {
 		reg = INW(IOADDR_CG_REG_BASE + 0x94);
 		if (info->chip_id == CHIP_NS02302) {
@@ -832,6 +836,21 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 			reg &= ~(0x200);                   // CS1
 		}
 		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+	} else if (info->chip_id == CHIP_NA51103) {
+		if (fdt_pinmux & 0x20) {
+			flash_pinmux |= (1 << 2);
+		}
+		reg |= (flash_pinmux & 0xF);
+
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		reg &= ~(0x3F);
+		if (flash_pinmux & (1 << 2)) {
+			reg &= ~(1 << 6);
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
 	} else {
 		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
 			flash_pinmux |= (1 << 2);
@@ -863,7 +882,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 	clk_div = NVT_FLASH_SOURCE_CLK / freq - 1;
 	NAND_DBG_GLOBAL("dbg freq %d, div=0x%x \n", freq, clk_div);
 
-	if (info->chip_id == CHIP_NA51090 || info->chip_id == CHIP_NA51102 || info->chip_id == CHIP_NS02201) {
+	if (info->chip_id == CHIP_NA51090 || info->chip_id == CHIP_NA51102 || \
+		info->chip_id == CHIP_NS02201 || info->chip_id == CHIP_NA51103) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x48);
 		reg &= ~(0x3F0000);
 		reg |= (clk_div << 16);
@@ -1269,6 +1289,11 @@ void nand_host_settiming2(struct drv_nand_dev_info *info, u32 time)
 
 	time_reg.Reg = time;
 
+	if ((nvt_get_chip_id() == CHIP_NA51103) && time_reg.Bit.TSLCH < 3) {
+		printf("331 SPI NAND TSLCH need >= 0x3, force config as 0x3\n");
+		time_reg.Bit.TSLCH = 0x3;
+	}
+
 	if (time_reg.Bit.TSHCH < 0x4) {
 		printf("SPI NAND TSHCH need >= 0x4, force config as 0x4\n");
 		time_reg.Bit.TSHCH = 0x4;
@@ -1376,7 +1401,8 @@ void nand_host_set_clkdiv(struct drv_nand_dev_info *info, u32 div)
 {
 	UINT32 reg;
 
-	if (info->chip_id == CHIP_NS02201) {
+	if (info->chip_id == CHIP_NS02201 || \
+		info->chip_id == CHIP_NA51103) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x48);
 		reg &= ~(0x3F0000);
 		reg |= (div << 16);

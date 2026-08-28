@@ -26,7 +26,7 @@ SECTIONS
 		*(.__image_copy_start)
 		CPUDIR/start.o (.text*)
 		. = _start + 0x300;
-		KEEP(board/novatek/nvt-ns02401-a64/built-in.o(.data.bininfo*))
+		KEEP(*(.data.bininfo*))
 	}
 	.text_rest :
 	{

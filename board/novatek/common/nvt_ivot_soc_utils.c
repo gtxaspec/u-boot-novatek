@@ -252,6 +252,12 @@ int nvt_chk_signature_on_uboot(ulong addr, unsigned int size)
 	get_bininfo_size_offset(head_info->BinInfo_1, &key_size, &key_offset);
 	key_buf = (unsigned char *)(addr + key_offset);
 
+	/* to avoid function hang, if got a huge key_size size (e.g:0xFFFFFFFF) */
+	if (key_size > size) {
+		printf("invalid encrypted-bin head_info->size = %d, input size = %d \n", key_size, size);
+		return -1;
+	}
+
 	get_bininfo_size_offset(head_info->BinInfo_2, &signature_size, &signature_offset);
 	signature_buf = (unsigned char *)(addr + signature_offset);
 
@@ -1873,10 +1879,10 @@ static int nvt_boot_fw_init_detect(void)
 	rtos_addr = nvt_memory_cfg[MEMTYPE_RTOS].addr;
 	rtos_size = nvt_memory_cfg[MEMTYPE_RTOS].size;
 
-#if defined(CONFIG_TARGET_NS02301)
+#if defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64)
 	if (rtos_size) {
 		/**
-		 * 567 fastboot use amp,
+		 * 567, 538 fastboot use amp,
 		 * on amp, uboot always boot on cpu[1]
 		 * the boot sequence needs always boot rtos to bring up cpu[0]' linux-kernel
 		 */
