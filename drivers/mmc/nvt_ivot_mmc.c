@@ -7,7 +7,9 @@
  *
  */
 
+#include <cpu_func.h>
 #include <asm/io.h>
+#include <asm/cache.h>
 #include "common.h"
 #include <errno.h>
 #include <dm.h>
@@ -15,6 +17,7 @@
 #include <mmc.h>
 #include <malloc.h>
 #include <asm/gpio.h>
+#include <linux/delay.h>
 #include "nvt_ivot_mmc.h"
 
 #ifdef CONFIG_TARGET_NA51055
@@ -29,6 +32,10 @@
 #include <asm/arch/na51102_regs.h>
 #elif (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
 #include <asm/arch/na51103_regs.h>
+#elif (defined(CONFIG_TARGET_NS02201))
+#include <asm/arch/ns02201_regs.h>
+#elif (defined(CONFIG_TARGET_NS02301))
+#include <asm/arch/ns02301_regs.h>
 #else
 #include <asm/arch/na51000_regs.h>
 #endif
@@ -42,13 +49,13 @@
 //668 emmc HAL APIs
 //#define FPGA
 #define mmc_resp_type (MMC_RSP_PRESENT|MMC_RSP_136|MMC_RSP_CRC|MMC_RSP_BUSY|MMC_RSP_OPCODE)
-#if (defined(CONFIG_TARGET_NA51000) || defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
+#if (defined(CONFIG_TARGET_NA51000) || defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NS02201))
 #define PLL_SYS_CR_REG_OFS	0xF0020040
 #else
 #define PLL_SYS_CR_REG_OFS	0xF002003C
 #endif
 
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NS02201))
 #define SDIO_MASK		0x7FF
 #define SDIO2_MASK		0x7FF0000
 #else
@@ -73,148 +80,6 @@ struct nvt_mmc_plat
 };
 #endif
 
-static void set_card_power_gpio(struct mmc_nvt_host *host, u32* cell)
-{
-
-#ifdef CONFIG_DM_GPIO
-	if (host->id == SDIO_HOST_ID_1) {
-		u32 reg_val;
-
-		/* Set as GPIO */
-		gpio_request( __be32_to_cpu(cell[0]), "sdio_power");
-		gpio_request(GPIO_SDIO_CLK, "sdio_clk");
-		gpio_request(GPIO_SDIO_CMD, "sdio_cmd");
-		gpio_request(GPIO_SDIO_D0, "sdio_d0");
-		gpio_request(GPIO_SDIO_D1, "sdio_d1");
-		gpio_request(GPIO_SDIO_D2, "sdio_d2");
-		gpio_request(GPIO_SDIO_D3, "sdio_d3");
-
-		gpio_direction_output(__be32_to_cpu(cell[0]), __be32_to_cpu(cell[1]));
-
-		reg_val = readl(TOP_SDIO_EN_GPIO_REG);
-		reg_val |= (TOP_SDIO_EN_GPIO_MASK);
-		writel(reg_val, TOP_SDIO_EN_GPIO_REG);
-
-#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
-		reg_val = readl(TOP_SDIO_EN_GPIO_2_REG);
-		reg_val |= (TOP_SDIO_EN_GPIO_2_MASK);
-		writel(reg_val, TOP_SDIO_EN_GPIO_2_REG);
-#endif
-
-		/* Set PAD pull down */
-		reg_val = readl(PAD_PUPD_SDIO_CLK_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_CLK_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_CLK_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_CLK_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_CMD_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_CMD_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_CMD_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_CMD_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D0_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D0_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D0_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D0_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D1_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D1_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D1_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D1_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D2_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D2_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D2_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D2_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D3_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D3_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D3_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D3_REG);
-
-		/* Set GPIO output low */
-		gpio_direction_output(GPIO_SDIO_CLK, 0);
-		gpio_direction_output(GPIO_SDIO_CMD, 0);
-		gpio_direction_output(GPIO_SDIO_D0, 0);
-		gpio_direction_output(GPIO_SDIO_D1, 0);
-		gpio_direction_output(GPIO_SDIO_D2, 0);
-		gpio_direction_output(GPIO_SDIO_D3, 0);
-
-		/* Disable CLK */
-		reg_val = readl(CG_SDIO_CLKEN_REG);
-		reg_val &= ~(CG_SDIO_CLKEN_MASK);
-		writel(reg_val, CG_SDIO_CLKEN_REG);
-	}
-#if (SDIO_HOST_ID_COUNT > 1 && defined(GPIO_SDIO2_CLK))
-	else if (host->id == SDIO_HOST_ID_2) {
-		u32 reg_val;
-
-		/* Set as GPIO */
-		gpio_request(__be32_to_cpu(cell[0]), "sdio2_power");
-		gpio_request(GPIO_SDIO2_CLK, "sdio2_clk");
-		gpio_request(GPIO_SDIO2_CMD, "sdio2_cmd");
-		gpio_request(GPIO_SDIO2_D0, "sdio2_d0");
-		gpio_request(GPIO_SDIO2_D1, "sdio2_d1");
-		gpio_request(GPIO_SDIO2_D2, "sdio2_d2");
-		gpio_request(GPIO_SDIO2_D3, "sdio2_d3");
-
-		if (__be32_to_cpu(cell[1]))
-			gpio_direction_output(__be32_to_cpu(cell[0]), 0);
-		else
-			gpio_direction_output(__be32_to_cpu(cell[0]), 1);
-
-		reg_val = readl(TOP_SDIO2_EN_GPIO_REG);
-		reg_val |= (TOP_SDIO2_EN_GPIO_MASK);
-		writel(reg_val, TOP_SDIO2_EN_GPIO_REG);
-
-		/* Set PAD pull down */
-		reg_val = readl(PAD_PUPD_SDIO2_CLK_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_CLK_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CLK_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_CLK_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_CMD_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_CMD_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CMD_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_CMD_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D0_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D0_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D0_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D0_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D1_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D1_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D1_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D1_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D2_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D2_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D2_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D2_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D3_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D3_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D3_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D3_REG);
-
-		/* Set GPIO output low */
-		gpio_direction_output(GPIO_SDIO2_CLK, 0);
-		gpio_direction_output(GPIO_SDIO2_CMD, 0);
-		gpio_direction_output(GPIO_SDIO2_D0, 0);
-		gpio_direction_output(GPIO_SDIO2_D1, 0);
-		gpio_direction_output(GPIO_SDIO2_D2, 0);
-		gpio_direction_output(GPIO_SDIO2_D3, 0);
-
-		/* Disable CLK */
-		reg_val = readl(CG_SDIO2_CLKEN_REG);
-		reg_val &= ~(CG_SDIO2_CLKEN_MASK);
-		writel(reg_val, CG_SDIO2_CLKEN_REG);
-	}
-#endif
-#endif
-}
-
 #if (SDIO_OLD_DRIVING_FLOW == 1)
 static u32 default_pad_driving[SDIO_MAX_MODE_DRIVING] = {20, 15, 15, 20, 15, 15, 30, 25, 25, 40, 30, 30};
 #else
@@ -227,17 +92,12 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 	int nodeoffset;
 	u32 *cell = NULL;
 	char path[20] = {0};
-	int i, lenp = 0;
+	int i;
 	int len;
 
 	sprintf(path,"mmc%d", host->id);
 
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
-
-	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "card_power_gpio", &lenp);
-
-	if (lenp >= 0) 
-		set_card_power_gpio(host, cell);
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "max-frequency", NULL);
 	if (cell > 0) {
@@ -407,6 +267,7 @@ static void sdiohost_setinvoutdly(struct mmc_nvt_host *host, BOOL data_outdly_in
 	sdiohost_setreg(host, SDIO_DLY5_REG_OFS, dly5_reg.reg);
 }
 
+#if 0
 static void sdiohost_setphyclkoutdly(struct mmc_nvt_host *host, u32 dly_setting)
 {
 	union SDIO_CLOCK_CTRL2_REG clk_crtl_reg;
@@ -417,6 +278,7 @@ static void sdiohost_setphyclkoutdly(struct mmc_nvt_host *host, u32 dly_setting)
 
 	sdiohost_setreg(host, SDIO_CLOCK_CTRL2_REG_OFS, clk_crtl_reg.reg);
 }
+#endif
 
 static void sdiohost_setphyclkindly(struct mmc_nvt_host *host, u32 dly_setting)
 {
@@ -1084,7 +946,7 @@ static int sdiohost_setpaddriving(struct mmc_nvt_host *host, SDIO_SPEED_MODE mod
 		pad_setdrivingsink(PAD_DS_SDIO_D3, data_uidriving);
 		return pad_setdrivingsink(PAD_DS_SDIO_CLK, clk_uidriving);
 	}
-#if (SDIO_HOST_ID_COUNT > 1 )
+#if (SDIO_HOST_ID_COUNT > 1)
 	else if (host->id == SDIO_HOST_ID_2) {
 
 #if defined(TOP_SDIO2_WIDTH_REG)
@@ -1773,6 +1635,17 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 	return SDIO_HOST_CMD_OK;
 }
 
+static void sdiohost_axi_enable(struct mmc_nvt_host *host, u32 enable)
+{
+	union SDIO_AXI0_REG axi0_reg;
+
+	axi0_reg.reg = sdiohost_getreg(host, SDIO_AXI0_REG_OFS);
+
+	axi0_reg.bit.AXI_CH_DIS = !enable;
+
+	sdiohost_setreg(host, SDIO_AXI0_REG_OFS, axi0_reg.reg);
+}
+
 /*
 	Send SD command to SD bus.
 
@@ -2121,7 +1994,7 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		udelay(10);
 		*(uint32_t*) 0xF0020074 |= 0x800;        // SDIO_CLKEN
 		udelay(10);
-#elif (defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
+#elif (defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201))
 		*(uint32_t*) 0xF0010004 &= ~0x10;        // SDIO_EN
 		udelay(10);
 		*(uint32_t*) 0xF0010004 |= 0x10;
@@ -2140,6 +2013,25 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		udelay(10);
 		*(uint32_t*) 0xF0020074 |= 0x800;        // SDIO_CLKEN
 		udelay(10);
+#elif defined(CONFIG_TARGET_NS02301)
+		*(uint32_t*) 0xF0010004 &= ~0x10000;        // SDIO_EN
+		udelay(10);
+		*(uint32_t*) 0xF0010004 |= 0x10000;
+		udelay(10);
+		*(uint32_t*) 0xF00100A0 &= ~(0x3F << 13);// PGPIO13~18
+		udelay(10);
+		*(uint32_t*) 0xF0020084 &= ~(0x1 << 2); // SDIO_RSTN
+		udelay(10);
+		*(uint32_t*) 0xF0020084 |= (0x1 << 2);
+		udelay(10);
+		*(uint32_t*) 0xF0020020 &= ~0x30;         // SDIO_CLKSEL
+		udelay(10);
+		*(uint32_t*) 0xF002003C &= ~0x7FF;       // SDIO_CLKDIV
+		udelay(10);
+		*(uint32_t*) 0xF002003C |= 0x1F0;
+		udelay(10);
+		*(uint32_t*) 0xF0020074 |= 0x4;        	// SDIO_CLKEN
+		udelay(10);		
 #else
 		*(uint32_t*) 0xF0010004 |= 0x4000;
 		udelay(10);
@@ -2196,6 +2088,13 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 			*(uint32_t*) 0xF0030044 = 0x0;
 			udelay(10);
 		}
+#elif defined(CONFIG_TARGET_NS02301)
+		*(uint32_t*) 0xF0010004 &= ~0x40000;        // SDIO_EN
+		udelay(10);
+		*(uint32_t*) 0xF0010004 |= 0x40000;
+		udelay(10);
+		*(uint32_t*) 0xF00100A0 &= ~(0x3F << 19);// PGPIO19~24
+		udelay(10);
 #else
 		*(uint32_t*) 0xF0010004 |= 0x8000;
 		udelay(10);
@@ -2220,6 +2119,14 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		udelay(10);
 		*(uint32_t*) 0xF0020074 |= 0x8;
 	} else {
+#if defined(CONFIG_TARGET_NS02301)
+		*(uint32_t*) 0xF0010004 &= ~0x300000;        // SDIO3_EN
+		udelay(10);
+		*(uint32_t*) 0xF0010004 |= 0x300000;
+		udelay(10);
+		*(uint32_t*) 0xF00100A0 &= ~0xDFF;// PGPIO0~8 10~11
+		udelay(10);
+#else
 		*(uint32_t*) 0xF0010004 &= ~(0x80003000);
 		udelay(10);
 		if (host->enable_8bits) {
@@ -2232,6 +2139,7 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 			*(uint32_t*) 0xF00100A0 &= ~(0x30F);
 		}
 
+#endif
 		udelay(10);
 		*(uint32_t*) 0xF0020084 &= ~(0x4000);
 		udelay(10);
@@ -2249,6 +2157,8 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 	}
 
 	sdiohost_enclkout(host, TRUE);
+
+    sdiohost_axi_enable(host, TRUE);
 
 	sdiohost_setpaddriving(host, SDIO_MODE_DS);
 
@@ -2311,30 +2221,34 @@ static int host_set_ios(struct udevice *udev)
 
 			/*Set host sampling strategy according to different speeds and modes*/
 			if (dev->clock >= 192000000) {
+				sdiohost_setphyclkindly(host, 0x9);
 				sdiohost_setpaddriving(host, SDIO_MODE_SDR104);
 				sdiohost_setblkfifoen(host, true);
 			} else if (dev->clock >= 160000000) {
+				sdiohost_setphyclkindly(host, 0x3);
 				sdiohost_setpaddriving(host, SDIO_MODE_SDR104);
 				sdiohost_setblkfifoen(host, true);
 			} else if (dev->clock >= 120000000) {
+				sdiohost_setphyclkindly(host, 0x1f);
 				sdiohost_setpaddriving(host, SDIO_MODE_SDR104);
 				sdiohost_setblkfifoen(host, true);
 			} else if (dev->clock >= 96000000) {
+				sdiohost_setphyclkindly(host, 0x1b);
 				sdiohost_setpaddriving(host, SDIO_MODE_SDR50);
 				sdiohost_setblkfifoen(host, true);
 			} else if (dev->clock >= 64000000) {
+				sdiohost_setphyclkindly(host, 0x0);
 				sdiohost_setpaddriving(host, SDIO_MODE_SDR50);
 				sdiohost_setblkfifoen(host, true);
 			} else if (dev->clock >= 25000000) {
+				sdiohost_setphyclkindly(host, 0x0);
 				sdiohost_setpaddriving(host, SDIO_MODE_HS);
 				sdiohost_setblkfifoen(host, false);
 			} else {
+				sdiohost_setphyclkindly(host, 0x0);
 				sdiohost_setpaddriving(host, SDIO_MODE_DS);
 				sdiohost_setblkfifoen(host, false);
 			}
-
-            sdiohost_setphyclkindly(host, nvt_mmc_get_indly(host->id, dev->clock));
-            sdiohost_setphyclkoutdly(host, nvt_mmc_get_outdly(host->id, dev->clock));
 
 			if (host->indly_sel >= 0) {
 				sdiohost_setphyclkindly(host, host->indly_sel);
@@ -2581,7 +2495,7 @@ static void nvt_mmc_check_edge(u32 edge_result, u32 sample_clk_edge, u32 *zeropo
 
 static int nvt_mmc_auto_tuning(struct udevice *dev, uint opcode)
 {
-    struct nvt_mmc_plat *plat = dev_get_platdata(dev);
+    struct nvt_mmc_plat *plat = dev_get_plat(dev);
     struct mmc *mmc = plat ? &plat->mmc : NULL;
     struct mmc_nvt_host *host = dev_get_priv(dev);
     SDIO_HOST_SAMPLE_CLK_EDGE sample_clk_edge;
@@ -2676,7 +2590,7 @@ static const struct dm_mmc_ops nvt_hsmmc_ops = {
 static int nvt_mmc_probe(struct udevice *dev)
 {
 	struct mmc_uclass_priv *upriv = dev_get_uclass_priv(dev);
-	struct nvt_mmc_plat *plat = dev_get_platdata(dev);
+	struct nvt_mmc_plat *plat = dev_get_plat(dev);
 	struct mmc_nvt_host *host = dev_get_priv(dev);
 	struct mmc_config *cfg = &plat->cfg;
 	u32 base_addr;
@@ -2715,7 +2629,7 @@ static int nvt_mmc_probe(struct udevice *dev)
 			| MMC_VDD_165_195;
 #ifdef CONFIG_NVT_FPGA_EMULATION
 	cfg->f_min = 312500;
-	cfg->f_max = 12000000;
+	cfg->f_max = 6000000;
 #else
 	cfg->f_min = 312500;
 	cfg->f_max = host->mmc_default_clk;
@@ -2743,7 +2657,7 @@ static int nvt_mmc_probe(struct udevice *dev)
 #if CONFIG_BLK
 static int nvt_mmc_bind(struct udevice *dev)
 {
-	struct nvt_mmc_plat *plat = dev_get_platdata(dev);
+	struct nvt_mmc_plat *plat = dev_get_plat(dev);
 
 	return mmc_bind(dev, &plat->mmc, &plat->cfg);
 }
@@ -2754,142 +2668,88 @@ static int nvt_mmc_remove(struct udevice *dev)
 	struct mmc_nvt_host *host = dev_get_priv(dev);
 
 	if (host->id == SDIO_HOST_ID_1) {
-#ifdef  CONFIG_SD_CARD1_POWER_PIN
+#ifdef CONFIG_SD_CARD1_POWER_PIN
 		u32 reg_val;
 
-		/* Set as GPIO */
-		gpio_request(CONFIG_SD_CARD1_POWER_PIN, "sdio_power");
-		gpio_request(GPIO_SDIO_CLK, "sdio_clk");
-		gpio_request(GPIO_SDIO_CMD, "sdio_cmd");
-		gpio_request(GPIO_SDIO_D0, "sdio_d0");
-		gpio_request(GPIO_SDIO_D1, "sdio_d1");
-		gpio_request(GPIO_SDIO_D2, "sdio_d2");
-		gpio_request(GPIO_SDIO_D3, "sdio_d3");
+		gpio_request(CONFIG_SD_CARD1_POWER_PIN, "sdio1_power");
+		gpio_request(C_GPIO(11), "sdio1_clk");
+		gpio_request(C_GPIO(12), "sdio1_cmd");
+		gpio_request(C_GPIO(13), "sdio1_d0");
+		gpio_request(C_GPIO(14), "sdio1_d1");
+		gpio_request(C_GPIO(15), "sdio1_d2");
+		gpio_request(C_GPIO(16), "sdio1_d3");
 
-		gpio_direction_output(CONFIG_SD_CARD1_POWER_PIN, CONFIG_SD_CARD1_ON_STATE);
+		if (CONFIG_SD_CARD1_ON_STATE)
+			gpio_direction_output(CONFIG_SD_CARD1_POWER_PIN, 0);
+		else
+			gpio_direction_output(CONFIG_SD_CARD1_POWER_PIN, 1);
 
-		reg_val = readl(TOP_SDIO_EN_GPIO_REG);
-		reg_val |= (TOP_SDIO_EN_GPIO_MASK);
-		writel(reg_val, TOP_SDIO_EN_GPIO_REG);
+		reg_val = readl(IOADDR_TOP_REG_BASE + 0xA0);
+		reg_val |= 0x1F800;
+		writel(reg_val, IOADDR_TOP_REG_BASE + 0xA0);
 
-#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
-		reg_val = readl(TOP_SDIO_EN_GPIO_2_REG);
-		reg_val |= (TOP_SDIO_EN_GPIO_2_MASK);
-		writel(reg_val, TOP_SDIO_EN_GPIO_2_REG);
+		reg_val = readl(IOADDR_PAD_REG_BASE);
+		reg_val &= ~0xFFC00000;
+		reg_val |= 0x55400000;
+		writel(reg_val, IOADDR_PAD_REG_BASE);
+
+		reg_val = readl(IOADDR_PAD_REG_BASE + 0x4);
+		reg_val &= ~0x3;
+		reg_val |= 0x1;
+		writel(reg_val, IOADDR_PAD_REG_BASE + 0x4);
+
+		gpio_direction_output(C_GPIO(11), 0);
+		gpio_direction_output(C_GPIO(12), 0);
+		gpio_direction_output(C_GPIO(13), 0);
+		gpio_direction_output(C_GPIO(14), 0);
+		gpio_direction_output(C_GPIO(15), 0);
+		gpio_direction_output(C_GPIO(16), 0);
+
+		/*Disable SDIO CLK*/
+		reg_val = readl(IOADDR_CG_REG_BASE + 0x74);
+		reg_val &= ~(0x1 << 2);
+		writel(reg_val, IOADDR_CG_REG_BASE + 0x74);
 #endif
-
-		/* Set PAD pull down */
-		reg_val = readl(PAD_PUPD_SDIO_CLK_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_CLK_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_CLK_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_CLK_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_CMD_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_CMD_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_CMD_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_CMD_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D0_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D0_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D0_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D0_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D1_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D1_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D1_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D1_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D2_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D2_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D2_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D2_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D3_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D3_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D3_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D3_REG);
-
-		/* Set GPIO output low */
-		gpio_direction_output(GPIO_SDIO_CLK, 0);
-		gpio_direction_output(GPIO_SDIO_CMD, 0);
-		gpio_direction_output(GPIO_SDIO_D0, 0);
-		gpio_direction_output(GPIO_SDIO_D1, 0);
-		gpio_direction_output(GPIO_SDIO_D2, 0);
-		gpio_direction_output(GPIO_SDIO_D3, 0);
-
-		/* Disable CLK */
-		reg_val = readl(CG_SDIO_CLKEN_REG);
-		reg_val &= ~(CG_SDIO_CLKEN_MASK);
-		writel(reg_val, CG_SDIO_CLKEN_REG);
-#endif
-	}
-#if (SDIO_HOST_ID_COUNT > 1)
-	else if (host->id == SDIO_HOST_ID_2) {
+	} else if (host->id == SDIO_HOST_ID_2) {
 #ifdef CONFIG_SD_CARD2_POWER_PIN
 		u32 reg_val;
+		int ret;
 
-		/* Set as GPIO */
 		gpio_request(CONFIG_SD_CARD2_POWER_PIN, "sdio2_power");
-		gpio_request(GPIO_SDIO2_CLK, "sdio2_clk");
-		gpio_request(GPIO_SDIO2_CMD, "sdio2_cmd");
-		gpio_request(GPIO_SDIO2_D0, "sdio2_d0");
-		gpio_request(GPIO_SDIO2_D1, "sdio2_d1");
-		gpio_request(GPIO_SDIO2_D2, "sdio2_d2");
-		gpio_request(GPIO_SDIO2_D3, "sdio2_d3");
+		gpio_request(C_GPIO(17), "sdio2_clk");
+		gpio_request(C_GPIO(18), "sdio2_cmd");
+		gpio_request(C_GPIO(19), "sdio2_d0");
+		gpio_request(C_GPIO(20), "sdio2_d1");
+		gpio_request(C_GPIO(21), "sdio2_d2");
+		gpio_request(C_GPIO(22), "sdio2_d3");
 
-		gpio_direction_output(CONFIG_SD_CARD2_POWER_PIN, CONFIG_SD_CARD1_ON_STATE);
+		if (CONFIG_SD_CARD2_ON_STATE)
+			gpio_direction_output(CONFIG_SD_CARD2_POWER_PIN, 0);
+		else
+			gpio_direction_output(CONFIG_SD_CARD2_POWER_PIN, 1);
 
-		reg_val = readl(TOP_SDIO2_EN_GPIO_REG);
-		reg_val |= (TOP_SDIO2_EN_GPIO_MASK);
-		writel(reg_val, TOP_SDIO2_EN_GPIO_REG);
+		reg_val = readl(IOADDR_TOP_REG_BASE + 0xA0);
+		reg_val |= 0x7E0000;
+		writel(reg_val, IOADDR_TOP_REG_BASE + 0xA0);
 
-		/* Set PAD pull down */
-		reg_val = readl(PAD_PUPD_SDIO2_CLK_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_CLK_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CLK_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_CLK_REG);
+		reg_val = readl(IOADDR_PAD_REG_BASE + 0x4);
+		reg_val &= ~0x3FFC;
+		reg_val |= 0x1554;
+		writel(reg_val, IOADDR_PAD_REG_BASE + 0x4);
 
-		reg_val = readl(PAD_PUPD_SDIO2_CMD_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_CMD_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CMD_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_CMD_REG);
+		gpio_direction_output(C_GPIO(17), 0);
+		gpio_direction_output(C_GPIO(18), 0);
+		gpio_direction_output(C_GPIO(19), 0);
+		gpio_direction_output(C_GPIO(20), 0);
+		gpio_direction_output(C_GPIO(21), 0);
+		gpio_direction_output(C_GPIO(22), 0);
 
-		reg_val = readl(PAD_PUPD_SDIO2_D0_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D0_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D0_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D0_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D1_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D1_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D1_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D1_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D2_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D2_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D2_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D2_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D3_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D3_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D3_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D3_REG);
-
-		/* Set GPIO output low */
-		gpio_direction_output(GPIO_SDIO2_CLK, 0);
-		gpio_direction_output(GPIO_SDIO2_CMD, 0);
-		gpio_direction_output(GPIO_SDIO2_D0, 0);
-		gpio_direction_output(GPIO_SDIO2_D1, 0);
-		gpio_direction_output(GPIO_SDIO2_D2, 0);
-		gpio_direction_output(GPIO_SDIO2_D3, 0);
-
-		/* Disable CLK */
-		reg_val = readl(CG_SDIO2_CLKEN_REG);
-		reg_val &= ~(CG_SDIO2_CLKEN_MASK);
-		writel(reg_val, CG_SDIO2_CLKEN_REG);
+		/*Disable SDIO CLK*/
+		reg_val = readl(IOADDR_CG_REG_BASE + 0x74);
+		reg_val &= ~(0x1 << 3);
+		writel(reg_val, IOADDR_CG_REG_BASE + 0x74);
 #endif
 	}
-#endif
-
 	return 0;
 }
 
@@ -2903,9 +2763,6 @@ static const struct udevice_id nvt_mmc_ids[] = {
 	{
 		.compatible = "nvt,nvt_mmc3",
 	},
-	{
-		.compatible = "nvt,nvt_emmc",
-	},
 	{},
 };
 
@@ -2918,8 +2775,8 @@ U_BOOT_DRIVER(nvt_mmc_drv) = {
 #endif
 	.probe = nvt_mmc_probe,
 	.ops = &nvt_hsmmc_ops,
-	.platdata_auto_alloc_size = sizeof(struct nvt_mmc_plat),
-	.priv_auto_alloc_size = sizeof(struct mmc_nvt_host),
+	.plat_auto = sizeof(struct nvt_mmc_plat),
+	.priv_auto = sizeof(struct mmc_nvt_host),
 	.remove		= nvt_mmc_remove,
 	.flags		= DM_FLAG_OS_PREPARE,
 };

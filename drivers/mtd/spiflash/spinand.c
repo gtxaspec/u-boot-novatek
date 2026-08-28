@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.40"
+#define NAND_VERSION "1.0.27"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {
@@ -134,26 +134,14 @@ static void drv_nand_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 }
 
-static int nvt_dual_nand_check(void)
-{
-	if (fdt_path_offset((const void *)nvt_fdt_buffer, "/nand1") >= 0)
-		return E_OK;
-	else
-		return E_SYS;
-}
-
 //For NOR NAND model, chip sel need config outside
-static void nvt_parse_parameter(struct drv_nand_dev_info *info, int chip_id)
+static void nvt_parse_parameter(struct drv_nand_dev_info *info)
 {
 	/* Enable it after dts parsing ready*/
 	int nodeoffset;
 	u32 *cell = NULL;
 	u32 eccmode;
-
-	if (chip_id == 1)
-		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nand1"); // chip1, sub chip
-	else
-		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nand"); // chip0, main chip, boot source
+	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nand");
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "chip-select", NULL);
 	if (cell > 0) {
@@ -162,7 +150,30 @@ static void nvt_parse_parameter(struct drv_nand_dev_info *info, int chip_id)
 		info->flash_info->chip_sel = 0;
 	}
 
-#if defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "auto-tuning", NULL);
+	if (cell > 0) {
+		info->autok_param = __be32_to_cpu(cell[0]);
+		printf("auto-tuning = 0x%x \n", info->autok_param);
+	} else {
+		info->autok_param = 0;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "tuning-addr", NULL);
+	if (cell > 0) {
+		info->autok_addr = __be32_to_cpu(cell[0]);
+		printf("auto-tuning pattern address = 0x%x \n", info->autok_addr);
+	} else {
+		info->autok_addr = 0;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "indly", NULL);
+	if (cell > 0) {
+		info->indly = __be32_to_cpu(cell[0]);
+		printf("dtsi indly = %d \n", info->indly);
+	} else {
+		info->indly = 0;
+	}
+
 	/*
 	*   Select ECC mode:
 	*       0: on-die
@@ -175,9 +186,7 @@ static void nvt_parse_parameter(struct drv_nand_dev_info *info, int chip_id)
 	} else {
 		eccmode = 0;
 	}
-#else
-	eccmode = 0;
-#endif
+
 	printf("ecc-mode = <%d>\n", eccmode);
 	printf("nand chip_sel = <%d>\n", info->flash_info->chip_sel);
 
@@ -199,8 +208,9 @@ static void nvt_parse_parameter(struct drv_nand_dev_info *info, int chip_id)
 		info->flash_info->spare_align = NAND_SPI_SPARE_ALIGN_SECTION;
 		info->flash_info->spare_protect = NAND_SPI_SPARE_ECC_FREE_DISABLE;
 	}
-}
 
+}
+#if 0
 static void nvt_parse_frequency(u32 *freq)
 {
 	/* Enable it after dts parsing ready*/
@@ -216,7 +226,7 @@ static void nvt_parse_frequency(u32 *freq)
 		*freq = 12000000;
 	}
 }
-
+#endif
 
 
 static int nvt_scan_nand_type(struct drv_nand_dev_info *info, int32_t *id)
@@ -254,11 +264,11 @@ static int nvt_scan_nand_type(struct drv_nand_dev_info *info, int32_t *id)
 	}
 
 	info->flash_info->chip_id = *id;
-	info->flash_info->chip_sel = info->flash_info->chip_sel;
 	info->flash_info->page_size = type->pagesize;
 	info->flash_info->block_size = type->erasesize;
 	info->flash_info->device_size = type->chipsize;
 	info->flash_info->page_per_block = (type->erasesize / type->pagesize);
+	info->flash_info->ecc_strength = type->ecc.strength_ds;
 
 	debug("page_size %d, block_size %d, device_size %d page_per_block %d\n", \
 		  info->flash_info->page_size, \
@@ -281,11 +291,10 @@ static int nvt_scan_nand_type(struct drv_nand_dev_info *info, int32_t *id)
 
 	if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_RS_ECC) {
 		info->flash_info->module_config |= NAND_PRI_ECC_RS;
-	} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC && nvt_get_chip_id() == CHIP_NA51102) {
+	} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC) {
 		info->flash_info->module_config |= NAND_PRI_ECC_BCH;
 	} else {
 		info->flash_info->module_config |= NAND_PRI_ECC_SPI_ON_DIE;
-		info->flash_info->ecc_strength = type->ecc.strength_ds;
 	}
 
 	reg = NAND_GETREG(info, NAND_MODULE0_REG_OFS);
@@ -494,11 +503,9 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		info->buf_start = mtd->writesize + column;
 
-		ptr = (uint8_t *)info->data_buff;
 		ptr = info->data_buff + info->buf_start;
 		if (info->buf_start != info->flash_info->page_size) {
-			dev_err(&info->pdev->dev,
-					"info->buf_start = %d, != 0\n", info->buf_start);
+			printf("info->buf_start = %d, != 0\n", info->buf_start);
 		}
 
 		nand_cmd_read_page_spare_data(info, (int8_t *)ptr,
@@ -593,189 +600,6 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	}
 }
 
-static int drv_nand_reset(struct drv_nand_dev_info *info)
-{
-	uint32_t reg, clk_div, freq = 0x0;
-	u32 *cell = NULL;
-	int len;
-	u32 flash_pinmux = 0x03;
-	u32 fdt_pinmux = 0x0;
-
-	int nodeoffset;
-
-	/* Config NAND module clock */
-	do {
-		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/top/spi");
-		if (nodeoffset < 0) {
-			printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
-			printf("%s: path %s not found\n", __func__, "/top/spi");
-			break;
-		}
-
-		cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
-		if (len == 0) {
-			printf("%s(%d) len = 0\n", __func__, __LINE__);
-			break;
-		}
-		fdt_pinmux = __be32_to_cpu(cell[0]);
-		printf("%s: spi flash pinmux 0x%x\r\n", __func__, fdt_pinmux);
-	} while (0);
-
-	reg = INW(IOADDR_CG_REG_BASE + 0x74);
-	if (nvt_get_chip_id() == CHIP_NA51090 || nvt_get_chip_id() == CHIP_NA51102 || nvt_get_chip_id() == CHIP_NA51103) {
-		reg |= (0x400);
-	} else {    // 52x, 560
-		reg |= (0x1);
-	}
-	OUTW(IOADDR_CG_REG_BASE + 0x74, reg);
-
-	/* Config NAND module RSTN */
-	if (nvt_get_chip_id() == CHIP_NA51090 || nvt_get_chip_id() == CHIP_NA51103) {
-		reg = INW(IOADDR_CG_REG_BASE + 0x98);
-		reg |= (0x2);
-		OUTW(IOADDR_CG_REG_BASE + 0x98, reg);
-	} else if (nvt_get_chip_id() == CHIP_NA51102) {
-		reg = INW(IOADDR_CG_REG_BASE + 0x94);
-		reg |= (0x400);
-		OUTW(IOADDR_CG_REG_BASE + 0x94, reg);
-	} else {    // 52x, 560
-		reg = INW(IOADDR_CG_REG_BASE + 0x84);
-		reg |= (0x1);
-		OUTW(IOADDR_CG_REG_BASE + 0x84, reg);
-	}
-
-	NAND_SETREG(info, NAND_TIME0_REG_OFS, 0x06002222);
-	NAND_SETREG(info, NAND_TIME1_REG_OFS, 0x7f0f);
-
-	/* Need use PinCtrl framework */
-	reg = INW(IOADDR_TOP_REG_BASE + 0x4);
-	if (nvt_get_chip_id() == CHIP_NA51090 || nvt_get_chip_id() == CHIP_NA51103) {
-		if (fdt_pinmux & 0x20) {
-			flash_pinmux |= (1 << 2);
-		}
-		reg |= (flash_pinmux & 0xF);
-	} else if (nvt_get_chip_id() == CHIP_NA51102) {
-		reg |= 0x1;
-	} else {    // 52x, 560
-		reg |= 0x00002000;
-	}
-	OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-
-	reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
-	if (nvt_get_chip_id() == CHIP_NA51090 || nvt_get_chip_id() == CHIP_NA51103) {
-		reg &= ~(0x3F);
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
-		if (flash_pinmux & (1 << 2)) {
-			reg &= ~(1 << 6);
-		}
-#endif
-	} else if (nvt_get_chip_id() == CHIP_NA51102) {
-		reg &= ~(0x0000070F);
-	} else {
-		reg &= ~(0x0000050F);
-	}
-	OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
-	/* reset NAND Config NAND module configuration */
-
-	/* Config clock div via dtsi*/
-	nvt_parse_frequency(&freq);
-	if (nvt_get_chip_id() == CHIP_NA51090 || nvt_get_chip_id() == CHIP_NA51103 || nvt_get_chip_id() == CHIP_NA51102) {
-		if (freq > 80000000) {
-			printf("freq %d out of range, fix to 80MHz\n", freq);
-			freq = 80000000;
-		}
-	}
-
-	clk_div = NVT_FLASH_SOURCE_CLK / freq - 1;
-	if (nvt_get_chip_id() == CHIP_NA51090 || nvt_get_chip_id() == CHIP_NA51102 || nvt_get_chip_id() == CHIP_NA51103) {
-		reg = INW(IOADDR_CG_REG_BASE + 0x48);
-		reg &= ~(0x3F0000);
-		reg |= (clk_div << 16);
-		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
-	} else {
-		reg = INW(IOADDR_CG_REG_BASE + 0x40);
-		reg &= ~(0x3F000);
-		reg |= (clk_div << 12);
-		OUTW(IOADDR_CG_REG_BASE + 0x40, reg);
-	}
-
-	/* Config driving */
-	if ((nvt_get_chip_id() == CHIP_NA51090)) {
-		reg = INW(IOADDR_PAD_REG_BASE + 0x50);
-		reg &= ~(0xFFFFFFF);
-
-		if (freq <= 24000000) {
-			reg |= 0x0111101;    // data,clk,cs = 6mA
-		} else if (freq <= 60000000) {
-			reg |= 0x0222202;    // data,clk = 9mA, cs = 6mA
-		} else { // freq > 60MHz
-			reg |= 0x0222203;    // data = 9mA, clk = 12mA, cs = 6mA
-		}
-
-		OUTW(IOADDR_PAD_REG_BASE + 0x50, reg);
-	} else if (nvt_get_chip_id() == CHIP_NA51103) {
-		reg = INW(IOADDR_PAD_REG_BASE + 0x50);
-		reg &= ~(0xFFFFFFF);
-
-		if (freq <= 48000000) {
-			reg |= 0x0000000;
-		} else { // freq > 48MHz
-			reg |= 0x0111101;    // clk&data = 8mA
-		}
-
-		OUTW(IOADDR_PAD_REG_BASE + 0x50, reg);
-
-		OUTW(IOADDR_PAD_REG_BASE, 0x6AA9);
-
-	} else if (nvt_get_chip_id() == CHIP_NA51102) {
-		// D0 ~ D3
-		reg = INW(IOADDR_PAD_REG_BASE + 0x100);
-		reg &= ~(0xFFFF);
-		if (freq < 24000000) {
-			reg |= 0x4444;
-		} else if (freq < 48000000) {
-			reg |= 0x6666;
-		} else { // freq >= 48MHz
-			reg |= 0x8888;
-		}
-		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
-
-		// CLK, CS0&CS1
-		reg = INW(IOADDR_PAD_REG_BASE + 0x104);
-		reg &= ~(0xFFF);
-		if (freq < 24000000) {
-			reg |= 0x444;
-		} else if (freq < 48000000) {
-			reg |= 0x666;
-		} else { // freq >= 48MHz
-			reg |= 0x888;
-		}
-		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg);
-
-	} else {
-		/* Release SRAM */
-		reg = INW(IOADDR_TOP_REG_BASE + 0x1000);
-		reg &= ~(0x20000);
-		OUTW(IOADDR_TOP_REG_BASE + 0x1000, reg);
-
-		/* Config driving */
-		reg = INW(IOADDR_PAD_REG_BASE + 0x40);
-		reg &= ~(0x3F00FF);
-		reg |= 0x150055;
-		OUTW(IOADDR_PAD_REG_BASE + 0x40, reg);
-	}
-
-	nand_hostSetNandType(info, NANDCTRL_SPI_NAND_TYPE);
-
-	nand_host_settiming2(info, 0x9F51);
-
-	info->ops_freq = freq;
-
-	return nand_cmd_reset(info);
-
-}
-
-
 int nvt_nand_read_id(struct drv_nand_dev_info *info, uint32_t *id)
 {
 	uint8_t  card_id[8];
@@ -809,23 +633,17 @@ int nvt_nand_scan_2plane_id(uint32_t id)
 	return 0;
 }
 
-int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
+int nvt_nand_board_nand_init(struct nand_chip *nand)
 {
-	int32_t id;
+	int32_t id = 0;
 	struct drv_nand_dev_info *info;
 	u32 status;
-	static bool nand_hw_init = 0;
 
 #ifdef CONFIG_NVT_SPI_NONE
 	return -ENOMEM;
 #endif
 
-	printf("NAND version: %s, chip%d\n", NAND_VERSION, chip_id);
-
-	if (chip_id && (nvt_dual_nand_check() != E_OK)) {
-		debug("nand1 node is not define, skip \n");
-		return -ENOMEM;
-	}
+	printf("NAND version: %s\n", NAND_VERSION);
 
 	info = malloc(sizeof(struct drv_nand_dev_info));
 	if (!info) {
@@ -834,39 +652,51 @@ int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
 	}
 
 	info->flash_info = malloc(sizeof(struct nvt_nand_flash));
-	if (!info) {
+	if (!info->flash_info) {
 		printf("alloc nvt_nand_flash failed!\n");
+		free(info);
 		return -ENOMEM;
 	}
+	memset(info->flash_info, 0, sizeof(struct nvt_nand_flash));
 	info->flash_info->spi_nand_status.bBlockUnlocked    = FALSE;
 	info->flash_info->spi_nand_status.bQuadEnable       = FALSE;
 	info->flash_info->spi_nand_status.bQuadProgram      = FALSE;
 	info->flash_info->spi_nand_status.uiTimerRecord     = FALSE;
+	info->flash_info->oob_size = 64;
+	info->flash_info->ecc_strength = 1;
 
-	info->flash_info->config_nand_type                  = CONFIG_NAND_TYPE_SPINAND;
+	info->flash_info->config_nand_type = CONFIG_NAND_TYPE_SPINAND;
 
 	nand->priv = info;
 	info->mmio_base = (void *)(CONFIG_SYS_NAND_BASE);
 
+	nand_pad_reset(info, NANDCTRL_SPI_NAND_TYPE);
 	//Parse dtsi information
-	nvt_parse_parameter(info, chip_id);
+	nvt_parse_parameter(info);
+	nand_phy_config(info);
+	nand_dll_reset();
 
-	if (!nand_hw_init ) {
-		printf("nand hw init\n");
-		drv_nand_reset(info);
-		nand_phy_config(info);
+	if (info->indly) {
+		union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
+
+		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+		phy_dly2.Bit.INDLY_SEL = info->indly;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
 		nand_dll_reset();
-		nand_hw_init = 1;
 	}
 
 	/*Delay 1 ms for spinand characteristic*/
 	mdelay(1);
 
-	nvt_nand_read_id(info, (uint32_t *)&id);
+	if (nvt_nand_read_id(info, (uint32_t *)&id) != 0) {
+		printf("NAND get id fail \n");
+		return -ENODEV;
+	}
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
 	if (((id & 0xFFFF) != TOSHIBA_TC58CVG) && \
 		((id & 0xFFFF) != TOSHIBA_TC58CVG2S0HRAIG) && \
+		((id & 0xFFFF) != TOSHIBA_TC58CVG2) && \
 		((id & 0xFFFF) != TOSHIBA_TC58CVG1S3)) {
 		info->flash_info->spi_nand_status.bQuadProgram = TRUE;
 	}
@@ -892,7 +722,7 @@ int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
 
 	if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_RS_ECC) {
 		status &= ~SPINAND_CONFIG_ECCEN;
-	} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC && nvt_get_chip_id() == CHIP_NA51102) {
+	} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC) {
 		status &= ~SPINAND_CONFIG_ECCEN;
 	} else {
 		status |= SPINAND_CONFIG_ECCEN;
@@ -900,7 +730,8 @@ int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
 	if (((id & 0xFF) == NAND_MXIC) || ((id & 0xFF) == SPI_NAND_GD) || \
-		((id & 0xFF) == SPI_NAND_DOSILICON) || ((id & 0xFF) == SPI_NAND_XTX)) {
+		((id & 0xFF) == SPI_NAND_DOSILICON) || ((id & 0xFF) == SPI_NAND_XTX) || \
+		((id & 0xFF) == SPI_NAND_ETRON)) {
 		status |= SPINAND_CONFIG_QUADEN;
 	}
 #endif
@@ -939,7 +770,7 @@ int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
 	if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_RS_ECC) {
 		nand->ecc.strength = 4;
 		printf("use RS ecc\n");
-	} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC && nvt_get_chip_id() == CHIP_NA51102) {
+	} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC) {
 		nand->ecc.strength = 8;
 
 		nand_host_set_spare_size_sel(info, info->flash_info->spare_size);
@@ -963,7 +794,9 @@ int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
 		NAND_DEBUG_MSG("BCH option: SpareSize[%d], SpareAlign[%d], Spare protected[%d]\n", \
 					   info->flash_info->spare_size, info->flash_info->spare_align, info->flash_info->spare_protect);
 	} else {
-		nand->ecc.strength = info->flash_info->ecc_strength;
+		if ((info->flash_info->ecc_strength > 1) && (info->flash_info->ecc_strength <= 8)) {
+			nand->ecc.strength = info->flash_info->ecc_strength;
+		}
 		printf("use flash on-die ecc\n");
 	}
 
@@ -973,11 +806,19 @@ int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
 		info->flash_info->plane_flags = 0;
 	}
 
+	if (info->autok_param) {
+		if (nand_host_dll_auto_tuning(info, NANDCTRL_SPI_NAND_TYPE) != E_OK) {
+			printf("nand auto tuning fail\n");
+		} else {
+			printf("nand auto tuning finish\n");
+		}
+	}
+
 	printf("nvt spinand %d-bit mode @ %d Hz\n", \
 		   info->flash_info->spi_nand_status.bQuadProgram ? 4 : 1, \
 		   info->ops_freq);
 
-	if (nvt_get_chip_id() == CHIP_NA51103 && (info->flash_info->spi_nand_status.bQuadProgram == 0)) {
+	if (info->chip_id == CHIP_NA51103 && (info->flash_info->spi_nand_status.bQuadProgram == 0)) {
 		uint32_t reg = INW(IOADDR_TOP_REG_BASE + 0x4);
 
 		OUTW(IOADDR_TOP_REG_BASE + 0x4, (reg & ~0x2));
@@ -990,7 +831,7 @@ int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id)
 		//set C_GPIO[5..4] = b'11
 		OUTW(IOADDR_GPIO_REG_BASE + 0x60, 0x30);
 		printf("(331) single/dual mode: WP/HOLD force output high\n");
-	} else if (nvt_get_chip_id() == CHIP_NA51103 && (info->flash_info->spi_nand_status.bQuadProgram == 1)) {
+	} else if (info->chip_id == CHIP_NA51103 && (info->flash_info->spi_nand_status.bQuadProgram == 1)) {
 		uint32_t reg = INW(IOADDR_TOP_REG_BASE + 0x4);
 
 		OUTW(IOADDR_TOP_REG_BASE + 0x4, (reg | 0x2));

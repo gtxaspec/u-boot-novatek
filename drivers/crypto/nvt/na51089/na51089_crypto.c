@@ -9,10 +9,13 @@
 
 #ifdef CONFIG_NVT_CRYPTO
 #include <common.h>
+#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_crypto.h>
 #include <asm/arch/efuse_protected.h>
+
+#include <linux/delay.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -24,9 +27,16 @@
  *  Global Definition
  *************************************************************************************/
 //#define NVT_CRYPTO_DEBUG
+// #define NVT_CRYPTO_DMA_36BIT_SUPPORT    
 
 #define PLAT_CACHE_LINE_SIZE            CONFIG_SYS_CACHELINE_SIZE
 #define PLAT_CACHE_LINE_MASK            (CONFIG_SYS_CACHELINE_SIZE-1)
+#ifdef NVT_CRYPTO_DMA_36BIT_SUPPORT
+#define DMA_ADDR_LO(x)                  ((uint32_t)((uint64_t)(x)))
+#define DMA_ADDR_HI(x)                  ((uint32_t)(((uint64_t)(x)) >> 32))
+#else
+#define DMA_ADDR_LO(x)                  ((uint32_t)(x))
+#endif
 
 /*************************************************************************************
  *  Debug Message Print Definition
@@ -69,11 +79,17 @@
 #define NVT_CRYPTO_OUT1_REG               0x44           ///< output data 32  ~ 63  bit
 #define NVT_CRYPTO_OUT2_REG               0x48           ///< output data 64  ~ 95  bit
 #define NVT_CRYPTO_OUT3_REG               0x4C           ///< output data 96  ~ 127 bit
-#define NVT_CRYPTO_DMA0_ADDR_REG          0x50           ///< DMA channel 0 descriptor starting address, DMA mode only
-#define NVT_CRYPTO_DMA1_ADDR_REG          0x54           ///< DMA channel 1 descriptor starting address, DMA mode only
-#define NVT_CRYPTO_DMA2_ADDR_REG          0x58           ///< DMA channel 2 descriptor starting address, DMA mode only
-#define NVT_CRYPTO_DMA3_ADDR_REG          0x5C           ///< DMA channel 0 descriptor starting address, DMA mode only
+#define NVT_CRYPTO_DMA0_ADDR_REG          0x50           ///< DMA channel 0 descriptor starting low  address, DMA mode only
+#define NVT_CRYPTO_DMA1_ADDR_REG          0x54           ///< DMA channel 1 descriptor starting low  address, DMA mode only
+#define NVT_CRYPTO_DMA2_ADDR_REG          0x58           ///< DMA channel 2 descriptor starting low  address, DMA mode only
+#define NVT_CRYPTO_DMA3_ADDR_REG          0x5C           ///< DMA channel 0 descriptor starting low  address, DMA mode only
 #define NVT_CRYPTO_KEY_READ_REG           0x60           ///< crypto key readable control
+#define NVT_CRYPTO_AXI_DMA_DIS_REG		  0x68           ///< crypto AXI control
+#define NVT_CRYPTO_DMA0_ADDR_H_REG        0x70           ///< DMA channel 0 descriptor starting high address, DMA mode only
+#define NVT_CRYPTO_DMA1_ADDR_H_REG        0x74           ///< DMA channel 1 descriptor starting high address, DMA mode only
+#define NVT_CRYPTO_DMA2_ADDR_H_REG        0x78           ///< DMA channel 2 descriptor starting high address, DMA mode only
+#define NVT_CRYPTO_DMA3_ADDR_H_REG        0x7C           ///< DMA channel 3 descriptor starting high address, DMA mode only
+
 
 /*************************************************************************************
  *  DMA Descriptor Definition
@@ -112,16 +128,20 @@ static void nvt_crypto_platform_init(void)
 {
 	uint32_t tmp;
 
-	/* Crypto clock select, 0:240MHz 1:320MHz 2: RVD 3: PLL9 */
+	/* Crypto clock select, 0:fix(240MHz) 1:fix(320MHz) */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x1C);
 	tmp &= ~(0x3<<20);
-	tmp |= (0x1<<20);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x1C, tmp);
 
-	/* Crypto clock enable */
+	/* Crypto master clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);
 	tmp |= (0x1<<23);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x70, tmp);
+
+	/* Crypto program clock enable */
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x80);
+	tmp |= (0x1<<23);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x80, tmp);
 
 	/* Crypto reset disable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x80);
@@ -138,7 +158,7 @@ static void nvt_crypto_platform_exit(void)
 	tmp &= ~(0x1<<23);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x80, tmp);
 
-	/* Crypto clock disable */
+	/* Crypto master clock disable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);
 	tmp &= ~(0x1<<23);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x70, tmp);
@@ -502,10 +522,13 @@ int nvt_crypto_dma_aes(struct nvt_crypto_pio_t *p_crypto)
 		desc->header_cfg |= (0x1<<12);  ///< 0:from desc 1:from efuse
 
 	/* set crypto block config */
-	desc->block[0].src_addr  = (uint32_t)p_crypto->src;
-	desc->block[0].dst_addr  = (uint32_t)p_crypto->dst;
+	desc->block[0].src_addr  = DMA_ADDR_LO(p_crypto->src);
+	desc->block[0].dst_addr  = DMA_ADDR_LO(p_crypto->dst);
 	desc->block[0].length    = p_crypto->src_size;
 	desc->block[0].block_cfg = 0x1;     /// last block
+#ifdef NVT_CRYPTO_DMA_36BIT_SUPPORT
+    desc->block[0].block_cfg |= (((DMA_ADDR_HI(p_crypto->src)&0xf)<<16) | ((DMA_ADDR_HI(p_crypto->dst)&0xf)<<24));
+#endif
 
 	/* descriptor buffer memory flush */
 	flush_dcache_range((unsigned long)desc, ((unsigned long)desc) + roundup(sizeof(struct nvt_crypto_dma_desc), ARCH_DMA_MINALIGN));
@@ -525,11 +548,19 @@ int nvt_crypto_dma_aes(struct nvt_crypto_pio_t *p_crypto)
 	reg_value &= ~(0xf<<4);
 	crypto_write(NVT_CRYPTO_INT_ENB_REG, reg_value);
 
+	/* clear axi dma disable */
+	reg_value  = crypto_read(NVT_CRYPTO_AXI_DMA_DIS_REG);
+	reg_value &= ~(0x1<<16);
+	crypto_write(NVT_CRYPTO_AXI_DMA_DIS_REG, reg_value);
+
 	/* clear interrupt status */
 	crypto_write(NVT_CRYPTO_INT_STS_REG, (0xf<<4));
 
 	/* set DMA descriptor source address */
-	crypto_write(NVT_CRYPTO_DMA0_ADDR_REG, (uint32_t)desc);
+	crypto_write(NVT_CRYPTO_DMA0_ADDR_REG, DMA_ADDR_LO(desc));
+#ifdef NVT_CRYPTO_DMA_36BIT_SUPPORT
+    crypto_write(NVT_CRYPTO_DMA0_ADDR_H_REG, DMA_ADDR_HI(desc));
+#endif
 
 	/* set DMA channel enable */
 	reg_value  = crypto_read(NVT_CRYPTO_CTRL_REG);

@@ -1,10 +1,10 @@
 /**
-    NVT update handling api
+    NVT api for dfu settings 
 
-    @file       nvt_ivot_fw_update_utils.c
+    @file       nvt_dfu.c
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2019.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2022.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as
@@ -14,6 +14,7 @@
 #include <malloc.h>
 #include <fs.h>
 #include <memalign.h>
+#include <env.h>
 #include <linux/ctype.h>
 
 static char *get_dfu_alt_system(char *interface, char *devstr)

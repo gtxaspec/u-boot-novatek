@@ -14,4 +14,9 @@
 #ifndef __NVT_IVOT_SOC_UTILS_H__
 #define __NVT_IVOT_SOC_UTILS_H__
 
+int nvt_boot_rtos_bin_auto(void);
+int nvt_runfw_bin_chk_valid(ulong addr);
+int gz_uncompress(unsigned char *in, unsigned char *out, unsigned int insize, unsigned int outsize);
+UINT32 MemCheck_CalcCheckSum16Bit(ulong uiAddr,UINT32 uiLen);
+
 #endif /* __NVT_IVOT_SOC_UTILS_H__ */

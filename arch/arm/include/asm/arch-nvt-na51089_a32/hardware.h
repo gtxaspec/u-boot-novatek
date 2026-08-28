@@ -17,10 +17,22 @@ enum CHIP_ID {
 	CHIP_NA51089 = 0x7021,
 	CHIP_NA51090 = 0xBC21,
 	CHIP_NA51102 = 0x5221,
-	CHIP_NA51103 = 0x8B20
+	CHIP_NA51103 = 0x8B20,
+	CHIP_NS02201 = 0xF221,
+	CHIP_NS02301 = 0x7721,
+	CHIP_NS02302 = 0x5A21,
+	CHIP_NS02401 = 0xBB21,
+	CHIP_NS02402 = 0x5B21,
+};
+
+enum CHIP_VER {
+	CHIPVER_A,
+	CHIPVER_B,
+	CHIPVER_C
 };
 
 extern u32 nvt_get_chip_id(void);
+extern u32 nvt_get_chip_ver(void);
 
 #define NVT_TIMER0_CNT		0xF0040108
 

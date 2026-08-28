@@ -11,8 +11,11 @@
     published by the Free Software Foundation.
 */
 
-
 #include <common.h>
+#include <cli.h>
+#include <command.h>
+#include <linux/delay.h>
+#include <env.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/armv8/mmu.h>
@@ -24,22 +27,27 @@
 #include <fdt_support.h>
 
 #ifdef CONFIG_NVT_PCIE
-#include <cli.h>
 #include <asm/arch/nvt_pcie.h>
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
 extern int nvt_mmc_init(int id);
-extern int na51090_eth_initialize(bd_t *bis);
+extern int na51090_eth_initialize(struct bd_info *bis);
 const char *boardinfo[] = {
 	"Board:"_CHIP_NAME_"EVB\n"
 };
 
-static struct mm_region na51090_a64_evb_mem_map[] = {
+static struct mm_region evb_mem_map[] = {
 	{
 	    .virt = 0x0UL,
 		.phys = 0x0UL,
-		.size = 0xf0000000UL,
+		.size = 0x1F00000UL,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_INNER_SHARE
+	}, {
+	    .virt = 0x2000000UL,
+		.phys = 0x2000000UL,
+		.size = 0xEE000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 			 PTE_BLOCK_INNER_SHARE
 	}, {
@@ -82,9 +90,18 @@ static struct mm_region na51090_a64_evb_mem_map[] = {
 	}
 };
 
-struct mm_region *mem_map = na51090_a64_evb_mem_map;
+struct mm_region *mem_map = evb_mem_map;
 
-void reset_cpu(unsigned long ignored)
+int dram_init_banksize(void)
+{
+	/* Set Dram bank to physical memory range for booti relocation */
+	gd->bd->bi_dram[0].start = nvt_memory_cfg[MEMTYPE_DRAM].addr;
+	gd->bd->bi_dram[0].size = nvt_memory_cfg[MEMTYPE_DRAM].size;
+
+	return 0;
+}
+
+void reset_cpu()
 {
 	nvt_ivot_reset_cpu();
 }
@@ -95,12 +112,14 @@ void reset_cpu(unsigned long ignored)
  *
  * @return 0
  */
+#ifdef CONFIG_BOARD_EARLY_INIT_F
 int board_early_init_f(void)
 {
 	//nvt_ipc_init();
 
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_BOARD_EARLY_INIT_R
 int board_early_init_r(void)
@@ -148,9 +167,8 @@ int board_init(void)
 #ifdef CONFIG_ARMV8_MULTIENTRY
 	/* Loader will use the register value as a pc address
 	then slave core will jump to the address when register value is not equal to zero */
-	nvt_writel(CONFIG_UBOOT_SDRAM_BASE + gd->reloc_off, LOADER_CPU_RELEASE_ADDR);
+	nvt_writel(nvt_memory_cfg[MEMTYPE_UBOOT].addr + gd->reloc_off, LOADER_CPU_RELEASE_ADDR);
 #endif
-
 
 	ret = nvt_board_init_early();
 	if (ret < 0) {
@@ -173,12 +191,10 @@ int board_init(void)
 #endif
 #endif
 
-	nvt_print_system_info();
-
 	return 0;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int ret = 0;
 #ifdef CONFIG_NVT_MMC
@@ -208,11 +224,11 @@ int board_mmc_init(bd_t *bis)
 	return ret;
 }
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int rc = 0;
 
-#ifdef CONFIG_ETHNET
+#ifdef CFG_ETHNET
 	rc = na51090_eth_initialize(bis);
 #endif
 
@@ -268,7 +284,9 @@ static int nvt_handle_fw_abin(void)
 
 	return 0;
 }
+#endif
 
+#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_fw_tbin(void)
 {
 	int ret = 0;
@@ -311,38 +329,9 @@ static int nvt_handle_fw_tbin(void)
 
 	return 0;
 }
+#endif
 
-static int nvt_handle_fw_update_fw(void)
-{
-	int ret = 0;
-	unsigned long val = 0;
-
-	printf("%sStarting to update firmware runtime %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-	/* To handle firmware update */
-	ret = nvt_fw_update(true);
-	if (ret < 0) {
-		printf("%sUpdate fail %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
-		val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_NG;
-		nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-		flush_dcache_all();
-		return -1;
-	} else {
-		printf("%sUpdate firmware successfully %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-
-		// Update finished.
-		val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_DONE;
-		nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-		flush_dcache_all();
-		while(1) {
-			// Waiting for itron trigger reboot.
-			printf(".");
-			mdelay(1000);
-		}
-	}
-
-	return 0;
-}
-
+#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_update_fw_by_usb_eth(void)
 {
 	int ret = 0;
@@ -372,15 +361,9 @@ static int nvt_handle_update_fw_by_usb_eth(void)
 	env_set("bootargs",cmdline);
 	return 0;
 }
+#endif
 
-static int nvt_handle_format_rw_rootfs(void)
-{
-	int ret = 0;
-	ret = nvt_process_rootfs_format();
-
-	return ret;
-}
-
+#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_recovery_sys(void)
 {
 	int ret = 0;
@@ -401,19 +384,15 @@ static int nvt_handle_recovery_sys(void)
 
 	return ret;
 }
+#endif
 
-#ifdef CONFIG_NVT_LINUX_AUTODETECT
+#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_fw_auto(void)
 {
 	int ret = 0;
 	unsigned long boot_reason = nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & COMM_UBOOT_BOOT_FUNC_BOOT_REASON_MASK;
 
-	if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPDFIRM) {
-		// Update by itron: firmware will be loaded by itron.
-		ret = nvt_handle_fw_update_fw();
-		if (ret < 0)
-			return ret;
-	} else if ((boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_USB) || \
+	if ((boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_USB) || \
 				(boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_ETH)){
 		// Update by USB/ETH: firmware will be loaded by loader.
 		ret = nvt_handle_update_fw_by_usb_eth();
@@ -423,26 +402,9 @@ static int nvt_handle_fw_auto(void)
 		ret = nvt_handle_fw_tbin();
 		if (ret < 0)
 			return ret;
-
-		#ifndef CONFIG_NVT_LINUX_RAMDISK_BOOT
-		char cmdline[512] = {0};
-		char buf[255] = {0};
-		/*
-		 * To handle bootargs expanding for the kernel /proc/cmdline and uboot mtdids env setting
-		 */
-		sprintf(buf,"%s ",env_get("bootargs"));
-		strcat(cmdline, buf);
-		ret = nvt_part_config((char *)cmdline, NULL);
-		if (ret < 0)
-			return ret;
-
-		env_set("bootargs",cmdline);
-		#endif /* CONFIG_NVT_LINUX_RAMDISK_BOOT */
 	} else if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_FORMAT_ROOTFS){
-		// Format R/W rootfs, we should check if this partition is existed firstly.
-		ret = nvt_handle_format_rw_rootfs();
-		if (ret < 0)
-			return ret;
+		printf("%s: COMM_UBOOT_BOOT_FUNC_BOOT_FORMAT_ROOTFS is not supported\n", __func__);
+		return -1;
 	} else if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_RECOVERY_SYS){
 		// Recovery system if loader send event to do system recovery. (EMMC boot only)
 		ret = nvt_handle_recovery_sys();
@@ -456,8 +418,7 @@ static int nvt_handle_fw_auto(void)
 
 	return 0;
 }
-#endif /* CONFIG_NVT_LINUX_AUTODETECT */
-#endif /* CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT */
+#endif
 
 #if defined(CONFIG_NVT_IVOT_EMMC)
 static int nvt_emmc_set_bootbus(void)
@@ -540,6 +501,7 @@ static int nvt_norflash_init(void)
  */
 int misc_init_r(void)
 {
+	/* if part of misc_init_r failed, print msg and go to boot shell cli_loop() */
 	int ret = 0;
 
 
@@ -554,40 +516,27 @@ int misc_init_r(void)
 
 #if defined(CONFIG_NVT_IVOT_EMMC)
 	ret = nvt_emmc_init();
-	if (ret < 0)
-		return 0;
-#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
-	ret = nvt_norflash_init();
-	if (ret < 0)
-		return 0;
-#endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
-
-#ifndef CONFIG_NVT_PCIE_DAUGHTER_BRD
-#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-	#ifdef CONFIG_NVT_LINUX_AUTODETECT
-	ret = nvt_handle_fw_auto();
-	if (ret < 0)
-		return 0;
-	#else /* !CONFIG_NVT_LINUX_AUTODETECT */
-	#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT)
-	ret = nvt_handle_fw_abin();
-	if (ret < 0)
-		return 0;
-	#else /* !defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) */
-	ret = nvt_handle_fw_tbin();
-	if (ret < 0)
-		return 0;
-	#endif /* defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) */
-	#endif /* CONFIG_NVT_LINUX_AUTODETECT */
-#else /* !CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT */
-	/* FIXME: To do customized boot */
-	ret = nvt_fdt_init(true);
 	if (ret < 0) {
-		printf("modelext init fail\n");
+		printf("nvt_emmc_init fail\n");
+		cli_loop();
 		return 0;
 	}
-#endif /* CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT */
-#endif /* !CONFIG_NVT_PCIE_DAUGHTER_BRD */
+#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
+	ret = nvt_norflash_init();
+	if (ret < 0) {
+		printf("nvt_norflash_init fail\n");
+		cli_loop();
+		return 0;
+	}
+#endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
+
+#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
+	ret = nvt_handle_fw_auto();
+	if (ret < 0) {
+		printf("nvt_handle_fw_auto fail\n");
+		cli_loop();
+	}
+#endif
 
 	/* Why to do this again?
 	 * This is because modelext maybe updated, we should init again here.
@@ -595,7 +544,10 @@ int misc_init_r(void)
 	nvt_dbg(FUNC, "boot time: %lu(us) \n", get_nvt_timer0_cnt());
 	ret = nvt_board_init();
 	if (ret < 0) {
+#ifndef CONFIG_NVT_PCIE_DAUGHTER_BRD
 		printf("board init fail\n");
+		cli_loop();
+#endif
 		return 0;
 	}
 
@@ -607,26 +559,18 @@ int misc_init_r(void)
 /*
  * dram init.
  */
-int dram_init_banksize(void)
-{
-	gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
-	gd->bd->bi_dram[0].size = PHYS_SDRAM_1_SIZE;
 
+int dram_init(void)
+{
+	nvt_get_memory_by_dts(gd->fdt_blob);
+	nvt_print_dram_setting();
 	return 0;
 }
 
-phys_size_t get_effective_memsize(void)
+ulong board_get_usable_ram_top(ulong total_size)
 {
-	/* We should report the uboot dram size due to relocate
-	 * address will be calculated by this size to get ram top address,
-	 * #ifdef CONFIG_SYS_SDRAM_BASE
-	 *   gd->ram_base = CONFIG_SYS_SDRAM_BASE;
-	 * #endif
-	 *   gd->ram_top = gd->ram_base + get_effective_memsize();
-	 *   gd->ram_top = board_get_usable_ram_top(gd->mon_len);
-	 *   gd->relocaddr = gd->ram_top;
-	 */
-	return CONFIG_SYS_SDRAM_SIZE;
+	/* Set relocate address to the top of uboot memory */
+	return nvt_memory_cfg[MEMTYPE_UBOOT].addr + nvt_memory_cfg[MEMTYPE_UBOOT].size;
 }
 
 /*

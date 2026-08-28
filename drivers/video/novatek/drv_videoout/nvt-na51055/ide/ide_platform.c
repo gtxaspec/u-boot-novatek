@@ -262,8 +262,19 @@ UINT32 pll_get_clock_rate(PLL_CLKSEL clk_sel)
 	UINT32      ui_mask, ui_reg_offset;
 	REGVALUE    reg_data;
 
-	ui_reg_offset = 0x20;
-	ui_mask = (0x7<<PLL_CLKSEL_IDE_CLKSRC_OFS);
+	if (clk_sel == PLL_CLKSEL_IDE_CLKSRC) {
+		ui_reg_offset = 0x20;
+		ui_mask = (0x7<<PLL_CLKSEL_IDE_CLKSRC_OFS);
+	} else if (clk_sel == PLL_CLKSEL_IDE_CLKDIV) {
+		ui_reg_offset = 0x34;
+		ui_mask = (0xFF);
+	} else if (clk_sel == PLL_CLKSEL_IDE_OUTIF_CLKDIV) {
+		ui_reg_offset = 0x34;
+		ui_mask = (0xFF << 8);
+	} else {
+		DBG_WRN("pll_get_clock_rate fail, return 0\r\n");
+		return 0;
+	}
 
 	reg_data = INREG32(IOADDR_CG_REG_BASE + ui_reg_offset);
 	reg_data &= ui_mask;

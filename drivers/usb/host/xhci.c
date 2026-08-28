@@ -20,15 +20,22 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
-#include <asm/byteorder.h>
-#include <usb.h>
+#include <dm/device_compat.h>
+#include <log.h>
 #include <malloc.h>
+#include <usb.h>
+#include <usb/xhci.h>
 #include <watchdog.h>
+#include <asm/byteorder.h>
 #include <asm/cache.h>
 #include <asm/unaligned.h>
+#include <linux/bitops.h>
+#include <linux/bug.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
-#include "xhci.h"
+#include <linux/iopoll.h>
 
 #ifndef CONFIG_USB_MAX_CONTROLLER_COUNT
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 1
@@ -47,7 +54,7 @@ static struct descriptor {
 		0x2a,		/* bDescriptorType: hub descriptor */
 		2,		/* bNrPorts -- runtime modified */
 		cpu_to_le16(0x8), /* wHubCharacteristics */
-		100,	        /* bPwrOn2PwrGood */
+		10,		/* bPwrOn2PwrGood */
 		0,		/* bHubCntrCurrent */
 		{		/* Device removable */
 		}		/* at most 7 ports! XXX */
@@ -138,23 +145,19 @@ struct xhci_ctrl *xhci_get_ctrl(struct usb_device *udev)
  * @param usec	time to wait till
  * @return 0 if handshake is success else < 0 on failure
  */
-static int handshake(uint32_t volatile *ptr, uint32_t mask,
-					uint32_t done, int usec)
+static int
+handshake(uint32_t volatile *ptr, uint32_t mask, uint32_t done, int usec)
 {
 	uint32_t result;
+	int ret;
 
-	do {
-		result = xhci_readl(ptr);
-		if (result == ~(uint32_t)0)
-			return -ENODEV;
-		result &= mask;
-		if (result == done)
-			return 0;
-		usec--;
-		udelay(1);
-	} while (usec > 0);
+	ret = readx_poll_sleep_timeout(xhci_readl, ptr, result,
+				 (result & mask) == done || result == U32_MAX,
+				 1, usec);
+	if (result == U32_MAX)		/* card removed */
+		return -ENODEV;
 
-	return -ETIMEDOUT;
+	return ret;
 }
 
 /**
@@ -570,7 +573,7 @@ static int xhci_set_configuration(struct usb_device *udev)
 		ep_ctx[ep_index] = xhci_get_ep_ctx(ctrl, in_ctx, ep_index);
 
 		/* Allocate the ep rings */
-		virt_dev->eps[ep_index].ring = xhci_ring_alloc(1, true);
+		virt_dev->eps[ep_index].ring = xhci_ring_alloc(ctrl, 1, true);
 		if (!virt_dev->eps[ep_index].ring)
 			return -ENOMEM;
 
@@ -582,8 +585,7 @@ static int xhci_set_configuration(struct usb_device *udev)
 			cpu_to_le32(EP_MAX_ESIT_PAYLOAD_HI(max_esit_payload) |
 			EP_INTERVAL(interval) | EP_MULT(mult));
 
-		ep_ctx[ep_index]->ep_info2 =
-			cpu_to_le32(ep_type << EP_TYPE_SHIFT);
+		ep_ctx[ep_index]->ep_info2 = cpu_to_le32(EP_TYPE(ep_type));
 		ep_ctx[ep_index]->ep_info2 |=
 			cpu_to_le32(MAX_PACKET
 			(get_unaligned(&endpt_desc->wMaxPacketSize)));
@@ -595,8 +597,7 @@ static int xhci_set_configuration(struct usb_device *udev)
 			cpu_to_le32(MAX_BURST(max_burst) |
 			ERROR_COUNT(err_count));
 
-		trb_64 = (uintptr_t)
-				virt_dev->eps[ep_index].ring->enqueue;
+		trb_64 = xhci_virt_to_bus(ctrl, virt_dev->eps[ep_index].ring->enqueue);
 		ep_ctx[ep_index]->deq = cpu_to_le64(trb_64 |
 				virt_dev->eps[ep_index].ring->cycle_state);
 
@@ -609,6 +610,16 @@ static int xhci_set_configuration(struct usb_device *udev)
 		ep_ctx[ep_index]->tx_info =
 			cpu_to_le32(EP_MAX_ESIT_PAYLOAD_LO(max_esit_payload) |
 			EP_AVG_TRB_LENGTH(avg_trb_len));
+
+		/*
+		 * The MediaTek xHCI defines some extra SW parameters which
+		 * are put into reserved DWs in Slot and Endpoint Contexts
+		 * for synchronous endpoints.
+		 */
+		if (ctrl->quirks & XHCI_MTK_HOST) {
+			ep_ctx[ep_index]->reserved[0] =
+				cpu_to_le32(EP_BPKTS(1) | EP_BBM(1));
+		}
 	}
 
 	return xhci_configure_endpoints(udev, false);
@@ -638,11 +649,11 @@ static int xhci_address_device(struct usb_device *udev, int root_portnr)
 	 * so setting up the slot context.
 	 */
 	debug("Setting up addressable devices %p\n", ctrl->dcbaa);
+	//xhci_setup_addressable_virt_dev(ctrl, udev, root_portnr);
 
 	ctrl_ctx = xhci_get_input_control_ctx(virt_dev->in_ctx);
 	ctrl_ctx->add_flags = cpu_to_le32(SLOT_FLAG | EP0_FLAG);
 	ctrl_ctx->drop_flags = 0;
-
 	xhci_setup_addressable_virt_dev(ctrl, udev, root_portnr);
 
 	xhci_queue_command(ctrl, (void *)ctrl_ctx, slot_id, 0, TRB_ADDR_DEV);
@@ -788,8 +799,7 @@ int xhci_check_maxpacket(struct usb_device *udev)
 				ctrl->devs[slot_id]->out_ctx, ep_index);
 		in_ctx = ctrl->devs[slot_id]->in_ctx;
 		ep_ctx = xhci_get_ep_ctx(ctrl, in_ctx, ep_index);
-		ep_ctx->ep_info2 &= cpu_to_le32(~((0xffff & MAX_PACKET_MASK)
-						<< MAX_PACKET_SHIFT));
+		ep_ctx->ep_info2 &= cpu_to_le32(~MAX_PACKET(MAX_PACKET_MASK));
 		ep_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(max_packet_size));
 
 		/*
@@ -1099,28 +1109,6 @@ unknown:
 	return -ENODEV;
 }
 
-#ifdef CONFIG_USB_XHCI_NVTIVOT
-/**
- * Recover Compliance mode to XHCI Host cotroller
- *
- * @param udev	pointer to the USB device
- */
-static void xhci_compliance_recover(struct usb_device *udev)
-{
-	unsigned long reg;
-	volatile uint32_t *status_reg;
-	struct xhci_ctrl *ctrl = xhci_get_ctrl(udev);
-	struct xhci_hcor *hcor = ctrl->hcor;
-
-	status_reg = (volatile uint32_t *) (&hcor->portregs[0].or_portsc);
-	reg = xhci_readl(status_reg);
-
-	if ((reg & (0xF << 5)) == 0x140) {
-		reg |= PORT_WR;
-		xhci_writel(status_reg, reg);
-	}
-}
-#endif
 /**
  * Submits the INT request to XHCI Host cotroller
  *
@@ -1132,7 +1120,8 @@ static void xhci_compliance_recover(struct usb_device *udev)
  * @return 0
  */
 static int _xhci_submit_int_msg(struct usb_device *udev, unsigned long pipe,
-				void *buffer, int length, int interval)
+				void *buffer, int length, int interval,
+				bool nonblock)
 {
 	if (usb_pipetype(pipe) != PIPE_INTERRUPT) {
 		printf("non-interrupt pipe (type=%lu)", usb_pipetype(pipe));
@@ -1190,9 +1179,7 @@ static int _xhci_submit_control_msg(struct usb_device *udev, unsigned long pipe,
 		printf("non-control pipe (type=%lu)", usb_pipetype(pipe));
 		return -EINVAL;
 	}
-#ifdef CONFIG_USB_XHCI_NVTIVOT
-	xhci_compliance_recover(udev);
-#endif
+
 	if (usb_pipedevice(pipe) == ctrl->rootdev)
 		return xhci_submit_root(udev, pipe, buffer, setup);
 
@@ -1236,8 +1223,7 @@ static int xhci_lowlevel_init(struct xhci_ctrl *ctrl)
 		return -ENOMEM;
 
 	reg = xhci_readl(&hccr->cr_hcsparams1);
-	descriptor.hub.bNbrPorts = ((reg & HCS_MAX_PORTS_MASK) >>
-						HCS_MAX_PORTS_SHIFT);
+	descriptor.hub.bNbrPorts = HCS_MAX_PORTS(reg);
 	printf("Register %x NbrPorts %d\n", reg, descriptor.hub.bNbrPorts);
 
 	/* Port Indicators */
@@ -1262,6 +1248,7 @@ static int xhci_lowlevel_init(struct xhci_ctrl *ctrl)
 
 	reg = HC_VERSION(xhci_readl(&hccr->cr_capbase));
 	printf("USB XHCI %x.%02x\n", reg >> 8, reg & 0xff);
+	ctrl->hci_version = reg;
 
 	return 0;
 }
@@ -1302,9 +1289,10 @@ int submit_bulk_msg(struct usb_device *udev, unsigned long pipe, void *buffer,
 }
 
 int submit_int_msg(struct usb_device *udev, unsigned long pipe, void *buffer,
-		   int length, int interval)
+		   int length, int interval, bool nonblock)
 {
-	return _xhci_submit_int_msg(udev, pipe, buffer, length, interval);
+	return _xhci_submit_int_msg(udev, pipe, buffer, length, interval,
+				    nonblock);
 }
 
 /**
@@ -1411,10 +1399,11 @@ static int xhci_submit_bulk_msg(struct udevice *dev, struct usb_device *udev,
 
 static int xhci_submit_int_msg(struct udevice *dev, struct usb_device *udev,
 			       unsigned long pipe, void *buffer, int length,
-			       int interval)
+			       int interval, bool nonblock)
 {
 	debug("%s: dev='%s', udev=%p\n", __func__, dev->name, udev);
-	return _xhci_submit_int_msg(udev, pipe, buffer, length, interval);
+	return _xhci_submit_int_msg(udev, pipe, buffer, length, interval,
+				    nonblock);
 }
 
 static int xhci_alloc_device(struct udevice *dev, struct usb_device *udev)

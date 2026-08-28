@@ -34,5 +34,4 @@ config ENV_SECT_SIZE
 	hex
 	default 0x10000 if ENV_IS_IN_SPI_FLASH
 
-source "board/novatek/nvt-na51102/nvt_pcie/Kconfig"
 endif

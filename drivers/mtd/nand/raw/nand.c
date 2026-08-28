@@ -24,7 +24,7 @@ static ulong base_address[CONFIG_SYS_MAX_NAND_DEVICE] = CONFIG_SYS_NAND_BASE_LIS
 #endif
 
 #ifdef CONFIG_ARCH_NOVATEK
-int nvt_nand_board_nand_init(struct nand_chip *nand, int chip_id);
+int nvt_nand_board_nand_init(struct nand_chip *nand);
 #endif
 
 static char dev_name[CONFIG_SYS_MAX_NAND_DEVICE][8];
@@ -63,7 +63,7 @@ int nand_register(int devnum, struct mtd_info *mtd)
 	sprintf(dev_name[devnum], "nand%d", devnum);
 	mtd->name = dev_name[devnum];
 
-#ifdef CONFIG_MTD_DEVICE
+#ifdef CONFIG_MTD
 	/*
 	 * Add MTD device so that we can reference it later
 	 * via the mtdcore infrastructure (e.g. ubi).
@@ -93,7 +93,7 @@ static void nand_init_chip(int i)
 	nand->IO_ADDR_R = nand->IO_ADDR_W = (void  __iomem *)base_addr;
 
 #ifdef CONFIG_ARCH_NOVATEK
-	if(nvt_nand_board_nand_init(nand, i))
+	if(nvt_nand_board_nand_init(nand))
 		return;
 #else
 	if (board_nand_init(nand))

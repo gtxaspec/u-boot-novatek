@@ -50,21 +50,6 @@ static u64 get_cpu_global_timer(void)
 	return (u64)((timer << 32) | low);
 }
 
-int timer_init(void)
-{
-	u32 val = 0;
-
-	val = readl(&global_timer->ctl);
-	if (!(val & 0x01)) {
-		writel(0x01, &global_timer->ctl);
-		printf("ARM CA9 global timer init successfully\n");
-	} else {
-		printf("ARM CA9 global timer had already been initiated\n");
-	}
-
-	return 0;
-}
-
 void __udelay(unsigned long usec)
 {
 	u64 wait_tick = 0;
@@ -87,12 +72,3 @@ ulong get_timer(ulong base)
 	return time_msec - base;
 }
 
-unsigned long long get_ticks(void)
-{
-	return get_cpu_global_timer();
-}
-
-ulong get_tbclk(void)
-{
-	return (ulong)get_timer_clk();
-}

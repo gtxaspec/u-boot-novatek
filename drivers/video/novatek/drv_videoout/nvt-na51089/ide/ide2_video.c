@@ -166,7 +166,7 @@ BOOL idec_get_v2_en(IDE_ID id)
 
     @return void
 */
-void idec_set_v1_buf0_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr)
+void idec_set_v1_buf0_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr)
 {
 	T_IDE_BUF_ADDR reg;
 	T_IDE_BUF_ADDR2 reg2;
@@ -175,11 +175,8 @@ void idec_set_v1_buf0_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT3
 	reg.bit.addr = ide_platform_va2pa(ui_y_addr);
 	idec_set_reg(id, IDE_V1_DB0_Y_OFS, reg.reg);
 
-	if (id == IDE_ID_1) {
-		reg2.reg = idec_get_reg(id, IDE_V1_DB0_UV_OFS);
-	} else {
-		reg2.reg = idec_get_reg(id, IDE2_V1_DB0_UV_OFS);
-	}
+	reg2.reg = idec_get_reg(id, IDE_V1_DB0_UV_OFS);
+
 	reg2.bit.addr = ide_platform_va2pa(ui_cb_addr);
 	idec_set_reg(id, IDE_V1_DB0_UV_OFS, reg2.reg);
 
@@ -200,7 +197,7 @@ void idec_set_v1_buf0_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT3
 
     @return void
 */
-void idec_set_v1_buf1_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr)
+void idec_set_v1_buf1_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -232,7 +229,7 @@ void idec_set_v1_buf1_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT3
 
     @return void
 */
-void idec_set_v1_buf2_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr)
+void idec_set_v1_buf2_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -584,7 +581,7 @@ void idec_set_v1_src(IDE_ID id, IDE_SYNC_SRC uisel)
 
     @return void
 */
-void idec_set_v2_buf0_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr)
+void idec_set_v2_buf0_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr)
 {
 	T_IDE_BUF_ADDR reg;
 	T_IDE_BUF_ADDR2 reg2;
@@ -614,7 +611,7 @@ void idec_set_v2_buf0_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT3
 
     @return void
 */
-void idec_set_v2_buf1_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr)
+void idec_set_v2_buf1_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -646,7 +643,7 @@ void idec_set_v2_buf1_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT3
 
     @return void
 */
-void idec_set_v2_buf2_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr)
+void idec_set_v2_buf2_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -993,7 +990,7 @@ void idec_set_v2_src(IDE_ID id, IDE_SYNC_SRC uisel)
 
     @return void
 */
-void idec_get_v1_buf0_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr)
+void idec_get_v1_buf0_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr)
 {
 	T_IDE_BUF_ADDR reg;
 	T_IDE_BUF_ADDR2 reg2;
@@ -1031,7 +1028,7 @@ void idec_get_v1_buf0_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, U
 
     @return void
 */
-void idec_get_v1_buf1_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr)
+void idec_get_v1_buf1_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -1060,7 +1057,7 @@ void idec_get_v1_buf1_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, U
 
     @return void
 */
-void idec_get_v1_buf2_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr)
+void idec_get_v1_buf2_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -1221,7 +1218,7 @@ void idec_get_v1_read_order(IDE_ID id, IDE_HOR_READ *pb_l2r, IDE_VER_READ *pb_t2
 
     @return void
 */
-void idec_get_v2_buf0_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr)
+void idec_get_v2_buf0_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr)
 {
 	T_IDE_BUF_ADDR reg;
 	T_IDE_BUF_ADDR2 reg2;
@@ -1248,7 +1245,7 @@ void idec_get_v2_buf0_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, U
 
     @return void
 */
-void idec_get_v2_buf1_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr)
+void idec_get_v2_buf1_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -1277,7 +1274,7 @@ void idec_get_v2_buf1_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, U
 
     @return void
 */
-void idec_get_v2_buf2_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr)
+void idec_get_v2_buf2_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr)
 {
 #if 0
 	T_IDE_BUF_ADDR reg;
@@ -1927,7 +1924,7 @@ void idec_set_v2_fmt(IDE_ID id, IDE_COLOR_FORMAT ui_fmt)
 		ui_fmt != COLOR_YCC420P &&
 		ui_fmt != COLOR_ARGB4565 &&
 		ui_fmt != COLOR_ARGB8565) {
-		DBG_ERR("Unsupported Video1 format %d\r\n", (int)ui_fmt);
+		DBG_ERR("Unsupported Video2 format %d\r\n", (int)ui_fmt);
 		return;
 	}
 
@@ -1997,6 +1994,42 @@ void idec_get_v1_fmt(IDE_ID id, IDE_COLOR_FORMAT *ui_fmt)
 
 	*ui_fmt = reg.bit.fmt;
 }
+
+/**
+    Get ide Video1 horizontal scaling method
+
+    @param[in] id   ide ID
+    @param[in] hsm  horizontal scaling method,0:duplicate/drop, 1:bilinear.
+
+    @return void
+*/
+IDE_SCALE_METHOD idec_get_v1_hsm(IDE_ID id)
+{
+	T_IDE_VIDEO_WIN_ATTR0 reg;
+
+	reg.reg = idec_get_reg(id, IDE_V1_WIN_ATTR0_OFS);
+
+	return reg.bit.hsm;
+}
+
+/**
+    Get ide Video2 horizontal scaling method
+
+    @param[in] id   ide ID
+    @param[in] hsm  horizontal scaling method,0:duplicate/drop, 1:bilinear.
+
+    @return void
+*/
+IDE_SCALE_METHOD idec_get_v2_hsm(IDE_ID id)
+{
+	T_IDE_VIDEO_WIN_ATTR0 reg;
+
+	reg.reg = idec_get_reg(id, IDE_V2_WIN_ATTR0_OFS);
+
+	return reg.bit.hsm;
+}
+
+
 
 /**
     Get ide Video2 window dimension.
@@ -2981,6 +3014,8 @@ void idec_get_v2_lowpass_coef(IDE_ID id, UINT8 *ui_pcoef)
 */
 BOOL idec_set_v1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chy, IDE_DMA_BURST_LEN chc)
 {
+#if 1
+
 	T_IDE_DMA_LEN reg;
 
 	reg.reg = idec_get_reg(id, IDE_DMA_LEN_OFS);
@@ -2991,7 +3026,7 @@ BOOL idec_set_v1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chy, IDE_DMA_BURST_LEN c
 	reg.bit.v1_y_len = chy;
 	reg.bit.v1_c_len = chc;
 	idec_set_reg(id, IDE_DMA_LEN_OFS, reg.reg);
-
+#endif
 	return TRUE;
 }
 
@@ -3009,13 +3044,14 @@ BOOL idec_set_v1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chy, IDE_DMA_BURST_LEN c
 */
 BOOL idec_get_v1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN *chy, IDE_DMA_BURST_LEN *chc)
 {
+#if 0
 	T_IDE_DMA_LEN reg;
 
 	reg.reg = idec_get_reg(id, IDE_DMA_LEN_OFS);
 
 	*chy = reg.bit.v1_y_len;
 	*chc = reg.bit.v1_c_len;
-
+#endif
 	return TRUE;
 }
 
@@ -3034,11 +3070,9 @@ BOOL idec_get_v1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN *chy, IDE_DMA_BURST_LEN 
 */
 BOOL idec_set_v2_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chy, IDE_DMA_BURST_LEN chc)
 {
-	T_IDE_DMA_LEN reg;
+#if 0
 
-	if (id > IDE_ID_1) {
-		return FALSE;
-	}
+	T_IDE_DMA_LEN reg;
 
 	reg.reg = idec_get_reg(id, IDE_DMA_LEN_OFS);
 	if ((chy > IDE_DMA_BURST_LEN_64) || (chc > IDE_DMA_BURST_LEN_64)) {
@@ -3048,7 +3082,7 @@ BOOL idec_set_v2_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chy, IDE_DMA_BURST_LEN c
 	reg.bit.v2_y_len = chy;
 	reg.bit.v2_c_len = chc;
 	idec_set_reg(id, IDE_DMA_LEN_OFS, reg.reg);
-
+#endif
 	return TRUE;
 }
 
@@ -3066,12 +3100,82 @@ BOOL idec_set_v2_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chy, IDE_DMA_BURST_LEN c
 */
 BOOL idec_get_v2_burst_len(IDE_ID id, IDE_DMA_BURST_LEN *chy, IDE_DMA_BURST_LEN *chc)
 {
+#if 0
+
 	T_IDE_DMA_LEN reg;
 
 	reg.reg = idec_get_reg(id, IDE_DMA_LEN_OFS);
 
 	*chy = reg.bit.v2_y_len;
 	*chc = reg.bit.v2_c_len;
-
+#endif
 	return TRUE;
 }
+
+void idec_set_v1_yccen(IDE_ID id, BOOL yccen)
+{
+	T_IDE_VIDEO_WIN_ATTR1 reg;
+	reg.reg = idec_get_reg(id, IDE_V1_WIN_ATTR1_OFS);
+
+	reg.bit.ycc_en = yccen;
+
+	idec_set_reg(id, IDE_V1_WIN_ATTR1_OFS, reg.reg);
+
+}
+
+BOOL idec_get_v1_yccen(IDE_ID id)
+{
+	T_IDE_VIDEO_WIN_ATTR1 reg;
+	reg.reg = idec_get_reg(id, IDE_V1_WIN_ATTR1_OFS);
+
+	return reg.bit.ycc_en;
+}
+
+void idec_set_v2_yccen(IDE_ID id, BOOL yccen)
+{
+	T_IDE_VIDEO_WIN_ATTR1 reg;
+	reg.reg = idec_get_reg(id, IDE_V2_WIN_ATTR1_OFS);
+
+	reg.bit.ycc_en = yccen;
+
+	idec_set_reg(id, IDE_V2_WIN_ATTR1_OFS, reg.reg);
+}
+
+BOOL idec_get_v2_yccen(IDE_ID id)
+{
+	T_IDE_VIDEO_WIN_ATTR1 reg;
+	reg.reg = idec_get_reg(id, IDE_V2_WIN_ATTR1_OFS);
+
+	return reg.bit.ycc_en;
+}
+
+
+
+void idec_set_ycc_qtable_0(IDE_ID id, UINT8 tableidx, UINT32 ui_table)
+{
+	T_IDE_YCC_QTBL_IDX reg;
+	UINT32 reg_offset;
+
+	reg_offset = tableidx*4 + IDE_YCC_QTBL_IDX0_OFS;
+
+	reg.reg = idec_get_reg(id, reg_offset);
+
+	reg.bit.qtbl3 = (ui_table >> 24) & 0x1F;
+	reg.bit.qtbl2 = (ui_table >> 16) & 0x1F;
+	reg.bit.qtbl1 = (ui_table >> 8) & 0x1F;
+	reg.bit.qtbl0 = ui_table & 0x1F;
+
+	idec_set_reg(id, reg_offset, reg.reg);
+}
+
+void idec_get_ycc_qtable_0(IDE_ID id, UINT8 tableidx, UINT32 *ui_table)
+{
+	T_IDE_YCC_QTBL_IDX reg;
+	UINT32 reg_offset;
+
+	reg_offset = tableidx*4 + IDE_YCC_QTBL_IDX0_OFS;
+	reg.reg = idec_get_reg(id, reg_offset);
+
+	*ui_table = reg.bit.qtbl0 + (reg.bit.qtbl1 << 8) + (reg.bit.qtbl2 << 16) + (reg.bit.qtbl3 << 24);
+}
+

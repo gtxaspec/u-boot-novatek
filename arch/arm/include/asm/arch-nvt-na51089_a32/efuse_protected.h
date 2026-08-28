@@ -13,6 +13,7 @@
 #ifndef __ARCH_EFUSE_PROTECTED_H
 #define __ARCH_EFUSE_PROTECTED_H
 
+#include <asm/arch/IOAddress.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/rcw_macro.h>
 
@@ -188,6 +189,7 @@ extern INT32 	otp_set_key_read_lock(EFUSE_OTP_KEY_SET_FIELD key_set_index);
 extern INT32    otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index);
 extern INT32 	otp_set_key_engine_access_right(EFUSE_OTP_KEY_SET_FIELD key_set_index);
 extern INT32    otp_write_key(EFUSE_OTP_KEY_SET_FIELD key_set_index, UINT8 *uc_key);
+extern BOOL extract_trim_valid(u32 code, u32 *pData);
 extern BOOL 	quary_secure_boot(SECUREBOOT_STATUS scu_status);
 extern BOOL 	enable_secure_boot(SECUREBOOT_STATUS scu_status);
 extern UINT32 	otp_key_manager(UINT32 rowAddress);

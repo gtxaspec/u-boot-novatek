@@ -630,7 +630,8 @@ ER disp_close_disp1(void)
 {
 	if (gui_disp_obj_opened[DISP_1]) {
 		gui_disp_obj_opened[DISP_1]--;
-		if (gui_disp_obj_opened[DISP_1]) {
+		if (!gui_disp_obj_opened[DISP_1]) {
+			ide_close();
 			return E_OK;
 		}
 	}
@@ -725,7 +726,7 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 			if (p_disp_dev_param->SEL.SET_ENABLE.b_en && (!ide_is_opened())) {
 				ide_open();
 			}
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02302_A64
 			idec_set_swreset(IDE_ID_1, 1);
 			udelay(1000);
 			idec_set_swreset(IDE_ID_1, 0);
@@ -771,6 +772,8 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 			case DISPDEV_TYPE_CCIR656_16BIT:
 				ide_set_device(DISPLAY_DEVICE_CCIR656_16BIT);
 				break;
+#if CONFIG_TARGET_NA51102_A64
+
 			case DISPDEV_TYPE_EMBD_HDMI: {
 				PDISP_OBJ p_disp_obj;
 
@@ -783,6 +786,7 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 				}
 
 			} break;
+
 			case DISPDEV_TYPE_INF_HDMI_16BIT:{
 				PDISP_OBJ p_disp_obj;
 
@@ -794,7 +798,8 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 					p_disp_obj->phdmidev_control->set_config(HDMI_CONFIG_ID_SOURCE, HDMI_SOURCE_IDE);
 				}
 
-			} break;				
+			} break;
+#endif
 			case DISPDEV_TYPE_RGB_PARALL:
 				ide_set_device(DISPALY_DEVICE_PARALLEL);
 				break;
@@ -1903,7 +1908,6 @@ ER  disp_set_disp1_layer_ctrl(DISPLAYER layer, DISPLAYER_OP lyr_op, PDISPLAYER_P
 			IDE_BUF_NUM temp2;
 			IDE_OP_BUF  act_buf;
 
-			displyr1_debug(("disp_lyr: SET_MODE (%d)\r\n", (int)b_vdo_sel));
 			/*if (b_vdo_sel) {
 				IDE_BJMODE  temp1;
 				IDE_BUF_NUM temp2;
@@ -1920,14 +1924,17 @@ ER  disp_set_disp1_layer_ctrl(DISPLAYER layer, DISPLAYER_OP lyr_op, PDISPLAYER_P
 				ide_get_v1_buf_op(&temp1, &act_buf, &temp2);
 				ide_set_v1_buf_op(p_lyr_param->SEL.SET_MODE.buf_mode, act_buf, p_lyr_param->SEL.SET_MODE.buf_number);
 				ide_set_v1_fmt(p_lyr_param->SEL.SET_MODE.buf_format);
+				displyr1_debug(("disp_lyr: SET_MODE (DISPLAYER_VDO1) mode %d\r\n",p_lyr_param->SEL.SET_MODE.buf_format));
 				break;
 			case DISPLAYER_VDO2:
 				ide_get_v2_buf_op(&temp1, &act_buf, &temp2);
 				ide_set_v2_buf_op(p_lyr_param->SEL.SET_MODE.buf_mode, act_buf, p_lyr_param->SEL.SET_MODE.buf_number);
 				ide_set_v2_fmt(p_lyr_param->SEL.SET_MODE.buf_format);
+				displyr1_debug(("disp_lyr: SET_MODE (DISPLAYER_VDO2) mode %d\r\n",p_lyr_param->SEL.SET_MODE.buf_format));
 				break;
 			case DISPLAYER_OSD1:
 				ide_set_o1_fmt(p_lyr_param->SEL.SET_MODE.buf_format);
+				displyr1_debug(("disp_lyr: SET_MODE (DISPLAYER_OSD1) mode %d\r\n",p_lyr_param->SEL.SET_MODE.buf_format));
 				break;
 #if IDE1_OSD2_EXIST
 			case DISPLAYER_OSD2:

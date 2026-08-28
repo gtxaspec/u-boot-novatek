@@ -9,19 +9,18 @@
 #include <common.h>
 #include <command.h>
 #include <config.h>
+#include <cpu_func.h>
+#include <log.h>
 #include <net.h>
 #include <malloc.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
 #include <usb/fotg210.h>
-
-#ifdef CONFIG_ARCH_NOVATEK
-#include <asm/arch/IOAddress.h>
-#endif
 
 #define CFG_NUM_ENDPOINTS		4
 #define CFG_EP0_MAX_PACKET_SIZE	64
@@ -66,106 +65,6 @@ static struct usb_endpoint_descriptor ep0_desc = {
 	.bEndpointAddress = USB_DIR_IN,
 	.bmAttributes = USB_ENDPOINT_XFER_CONTROL,
 };
-#ifdef CONFIG_ARCH_NOVATEK
-#define U2PHY_SETREG(ofs,value)	writel((value), (volatile void __iomem *)(IOADDR_USB528_REG_BASE + 0x1000 + ((ofs)<<2)))
-#define U2PHY_GETREG(ofs)	readl((volatile void __iomem *)(IOADDR_USB528_REG_BASE + 0x1000 + ((ofs)<<2)))
-static void nvtim_init_usbhc(void)
-{
-	u32 usbbase;
-	u32 tmpval = 0;
-
-	/* Disable Reset*/
-	tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x84));
-	tmpval |= 0x1<<19;
-	writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x84));
-
-	/* Release sram shutdown*/
-	tmpval = readl((volatile unsigned long *)(IOADDR_TOP_REG_BASE+0x1000));
-	tmpval &= ~(0x1<<19);
-	writel(tmpval, (volatile unsigned long *)(IOADDR_TOP_REG_BASE+0x1000));
-
-	mdelay(10);
-
-	usbbase = IOADDR_USB528_REG_BASE;
-
-	/* Set USB ID & VBUSI */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x400));
-	tmpval |= 0x3 << 20;
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x400));
-
-	/* Clear FORCE_FS[9] and handle HALF_SPEED[1] */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x100));
-	tmpval &= ~(0x1<<9);
-	//#ifdef CONFIG_FPGA_EMULATION
-	//tmpval |=  (0x1<<1);
-	//#endif
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x100));
-
-	/* Clear DEVPHY_SUSPEND[5] */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x1C8));
-	tmpval &= ~(0x1<<5);
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x1C8));
-
-	/* Clear HOSTPHY_SUSPEND[6] */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x40));
-	tmpval &= ~(0x1<<6);
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x40));
-
-	/* USB_ACCESS_SELECT[2] to 0 (DRAM only) */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x1C4));
-	tmpval &= ~(0x1<<2);
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x1C4));
-
-	/* Host EOF_BEHAVE[31] = 0 */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x80));
-	tmpval &= ~(0x1<<31);
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x80));
-
-	/* Clear EOF1=3[3:2] EOF2[5:4]=0 */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x40));
-	tmpval &= ~(0x3<<4);
-	tmpval |=  (0x3<<2);
-	tmpval &= ~(0x3F<<8);
-	tmpval |=  (0x22<<8);
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x40));
-
-	/* A_BUS_DROP[5] = 0 */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x80));
-	tmpval &= ~(0x1<<5);
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x80));
-
-	mdelay(2);
-
-	/* A_BUS_REQ[4] = 1 */
-	tmpval = readl((volatile unsigned long *)(usbbase+0x80));
-	tmpval |= (0x1<<4);
-	writel(tmpval, (volatile unsigned long *)(usbbase+0x80));
-
-	/* Configure PHY related settings below */
-	{
-		//u16 data=0;
-		//INT32 result;
-		u32 temp;
-		u8 u2_trim_swctrl=4, u2_trim_sqsel=4;
-
-		// result= efuse_read_param_ops(EFUSE_USBC_TRIM_DATA, &data);
-		// if(result >= 0) {
-			// u2_trim_swctrl = data&0x7;
-			// u2_trim_sqsel  = (data>>3)&0x7;
-		// }
-
-		temp = U2PHY_GETREG(0x06);
-		temp &= ~(0x7<<1);
-		temp |= (u2_trim_swctrl<<1);
-		U2PHY_SETREG(0x06, temp);
-
-		temp = U2PHY_GETREG(0x05);
-		temp &= ~(0x7<<2);
-		temp |= (u2_trim_sqsel<<2);
-		U2PHY_SETREG(0x05, temp);
-	}
-}
-#endif
 
 static inline int fifo_to_ep(struct fotg210_chip *chip, int id, int in)
 {
@@ -205,10 +104,6 @@ static int fotg210_reset(struct fotg210_chip *chip)
 {
 	struct fotg210_regs *regs = chip->regs;
 	uint32_t i;
-	
-#ifdef CONFIG_ARCH_NOVATEK
-	nvtim_init_usbhc();
-#endif
 
 	chip->state = USB_STATE_POWERED;
 
@@ -231,17 +126,11 @@ static int fotg210_reset(struct fotg210_chip *chip)
 
 	/* clear interrupts */
 	writel(ISR_MASK, &regs->isr);
-#ifdef CONFIG_ARCH_NOVATEK
-	writel(0xFFFFFFFF, &regs->gisr);
-	writel(0xFFFFFFFF, &regs->gisr0);
-	writel(0xFFFFFFFF, &regs->gisr1);
-	writel(0xFFFFFFFF, &regs->gisr2);
-#else
 	writel(0, &regs->gisr);
 	writel(0, &regs->gisr0);
 	writel(0, &regs->gisr1);
 	writel(0, &regs->gisr2);
-#endif
+
 	/* chip reset */
 	setbits_le32(&regs->dev_ctrl, DEVCTRL_RESET);
 	mdelay(10);
@@ -319,119 +208,15 @@ static inline int fotg210_cxwait(struct fotg210_chip *chip, uint32_t mask)
 	return ret;
 }
 
-#ifdef CONFIG_ARCH_NOVATEK
-static int usb_cx_fifo_rdwr(struct fotg210_ep *ep, struct fotg210_regs *regs, struct fotg210_request *req)
-{
-	struct fotg210_chip *chip = ep->chip;
-	uint8_t *buf  = req->req.buf + req->req.actual;
-	uint32_t count  = req->req.length - req->req.actual;
-	signed int i, ep0_dma_size, ep0_rx_size;
-	u32 *pbuf;
-
-	if (ep->desc->bEndpointAddress & USB_DIR_IN) {
-		u32 reg;
-		ep0_dma_size = count;
-
-		if (ep0_dma_size > EP0_PACKET_SIZE) {
-			ep0_dma_size = EP0_PACKET_SIZE;
-		}
-
-		fotg210_cxwait(chip, CXFIFO_CXFIFOE);
-
-		// Enable DATAPORT
-		reg = readl(&regs->cxfifo);
-		reg = (reg & ~(0x7F<<16)) | (CXFIFO_DATA_EN | (ep0_dma_size << 16));
-		writel(reg, &regs->cxfifo);
-
-		pbuf = (u32 *)buf;
-		i = 0;
-
-		while (ep0_dma_size > 0) {
-			writel(pbuf[i++], &regs->ep0_data);
-			ep0_dma_size -= 4;
-		};
-
-		clrbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
-
-		req->req.status = 0;
-		if (count > EP0_PACKET_SIZE) {
-			req->req.actual += EP0_PACKET_SIZE;
-			return EP0_PACKET_SIZE;
-		} else {
-			req->req.actual += count;
-			return count;
-		}
-	} else {
-		ep0_dma_size = count;
-		ep0_rx_size = (readl(&regs->cxfifo) & 0x7F000000) >> 24;
-
-		// Make sure fifo got something to start read
-		if (count > EP0_PACKET_SIZE) {
-			while (ep0_rx_size != EP0_PACKET_SIZE) {
-				ep0_rx_size = (readl(&regs->cxfifo) & 0x7F000000) >> 24;
-			}
-		} else {
-			while (ep0_rx_size != count) {
-				ep0_rx_size = (readl(&regs->cxfifo) & 0x7F000000) >> 24;
-			}
-		}
-
-		// Enable DATAPORT
-		setbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
-
-		pbuf = (u32 *)buf;
-		i = 0;
-
-		while (ep0_rx_size > 0) {
-			u32 temp;
-
-			temp = readl(&regs->ep0_data);
-			ep0_rx_size -= 4;
-
-			if (ep0_dma_size >= 4) {
-				pbuf[i++] = temp;
-				ep0_dma_size -= 4;
-			} else if (ep0_dma_size == 1) {
-				pbuf[i] &= ~0xFF;
-				temp    &=  0xFF;
-				pbuf[i] += temp;
-				ep0_dma_size = 0;
-			} else if (ep0_dma_size == 2) {
-				pbuf[i] &= ~0xFFFF;
-				temp    &=  0xFFFF;
-				pbuf[i] += temp;
-				ep0_dma_size = 0;
-			} else if (ep0_dma_size == 3) {
-				pbuf[i] &= ~0xFFFFFF;
-				temp    &=  0xFFFFFF;
-				pbuf[i] += temp;
-				ep0_dma_size = 0;
-			}
-		};
-
-		clrbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
-
-		req->req.status = 0;
-		req->req.actual += count - ep0_dma_size;
-		return count - ep0_dma_size;
-	}
-}
-#endif
-
 static int fotg210_dma(struct fotg210_ep *ep, struct fotg210_request *req)
 {
 	struct fotg210_chip *chip = ep->chip;
 	struct fotg210_regs *regs = chip->regs;
-	uint32_t tmp = 0x0, ts;
+	uint32_t tmp, ts;
 	uint8_t *buf  = req->req.buf + req->req.actual;
 	uint32_t len  = req->req.length - req->req.actual;
 	int fifo = ep_to_fifo(chip, ep->id);
 	int ret = -EBUSY;
-
-#ifdef CONFIG_ARCH_NOVATEK
-	if (ep->id == 0)
-		return usb_cx_fifo_rdwr(ep, regs, req);
-#endif
 
 	/* 1. init dma buffer */
 	if (len > ep->maxpacket)
@@ -451,26 +236,14 @@ static int fotg210_dma(struct fotg210_ep *ep, struct fotg210_request *req)
 	}
 
 	/* 3. DMA target setup */
-#ifdef CONFIG_ARCH_NOVATEK
-	if (ep->desc->bEndpointAddress & USB_DIR_IN)
-		flush_dcache_range((ulong)buf, (ulong)buf + roundup(len, ARCH_DMA_MINALIGN));
-	else
-		invalidate_dcache_range((ulong)buf, (ulong)buf + roundup(len, ARCH_DMA_MINALIGN));
-#else
 	if (ep->desc->bEndpointAddress & USB_DIR_IN)
 		flush_dcache_range((ulong)buf, (ulong)buf + len);
 	else
 		invalidate_dcache_range((ulong)buf, (ulong)buf + len);
 
-#endif
 	writel(virt_to_phys(buf), &regs->dma_addr);
 
 	if (ep->desc->bEndpointAddress & USB_DIR_IN) {
-#ifdef CONFIG_ARCH_NOVATEK
-		/* Wait until epx fifo empty */
-		fotg210_cxwait(chip, CXFIFO_FIFOE(fifo));
-		writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
-#else
 		if (ep->id == 0) {
 			/* Wait until cx/ep0 fifo empty */
 			fotg210_cxwait(chip, CXFIFO_CXFIFOE);
@@ -481,15 +254,10 @@ static int fotg210_dma(struct fotg210_ep *ep, struct fotg210_request *req)
 			fotg210_cxwait(chip, CXFIFO_FIFOE(fifo));
 			writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
 		}
-#endif
 		writel(DMACTRL_LEN(len) | DMACTRL_MEM2FIFO, &regs->dma_ctrl);
 	} else {
 		uint32_t blen;
 
-#ifdef CONFIG_ARCH_NOVATEK
-		writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
-		blen = FIFOCSR_BYTES(readl(&regs->fifocsr[fifo]));
-#else
 		if (ep->id == 0) {
 			writel(DMAFIFO_CX, &regs->dma_fifo);
 			do {
@@ -499,7 +267,6 @@ static int fotg210_dma(struct fotg210_ep *ep, struct fotg210_request *req)
 			writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
 			blen = FIFOCSR_BYTES(readl(&regs->fifocsr[fifo]));
 		}
-#endif
 		len  = (len < blen) ? len : blen;
 		writel(DMACTRL_LEN(len) | DMACTRL_FIFO2MEM, &regs->dma_ctrl);
 	}
@@ -531,11 +298,8 @@ static int fotg210_dma(struct fotg210_ep *ep, struct fotg210_request *req)
 	/* 7. DMA target reset */
 	if (ret)
 		writel(DMACTRL_ABORT | DMACTRL_CLRFF, &regs->dma_ctrl);
-#ifdef CONFIG_ARCH_NOVATEK
-	writel(tmp, &regs->gisr2);
-#else
+
 	writel(0, &regs->gisr2);
-#endif
 	writel(0, &regs->dma_fifo);
 
 	req->req.status = ret;
@@ -585,22 +349,14 @@ static void fotg210_setup(struct fotg210_chip *chip)
 		}
 	}
 
-#ifdef CONFIG_ARCH_NOVATEK
-	setbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
-#else
 	/* switch data port to ep0 */
 	writel(DMAFIFO_CX, &regs->dma_fifo);
-#endif
 	/* fetch 8 bytes setup packet */
 	tmp[0] = readl(&regs->ep0_data);
 	tmp[1] = readl(&regs->ep0_data);
-
-#ifdef CONFIG_ARCH_NOVATEK
-	clrbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
-#else
 	/* release data port */
 	writel(0, &regs->dma_fifo);
-#endif
+
 	if (req->bRequestType & USB_DIR_IN)
 		ep0_desc.bEndpointAddress = USB_DIR_IN;
 	else
@@ -1017,11 +773,7 @@ static struct usb_ep_ops fotg210_ep_ops = {
 };
 
 static struct fotg210_chip controller = {
-#ifdef CONFIG_ARCH_NOVATEK
-	.regs = (void __iomem *)IOADDR_USB528_REG_BASE,
-#else
 	.regs = (void __iomem *)CONFIG_FOTG210_BASE,
-#endif
 	.gadget = {
 		.name = "fotg210_udc",
 		.ops = &fotg210_gadget_ops,
@@ -1138,9 +890,8 @@ int usb_gadget_handle_interrupts(int index)
 		 * HW v1.10.0-: It's a R/W register (write 0 clear)
 		 */
 		writel(st, &regs->gisr2);
-#ifndef CONFIG_ARCH_NOVATEK
 		writel(0, &regs->gisr2);
-#endif
+
 		if (st & GISR2_RESET)
 			printf("fotg210: reset by host\n");
 		else if (st & GISR2_SUSPEND)
@@ -1203,10 +954,6 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
 	struct fotg210_chip *chip = &controller;
-
-#ifdef CONFIG_ARCH_NOVATEK
-	driver->disconnect(&chip->gadget);
-#endif
 
 	driver->unbind(&chip->gadget);
 	chip->driver = NULL;

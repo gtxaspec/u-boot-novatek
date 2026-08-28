@@ -12,6 +12,7 @@
 */
 
 #include <common.h>
+#include <command.h>
 #include <asm/armv7.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
@@ -20,6 +21,7 @@
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
+#include <asm/arch/efuse_protected.h>
 
 #define SYSTEM_CLOCK_RATE_OFS 0x10
 
@@ -38,97 +40,13 @@
 #define PLL_CLKSEL_CPU_480        			(0x02 << PLL_CLKSEL_CPU)      	//< Select CPU clock 480MHz
 #define PLL_CLKSEL_CPUMASK					0x3
 
-#define PLL_CLKSEL_APBMASK					(0x3<<8)
-#define PLL_CLKSEL_APB48					(0x0<<8)
-#define PLL_CLKSEL_APB60					(0x1<<8)
-#define PLL_CLKSEL_APB80					(0x2<<8)
-#define PLL_CLKSEL_APB120					(0x3<<8)
-
-inline void apll_set_data(u8 offset, u8 value)
-{
-#if 0
-	writel(value, (APLL_BASE_ADDR + (offset * 4)));
-#endif
-}
-
-inline u32 apll_get_data(u8 offset)
-{
-	return 0;
-}
-
-#if 0
-inline void apll_enable(pll_page_t page)
-{
-	if (PLL_PAGE_0 == page) {
-		writel(APLL_PAGE_0_EN, (APLL_PAGE_EN_ADDR));
-	}
-	else if (PLL_PAGE_B == page) {
-		writel(APLL_PAGE_B_EN, (APLL_PAGE_EN_ADDR));
-	}
-	else {
-		/* ignore */
-	}
-}
-#endif
-
 inline void mpll_set_data(u8 offset, u8 value)
 {
-#if 0
-	writel(value, (MPLL_BASE_ADDR + (offset * 4)));
-#endif
+
 }
 
 inline u32 mpll_get_data(u8 offset)
 {
-	return 0;
-#if 0
-	return readl((MPLL_BASE_ADDR + (offset * 4)));
-#endif
-}
-
-#if 0
-inline void mpll_enable(pll_page_t page)
-{
-	if (PLL_PAGE_0 == page) {
-		writel(MPLL_PAGE_0_EN, (MPLL_PAGE_EN_ADDR));
-	}
-	else if (PLL_PAGE_B == page) {
-		writel(MPLL_PAGE_B_EN, (MPLL_PAGE_EN_ADDR));
-	}
-	else {
-		/* ignore */
-	}
-}
-#endif
-
-void set_sys_mpll(unsigned long off, unsigned long val)
-{
-#if 0
-	val <<= 17; val  /= 12;
-
-	mpll_enable(PLL_PAGE_B);
-
-	mpll_set_data((off + 0), ((val >> 0) & 0xff));
-	mpll_set_data((off + 1), ((val >> 8) & 0xff));
-	mpll_set_data((off + 2), ((val >> 16) & 0xff));
-#endif
-}
-
-unsigned long get_sys_mpll(unsigned long off)
-{
-#if 0
-	unsigned long val;
-
-	mpll_enable(PLL_PAGE_B);
-
-	val  = mpll_get_data(off);
-	val |= (mpll_get_data((off + 1)) << 8);
-	val |= (mpll_get_data((off + 2)) << 16);
-
-	val *= 12;val += ((1UL << 17) - 1); val >>= 17;
-
-	return val;
-#endif
 	return 0;
 }
 
@@ -166,10 +84,11 @@ unsigned long get_cpu_clk(void)
 
         return (12*cpu_freq_ratio / 131072) * 1000;
 #endif
-	} else if (cpu_clk_sel == 2)
+	} else if (cpu_clk_sel == 2) {
 		return 480000;
-	else
+	} else {
 		return 80000;
+	}
 }
 
 #ifdef CONFIG_NVT_FPGA_EMULATION
@@ -278,7 +197,7 @@ void ca53_cycle_count_stop(void)
 	return;
 }
 
-int do_nvt_cpu_get_freq(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_nvt_cpu_get_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 /*test, */freq;
 	u32 time_1, time_2, temp, time_interval;
@@ -317,7 +236,7 @@ U_BOOT_CMD(
 	"[MHz]\n"
 );
 
-int do_nvt_cpu_freq(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 uiReg;
     u32 value = simple_strtoul(argv[1], NULL, 10);
@@ -330,7 +249,7 @@ int do_nvt_cpu_freq(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
             		if((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_480) {
 						printf("Already 480MHz\n");
 						break;
-            		} else if((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_PLL8) {
+            		} else if(((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_PLL8) || ((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_80)) {
             			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 	                    uiReg &= ~PLL_CLKSEL_CPUMASK;
 	                    uiReg |= PLL_CLKSEL_CPU_480;
@@ -339,6 +258,32 @@ int do_nvt_cpu_freq(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	                    while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
 	                    writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
 	                    printf("Set CPU clk 480MHz\n");
+	                    //CPU original = PLL8 => disable it
+	                    uiReg = readl(IOADDR_CG_REG_BASE);
+	                    if((uiReg & (1<<PLL_CPU_NO))==(1<<PLL_CPU_NO)) {
+							printf("PLL8 = Enabled => Disable it\n");
+							uiReg &= ~(1<<PLL_CPU_NO);
+							writel(uiReg, IOADDR_CG_REG_BASE); // B0
+							uiReg = readl(IOADDR_CG_REG_BASE);
+							printf("PLL8 = 0x%08x \n", uiReg);
+	                    }
+                    }
+					break;
+
+			case 80:
+            		uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+            		if((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_80) {
+						printf("Already 880MHz\n");
+						break;
+            		} else if(((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_PLL8) || ((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_480)) {
+            			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+	                    uiReg &= ~PLL_CLKSEL_CPUMASK;
+	                    uiReg |= PLL_CLKSEL_CPU_80;
+	                    writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+	                    writel(0x34, (IOADDR_CG_REG_BASE + 0xA0));
+	                    while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
+	                    writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
+	                    printf("Set CPU clk 80MHz\n");
 	                    //CPU original = PLL8 => disable it
 	                    uiReg = readl(IOADDR_CG_REG_BASE);
 	                    if((uiReg & (1<<PLL_CPU_NO))==(1<<PLL_CPU_NO)) {
@@ -380,6 +325,63 @@ int do_nvt_cpu_freq(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
                     writel(0xA0, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
                     printf("Set CPU clk 960MHz\n");
                     break;
+			case 720:
+            		uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+            		if((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_PLL8) {
+	            		uiReg = readl(IOADDR_CG_REG_BASE);
+	            		if((uiReg & (1<<PLL_CPU_NO))!=(1<<PLL_CPU_NO)) {
+							printf("PLL8 = Disabled => Enable it\n");
+							uiReg |= (1<<PLL_CPU_NO);
+							writel(uiReg, IOADDR_CG_REG_BASE); // B0
+							uiReg = readl(IOADDR_CG_REG_BASE);
+							//Polling PLL8
+							while (!(readl(IOADDR_CG_REG_BASE + 0x04) & (1 << 8)));
+							printf("PLL8 enable done= 0x%08x 0x%08x\n", readl(IOADDR_CG_REG_BASE + 0x00), readl(IOADDR_CG_REG_BASE + 0x04));
+	                    }
+	                    uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+	                    uiReg &= ~PLL_CLKSEL_CPUMASK;
+	                    uiReg |= PLL_CLKSEL_CPU_PLL8;
+	                    writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+	                    writel(0x34, (IOADDR_CG_REG_BASE + 0xA0));
+	                    while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
+	                    writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
+                    }
+
+                    //CPU 720 MHz -> 0xA00000
+                    writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+                    writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+                    writel(0x78, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+                    printf("Set CPU clk 720MHz\n");
+                    break;
+
+			case 640:
+            		uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+            		if((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_PLL8) {
+	            		uiReg = readl(IOADDR_CG_REG_BASE);
+	            		if((uiReg & (1<<PLL_CPU_NO))!=(1<<PLL_CPU_NO)) {
+							printf("PLL8 = Disabled => Enable it\n");
+							uiReg |= (1<<PLL_CPU_NO);
+							writel(uiReg, IOADDR_CG_REG_BASE); // B0
+							uiReg = readl(IOADDR_CG_REG_BASE);
+							//Polling PLL8
+							while (!(readl(IOADDR_CG_REG_BASE + 0x04) & (1 << 8)));
+							printf("PLL8 enable done= 0x%08x 0x%08x\n", readl(IOADDR_CG_REG_BASE + 0x00), readl(IOADDR_CG_REG_BASE + 0x04));
+	                    }
+	                    uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+	                    uiReg &= ~PLL_CLKSEL_CPUMASK;
+	                    uiReg |= PLL_CLKSEL_CPU_PLL8;
+	                    writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+	                    writel(0x34, (IOADDR_CG_REG_BASE + 0xA0));
+	                    while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
+	                    writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
+                    }
+
+                    //CPU 640 MHz -> 0xA00000
+                    writel(0xAA, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+                    writel(0xAA, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+                    writel(0x6A, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+                    printf("Set CPU clk 640MHz\n");
+                    break;
             }
             break;
     default:
@@ -394,58 +396,69 @@ U_BOOT_CMD(
 	nvt_cpu_freq, 2,	1,	do_nvt_cpu_freq,
 	"change cpu freq",
 	"[MHz]\n"
-	"nvt_cpu_freq 480/960(56x)\n"
+	"nvt_cpu_freq 480/720/640/960\n"
 );
 
-int do_nvt_apb_freq(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_nvt_apb_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 uiReg;
     u32 value = simple_strtoul(argv[1], NULL, 10);
 
 	switch (argc) {
-	case 2:
-			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-			uiReg &= ~(0x300);
-			switch (value) {
-				case 48:
-					uiReg |= PLL_CLKSEL_APB48;
-					writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-				break;
-				case 60:
-					uiReg |= PLL_CLKSEL_APB60;
-					writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-				break;
-				case 80:
-					uiReg |= PLL_CLKSEL_APB80;
-					writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-				break;
-				case 120:
-					uiReg |= PLL_CLKSEL_APB120;
-					writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-				break;
-				default:
-					printf("APB:%d => type nvt_apb_freq <freq>\n", (int)value);
-				break;
-				return CMD_RET_USAGE;
-			}
-		break;
-	default:
-	    printf("APB:%d => type nvt_apb_freq <freq>\n", value);
-	    return CMD_RET_USAGE;
-	}
+    case 2:
+            switch (value) {
+            case 48:
+            		uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+					uiReg &= ~(0x300);
+					writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+                    printf("Set APB clk 48MHz\n");
+					break;
+
+			case 120:
+				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+				uiReg |= 0x300;
+				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+				printf("Set APB clk 120MHz\n");
+			break;
+
+			case 60:
+				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+				uiReg &= ~(0x300);
+				uiReg |= 0x100;
+				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+				printf("Set APB clk 60MHz\n");
+			break;
+
+			default:
+					printf("Not define this APB Freq %d, use defualt value 80\n", value);
+            case 80:
+					uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+					uiReg &= ~(0x300);
+					uiReg |= 0x200;
+					writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+                    printf("Set APB clk 80MHz\n");
+                    break;
+            }
+            break;
+
+
+
+
+    default:
+            printf("APB:=> type nvt_apb_freq <freq>\n");
+            return CMD_RET_USAGE;
+    }
     return 0;
 }
+
 U_BOOT_CMD(
 	nvt_apb_freq, 2,	1,	do_nvt_apb_freq,
 	"change apb freq",
 	"[MHz]\n"
-	"nvt_apb_freq 48\n"
-	"nvt_apb_freq 60\n"
-	"nvt_apb_freq 80\n"
-	"nvt_apb_freq 120\n"
+	"nvt_apb_freq 48/60/80/120\n"
 );
 
-int do_nvt_ddr_freq(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_nvt_ddr_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	unsigned int freq_ratio;
 	unsigned int freq_ratio0, freq_ratio1, freq_ratio2;

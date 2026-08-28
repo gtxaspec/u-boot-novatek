@@ -19,8 +19,7 @@
 #define CONFIG_SYS_NS16550_CLK		(48000000)
 #define CONFIG_SYS_NS16550_COM1		0x44e09000
 
-#define CONFIG_I2C
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 
 #endif /* CONFIG_DM */
 
@@ -41,7 +40,6 @@
  * Y-MODEM to load u-boot.img, when booted over UART.  We must also include
  * the scratch space that U-Boot uses in SRAM.
  */
-#define CONFIG_SPL_TEXT_BASE		0x402F0400
 #define CONFIG_SPL_MAX_SIZE		(SRAM_SCRATCH_SPACE_ADDR - \
 					 CONFIG_SPL_TEXT_BASE)
 

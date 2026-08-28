@@ -147,11 +147,10 @@ const static DISPDEV_HDMI_TIMING  disp_video_timing[VIDMAX] = {
 static UINT32           g_dispdev_src_freq;
 #endif
 
-HDMI_MODE        g_dispdev_hdmi_mode = HDMI_MODE_YCBCR444;
-HDMI_VIDEOID     g_dispdev_hdmi_vid = HDMI_720X480P60;
-HDMI_AUDIOFMT    g_dispdev_aud_fmt  = HDMI_AUDIO48KHZ;
-HDMI_SRCFMT		g_dispdev_src_fmt  = HDMI_IDE_0;
-
+static HDMI_MODE        g_dispdev_hdmi_mode = HDMI_MODE_YCBCR444;
+static HDMI_VIDEOID     g_dispdev_hdmi_vid = HDMI_720X480P60;
+static HDMI_AUDIOFMT    g_dispdev_aud_fmt  = HDMI_AUDIO48KHZ;
+static HDMI_SRCFMT		g_dispdev_src_fmt  = HDMI_IDE_0;
 
 static UINT32           g_dispdev_win_hozi_ofs = 0;
 static UINT32           g_dispdev_win_vert_ofs = 0;
@@ -207,7 +206,6 @@ static BOOL dispdev_init_hdmi_vid_format(HDMI_VIDEOID vid_code)
 	p_dispdev_control(DISPDEV_IOCTRL_SET_CONST_OFS, &dev_io_ctrl);
 #endif
 
-/*
 	if ((!hdmitx_get_config(HDMI_CONFIG_ID_FORCE_RGB)) && (hdmitx_get_edid_info()&HDMITX_TV_YCBCR444)) {
 		g_dispdev_hdmi_mode = HDMI_MODE_YCBCR444;
 	} else if ((!hdmitx_get_config(HDMI_CONFIG_ID_FORCE_RGB)) && (hdmitx_get_edid_info()&HDMITX_TV_YCBCR422)) {
@@ -222,8 +220,6 @@ static BOOL dispdev_init_hdmi_vid_format(HDMI_VIDEOID vid_code)
 		g_dispdev_hdmi_mode = HDMI_MODE_YCBCR422;
 	}
 #endif
-*/
-
 	return TRUE;
 }
 
@@ -1450,8 +1446,6 @@ static ER dispdev_preconfighdmi(PDISP_HDMI_CFG config)
 	g_dispdev_hdmi_vid = (HDMI_VIDEOID)config->vid;
 	g_dispdev_hdmi_mode = (HDMI_MODE)config->output_mode;
 	g_dispdev_src_fmt = (HDMI_SRCFMT)config->source;
-
-	DBG_ERR("preset config mode = %d\r\n",g_dispdev_hdmi_mode);
 
 	return E_OK;
 }

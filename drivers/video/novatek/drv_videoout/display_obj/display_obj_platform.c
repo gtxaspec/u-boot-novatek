@@ -141,6 +141,32 @@ ER display_obj_platform_pll_en(DISPCTRL_SRCCLK clk_src)
 		return E_SYS;
 	}
 
+#elif defined(CONFIG_TARGET_NS02301)
+	if (clk_src == DISPCTRL_SRCCLK_PLL9) {
+		pll_set_pll_enable(PLL_ID_9, TRUE);
+	} else {
+		printf("DISPDEVCTR: SET_CLK_EN error !!\r\n");
+		return E_SYS;
+	}
+#elif defined(CONFIG_TARGET_NA51089)
+	if (clk_src == DISPCTRL_SRCCLK_PLL6) {
+		pll_set_pll_enable(PLL_ID_6, TRUE);
+	} else {
+		printf("DISPDEVCTR: SET_CLK_EN error !!\r\n");
+		return E_SYS;
+	}
+#elif (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64))
+
+	if (clk_src == DISPCTRL_SRCCLK_PLL9) {
+		pll_set_pll_enable(PLL_ID_9, TRUE);
+	} else if (clk_src == DISPCTRL_SRCCLK_PLL6) {
+		pll_set_pll_enable(PLL_ID_6, TRUE);
+	} else if (clk_src == DISPCTRL_SRCCLK_PLL4) {
+		pll_set_pll_enable(PLL_ID_4, TRUE);
+	} else {
+		printf("DISPDEVCTR: SET_CLK_EN error !!\r\n");
+		return E_SYS;
+	}
 #endif
 #endif
 	return E_OK;

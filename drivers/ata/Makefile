@@ -10,7 +10,6 @@ obj-$(CONFIG_SCSI_AHCI) += ahci.o
 obj-$(CONFIG_DWC_AHSATA) += dwc_ahsata.o
 obj-$(CONFIG_FSL_SATA) += fsl_sata.o
 obj-$(CONFIG_LIBATA) += libata.o
-obj-$(CONFIG_MVSATA_IDE) += mvsata_ide.o
 obj-$(CONFIG_SATA) += sata.o
 obj-$(CONFIG_SATA_CEVA) += sata_ceva.o
 obj-$(CONFIG_SATA_MV) += sata_mv.o
@@ -18,10 +17,12 @@ obj-$(CONFIG_SATA_SIL3114) += sata_sil3114.o
 obj-$(CONFIG_SATA_SIL) += sata_sil.o
 obj-$(CONFIG_SANDBOX) += sata_sandbox.o
 obj-$(CONFIG_AHCI_MVEBU) += ahci_mvebu.o
+obj-$(CONFIG_SUNXI_AHCI) += ahci_sunxi.o
+obj-$(CONFIG_MTK_AHCI) += mtk_ahci.o
 ifneq ($(CONFIG_TARGET_NA51103)$(CONFIG_TARGET_NA51103_A64),)
 obj-$(CONFIG_AHCI_NVT) += ahci_nvt.o ahci_nvt_na51103.o
-else ifneq ($(CONFIG_TARGET_NA51090)$(CONFIG_TARGET_NA51090_A64),)
-obj-$(CONFIG_AHCI_NVT) += ahci_nvt.o ahci_nvt_na51090.o
-else ifneq ($(CONFIG_TARGET_NA51102)$(CONFIG_TARGET_NA51102_A64),)
-obj-$(CONFIG_AHCI_NVT) += ahci_nvt.o ahci_nvt_na51102.o
+else ifneq ($(CONFIG_TARGET_NS02201)$(CONFIG_TARGET_NS02201_A64),)
+obj-$(CONFIG_AHCI_NVT) += ahci_nvt.o ahci_nvt_ns02201.o
+else ifneq ($(CONFIG_TARGET_NS02401)$(CONFIG_TARGET_NS02401_A64),)
+obj-$(CONFIG_AHCI_NVT) += ahci_nvt.o ahci_nvt_ns02401.o
 endif

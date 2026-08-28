@@ -11,6 +11,7 @@
     published by the Free Software Foundation.
 */
 
+#include <cpu_func.h>
 #include <common.h>
 #include <cli.h>
 #include <fs.h>
@@ -19,9 +20,12 @@
 #include <nand.h>
 #include <mmc.h>
 #include <spi_flash.h>
+#include <image.h>
+#include <linux/delay.h>
 
 #include <linux/libfdt.h>
 #include <fdt.h>
+#include <env.h>
 #include <command.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/modelext/bin_info.h>
@@ -30,13 +34,8 @@
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/nvt_storage.h>
 #include <asm/nvt-common/nvt_ivot_optee.h>
-#include <asm/nvt-common/nvt_ivot_sha_smc.h>
 #include <asm/nvt-common/nvt_ivot_efuse_smc.h>
-#include <asm/nvt-common/nvt_ivot_rsa_smc.h>
 #include <asm/arch/IOAddress.h>
-#include <asm/arch/nvt_crypto.h>
-#include <asm/arch/nvt_rsa.h>
-#include <asm/arch/nvt_hash.h>
 #include "nvt_ivot_pack.h"
 
 #if defined(CONFIG_NVT_FW_UPDATE_LED)
@@ -89,7 +88,7 @@ static int nvt_flash_write(nvt_flash_type_t flash_type, u64 addr, u64 size, u64 
 				sprintf(command, "nand info");
 				run_command(command, 0);
 
-#if defined(CONFIG_NVT_JFFS2_SUPPORT)
+#if defined(NVT_JFFS2_SUPPORT)
 				printf("Update: %s %s\n", __func__, "JFFS2");
 				sprintf(command, "nand write.jffs2 0x%llx 0x%llx 0x%llx", addr, part_off, size);
 				printf("%s\n",command);
@@ -232,7 +231,7 @@ static int nvt_update_fs_partition(nvt_flash_type_t FlashType, u64 addr, u64 siz
 
 	switch(FlashType) {
     case FLASHTYPE_NOR:
-#if defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT)
+#if defined(NVT_LINUX_RAMDISK_SUPPORT)
 		size = ALIGN_CEIL(size, 4096);
 #endif
 		ret = nvt_flash_write(FlashType, addr, size, part_off, part_size, FS_SUPPORT);
@@ -241,7 +240,7 @@ static int nvt_update_fs_partition(nvt_flash_type_t FlashType, u64 addr, u64 siz
 		ret = nvt_flash_write(FlashType, addr, size, part_off, part_size, FS_SUPPORT);
         break;
     case FLASHTYPE_EMMC:
-#if defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT) || defined(CONFIG_NVT_SQUASH_SUPPORT)
+#if defined(NVT_LINUX_RAMDISK_SUPPORT) || defined(NVT_SQUASH_SUPPORT)
 		if (pEmb->EmbType == EMBTYPE_ROOTFS && pEmb->OrderIdx == 0) {
 			align_size = ALIGN_CEIL(size, MMC_MAX_BLOCK_LEN);
 			/* Using block unit */
@@ -256,8 +255,8 @@ static int nvt_update_fs_partition(nvt_flash_type_t FlashType, u64 addr, u64 siz
 			printf("Update: %s %s size=0x%08llx\n", __func__, "EXT4 or FAT", size);
 			ret = nvt_flash_write(FlashType, addr,  size, part_off, part_size, FS_SUPPORT);
 		}
-#elif defined(CONFIG_NVT_EXT4_SUPPORT)
-		printf("Update: %s %s size=0x%08llx\n", __func__, "EXT4 or FAT", size);
+#elif defined(NVT_EXT4_SUPPORT)
+		printf("Update: %s %s size=0x%08x\n", __func__, "EXT4 or FAT", size);
 		ret = nvt_flash_write(FlashType, addr,  size, part_off, part_size, FS_SUPPORT);
 #else
 		printf("%s: No corresponding file system in FLASHTYPE_EMMC\n", __func__);
@@ -305,12 +304,12 @@ static int nvt_read_fs_partition(nvt_flash_type_t FlashType, u64 addr, u64 size,
             return -1;
     }
 
-#if defined(CONFIG_NVT_UBIFS_SUPPORT) && (defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT) && (defined(CONFIG_NVT_SPI_NAND)  || defined(CONFIG_NVT_SPI_NOR_NAND)))
+#if defined(NVT_UBIFS_SUPPORT) && (defined(NVT_LINUX_RAMDISK_SUPPORT) && (defined(CONFIG_NVT_SPI_NAND)  || defined(CONFIG_NVT_SPI_NOR_NAND)))
 	/*test ubifs*/
 	printf("Read: %s %s\n", __func__, "UBIFS");
 	if(pEmb->EmbType == EMBTYPE_ROOTFS){
 
-		#if (defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT) && (defined(CONFIG_NVT_SPI_NAND) || defined(CONFIG_NVT_SPI_NOR_NAND)))
+		#if (defined(NVT_LINUX_RAMDISK_SUPPORT) && (defined(CONFIG_NVT_SPI_NAND) || defined(CONFIG_NVT_SPI_NOR_NAND)))
 			if (pEmb->OrderIdx == 0){
 				/*rootfs0 is ramdisk no need to check ubifs*/
 				return ret;
@@ -334,9 +333,9 @@ static int nvt_read_fs_partition(nvt_flash_type_t FlashType, u64 addr, u64 size,
 
 	sprintf(command, "ubifsls");
 	run_command(command, 0);
-#elif defined(CONFIG_NVT_SQUASH_SUPPORT)
+#elif defined(NVT_SQUASH_SUPPORT)
 	printf("Read: %s %s\n", __func__, "SQUASHFS");
-#elif defined(CONFIG_NVT_EXT4_SUPPORT)
+#elif defined(NVT_EXT4_SUPPORT)
 	printf("Read: %s %s\n", __func__, "EXT4");
 #else
 	printf("Read: %s\n", __func__);
@@ -345,7 +344,7 @@ static int nvt_read_fs_partition(nvt_flash_type_t FlashType, u64 addr, u64 size,
 	return ret;
 }
 
-static UINT32 MemCheck_CalcCheckSum16Bit(ulong uiAddr,UINT32 uiLen)
+UINT32 MemCheck_CalcCheckSum16Bit(ulong uiAddr,UINT32 uiLen)
 {
 	UINT32 i,uiSum = 0;
 	UINT16 *puiValue = (UINT16 *)uiAddr;
@@ -454,10 +453,13 @@ static int nvt_chk_last_ebr(ulong ebr_addr, u64 ebr_part_offset, EMB_PARTITION *
 		printf("invalid mbr ebr signature 0x%x 0x%x, they should be 0x55 0xAA\r\n", (unsigned int)buf[510], (unsigned int)buf[511]);
 		return CMD_RET_FAILURE;
 	}
-#ifdef CONFIG_NVT_MMC
+#ifdef CONFIG_NVT_IVOT_EMMC
 	//Get emmc's max capacity
-	extern u32 get_emmc_capacity(void);
-	disk_capacity = get_emmc_capacity();
+	struct mmc *mmc = find_mmc_device(CONFIG_NVT_IVOT_EMMC);
+	if (!mmc)
+		return CMD_RET_FAILURE;
+
+	disk_capacity = mmc->capacity;
 	printf("emmc capacity is %d sectors\r\n", disk_capacity);
 	if(disk_capacity == 0){
 		printf("fail to get emmc's capacity\r\n");
@@ -518,11 +520,16 @@ static int nvt_chk_app(ulong addr, unsigned int size, unsigned int pat_id){
 
 static int nvt_chk_loader(ulong addr, unsigned int size, unsigned int pat_id)
 {
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) || defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+	printf("loader pat%d, no need to check encrypt loader.\r\n",pat_id);
+#else
 	if(MemCheck_CalcCheckSum16Bit(addr, size)!=0)
 	{
 		printf("loader pat%d, res check sum fail.\r\n",pat_id);
 		return -1;
 	}
+#endif
+
 	return 0;
 }
 
@@ -530,7 +537,7 @@ static int nvt_chk_modelext(ulong addr, unsigned int size, unsigned int pat_id)
 {
 	int  ret;
 
-#if defined(CONFIG_ENCRYPT_CFG)
+#if defined(CONFIG_ENCRYPT_DTS)
 	#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
 	if (is_secure_enable() != 0) {
 		if (MemCheck_CalcCheckSum16Bit(addr, size) != 0) {
@@ -550,33 +557,13 @@ static int nvt_chk_modelext(ulong addr, unsigned int size, unsigned int pat_id)
 	#endif /* CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
 	nvt_dbg(IND, "Verify encrypted dts PASS\r\n");
 	return 0;
-#endif /* CONFIG_ENCRYPT_CFG */
+#endif /* CONFIG_ENCRYPT_DTS */
 
 	ret = nvt_check_isfdt(addr);
 	if (ret < 0)
 		printf("fdt pat%d, res check sum fail.\r\n", pat_id);
 
 	return ret;
-}
-
-static int nvt_chk_uitron(ulong addr, unsigned int size, unsigned int pat_id)
-{
-	if(MemCheck_CalcCheckSum16Bit(addr, size)!=0)
-	{
-		printf("uitron pat%d, res check sum fail.\r\n", pat_id);
-		return -1;
-	}
-	return 0;
-}
-
-static int nvt_chk_ecos(ulong addr, unsigned int size, unsigned int pat_id)
-{
-	if(MemCheck_CalcCheckSum16Bit(addr, size)!=0)
-	{
-		printf("ecos pat%d, res check sum fail.\r\n",pat_id);
-		return -1;
-	}
-	return 0;
 }
 
 static int nvt_chk_rtos(ulong addr, unsigned int size, unsigned int pat_id)
@@ -622,10 +609,12 @@ static int nvt_chk_ai(ulong addr, unsigned int size, unsigned int pat_id)
 		printf("ai pat%d, res check sum fail.\r\n",pat_id);
 		return -1;
 	}
+
 	return 0;
 #else
 	// ai model context is user defined.
 	printf("skip checksum of ai model.\n");
+
 	return 0;
 #endif
 }
@@ -692,7 +681,6 @@ static int nvt_chk_uboot(ulong addr, unsigned int size, unsigned int pat_id)
 			}
 			free((void*)p_tmp);
 		}
-
 	}
 	else
 	{
@@ -743,443 +731,6 @@ static int nvt_chk_uboot(ulong addr, unsigned int size, unsigned int pat_id)
 #endif /* CONFIG_NVT_BIN_CHKSUM_SUPPORT */
 	return 0;
 }
-
-#if (defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)) || defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
-static void get_bininfo_size_offset(unsigned char* bininfo,unsigned int* size,unsigned int *offset)
-{
-
-	*size = bininfo[4] | bininfo[5]<<8 | bininfo[6] << 16 | bininfo[7] << 24;
-	*offset = bininfo[0] | bininfo[1] << 8 | bininfo[2] << 16 | bininfo[3] <<24;
-}
-
-static void fill_data_r(UINT8 * s, UINT8 * target, int len)
-{
-	int   i;
-
-	for(i=0; i<len; i++)
-		target[len-i-1] = s[i];
-}
-
-static int nvt_chk_key(ulong addr, unsigned int size)
-{
-	HEADINFO *head_info = (HEADINFO *)addr;
-	unsigned int key_size = 0;
-	unsigned int i=0;
-	unsigned int key_offset =0;
-	unsigned char * key_buf = NULL;
-	unsigned char sha256[32]={0};
-	unsigned char key_buf_reverse[256]={0};
-	int ret =0;
-
-
-	get_bininfo_size_offset(head_info->BinInfo_1, &key_size, &key_offset);
-	key_buf = (unsigned char *)(addr + key_offset);
-
-	#if 1
-		printf("only check N key-> key_size:%d key_offset:%d\n",key_size,key_offset);
-	#endif
-	fill_data_r(key_buf,key_buf_reverse,256);
-	#if 0
-	printf("N key reverse:\n");
-	for(i=0; i< 256;i++)
-	{
-		printf("%x ",key_buf_reverse[i]);
-	}
-	printf("\n");
-	#endif
-	printf("check rsa 2048 key\n");
-	NVT_SMC_SHA_DATA sha_data={0};
-	sha_data.input_data = key_buf_reverse;
-	sha_data.output_data = sha256;
-	sha_data.input_size = 256;
-	sha_data.sha_mode = NVT_SMC_SHA_MODE_SHA256;
-	ret = nvt_ivot_optee_sha_operation(&sha_data);
-	if(ret != 0)
-	{
-		printf("nvt_ivot_optee_sha_operation fail,ret:%d\n",ret);
-		return ret;
-	}
-	#if 1
-	printf(" rsa key reverse and sha256:\n");
-	for(i=0; i< 32; i++)
-	{
-		printf("%x ",*(char *)(sha256+i));
-	}
-	printf("\n");
-	#endif
-	#if 1
-	/*************
-		compare key hash from efuse
-	**************/
-
-	/*default set sha256 in 1,2 efuse key field,   0 efuse key field for aes key*/
-
-	//check low part-->sha256[0] ~ sha256[15]
-
-	NVT_SMC_EFUSE_DATA efuse_data = {0};
-	efuse_data.cmd = NVT_SMC_EFUSE_COMPARE_KEY;
-	efuse_data.key_data.field = EFUSE_OTP_2ND_KEY_SET_FIELD;
-	memcpy(efuse_data.key_data.data, &sha256[0], 16);
-	if(nvt_ivot_optee_efuse_operation(&efuse_data) !=1)
-	{
-		printf("compare key2 fail!, please check key in efuse or partition\n");
-		return -1;
-	}
-	efuse_data.key_data.field = EFUSE_OTP_3RD_KEY_SET_FIELD;
-	memcpy(efuse_data.key_data.data, &sha256[16], 16);
-	if(nvt_ivot_optee_efuse_operation(&efuse_data) !=1)
-	{
-		printf("compare key3 fail!, please check key in efuse or partition\n");
-		return -1;
-	}
-
-	printf("check rsa key ok\n");
-	#endif
-	return 0;
-}
-
-/* Verify RSA Key */
-static int nvt_chk_key_on_uboot(unsigned char *sha256)
-{
-	unsigned key_value[4]={0};
-	int offset = 0;
-	int field_index = 20;
-	key_value[0] = sha256[offset+0] | sha256[offset+1] << 8 | sha256[offset+2] << 16 | sha256[offset+3] << 24;
-	key_value[1] = sha256[offset+4] | sha256[offset+5] << 8 | sha256[offset+6] << 16 | sha256[offset+7] << 24;
-	key_value[2] = sha256[offset+8] | sha256[offset+9] << 8 | sha256[offset+10] << 16 | sha256[offset+11] << 24;
-	key_value[3] = sha256[offset+12] | sha256[offset+13] << 8 | sha256[offset+14] << 16 | sha256[offset+15] << 24;
-	if(key_value[0] != otp_key_manager(field_index) || key_value[1] != otp_key_manager(field_index+1) ||
-			key_value[2] != otp_key_manager(field_index+2) || key_value[3] != otp_key_manager(field_index+3)){
-		printf("key compare fail\n");
-		printf("efuse key: %x %x %x %x\n",
-				otp_key_manager(field_index), otp_key_manager(field_index+1),
-				otp_key_manager(field_index+2),otp_key_manager(field_index+3));
-		printf("compare key: %x %x %x %x\n",key_value[0],key_value[1],key_value[2],key_value[3]);
-		return -1;
-	}
-
-	field_index = 24;
-	offset = 16;
-	key_value[0] = sha256[offset+0] | sha256[offset+1] << 8 | sha256[offset+2] << 16 | sha256[offset+3] << 24;
-	key_value[1] = sha256[offset+4] | sha256[offset+5] << 8 | sha256[offset+6] << 16 | sha256[offset+7] << 24;
-	key_value[2] = sha256[offset+8] | sha256[offset+9] << 8 | sha256[offset+10] << 16 | sha256[offset+11] << 24;
-	key_value[3] = sha256[offset+12] | sha256[offset+13] << 8 | sha256[offset+14] << 16 | sha256[offset+15] << 24;
-	if(key_value[0] != otp_key_manager(field_index) || key_value[1] != otp_key_manager(field_index+1) ||
-			key_value[2] != otp_key_manager(field_index+2) || key_value[3] != otp_key_manager(field_index+3)){
-		printf("key compare fail\n");
-		printf("efuse key: %x %x %x %x\n",
-				otp_key_manager(field_index), otp_key_manager(field_index+1),
-				otp_key_manager(field_index+2),otp_key_manager(field_index+3));
-		printf("compare key: %x %x %x %x\n",key_value[0],key_value[1],key_value[2],key_value[3]);
-		return -1;
-	}
-
-	return 0;
-}
-
-int nvt_chk_signature_on_uboot(ulong addr, unsigned int size)
-{
-	HEADINFO *head_info = (HEADINFO *)addr;
-	struct nvt_rsa_pio_t rsa;
-	unsigned int key_size = 0;
-	unsigned int key_offset =0;
-	unsigned char * key_buf = NULL;
-	unsigned int signature_size = 0;
-	unsigned int signature_offset = 0;
-	unsigned char * signature_buf = NULL;
-	unsigned int crypto_size = 0;
-	unsigned int crypto_offset = 0;
-	unsigned char * crypto_buf = NULL;
-	unsigned int rsa_output[64]={0};   //usging unsigned int for address alignment 4
-	unsigned int output_size = sizeof(rsa_output);
-	unsigned int data_size =0;
-	int ret = 0;
-	struct nvt_hash_pio_t hash;
-	unsigned char key_buf_reverse[256]={0};
-	unsigned char sha256[32]={0};
-	unsigned int current_sha256[64]={0}; //usging unsigned int for address alignment 4
-	unsigned int sha256_align_size =0;
-
-	get_bininfo_size_offset(head_info->BinInfo_1, &key_size, &key_offset);
-	key_buf = (unsigned char *)(addr + key_offset);
-
-	get_bininfo_size_offset(head_info->BinInfo_2, &signature_size, &signature_offset);
-	signature_buf = (unsigned char *)(addr + signature_offset);
-
-	get_bininfo_size_offset(head_info->BinInfo_3, &crypto_size, &crypto_offset);
-	crypto_buf = (unsigned char *)(addr + crypto_offset);
-
-	/* 1. Get Hash from RSA Key */
-	ret = nvt_hash_open();
-	if (ret < 0) {
-		printf("nvt hash open failed!\n");
-		return ret;
-	}
-
-	fill_data_r(key_buf,key_buf_reverse,256);
-	/* Hash Data */
-	hash.mode        = NVT_HASH_MODE_SHA256;
-	hash.src         = key_buf_reverse;
-	hash.digest      = sha256;
-	hash.src_size    = 256;
-	hash.digest_size = 32;
-	nvt_hash_pio_sha(&hash);
-	if (ret < 0) {
-		printf("nvt hash failed!\n");
-		nvt_hash_close();
-		return ret;
-	}
-	nvt_hash_close();
-
-	/* 2. Verify hash of RSA key on Image and efuse */
-	ret = nvt_chk_key_on_uboot(sha256);
-	if (ret < 0) {
-		printf("nvt check key failed!\n");
-		return ret;
-	}
-
-	/* 3. Decrypt the signature to get the hash of the encrypted data */
-	ret = nvt_rsa_open();
-	if (ret < 0) {
-		printf("nvt rsa open failed!\n");
-		return ret;
-	}
-
-	/* rsa input data size should equal to n key size */
-	unsigned char signature_buf_tmp[256]={0};
-	memcpy(signature_buf_tmp,signature_buf,signature_size);
-
-	rsa.key_w       = NVT_RSA_KEY_WIDTH_2048;
-	rsa.src         = signature_buf_tmp;
-	rsa.dst         = (unsigned char *)rsa_output;
-	rsa.key_n       = key_buf;
-	rsa.key_ed      = (unsigned char *)((unsigned long)key_buf + 256);
-	rsa.src_size    = 256;
-	rsa.dst_size    = output_size;
-	rsa.key_n_size  = 256;
-	rsa.key_ed_size = key_size - rsa.key_n_size;;
-
-	ret = nvt_rsa_pio_normal(&rsa);
-	if (ret < 0) {
-		printf("nvt rsa decryption failed!\n");
-		nvt_rsa_close();
-		return ret;
-	}
-	nvt_rsa_close();
-
-	/* Align sha256 data to 64 */
-	data_size = head_info->BinLength - crypto_offset;
-	if((data_size & 0x3f) != 0)
-	{
-		sha256_align_size = ((data_size/0x40) + 1)*0x40;
-		memset((unsigned char *)(crypto_buf + data_size),0, sha256_align_size - data_size);
-		printf("sha256 data not align 64 ,need add pending data\n");
-	} else {
-		sha256_align_size = data_size;
-	}
-
-	/* 5. Get Hash from Crypto data */
-	ret = nvt_hash_open();
-	if (ret < 0) {
-		printf("nvt hash open failed!\n");
-		return ret;
-	}
-
-	fill_data_r(key_buf,key_buf_reverse,256);
-	/* Hash Data */
-	hash.mode        = NVT_HASH_MODE_SHA256;
-	hash.src         = crypto_buf;
-	hash.digest      = (unsigned char *)current_sha256;;
-	hash.src_size    = sha256_align_size;
-	hash.digest_size = 32;
-	nvt_hash_pio_sha(&hash);
-	if (ret < 0) {
-		printf("nvt hash failed!\n");
-		nvt_hash_close();
-		return ret;
-	}
-	nvt_hash_close();
-
-	/* 6. Verify Signature [ output from step 3 and 5 ]*/
-	unsigned int *sha256_output = (unsigned int *)((unsigned long)rsa_output + 256 - 32);// the last 32 bytes are signature
-	ret = memcmp(current_sha256, sha256_output, 32);
-	if (ret != 0) {
-		printf("Verify Signature failed!\n");
-		int i;
-		unsigned char rsa_output_t[256];
-		memcpy(rsa_output,rsa_output_t,256);
-		for (i = 0; i < 64; i++) {
-			printf("%x %x\n", rsa_output_t[i*4], signature_buf_tmp[i*4]);
-		}
-		return ret;
-	}
-	return ret;
-}
-
-int nvt_chk_signature(ulong addr, unsigned int size)
-{
-	int ret=0;
-	HEADINFO *head_info = (HEADINFO *)addr;
-	unsigned int key_size = 0;
-	unsigned int key_offset =0;
-	unsigned char * key_buf = NULL;
-	unsigned int signature_size = 0;
-	unsigned int signature_offset = 0;
-	unsigned char * signature_buf = NULL;
-	unsigned int crypto_size = 0;
-	unsigned int crypto_offset = 0;
-	unsigned char * crypto_buf = NULL;
-	unsigned int *sha256 = NULL;
-	unsigned int rsa_output[64]={0};   //usging unsigned int for address alignment 4
-	unsigned int current_sha256[64]={0}; //usging unsigned int for address alignment 4
-	unsigned int output_size = sizeof(rsa_output);
-	unsigned int data_size =0;
-	unsigned int sha256_align_size =0;
-	#if 1
-	NVT_SMC_EFUSE_DATA efuse_data = {0};
-	efuse_data.cmd = NVT_SMC_EFUSE_IS_RSA_KEY_CHECK;
-	if(1 == nvt_ivot_optee_efuse_operation(&efuse_data))
-	{
-		ret = nvt_chk_key( addr, size);
-		if(ret != 0)
-		{
-			printf("nvt_chk_public_key fail ret:%x\n",ret);
-			return -1;
-		}
-	}
-	else
-	{
-		printf("rsa key check not enable\n");
-	}
-	#else
-		ret = nvt_chk_key( addr, size);
-		if(ret != 0)
-		{
-			printf("nvt_chk_public_key fail ret:%x\n",ret);
-			return -1;
-		}
-	#endif
-	get_bininfo_size_offset(head_info->BinInfo_1, &key_size, &key_offset);
-	key_buf = (unsigned char *)(addr + key_offset);
-
-
-	get_bininfo_size_offset(head_info->BinInfo_2, &signature_size, &signature_offset);
-	signature_buf = (unsigned char *)(addr + signature_offset);
-
-
-	get_bininfo_size_offset(head_info->BinInfo_3, &crypto_size, &crypto_offset);
-	crypto_buf = (unsigned char *)(addr + crypto_offset);
-
-
-	NVT_SMC_RSA_DATA rsa_data={0};
-	//rsa input data size should equal to n key size
-	unsigned char signature_buf_tmp[256]={0};
-	memcpy(signature_buf_tmp,signature_buf,signature_size);
-	rsa_data.rsa_mode = NVT_SMC_RSA_MODE_2048;
-	rsa_data.n_key = key_buf;
-	rsa_data.n_key_size = 256;
-	rsa_data.ed_key = (unsigned char *)((unsigned long)key_buf + 256);
-	rsa_data.ed_key_size = key_size - rsa_data.n_key_size;
-	rsa_data.input_data = signature_buf_tmp;
-	rsa_data.input_size = 256;
-	rsa_data.output_data = (unsigned char *)rsa_output;
-
-	ret = nvt_ivot_optee_rsa_operation(&rsa_data);
-
-	if(ret != 0){
-		printf("nvt_ivot_optee_rsa_decrypt fail ret:%d\n",ret);
-		return -1;
-	}
-
-	#if 1
-	unsigned int i=0;
-	printf("\nrsa decrypt size (%d) :\n", output_size);
-	for(i=0;i< (output_size/4);i++)
-	{
-		printf("%08x ",rsa_output[i]);
-	}
-	printf("\n");
-	#endif
-
-	#if 1
-	printf("crypto_buf:%x offset:%x addr:%x\n",crypto_buf,crypto_offset,addr);
-	printf("data size:%x\n",crypto_size);
-	printf("data :%x %x %x %x %x %x\n",crypto_buf[0],crypto_buf[1],crypto_buf[2],crypto_buf[3],crypto_buf[4],crypto_buf[5]);
-
-	#endif
-
-	/**
-	  	------
-		header
-		-------
-		key
-		-----
-		signature
-		----
-		encrypt bin
-
-		encrypt bin length = total size - encrypt bin offset
-
-	*/
-
-	data_size = head_info->BinLength - crypto_offset;
-	#if 1
-	if((data_size & 0x3f) != 0)
-	{
-		sha256_align_size = ((data_size/0x40) + 1)*0x40;
-		memset((unsigned char *)(crypto_buf + data_size),0, sha256_align_size - data_size);
-		printf("sha256 data not align 64 ,need add pending data\n");
-	}
-	else
-	{
-		sha256_align_size = data_size;
-	}
-
-	#endif
-	NVT_SMC_SHA_DATA sha_data={0};
-	sha_data.input_data = crypto_buf;
-	sha_data.output_data = (unsigned char *)current_sha256;
-	sha_data.input_size = sha256_align_size;
-	sha_data.sha_mode = NVT_SMC_SHA_MODE_SHA256;
-	ret = nvt_ivot_optee_sha_operation(&sha_data);
-	if(ret != 0)
-	{
-		printf("nvt_ivot_optee_sha_operation fail,ret:%d\n",ret);
-		return ret;
-	}
-
-
-	if(ret != 0)
-	{
-		printf("nvt_ivot_optee_sha256_compute fail,ret:%d\n",ret);
-		return -1;
-	}
-
-	sha256 = (unsigned int *)((unsigned long)rsa_output + 256 - 32);// the last 32 bytes are signature
-	#if 1
-	printf("\n hash img:\n");
-	for(i=0;i< 8;i++)
-	{
-		printf("%x ",current_sha256[i]);
-	}
-	printf("\n");
-	printf("\n signature data:\n");
-	for(i=0;i< 8;i++)
-	{
-		printf("%x ",sha256[i]);
-	}
-	printf("\n");
-	#endif
-
-	if(memcmp(&current_sha256[0], sha256, 32)!= 0)
-	{
-		printf("compare hash fail!\n");
-		return -1;
-	}
-
-	return 0;
-}
-#endif /* CONFIG_NVT_IVOT_OPTEE_SUPPORT && CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT || CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
 
 static int nvt_chk_linux(ulong addr, unsigned int size, unsigned int pat_id)
 {
@@ -1279,14 +830,6 @@ int nvt_chk_all_in_one_valid(unsigned short EmbType, unsigned int addr, unsigned
 			if(nvt_chk_modelext((ulong)addr,size,id)!=0)
 				return -1;
 			break;
-		case EMBTYPE_UITRON:
-			if(nvt_chk_uitron((ulong)addr,size,id)!=0)
-				return -1;
-			break;
-		case EMBTYPE_ECOS:
-			if(nvt_chk_ecos((ulong)addr,size,id)!=0)
-				return -1;
-			break;
 		case EMBTYPE_UBOOT:
 			if(nvt_chk_uboot((ulong)addr,size,id)!=0)
 				return -1;
@@ -1321,6 +864,11 @@ int nvt_chk_all_in_one_valid(unsigned short EmbType, unsigned int addr, unsigned
 			if(nvt_chk_ai((ulong)addr,size,id)!=0){
 				return -1;
 			}
+			break;
+		case EMBTYPE_FDTFAST:
+			/* fdtfast is always non secure */
+			if (nvt_check_isfdt((ulong)addr)!= 0)
+				return -1;
 			break;
 		default:
 			break;
@@ -1440,7 +988,7 @@ static int nvt_on_partition_enum_update(unsigned int id, NVTPACK_MEM* p_mem, voi
 			break;
 		case EMBTYPE_FDT:
 			printf("%s Update: fdt %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-#ifdef CONFIG_ENCRYPT_CFG
+#ifdef CONFIG_ENCRYPT_DTS
 	#if defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
 				if(nvt_chk_signature((ulong)p_mem->p_data, p_mem->len)) {
 					printf("check signature fail\n");
@@ -1454,14 +1002,6 @@ static int nvt_on_partition_enum_update(unsigned int id, NVTPACK_MEM* p_mem, voi
 	#endif
 				nvt_dbg(IND, "Verify encrypted dts PASS\r\n");
 #endif
-			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
-			break;
-		case EMBTYPE_UITRON:
-			printf("%s Update: uitron %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
-			break;
-		case EMBTYPE_ECOS:
-			printf("%s Update: ecos %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
 			break;
 		case EMBTYPE_UBOOT:
@@ -1530,7 +1070,7 @@ static int nvt_on_partition_enum_update(unsigned int id, NVTPACK_MEM* p_mem, voi
 			break;
 		case EMBTYPE_ROOTFS:
 			printf("%s Update: rootfs%u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
-#if  defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_ENCRYPT_ROOTFS)
+#if  defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_ENCRYPT_ROOTFS)
 			if((is_secure == 1) && (pEmb[id].OrderIdx == 0)) {
 	#if defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
 				if(nvt_chk_signature((ulong)p_mem->p_data, p_mem->len)) {
@@ -1601,10 +1141,19 @@ static int nvt_on_partition_enum_update(unsigned int id, NVTPACK_MEM* p_mem, voi
 			break;
 		case EMBTYPE_USER:
 			printf("%s Update: user partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
-			ret = nvt_update_fs_partition(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize, &pEmb[id]);
+			nvt_update_fs_partition(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize, &pEmb[id]);
 			break;
 		case EMBTYPE_USERRAW:
 			printf("%s Update: user raw partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
+			break;
+		case EMBTYPE_MCU:
+			printf("%s Update: 8051 partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
+			break;
+		case EMBTYPE_FDTFAST:
+			/* fdt fast is always non secure */
+			printf("%s Update: fdtfast %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
 			break;
 		default:
@@ -1656,14 +1205,6 @@ static int nvt_on_partition_enum_mtd_readback(unsigned int id, NVTPACK_MEM* p_me
 			printf("%s Read: fdt %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
 			break;
-		case EMBTYPE_UITRON:
-			printf("%s Read: uitron %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
-			break;
-		case EMBTYPE_ECOS:
-			printf("%s Read: ecos %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
-			break;
 		case EMBTYPE_UBOOT:
 			printf("%s Read: uboot %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
@@ -1682,7 +1223,7 @@ static int nvt_on_partition_enum_mtd_readback(unsigned int id, NVTPACK_MEM* p_me
 			break;
 		case EMBTYPE_ROOTFS:
 			printf("%s Read: rootfs%u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
-#if  defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_ENCRYPT_ROOTFS)
+#if  defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_ENCRYPT_ROOTFS)
 			if((is_secure == 1) && (pEmb[id].OrderIdx == 0)) {
 				ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
 			} else {
@@ -1714,6 +1255,14 @@ static int nvt_on_partition_enum_mtd_readback(unsigned int id, NVTPACK_MEM* p_me
 			break;
 		case EMBTYPE_USERRAW:
 			printf("%s Read: user raw partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
+			break;
+		case EMBTYPE_MCU:
+			printf("%s Read: mcu partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
+			break;
+		case EMBTYPE_FDTFAST:
+			printf("%s Read: fdtfast %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
 			break;
 		default:
@@ -1758,6 +1307,7 @@ static int nvt_getfdt_emb_addr_size(ulong addr, u32 *fdt_emb_addr, u32 *fdt_emb_
 		if (nextoffset < 0) {
 			return -1;
 		}
+
 		ptr = fdt_get_name((const void*)addr, nextoffset, NULL);
 		if( ptr == NULL) {
 			printf("%s:%d fdt_get_name got NULL\n", __FILE__, __LINE__);
@@ -1888,10 +1438,10 @@ int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm)
 	np_get_input.mem = mem_in;
 	if(nvtpack_get_partition(&np_get_input,&mem_out) == NVTPACK_ER_SUCCESS)
 	{
-#if defined(CONFIG_ENCRYPT_CFG)
+#if defined(CONFIG_ENCRYPT_DTS)
 		/* Prevent source data being overwritten */
-		unsigned long tmp_addr = CONFIG_LINUX_SDRAM_BASE;
-		memcpy((void*)tmp_addr, (void*)mem_out.p_data, mem_out.len);
+		unsigned long tmp_addr = nvt_memory_cfg[MEMTYPE_LINUXTMP].addr;
+		memcpy((void*)tmp_addr, (void*)mem_out.p_data, size);
 		mem_out.p_data = (void *)tmp_addr;
 	#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
 		if (is_secure_enable() != 0) {
@@ -1925,7 +1475,7 @@ int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm)
 		}
 	#endif /* CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
 		nvt_dbg(IND, "Verify encrypted dts PASS\r\n");
-#endif /* CONFIG_ENCRYPT_CFG */
+#endif /* CONFIG_ENCRYPT_DTS */
 		if(nvt_check_isfdt((ulong)mem_out.p_data) != 0) {
 			printf("partition[1] is not fdt.\r\n");
 			return -1;
@@ -2026,8 +1576,6 @@ int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm)
 				{
 					case EMBTYPE_MBR:
 					case EMBTYPE_FDT:
-					case EMBTYPE_UITRON:
-					case EMBTYPE_ECOS:
 					case EMBTYPE_UBOOT:
 					case EMBTYPE_ATF:
 					//case EMBTYPE_DSP:
@@ -2037,6 +1585,8 @@ int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm)
 					case EMBTYPE_APP:
 					case EMBTYPE_TEEOS:
 					case EMBTYPE_AI:
+					case EMBTYPE_MCU:
+					case EMBTYPE_FDTFAST:
 					{
 						//check this type exist in all-in-one
 						np_get_input.id = i;
@@ -2134,66 +1684,6 @@ int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm)
 }
 
 /*
- * This function can be used to do rootfs format
- * Two conditions will do format:
- *				iTron cmd: key restore_rootfs
- *				Linux: uctrl usys -rootfs_broken => Send event to itron, itron can decide what to do
- */
-int nvt_process_rootfs_format(void)
-{
-	EMB_PARTITION *p_emb_partition = NULL;
-	int ret = 0;
-	loff_t part_off=0, part_size=0;
-	char command[128];
-	unsigned long val = 0;
-
-	memset(command, 0, sizeof(command));
-	/* get partition table */
-	ret = nvt_getfdt_emb((ulong)nvt_fdt_buffer, p_emb_partition);
-	if (ret < 0) {
-		printf("FDT: emb_partition setting is null\n");
-		goto err_fmt_rootfs;
-	}
-
-	/* partition table env init */
-	ret = nvt_part_config(NULL, p_emb_partition);
-	if (ret < 0)
-		goto err_fmt_rootfs;
-
-	/* Check if rootfs1 is existed */
-	ret = get_part("rootfs1", &part_off, &part_size);
-	if (ret < 0)
-		goto err_fmt_rootfs;
-
-	printf("Starting to format R/W rootfs partition\n");
-	sprintf(command, "nand erase.part rootfs1");
-	run_command(command, 0);
-
-#if defined(CONFIG_NVT_UBIFS_SUPPORT)
-	sprintf(command, "ubi part rootfs1");
-	run_command(command, 0);
-
-	sprintf(command, "ubi create rootfs1");
-	run_command(command, 0);
-#endif
-
-	val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_DONE;
-	nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-	flush_dcache_all();
-	while(1) {
-		// Waiting for itron trigger reboot.
-		printf(".");
-		mdelay(1000);
-	}
-
-err_fmt_rootfs:
-	val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_NG;
-	nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-	flush_dcache_all();
-	return -1;
-}
-
-/*
  * This function can be used to do system recovery in emmc boot mode
  * Below condition will do system recovery:
  *				Loader send event
@@ -2227,15 +1717,15 @@ int nvt_process_sys_recovery(void)
 	if (fs_set_blk_dev("mmc", dev_part_str, FS_TYPE_FAT))
 		return ERR_NVT_UPDATE_OPENFAILED;
 	else {
-		ret = fs_read(get_nvt_bin_name(NVT_BIN_NAME_TYPE_RECOVERY_FW), (ulong)CONFIG_NVT_RUNFW_SDRAM_BASE, 0, 0, &size);
+		ret = fs_read(get_nvt_bin_name(NVT_BIN_NAME_TYPE_RECOVERY_FW), (ulong)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, 0, 0, &size);
 		if (size <= 0 || ret < 0) {
-			printf("Read %s at 0x%x failed ret=%d\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RECOVERY_FW), CONFIG_NVT_RUNFW_SDRAM_BASE, size);
+			printf("Read %s at 0x%x failed ret=%d\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RECOVERY_FW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
 			return ERR_NVT_UPDATE_READ_FAILED;
 		} else {
-			printf("Read %s at 0x%x successfully, size=%d\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RECOVERY_FW), CONFIG_NVT_RUNFW_SDRAM_BASE, size);
-			NVTPACK_MEM mem_in = {(void*)CONFIG_NVT_RUNFW_SDRAM_BASE, (unsigned int)size};
+			printf("Read %s at 0x%x successfully, size=%d\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RECOVERY_FW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
+			NVTPACK_MEM mem_in = {(void*)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, (unsigned int)size};
 			NVTPACK_MEM mem_out = {0};
-			pEmbCurr = (EMB_PARTITION*)modelext_get_cfg((unsigned char*)CONFIG_SMEM_SDRAM_BASE,MODELEXT_TYPE_EMB_PARTITION,&p_resource_curr);
+			pEmbCurr = (EMB_PARTITION*)modelext_get_cfg((unsigned char*)nvt_memory_cfg[MEMTYPE_SHMEM].addr,MODELEXT_TYPE_EMB_PARTITION,&p_resource_curr);
 			if(pEmbCurr==NULL) {
 				printf("failed to get current partition resource.\r\n");
 				return -1;
@@ -2248,7 +1738,6 @@ int nvt_process_sys_recovery(void)
 					{
 						case EMBTYPE_MBR:
 						case EMBTYPE_FDT:
-						case EMBTYPE_UITRON:
 						case EMBTYPE_ATF:
 						case EMBTYPE_UBOOT:
 						#if defined(CONFIG_DSP1_FREERTOS) || defined(CONFIG_DSP2_FREERTOS)
@@ -2259,6 +1748,8 @@ int nvt_process_sys_recovery(void)
 						case EMBTYPE_RTOS:
 						case EMBTYPE_TEEOS:
 						case EMBTYPE_AI:
+						case EMBTYPE_MCU:
+						case EMBTYPE_FDTFAST:
 						{
 							//check this type exist in all-in-one
 							np_get_input.id = i;
@@ -2272,7 +1763,7 @@ int nvt_process_sys_recovery(void)
 					}
 				}
 			}
-			ret = nvt_process_all_in_one((ulong)CONFIG_NVT_RUNFW_SDRAM_BASE ,size, 0);
+			ret = nvt_process_all_in_one((ulong)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr ,size, 0);
 			if (ret < 0)
 				return ERR_NVT_UPDATE_FAILED;
 		}
@@ -2289,7 +1780,7 @@ int nvt_fw_update(bool firm_upd_firm)
 	loff_t size = 0;
 	char command[128];
 
-	p_shminfo = (SHMINFO *)CONFIG_SMEM_SDRAM_BASE;
+	p_shminfo = (SHMINFO *)nvt_memory_cfg[MEMTYPE_SHMEM].addr;
 	if (strncmp(p_shminfo->boot.LdInfo_1, "LD_NVT", 6) != 0) {
 		printf("can't get right bin info in %s \n", __func__);
 		return ERR_NVT_UPDATE_FAILED;
@@ -2301,15 +1792,16 @@ int nvt_fw_update(bool firm_upd_firm)
 	ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 	ulong fdt_size = fdt_totalsize(fdt_addr);
 
-	if (size > CONFIG_NVT_ALL_IN_ONE_IMG_SIZE) {
-		printf("%sYour image size %lld is larger than all-in-one size with %d %s\r\n", ANSI_COLOR_RED, size, CONFIG_NVT_ALL_IN_ONE_IMG_SIZE, ANSI_COLOR_RESET);
+	if (size > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size) {
+		printf("%sYour image size %lld is larger than all-in-one size with %d %s\r\n", ANSI_COLOR_RED, size, nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size, ANSI_COLOR_RESET);
 		return ERR_NVT_UPDATE_READ_FAILED;
 	}
 
 	/* To check if all-in-one buffer is overlapped with mem-tbl's fdt */
-	if ((fdt_addr + fdt_size) > CONFIG_NVT_RUNFW_SDRAM_BASE && fdt_addr < (CONFIG_NVT_RUNFW_SDRAM_BASE + CONFIG_NVT_ALL_IN_ONE_IMG_SIZE)) {
-		printf("%s CONFIG_NVT_RUNFW_SDRAM_BASE (0x%lX) is overlapped with fdt(0x%lX-0x%lX), check CONFIG_NVT_ALL_IN_ONE_IMG_SIZE%s\r\n",
-				ANSI_COLOR_RED, CONFIG_NVT_RUNFW_SDRAM_BASE, fdt_addr, fdt_addr + fdt_size, ANSI_COLOR_RESET);
+	if ((fdt_addr + fdt_size) > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr && fdt_addr < (nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr + nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size)) {
+
+		printf("%s nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr (0x%lX) is overlapped with fdt(0x%lX-0x%lX), check nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size%s\r\n",
+				ANSI_COLOR_RED, nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, fdt_addr, fdt_addr + fdt_size, ANSI_COLOR_RESET);
 		return ERR_NVT_UPDATE_READ_FAILED;
 	}
 
@@ -2317,13 +1809,13 @@ int nvt_fw_update(bool firm_upd_firm)
 	 * To check if all-in-one buffer is overlapped with mem-tbl's shmem
 	 * DO NOT use static-check (such as #if), otherwise it may cause compiler error for non-all-in-one vendor.
 	 */
-	if (CONFIG_SMEM_SDRAM_BASE + CONFIG_SMEM_SDRAM_SIZE > CONFIG_NVT_RUNFW_SDRAM_BASE) {
-		printf("%s CONFIG_NVT_RUNFW_SDRAM_BASE (0x%lX) is overlapped with shmem(0x%lX-0x%lX), check CONFIG_NVT_ALL_IN_ONE_IMG_SIZE%s\r\n",
-				ANSI_COLOR_RED, CONFIG_NVT_RUNFW_SDRAM_BASE, CONFIG_SMEM_SDRAM_BASE, CONFIG_SMEM_SDRAM_BASE + CONFIG_SMEM_SDRAM_SIZE, ANSI_COLOR_RESET);
+	if (nvt_memory_cfg[MEMTYPE_SHMEM].addr + nvt_memory_cfg[MEMTYPE_SHMEM].size > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr) {
+		printf("%s nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr (0x%lX) is overlapped with shmem(0x%lX-0x%lX), check nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size%s\r\n",
+				ANSI_COLOR_RED, nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, nvt_memory_cfg[MEMTYPE_SHMEM].addr, nvt_memory_cfg[MEMTYPE_SHMEM].addr + nvt_memory_cfg[MEMTYPE_SHMEM].size, ANSI_COLOR_RESET);
 		return ERR_NVT_UPDATE_READ_FAILED;
 	}
 
-	memmove((void *)CONFIG_NVT_RUNFW_SDRAM_BASE, (void *)firm_addr, firm_size);
+	memmove((void *)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, (void *)firm_addr, firm_size);
 #else
 	if (firm_upd_firm) {
 		unsigned long firm_addr = nvt_readl((ulong)nvt_shminfo_comm_fw_update_addr);
@@ -2351,33 +1843,33 @@ int nvt_fw_update(bool firm_upd_firm)
 			ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 			ulong fdt_size = fdt_totalsize(fdt_addr);
 			/* To check if A.bin is larger than all-in-one temp buffer size */
-			if (size > CONFIG_NVT_ALL_IN_ONE_IMG_SIZE) {
-				printf("%sYour image size %lld is larger than all-in-one size with %d %s\r\n", ANSI_COLOR_RED, size, CONFIG_NVT_ALL_IN_ONE_IMG_SIZE, ANSI_COLOR_RESET);
+			if (size > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size) {
+				printf("%sYour image size %lld is larger than all-in-one size with %lu %s\r\n", ANSI_COLOR_RED, size, nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size, ANSI_COLOR_RESET);
 				return ERR_NVT_UPDATE_READ_FAILED;
 			}
 			/* To check if all-in-one buffer is overlapped with mem-tbl's fdt */
-			if ((fdt_addr + fdt_size) > CONFIG_NVT_RUNFW_SDRAM_BASE && fdt_addr < (CONFIG_NVT_RUNFW_SDRAM_BASE + CONFIG_NVT_ALL_IN_ONE_IMG_SIZE)) {
-				printf("%s CONFIG_NVT_RUNFW_SDRAM_BASE (0x%lX) is overlapped with fdt(0x%lX-0x%lX), check CONFIG_NVT_ALL_IN_ONE_IMG_SIZE%s\r\n",
-					ANSI_COLOR_RED, CONFIG_NVT_RUNFW_SDRAM_BASE, fdt_addr, fdt_addr + fdt_size, ANSI_COLOR_RESET);
+			if (fdt_addr + fdt_size > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr) {
+				printf("%s nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr (0x%lX) is overlapped with fdt(0x%lX-0x%lX), check nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size%s\r\n",
+					ANSI_COLOR_RED, nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, fdt_addr, fdt_addr + fdt_size, ANSI_COLOR_RESET);
 				return ERR_NVT_UPDATE_READ_FAILED;
 			}
 			/**
 			 * To check if all-in-one buffer is overlapped with mem-tbl's shmem
 			 * DO NOT use static-check (such as #if), otherwise it may cause compiler error for non-all-in-one vendor.
 			 */
-			if (CONFIG_SMEM_SDRAM_BASE + CONFIG_SMEM_SDRAM_SIZE > CONFIG_NVT_RUNFW_SDRAM_BASE) {
-				printf("%s CONFIG_NVT_RUNFW_SDRAM_BASE (0x%lX) is overlapped with shmem(0x%lX-0x%lX), check CONFIG_NVT_ALL_IN_ONE_IMG_SIZE%s\r\n",
-					ANSI_COLOR_RED, CONFIG_NVT_RUNFW_SDRAM_BASE, CONFIG_SMEM_SDRAM_BASE, CONFIG_SMEM_SDRAM_BASE + CONFIG_SMEM_SDRAM_SIZE, ANSI_COLOR_RESET);
+			if (nvt_memory_cfg[MEMTYPE_SHMEM].addr + nvt_memory_cfg[MEMTYPE_SHMEM].size > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr) {
+				printf("%s nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr (0x%lX) is overlapped with shmem(0x%lX-0x%lX), check nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size%s\r\n",
+					ANSI_COLOR_RED, nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, nvt_memory_cfg[MEMTYPE_SHMEM].addr, nvt_memory_cfg[MEMTYPE_SHMEM].addr + nvt_memory_cfg[MEMTYPE_SHMEM].size, ANSI_COLOR_RESET);
 				return ERR_NVT_UPDATE_READ_FAILED;
 			}
 
-			ret = fs_read(get_nvt_bin_name(NVT_BIN_NAME_TYPE_FW), (ulong)CONFIG_NVT_RUNFW_SDRAM_BASE, 0, 0, &size);
+			ret = fs_read(get_nvt_bin_name(NVT_BIN_NAME_TYPE_FW), (ulong)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, 0, 0, &size);
 			if (size <= 0 || ret < 0) {
-				printf("Read %s at 0x%x failed ret=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_FW), CONFIG_NVT_RUNFW_SDRAM_BASE, size);
+				printf("Read %s at 0x%lx failed ret=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_FW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
 				return ERR_NVT_UPDATE_READ_FAILED;
 			} else {
-				printf("Read %s at 0x%x successfully, size=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_FW), CONFIG_NVT_RUNFW_SDRAM_BASE, size);
-				ret = nvt_process_all_in_one((ulong)CONFIG_NVT_RUNFW_SDRAM_BASE ,size, 0);
+				printf("Read %s at 0x%lx successfully, size=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_FW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
+				ret = nvt_process_all_in_one((ulong)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr ,size, 0);
 				if (ret < 0) {
 					retry++;
 				} else {

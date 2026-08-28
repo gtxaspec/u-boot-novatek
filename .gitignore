@@ -6,6 +6,7 @@
 # Normal rules (sorted alphabetically)
 #
 *.a
+*.asn1.[ch]
 *.bin
 *.cfgout
 *.dtb
@@ -16,6 +17,7 @@
 *.gcda
 *.gcno
 *.i
+*.img
 *.lex.c
 *.lst
 *.mod.c
@@ -34,12 +36,13 @@
 #
 # Top-level generic files
 #
-fit-dtb.blob
+fit-dtb.blob*
 /MLO*
 /SPL*
 /System.map
 /u-boot*
 /boards.cfg
+/*.log
 
 #
 # git files that we don't want to ignore even it they are dot-files
@@ -88,3 +91,6 @@ GTAGS
 *.orig
 *~
 \#*#
+
+# Python cache
+__pycache__

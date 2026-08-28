@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, NOVATEK CORPORATION.
+ * Copyright (c) 2024, NOVATEK MICROELECTRONIC CORPORATION. All rights reserved.
  *
  * SPDX-License-Identifier: GPL-2.0
  *
@@ -28,6 +28,7 @@
  *    all clock and reset signals to the HW block.
  */
 
+#include <cpu_func.h>
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
@@ -37,22 +38,38 @@
 #include <phy.h>
 #include <asm/io.h>
 #include <malloc.h>
-#include <asm/gpio.h>
+#include <asm/arch/gpio.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <linux/libfdt.h>
+#include <linux/delay.h>
 
-#define ETHVERSION "1.0.0.3"
+#define ETHVERSION "1.0.0.1"
 
 #define SW_RESET_ADDRESS     (IOADDR_ETH_REG_BASE + 0x3800)
 #define SW_RESET_MASK        0x00000002
 #define PLLREGWR_MASK        0x00000008
+#define REG32_MASK          0x00000000FFFFFFFF
 
-#define SW_PLL_RESET_ADDRESS     (IOADDR_ETH_REG_BASE + 0x84)
+#define SW_PLL_RESET_ADDRESS     (IOADDR_ETH_REG_BASE + 0x3800 + 0x84)
 #define SW_PLL_RESET_MASK        0x3FFFFFFF
 #define JTAG_EN_MASK		 0x100000
+#define PHYAD                0x1
+
+#define phy_set_mdio_addr(phyaddr) do { \
+	unsigned long v; \
+	v = readl((void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+	v |= (0x1 << 1); \
+	writel(v, (void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+	v = readl((void *)(IOADDR_ETH_REG_BASE + 0x381C));\
+	v |= (phyaddr << 0); \
+	writel(v, (void *)(IOADDR_ETH_REG_BASE + 0x381C));\
+	v = readl((void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+	v &= ~(0x1 << 1); \
+	writel(v, (void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+} while(0)
 
 #define phy_sw_reset_enable() do { \
         unsigned long v; \
@@ -327,18 +344,19 @@ struct eqos_desc {
 #define EQOS_DESC3_FD		BIT(29)
 #define EQOS_DESC3_LD		BIT(28)
 #define EQOS_DESC3_BUF1V	BIT(24)
-
+//#define debug(fmt, args...)   printf(fmt, ##args)
 struct eqos_config {
 	bool reg_access_always_ok;
 };
 
 struct eqos_priv {
-	struct eth_device *dev;
+	struct udevice *dev;
 	const struct eqos_config *config;
-	uint32_t regs;
+	unsigned long regs;
 	struct eqos_mac_regs *mac_regs;
 	struct eqos_mtl_regs *mtl_regs;
 	struct eqos_dma_regs *dma_regs;
+	unsigned long dma_ch_regs;
 	struct mii_dev *mii;
 	struct phy_device *phy;
 	void *descs;
@@ -547,9 +565,9 @@ static int eqos_mdio_write(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 	return 0;
 }
 
-static int eqos_set_full_duplex(struct eth_device *dev)
+static int eqos_set_full_duplex(struct udevice *dev)
 {
-	struct eqos_priv *eqos = dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -558,9 +576,9 @@ static int eqos_set_full_duplex(struct eth_device *dev)
 	return 0;
 }
 
-static int eqos_set_half_duplex(struct eth_device *dev)
+static int eqos_set_half_duplex(struct udevice *dev)
 {
-	struct eqos_priv *eqos = dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -573,9 +591,9 @@ static int eqos_set_half_duplex(struct eth_device *dev)
 	return 0;
 }
 
-static int eqos_set_gmii_speed(struct eth_device *dev)
+static int eqos_set_gmii_speed(struct udevice *dev)
 {
-	struct eqos_priv *eqos = dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -585,9 +603,9 @@ static int eqos_set_gmii_speed(struct eth_device *dev)
 	return 0;
 }
 
-static int eqos_set_mii_speed_100(struct eth_device *dev)
+static int eqos_set_mii_speed_100(struct udevice *dev)
 {
-	struct eqos_priv *eqos = dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -597,9 +615,9 @@ static int eqos_set_mii_speed_100(struct eth_device *dev)
 	return 0;
 }
 
-static int eqos_set_mii_speed_10(struct eth_device *dev)
+static int eqos_set_mii_speed_10(struct udevice *dev)
 {
-	struct eqos_priv *eqos = dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -609,9 +627,9 @@ static int eqos_set_mii_speed_10(struct eth_device *dev)
 	return 0;
 }
 
-static int eqos_adjust_link(struct eth_device *dev)
+static int eqos_adjust_link(struct udevice *dev)
 {
-	struct eqos_priv *eqos = dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 	int ret;
 
 	debug("%s(dev=%p):\n", __func__, dev);
@@ -647,9 +665,10 @@ static int eqos_adjust_link(struct eth_device *dev)
 	return 0;
 }
 
-static int eqos_write_hwaddr(struct eth_device *eth_dev)
+static int eqos_write_hwaddr(struct udevice *dev)
 {
-	struct eqos_priv *eqos = eth_dev->priv;
+	struct eth_pdata *plat = dev_get_plat(dev);
+	struct eqos_priv *eqos = dev_get_priv(dev);
 	uint32_t val;
 
 	/*
@@ -678,45 +697,33 @@ static int eqos_write_hwaddr(struct eth_device *eth_dev)
 		return 0;
 
 	/* Update the MAC address */
-	val = (eth_dev->enetaddr[5] << 8) |
-		(eth_dev->enetaddr[4]);
+	val = (plat->enetaddr[5] << 8) |
+		  (plat->enetaddr[4]);
 	writel(val, &eqos->mac_regs->address0_high);
-	val = (eth_dev->enetaddr[3] << 24) |
-		(eth_dev->enetaddr[2] << 16) |
-		(eth_dev->enetaddr[1] << 8) |
-		(eth_dev->enetaddr[0]);
+	val = (plat->enetaddr[3] << 24) |
+		  (plat->enetaddr[2] << 16) |
+		  (plat->enetaddr[1] << 8) |
+		  (plat->enetaddr[0]);
 	writel(val, &eqos->mac_regs->address0_low);
 
 	return 0;
 }
 
-static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
+static int eqos_start(struct udevice *dev)
 {
-	struct eqos_priv *eqos = eth_dev->priv;
-	int ret = 0, i;
+	struct eqos_priv *eqos = dev_get_priv(dev);
+	int ret, i;
 	u32 val, tx_fifo_sz, rx_fifo_sz, tqs, rqs, pbl;
 	ulong last_rx_desc;
+	ulong addr;
 
-	debug("%s(eth_dev=%p):\n", __func__, eth_dev);
+
+	debug("%s(dev=%p):\n", __func__, dev);
 
 	if (!eqos->phy) {
-		eqos->phy = phy_connect(eqos->mii, eqos->phyaddr, eth_dev, 0);
-		if (!eqos->phy) {
-			pr_err("phy_connect() failed");
-			goto err;
-		}
-
-		ret = phy_config(eqos->phy);
-		if (ret < 0) {
-			pr_err("phy_config() failed: %d", ret);
-			goto err;
-		}
-
-		ret = phy_startup(eqos->phy);
-		if (ret < 0) {
-			pr_err("phy_startup() failed: %d", ret);
-			goto err;
-		}
+		ret = -1;
+		pr_err("no phy is connected");
+		goto err;
 	}
 
 	eqos->tx_desc_idx = 0;
@@ -743,12 +750,12 @@ static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
 		goto err;
 	}
 
-	ret = eqos_adjust_link(eth_dev);
+	ret = eqos_adjust_link(dev);
 	if (ret < 0) {
 		pr_err("eqos_adjust_link() failed: %d", ret);
 		goto err;
 	}
-    mdelay(50);
+//    mdelay(50);
 	/* Configure MTL */
 
 	/* Enable Store and Forward mode for TX */
@@ -872,7 +879,7 @@ static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
 			EQOS_MAC_CONFIGURATION_CST |
 			EQOS_MAC_CONFIGURATION_ACS);
 
-	eqos_write_hwaddr(eth_dev);
+	eqos_write_hwaddr(dev);
 
 	/* Configure DMA */
 
@@ -886,7 +893,6 @@ static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
 			EQOS_DMA_CH0_RX_CONTROL_RBSZ_SHIFT,
 			EQOS_MAX_PACKET_SIZE <<
 			EQOS_DMA_CH0_RX_CONTROL_RBSZ_SHIFT);
-
 
 		setbits_le32(&eqos->dma_regs->ch0_control,
 			     (EQOS_DMA_CH0_CONTROL_PBLX8 | ((EQOS_DESCRIPTOR_DUMMY/8)<<18)));
@@ -933,25 +939,31 @@ static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
 	}
 	flush_cache((unsigned long)eqos->descs, EQOS_DESCRIPTORS_SIZE);
 
-	writel(0, &eqos->dma_regs->ch0_txdesc_list_haddress);
-	writel((ulong)eqos->tx_descs, &eqos->dma_regs->ch0_txdesc_list_address);
+	addr = (ulong)eqos->tx_descs;
+	writel(addr & REG32_MASK, &eqos->dma_regs->ch0_txdesc_list_address);
+#ifdef CONFIG_TARGET_NS02301_A64
+	writel(addr >> 32, &eqos->dma_regs->ch0_txdesc_list_haddress);
+#endif
 	writel(EQOS_DESCRIPTORS_TX - 1,
-	       &eqos->dma_regs->ch0_txdesc_ring_length);
+		   &eqos->dma_regs->ch0_txdesc_ring_length);
 
-	writel(0, &eqos->dma_regs->ch0_rxdesc_list_haddress);
-	writel((ulong)eqos->rx_descs, &eqos->dma_regs->ch0_rxdesc_list_address);
+	addr = (ulong)eqos->rx_descs;
+	writel(addr & REG32_MASK, &eqos->dma_regs->ch0_rxdesc_list_address);
+#ifdef CONFIG_TARGET_NS02301_A64
+	writel(addr >> 32, &eqos->dma_regs->ch0_rxdesc_list_haddress);
+#endif
 	writel(EQOS_DESCRIPTORS_RX - 1,
-	       &eqos->dma_regs->ch0_rxdesc_ring_length);
+		   &eqos->dma_regs->ch0_rxdesc_ring_length);
 
 	/* Enable everything */
 
 	setbits_le32(&eqos->mac_regs->configuration,
-		     EQOS_MAC_CONFIGURATION_TE | EQOS_MAC_CONFIGURATION_RE);
+				 EQOS_MAC_CONFIGURATION_TE | EQOS_MAC_CONFIGURATION_RE);
 
 	setbits_le32(&eqos->dma_regs->ch0_tx_control,
-		     EQOS_DMA_CH0_TX_CONTROL_ST);
+				 EQOS_DMA_CH0_TX_CONTROL_ST);
 	setbits_le32(&eqos->dma_regs->ch0_rx_control,
-		     EQOS_DMA_CH0_RX_CONTROL_SR);
+				 EQOS_DMA_CH0_RX_CONTROL_SR);
 
 	/* TX tail pointer not written until we need to TX a packet */
 	/*
@@ -960,7 +972,7 @@ static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
 	 * that's not distinguishable from none of the descriptors being
 	 * available.
 	 */
-	last_rx_desc = (ulong)&(eqos->rx_descs[(EQOS_DESCRIPTORS_RX - 1)]);
+	last_rx_desc = (ulong) & (eqos->rx_descs[(EQOS_DESCRIPTORS_RX - 1)]);
 	writel(last_rx_desc, &eqos->dma_regs->ch0_rxdesc_tail_pointer);
 
 	eqos->started = true;
@@ -969,16 +981,16 @@ static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
 	return 0;
 
 err:
-	pr_err("FAILED: %d", ret);
+	printf("ERROR: %s FAILED: %d\n", dev->name, ret);
 	return ret;
 }
 
-void eqos_stop(struct eth_device *eth_dev)
+static void eqos_stop(struct udevice *dev)
 {
-	struct eqos_priv *eqos = eth_dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 	int i;
 
-	debug("%s(eth_dev=%p):\n", __func__, eth_dev);
+	debug("%s(dev=%p):\n", __func__, dev);
 
 	if (!eqos->started)
 		return;
@@ -1021,14 +1033,14 @@ void eqos_stop(struct eth_device *eth_dev)
 
 }
 
-int eqos_send(struct eth_device *eth_dev, void *packet, int length)
+static int eqos_send(struct udevice *dev, void *packet, int length)
 {
-	struct eqos_priv *eqos = eth_dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 	struct eqos_desc *tx_desc;
 	int i;
 
-	debug("%s(eth_dev=%p, packet=%p, length=%d):\n", __func__, eth_dev, packet,
-	      length);
+	debug("%s(dev=%p, packet=%p, length=%d):\n", __func__, dev, packet,
+		  length);
 
 	memcpy(eqos->tx_dma_buf, packet, length);
 	eqos_flush_buffer(eqos->tx_dma_buf, length);
@@ -1064,9 +1076,9 @@ int eqos_send(struct eth_device *eth_dev, void *packet, int length)
 	return -ETIMEDOUT;
 }
 
-int eqos_free_pkt(struct eth_device *eth_dev, uchar *packet, int length)
+static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 {
-	struct eqos_priv *eqos = eth_dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 	uchar *packet_expected;
 	struct eqos_desc *rx_desc;
 
@@ -1080,7 +1092,14 @@ int eqos_free_pkt(struct eth_device *eth_dev, uchar *packet, int length)
 		return -EINVAL;
 	}
 
+	eqos_inval_buffer((void *)packet, length);
+
 	rx_desc = &(eqos->rx_descs[eqos->rx_desc_idx]);
+
+	rx_desc->des0 = 0;
+	mb();
+	eqos_flush_desc(rx_desc);
+	eqos_inval_buffer((void *)packet, length);
 	rx_desc->des0 = (u32)(ulong)packet;
 	rx_desc->des1 = 0;
 	rx_desc->des2 = 0;
@@ -1101,40 +1120,55 @@ int eqos_free_pkt(struct eth_device *eth_dev, uchar *packet, int length)
 }
 
 
-int eqos_recv(struct eth_device *eth_dev)
+static int eqos_recv(struct udevice *dev, int flags, uchar **packetp)
 {
-	struct eqos_priv *eqos = eth_dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 	struct eqos_desc *rx_desc;
 	int length;
-	uint32_t packetp;
-
-	debug("%s(dev=%p: des indx 0x%x\n", __func__, eth_dev, eqos->rx_desc_idx);
+	/*  int i, j=0;
+	    struct ethernet_hdr *et;
+	    int eth_proto;
+	*/
+	debug("%s(dev=%p: des indx 0x%x, flags=%x), DESC_SIZE=%d\n", __func__, dev, eqos->rx_desc_idx, flags, EQOS_DESCRIPTOR_SIZE);
 
 	rx_desc = &(eqos->rx_descs[eqos->rx_desc_idx]);
-	eqos_inval_buffer((void*)rx_desc, EQOS_DESCRIPTOR_SIZE);
+//	eqos_inval_desc(rx_desc);
+	eqos_inval_buffer((void *)rx_desc, EQOS_DESCRIPTOR_SIZE);
 
+	debug("(desc [0x%x][0x%x][0x%x][0x%x])\n", rx_desc->des0, rx_desc->des1, rx_desc->des2, rx_desc->des3);
 	if (rx_desc->des3 & EQOS_DESC3_OWN) {
 		debug("%s: RX packet not available\n", __func__);
 		return -EAGAIN;
 	}
 
-	packetp = (u32) eqos->rx_dma_buf +
-		(eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
+	*packetp = (uchar *) eqos->rx_dma_buf +
+			   (eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
+//	debug("%s: rx_dma_buf=%p, size:%d\n", __func__, eqos->rx_dma_buf, eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
 	length = rx_desc->des3 & 0x7fff;
+//	debug("len=%d *packetp = %p rx_dma = %p\n", length, *packetp, eqos->rx_dma_buf +(eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE) );
 
-	eqos_inval_buffer((void*)packetp, EQOS_MAX_PACKET_SIZE);
+	eqos_inval_buffer((void *)*packetp, EQOS_MAX_PACKET_SIZE);
 	mb();
-	net_process_received_packet((void*)packetp, length);
 
-	eqos_free_pkt(eth_dev, (void*)packetp, length);
-	//printf("r(%d)\n",eqos->rx_desc_idx-1);
+	/* debug message */
+	/*  et = (struct ethernet_hdr *)*packetp;
+	    eth_proto = ntohs(et->et_protlen);
+	    printf("%s,%d eth_proto_len=0x%x\n",__func__,__LINE__, eth_proto);
 
+	    for (i = 0; i < 6; i++)
+	        printk("%#.2x%s", et->et_src[i], (((i == 5) ? "" : ":")));
+	    printf("\nSrc MAC addr(6 bytes)\n");
+	    for (i = 0; i <= 5; i++)
+	        printk("%#.2x%s", et->et_dest[i], (((i == 5) ? "" : ":")));
+
+	    printf("*************************************************************\n\n");
+	*/
 	return length;
 }
 
-static int eqos_probe_resources_core(struct eth_device *dev)
+static int eqos_probe_resources_core(struct udevice *dev)
 {
-	struct eqos_priv *eqos = dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 	int ret;
 
 	debug("%s(dev=%p):\n", __func__, dev);
@@ -1142,31 +1176,47 @@ static int eqos_probe_resources_core(struct eth_device *dev)
 	eqos->descs = eqos_alloc_descs(EQOS_DESCRIPTORS_TX +
 				       EQOS_DESCRIPTORS_RX);
 
-	if (!eqos->descs) {
+	if (!eqos->descs || !IS_ALIGNED((uintptr_t)eqos->descs, EQOS_DESCRIPTOR_ALIGN)) {
 		debug("%s: eqos_alloc_descs() failed\n", __func__);
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	if ((ulong)eqos->descs > REG32_MASK) {
+		pr_err("<---------Warn desc alloc over 32 bit -------------> %p \r\n", eqos->descs);
+		goto err_free_tx_dma_buf;
+	}
+
 	eqos->tx_descs = (struct eqos_desc *)eqos->descs;
 	eqos->rx_descs = (eqos->tx_descs + EQOS_DESCRIPTORS_TX);
 	debug("%s: tx_descs=%p, rx_descs=%p\n", __func__, eqos->tx_descs,
-	      eqos->rx_descs);
+		  eqos->rx_descs);
 
 	eqos->tx_dma_buf = memalign(EQOS_BUFFER_ALIGN, EQOS_MAX_PACKET_SIZE);
-	if (!eqos->tx_dma_buf) {
+	if (!eqos->tx_dma_buf || !IS_ALIGNED((uintptr_t)eqos->tx_dma_buf, EQOS_BUFFER_ALIGN)) {
 		debug("%s: memalign(tx_dma_buf) failed\n", __func__);
 		ret = -ENOMEM;
 		goto err_free_descs;
 	}
-	debug("%s: tx_dma_buf=%p\n", __func__, eqos->tx_dma_buf);
+	debug("%s: tx_dma_buf=%p, size:%d\n", __func__, eqos->tx_dma_buf, EQOS_MAX_PACKET_SIZE);
+
+	if ((ulong)eqos->tx_dma_buf > REG32_MASK) {
+		pr_err("<---------fail Tx Buffer alloc over 32 bit -------------> %p \r\n", eqos->tx_dma_buf);
+		goto err_free_tx_dma_buf;
+	}
 
 	eqos->rx_dma_buf = memalign(EQOS_BUFFER_ALIGN, EQOS_RX_BUFFER_SIZE);
-	if (!eqos->rx_dma_buf) {
+	if (!eqos->rx_dma_buf || !IS_ALIGNED((uintptr_t)eqos->rx_dma_buf, EQOS_BUFFER_ALIGN)) {
 		debug("%s: memalign(rx_dma_buf) failed\n", __func__);
 		ret = -ENOMEM;
 		goto err_free_tx_dma_buf;
 	}
-	debug("%s: rx_dma_buf=%p\n", __func__, eqos->rx_dma_buf);
+	debug("%s: rx_dma_buf=%p, size:%d\n", __func__, eqos->rx_dma_buf, EQOS_RX_BUFFER_SIZE);
+
+	if ((ulong)eqos->tx_dma_buf > REG32_MASK) {
+		pr_err("<---------fail Rx Buffer alloc over 32 bit -------------> %p \r\n", eqos->rx_dma_buf);
+		goto err_free_rx_dma_buf;
+	}
 
 	eqos->rx_pkt = malloc(EQOS_MAX_PACKET_SIZE);
 	if (!eqos->rx_pkt) {
@@ -1175,6 +1225,8 @@ static int eqos_probe_resources_core(struct eth_device *dev)
 		goto err_free_rx_dma_buf;
 	}
 	debug("%s: rx_pkt=%p\n", __func__, eqos->rx_pkt);
+
+	eqos_inval_buffer((void *)eqos->rx_dma_buf, EQOS_MAX_PACKET_SIZE * EQOS_DESCRIPTORS_RX);
 
 	debug("%s: OK\n", __func__);
 	return 0;
@@ -1191,11 +1243,11 @@ err:
 	return ret;
 }
 
-static int eqos_remove_resources_core(struct eth_device *eth_dev)
+static int eqos_remove_resources_core(struct udevice *dev)
 {
-	struct eqos_priv *eqos = eth_dev->priv;
+	struct eqos_priv *eqos = dev_get_priv(dev);
 
-	debug("%s(dev=%p):\n", __func__, eth_dev);
+	debug("%s(dev=%p):\n", __func__, dev);
 
 	free(eqos->rx_pkt);
 	free(eqos->rx_dma_buf);
@@ -1260,6 +1312,7 @@ static void eqos_probe_hwinit(void)
 	phy_pll_sw_reset_disable();
 	mdelay(20);
 	eth_phy_poweron();
+	phy_set_mdio_addr(PHYAD);
 	phy_sw_reset_enable();
 	set_break_link_timer();
 
@@ -1405,10 +1458,9 @@ static void mac_pinmux_en(u32 phy_intf)
 	}
 }
 
-static void eth_parse_phy_intf(void)
+static int eth_parse_phy_intf(unsigned long base_addr)
 {
 	/* Enable it after dts parsing ready*/
-	ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 	int nodeoffset;
 	u32 *cell = NULL;
 	char path[20] = {0};
@@ -1420,36 +1472,36 @@ static void eth_parse_phy_intf(void)
 
 	sprintf(path,"/top@%x/eth",IOADDR_TOP_REG_BASE);
 
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
 		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
-		return;
+		return -1;
 	}
 
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "pinmux", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
 	if (len == 0) {
 		printf("%s(%d) len = 0\n",__func__, __LINE__);
-		return;
+		return -1;
 	}
 
 	phy_intf = __be32_to_cpu(cell[0]);
 
 	sprintf(path,"/%s", "eth@f02b0000");
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
 		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
 		printf("%s: path %s not found\n", __func__, path);
-		return;
+		return -1;
 	}
 
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "sp-clk", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
 	if (len != 0) {
 		phy_clk = __be32_to_cpu(cell[0]);
 		if (phy_clk)
 			phy_intf |= PIN_ETH_CFG_EXTPHYCLK;
 	}
 
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "ref-clk-out", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "ref-clk-out", &len);
 	if (len != 0) {
 		rmii_ref_out = __be32_to_cpu(cell[0]);
 	}
@@ -1457,11 +1509,11 @@ static void eth_parse_phy_intf(void)
 	sprintf(path,"/phy@f02b3800");
 
 	inv_led = 0;
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
 		printf("%s: node %s not found\r\n", __func__, path);
 	} else {
-		cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "led-inv", &len);
+		cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "led-inv", &len);
 		printf("%s: led-inv len %d\r\n", __func__, len);
 		if (len > 0) {
 			inv_led = __be32_to_cpu(cell[0]);
@@ -1510,12 +1562,14 @@ static void eth_parse_phy_intf(void)
 	extphy_clk_en(phy_intf, phy_clk, rmii_ref_out);
 
 	udelay(1);
+
+	return 0;
 }
 
-int na51089_eth_initialize(bd_t *bis)
+static int eqos_initialize(struct udevice *dev, unsigned long base_addr)
 {
-	struct eth_device *dev;
-	struct eqos_priv *eqos;
+	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eth_pdata *plat = dev_get_plat(dev);
 	int ret;
 	u8 phyaddr = 0;
 	u32 phyval = 0, i;
@@ -1526,33 +1580,16 @@ int na51089_eth_initialize(bd_t *bis)
 #endif
 	printf("%s %s\n",__func__, ETHVERSION);
 
-	eth_parse_phy_intf();
 
-	dev = malloc(sizeof *dev);
-
-	if (dev == NULL)
-		return -1;
-
-	memset(dev, 0, sizeof *dev);
-
-	sprintf(dev->name, "eth_na51089");
-	dev->init = eqos_start;
-	dev->halt = eqos_stop;
-	dev->send = eqos_send;
-	dev->recv = eqos_recv;
-	dev->write_hwaddr = eqos_write_hwaddr;
-	eth_register(dev);
-
-	eqos = malloc(sizeof *eqos);
-
-	if (eqos == NULL)
-		return -1;
-
-	memset(eqos, 0, sizeof *eqos);
-
-	dev->priv = eqos;
 	eqos->dev = dev;
-	eqos->regs = IOADDR_ETH_REG_BASE;
+	eqos->config = (void *)dev_get_driver_data(dev);
+
+	ret = eth_parse_phy_intf(base_addr);
+	if (ret < 0) {
+		return ret;
+	}
+
+	eqos->regs = base_addr;
 	eqos->mac_regs = (void *)(eqos->regs + EQOS_MAC_REGS_BASE);
 	eqos->mtl_regs = (void *)(eqos->regs + EQOS_MTL_REGS_BASE);
 	eqos->dma_regs = (void *)(eqos->regs + EQOS_DMA_REGS_BASE);
@@ -1581,7 +1618,7 @@ int na51089_eth_initialize(bd_t *bis)
 		goto err_free_mdio;
 	}
 
-	memcpy(dev->enetaddr, default_mac_addr, 6);
+	memcpy(plat->enetaddr, default_mac_addr, 6);
 
 	// scan phy address
 	for (i = 0; i < 32; i++) {
@@ -1591,11 +1628,24 @@ int na51089_eth_initialize(bd_t *bis)
 			break;
 		}
 	}
-
 	eqos->phyaddr = phyaddr;
+
+	eqos->phy = phy_connect(eqos->mii, eqos->phyaddr, dev, 0);
+	if (!eqos->phy) {
+		pr_err("phy_connect() failed");
+		ret = -1;
+		goto err_free_phy;
+	}
+
+	ret = phy_config(eqos->phy);
+	if (ret < 0) {
+		pr_err("phy_config() failed: %d", ret);
+	}
+
 	debug("%s: OK\n", __func__);
 	return 0;
 
+err_free_phy:
 err_free_mdio:
 err_remove_resources_core:
 	eqos_remove_resources_core(dev);
@@ -1603,3 +1653,72 @@ err_remove_resources_core:
 	debug("%s: returns %d\n", __func__, ret);
 	return ret;
 }
+/*
+static void eqos_probe_hwinit(void)
+{
+    mdc_div = 1;    // APB = 150MHz
+
+    set_led_default(v_nvt_plat_info[0].base_pa);
+    set_led_default(v_nvt_plat_info[1].base_pa);
+}
+*/
+
+int eqos_probe(struct udevice *dev)
+{
+	struct eqos_priv *eqos = dev_get_priv(dev);
+	int ret = 0;
+
+	printf("%s %s\n", __func__, ETHVERSION);
+
+	eqos->regs = fdtdec_get_addr(nvt_fdt_buffer, dev_of_offset(dev), "reg");
+
+	if (eqos->regs == FDT_ADDR_T_NONE) {
+		pr_err("fdtdec_get_addr() failed");
+		return -ENODEV;
+	}
+	printf("DTS %s found\r\n", dev->name);
+	//eqos_probe_hwinit();
+
+	eqos_initialize(dev, eqos->regs);
+
+	return ret;
+}
+
+static int eqos_remove(struct udevice *dev)
+{
+	struct eqos_priv *eqos = dev_get_priv(dev);
+
+	debug("%s(dev=%p):\n", __func__, dev);
+
+	mdio_unregister(eqos->mii);
+	mdio_free(eqos->mii);
+	eqos_probe_resources_core(dev);
+
+	debug("%s: OK\n", __func__);
+	return 0;
+}
+
+static const struct eth_ops eqos_ops = {
+	.start = eqos_start,
+	.stop = eqos_stop,
+	.send = eqos_send,
+	.recv = eqos_recv,
+	.free_pkt = eqos_free_pkt,
+	.write_hwaddr = eqos_write_hwaddr,
+};
+
+static const struct udevice_id eqos_ids[] = {
+	{ .compatible = "nvt,synopsys_eth" },
+	{},
+};
+
+U_BOOT_DRIVER(na51089_eth_eqos) = {
+	.name = "na51089_eth_eqos",
+	.id = UCLASS_ETH,
+	.of_match = eqos_ids,
+	.probe = eqos_probe,
+	.remove = eqos_remove,
+	.ops = &eqos_ops,
+	.priv_auto = sizeof(struct eqos_priv),
+	.plat_auto = sizeof(struct eth_pdata),
+};

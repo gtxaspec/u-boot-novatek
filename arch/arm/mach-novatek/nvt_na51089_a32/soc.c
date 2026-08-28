@@ -11,13 +11,12 @@
     published by the Free Software Foundation.
 */
 
+#include <cpu_func.h>
 #include <common.h>
 #include <asm/armv7.h>
 #include <asm/io.h>
-//#include <asm/arch/soc.h>
 #include <asm/arch/clock.h>
 #include <asm/nvt-common/nvt_ivot_optee.h>
-//#include <asm/arch/gpio.h>
 #include <asm/arch/na51089_regs.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
@@ -186,12 +185,6 @@ void enable_caches(void)
 	icache_enable();
 }
 
-
-void __weak reset_cpu(unsigned long ignored)
-{
-}
-
-
 #ifdef CONFIG_ARCH_MISC_INIT
 #ifdef CONFIG_NOVATEK_PAD
 extern void nvt_pad_init(void);
@@ -204,22 +197,6 @@ int arch_misc_init(void)
 	return 0;
 }
 #endif
-
-/*
- * Routine: dram_init
- * Description: sets uboots idea of sdram size
- */
-int dram_init(void)
-{
-#ifdef CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT
-	// Default not enabled in nvt platform.
-	// If specific project needs slow down DDR freq at boot,
-	// plz uncomment below line.
-	nvt_ddr_slow_down();
-#endif
-	gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
-	return 0;
-}
 
 /*
  * Print board information
@@ -362,4 +339,27 @@ u32 nvt_get_chip_id(void)
 	chip_id = (readl(IOADDR_TOP_REG_BASE + TOP_VERSION_REG_OFS) >> 16) & 0xFFFF;
 
 	return chip_id;
+}
+
+//
+// ROM code version number
+//
+#define TOP_ROMVER_A            0x00000102
+#define TOP_ROMVER_B            0x00000103
+#define TOP_GETROMVER()         readl(0xF0007FFC)
+u32 nvt_get_chip_ver(void)
+{
+	unsigned int chip_ver;
+
+	chip_ver = TOP_GETROMVER();
+	if(chip_ver == TOP_ROMVER_A) {
+		return CHIPVER_A;
+	} else if(chip_ver == TOP_ROMVER_B) {
+		return CHIPVER_B;
+	} else {
+		printf("force to Ver B\n");
+		return CHIPVER_B;
+	}
+
+	return chip_ver;
 }

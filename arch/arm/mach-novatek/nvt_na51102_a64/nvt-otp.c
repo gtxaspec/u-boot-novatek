@@ -825,6 +825,8 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");
+		result = FALSE;
+		break;
 	default:
 		result = FALSE;
 		break;

@@ -13,6 +13,9 @@
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_crypto.h>
 #include <asm/arch/efuse_protected.h>
+#include <asm/cache.h>
+
+#include <linux/delay.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -24,7 +27,7 @@
  *  Global Definition
  *************************************************************************************/
 //#define NVT_CRYPTO_DEBUG
-//#define NVT_CRYPTO_DMA_36BIT_SUPPORT    1
+#define NVT_CRYPTO_DMA_36BIT_SUPPORT    1
 
 #define PLAT_CACHE_LINE_SIZE            CONFIG_SYS_CACHELINE_SIZE
 #define PLAT_CACHE_LINE_MASK            (CONFIG_SYS_CACHELINE_SIZE-1)

@@ -18,14 +18,33 @@
 #include <asm/arch/efuse_protected.h>
 #include <usb/nvt_udc_v2.h>
 #include <asm/arch/IOAddress.h>
-//#include <asm/arch-nvt-na51102_a64/IOAddress.h>
 #include <asm/arch/hardware.h>
+#include <linux/delay.h>
+#include <cpu_func.h>
 
 #define CFG_NUM_ENDPOINTS       4
 #define CFG_EP0_MAX_PACKET_SIZE	64
 #define CFG_EPX_MAX_PACKET_SIZE	512
 
 #define CFG_CMD_TIMEOUT (CONFIG_SYS_HZ >> 2) /* 250 ms */
+
+//TODO: realchip setting
+#ifndef CONFIG_NVT_FPGA_EMULATION
+#define U2PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#define U2PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02401_A64)
+#define U3PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
+#define U3PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
+#define U3_U2PHY_SETREG(ofs,value)      writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#define U3_U2PHY_GETREG(ofs)            readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#endif
+#define MAP_PHY(ofs)                    ((ofs)>>2)
+#endif
+
+#define TRIM_RESINT_UPPER 0x14
+#define TRIM_RESINT_LOWER 0x1
+
+#define DRV_VERSION                     "1.00.12"
 
 struct nvt_udc_chip;
 
@@ -65,7 +84,7 @@ static struct usb_endpoint_descriptor ep0_desc = {
 	.bmAttributes = USB_ENDPOINT_XFER_CONTROL,
 };
 
-static void clrbits_le64(uint32_t *addr, uint32_t clear)
+static void clrbits_le64_nvt(uint32_t *addr, uint32_t clear)
 {
 	unsigned long usbbase;
 	unsigned long tmpval = 0;
@@ -79,7 +98,7 @@ static void clrbits_le64(uint32_t *addr, uint32_t clear)
 	writel(tmpval, (volatile unsigned long *)(usbbase+phy_addr));
 }
 
-static void setbits_le64(uint32_t *addr, uint32_t set)
+static void setbits_le64_nvt(uint32_t *addr, uint32_t set)
 {
 	unsigned long usbbase;
 	unsigned long tmpval = 0;
@@ -93,31 +112,12 @@ static void setbits_le64(uint32_t *addr, uint32_t set)
 	writel(tmpval, (volatile unsigned long *)(usbbase+phy_addr));
 }
 
-#define U2PHY_SETREG(ofs,value) writel((value), (volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#define U2PHY_GETREG(ofs)       readl((volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#if defined(CONFIG_TARGET_NA51102_A64)
-#define U3PHY_SETREG(ofs,value) writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
-#define U3PHY_GETREG(ofs)       readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
-#define U3_U2PHY_SETREG(ofs,value) writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#define U3_U2PHY_GETREG(ofs)       readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#endif
-#define TRIM_RESINT_UPPER 0x14
-#define TRIM_RESINT_LOWER 0x1
 static void nvtim_init_usbhc(void)
 {
-	unsigned long usbbase, usbphybase;
+	unsigned long usbbase;
 	unsigned long tmpval = 0;
 
-#if defined(CONFIG_TARGET_NA51102_A64)
-	unsigned long tmpval2 = 0;
-#endif
-/*
-	usbphybase = IOADDR_USB3PHY_REG_BASE;
-	tmpval = readl((volatile unsigned long *)(usbphybase+0x680));
-	tmpval = 0x40;
-	writel(tmpval, (volatile unsigned long *)(usbphybase+0x680));
-*/
-	/* Toggle Reset*/
+	/* Toggle Reset */
 	tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+USB_CG_RST_OFS));
 	tmpval &= ~(USB_RST_BIT);
 	writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+USB_CG_RST_OFS));
@@ -129,44 +129,60 @@ static void nvtim_init_usbhc(void)
 	writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+USB_CG_RST_OFS));
 
 #if defined(CONFIG_TARGET_NA51102_A64)
-	/* reset u2 phy */
-	tmpval2 = readl((volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
-	if (tmpval2 & 0x80) {
-		//do nothing, since xhci has do the phy reset
-	} else {
+	{
+		unsigned long tmpval2 = 0;
+
+		/* reset u2 phy */
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
+		if (tmpval2 & 0x80) {
+			//do nothing, since xhci has do the phy reset
+		} else {
+			// enable phy reset
+			tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+			tmpval &= ~(0x1<<7);
+			writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+
+			udelay(10);
+
+			// disable phy reset
+			tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+			tmpval |= (0x1<<7);
+			writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+
+			// mark the reset flag
+			tmpval2 |= 0x80;
+			writel(tmpval2, (volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
+		}
+	}
+#else
+	#if defined(USB_CG_PHYRST_OFS)
 		// enable phy reset
-		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
-		tmpval &= ~(0x1<<7);
-		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
+		tmpval &= ~(USB_PHYRST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
 
 		udelay(10);
 
-		//disable phy reset
-		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
-		tmpval |= (0x1<<7);
-		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
-
-		//mark the reset flag
-		tmpval2 |= 0x80;
-		writel(tmpval2, (volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
-	}
+		// disable phy reset
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
+		tmpval |= (USB_PHYRST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
+	#endif
 #endif
 	usbbase = IOADDR_USB_REG_BASE;
 
 	/* Set USB ID & VBUSI */
 	tmpval = readl((volatile unsigned long *)(usbbase+USB_PHYTOP_REG_OFS));
-	tmpval |= 0x3 << 20;
+	tmpval |= 0x3 << USB_ID_BIT;
 	writel(tmpval, (volatile unsigned long *)(usbbase+USB_PHYTOP_REG_OFS));
 
 	/* Clear FORCE_FS[9] and handle HALF_SPEED[1] */
 	tmpval = readl((volatile unsigned long *)(usbbase+0x100));
 	tmpval &= ~(0x1<<9);
-	//#ifdef CONFIG_FPGA_EMULATION
-	//tmpval |=  (0x1<<1);
-	//#endif
+
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x100));
 
-	/* Clear DEVPHY_SUSPEND[5] */
+	/* Clear DEVPHY_SUSPEND[31] */
 	tmpval = readl((volatile unsigned long *)(usbbase+0x1C8));
 	tmpval &= ~(0x1<<31);
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x1C8));
@@ -206,12 +222,12 @@ static void nvtim_init_usbhc(void)
 	tmpval |= (0x1<<4);
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x80));
 
-#if defined(CONFIG_TARGET_NA51102_A64)
 	/* disable fifo empty interrupt */
 	tmpval = readl((volatile unsigned long *)(usbbase+0x3AC));
 	tmpval |= 0xFFFF;
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x3AC));
 
+#if defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NA51102_A64)
 	/* RESP MODE open */
 	tmpval = readl((volatile unsigned long *)(usbbase+0x404));
 	tmpval |= (0x1<<30);
@@ -221,16 +237,82 @@ static void nvtim_init_usbhc(void)
 	tmpval = readl((volatile unsigned long *)(usbbase+0x404));
 	tmpval &= ~(0x1<<16);
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x404));
-
 #endif
-	/* Configure PHY related settings below */
-	{
+
 #ifndef CONFIG_NVT_FPGA_EMULATION
-#if defined(CONFIG_TARGET_NA51102_A64)
+	/* Configure PHY related settings below */
+#if defined(CONFIG_TARGET_NS02201_A64)
+	{
 		u32 temp;
 		u32 trim;
 		int code;
-		BOOL is_found;
+		bool is_found;
+
+		u8 u2_trim_swctrl=6, u2_trim_sqsel=4;
+		u32 u3_trim_rint_sel=8;
+
+		// get trim value of usb column
+		code = otp_key_manager(EFUSE_TRIM_DATA_USB3_1_USB2_DUAL_PHY_PRI);
+		if(code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read EFUSE_TRIM_DATA_USB3_1_USB2_DUAL_PHY_PRI error, use default value\r\n");
+		} else {
+			// check if usb trim value is valid
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if(is_found) {
+				printf("[690][gadget] USB2 Trim data raw(0x2A) = 0x%04x\r\n", (int)trim);
+				u3_trim_rint_sel = trim & 0x1F; //12K trim value
+
+				//valid range:  1<= 12K trim value <= 20(0x14)
+				if ((TRIM_RESINT_LOWER <= u3_trim_rint_sel) && (u3_trim_rint_sel <= TRIM_RESINT_UPPER)) {
+					printf("[690][gadget] USB2 Trim data(12K) = 0x%04x\r\n", (int)u3_trim_rint_sel);
+				} else {
+					u3_trim_rint_sel = 8;
+					printf("[690][gadget] USB2 Trim data(12K) is out of valid range: 0x%04x, use default value: 0x%04x\r\n", (int)(trim&0x1F), (int)u3_trim_rint_sel);
+				}
+			} else {
+				//!!!Please apply default value here!!!
+				pr_err("[690][gadget] USB2 Trim data raw(0x2A) = NULL\n");
+				printf("is found [%d][ USB] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		//select PHY internal rsel value
+		tmpval = U3PHY_GETREG(0x1A1);
+		tmpval &= ~(0x80);
+		U3PHY_SETREG(0x1A1, tmpval);
+
+		//r45 trim setting
+		U3PHY_SETREG(0x1A0, 0x40 + u3_trim_rint_sel);
+		U3PHY_SETREG(0x1A3, 0x60);
+
+		//best setting
+		U3PHY_SETREG(0x56, 0x74);
+		U3_U2PHY_SETREG(0x9, 0xB0);
+		U2PHY_SETREG(0x9, 0xB0);
+                U3_U2PHY_SETREG(0x12, 0x31);
+                U2PHY_SETREG(0x12, 0x31);
+		U3_U2PHY_SETREG(0x6, 0x1C);
+		U2PHY_SETREG(0x6, 0x1C);
+
+		//r45 cali
+		U3_U2PHY_SETREG(0x51, 0x20);
+		U3_U2PHY_SETREG(0x51, 0x00);
+
+		/*
+		   tmpval = readl((volatile unsigned long *)(usbbase+0x1D8));
+		   tmpval &= ~(0x1F << 8);
+		   tmpval |= (u2_trim_resint << 8);
+		   tmpval |= (0x1 << 15);
+		   writel(tmpval, (volatile unsigned long *)(usbbase + 0x1D8));
+		   */
+	}
+#elif defined(CONFIG_TARGET_NA51102_A64)
+	{
+		u32 temp;
+		u32 trim;
+		int code;
+		bool is_found;
 
 		u8 u2_trim_swctrl=4, u2_trim_sqsel=4;
 		u32 u3_trim_resint=8;
@@ -239,8 +321,7 @@ static void nvtim_init_usbhc(void)
 		code = otp_key_manager(EFUSE_USB_SATA_TRIM_DATA);
 		if(code == -33) {
 			//!!!Please apply default value here!!!
-			printf("Read USB trim error\r\n");
-			return -1;
+			printf("Read USB trim error, use default value\r\n");
 		} else {
 			// check if usb trim value is valid
 			is_found = extract_trim_valid(code, (u32 *)&trim);
@@ -270,22 +351,80 @@ static void nvtim_init_usbhc(void)
 		U3PHY_SETREG(0x56, 0x74);
 		U3_U2PHY_SETREG(0x9, 0xB0);
 		U2PHY_SETREG(0x9, 0xB0);
-                U3_U2PHY_SETREG(0x12, 0x31);
-                U2PHY_SETREG(0x12, 0x31);
+		U3_U2PHY_SETREG(0x12, 0x31);
+		U2PHY_SETREG(0x12, 0x31);
 
 		//r45 cali
 		U3_U2PHY_SETREG(0x51, 0x20);
 		U3_U2PHY_SETREG(0x51, 0x00);
+	}
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51055)
+	{
+		u8 u2_trim_swctrl = 4, u2_trim_sqsel = 4, u2_trim_resint = 8;
 
+		// Get trim value of usb column
+		{
+			int code;
+			bool is_found;
+			u32 trim;
 
-		/*
-		   tmpval = readl((volatile unsigned long *)(usbbase+0x1D8));
-		   tmpval &= ~(0x1F << 8);
-		   tmpval |= (u2_trim_resint << 8);
-		   tmpval |= (0x1 << 15);
-		   writel(tmpval, (volatile unsigned long *)(usbbase + 0x1D8));
-		   */
-#elif defined(CONFIG_TARGET_NA51103_A64)
+			code = otp_key_manager(1);
+			if (code == -33) {
+				//!!!Please apply default value here!!!
+				printf("%s: Read USB trim error, use default value\r\n", __func__);
+			} else {
+				// check if usb trim value is valid
+				is_found = extract_trim_valid(code, (u32 *)&trim);
+				if (is_found) {
+					if ((nvt_get_chip_id() == CHIP_NA51089) || (nvt_get_chip_id() == CHIP_NA51055) || (nvt_get_chip_id() == CHIP_NA51084)) {
+						printf("%s: [trim_rawdata(0x%04x)] [trim(0x%04x)]\r\n", __func__, (int)trim, (int)(trim >> 6));
+						trim = (trim >> 6);
+					}
+
+					if ((TRIM_RESINT_LOWER <= (trim & 0x1F)) && ((trim & 0x1F) <= TRIM_RESINT_UPPER)) {
+						u2_trim_resint = trim & 0x1F;
+						printf("%s: [is_found(%d) code(%d)] [trim(0x%04x) 12K_resistor(0x%04x)]\r\n", __func__, code, is_found, (int)trim, (int)u2_trim_resint);
+					} else {
+						//!!!Please apply default value here!!!
+						printf("%s: [is_found(%d) code(%d)] [trim(0x%04x)], trim out of range!!!\r\n", __func__, code, is_found, (int)trim);
+					}
+				} else {
+					//!!!Please apply default value here!!!
+					printf("%s: [is_found(%d) code(%d)] [trim(0x%04x)], trim not found!!!\r\n", __func__, code, is_found, (int)trim);
+				}
+			}
+		}
+
+		if (nvt_get_chip_id() == CHIP_NS02301) {
+			// best setting
+			U2PHY_SETREG(MAP_PHY(0x14), 0xd3);   // Port0 VCHSEL = 11
+		}
+
+		// r45 cali lock
+		U2PHY_SETREG(MAP_PHY(0x144), 0x20);
+		mdelay(5);
+		U2PHY_SETREG(MAP_PHY(0x140), 0x30);
+
+		// tx swing
+		tmpval = U2PHY_GETREG(MAP_PHY(0x18));
+		tmpval &= ~(0x7 << 1);
+		tmpval |= (u2_trim_swctrl << 0x1);
+		U2PHY_SETREG(MAP_PHY(0x18), tmpval);
+
+		// squelch
+		tmpval = U2PHY_GETREG(MAP_PHY(0x14));
+		tmpval &= ~(0x7 << 0x2);
+		tmpval |= (u2_trim_sqsel << 0x2);
+		U2PHY_SETREG(MAP_PHY(0x14), tmpval);
+
+		// res
+		U2PHY_SETREG(MAP_PHY(0x148), 0x60 + u2_trim_resint);
+
+		// r45 cali unlock
+		U2PHY_SETREG(MAP_PHY(0x144), 0x00);
+	}
+#elif defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+	{
 		u32 temp;
 		u32 trim;
 		int code;
@@ -338,23 +477,55 @@ static void nvtim_init_usbhc(void)
 		tmpval |= (u2_trim_resint << 8);
 		tmpval |= (0x1 << 15);
 		writel(tmpval, (volatile unsigned long *)(usbbase + 0x1D8));
-#endif
-#endif
+
 	}
+#endif
+#endif // #ifndef CONFIG_NVT_FPGA_EMULATION
+}
+
+static void nvtim_remove_power_save(void)
+{
+#ifndef CONFIG_NVT_FPGA_EMULATION
+	printf("nvt_udc: Enter powerdown script\r\n");
+
+	// IP provided to make PHY deeply sleeping
+	U2PHY_SETREG(MAP_PHY(0xD4), 0xB4);   // Port0 dmpulldown = 1, dppulldown = 0, suspendm = 1, termselect = 1, xcvrselect = 01, opmode = 00
+	U2PHY_SETREG(MAP_PHY(0xD0), 0xFF);   // Enable port0 sw reg 0xF060_10D4
+	U2PHY_SETREG(MAP_PHY(0x08), 0x14);   // Port0 pll_pdn = 0, pll_rstn = 0
+	U2PHY_SETREG(MAP_PHY(0x00), 0x8A);   // Port0 bias_pdn = 0, ldo_pdn = 0
+	U2PHY_SETREG(MAP_PHY(0x30), 0x13);   // Port0 datarpu1 = 0, datarpu2 = 1, spsel = 0, datarpusel = 0, datarpdp = 1, datarpdm = 1
+	U2PHY_SETREG(MAP_PHY(0x2C), 0xFF);   // Enable port0 sw reg 0x0030
+	U2PHY_SETREG(MAP_PHY(0x28), 0x20);   // Port0 usb_pwr_ok = 0
+	U2PHY_SETREG(MAP_PHY(0x24), 0xB3);   // Port0 u11_rx_pwd = 1
+	U2PHY_SETREG(MAP_PHY(0x34), 0x90);   // Port0 tx_pdn = 0
+#endif
 }
 
 static inline int fifo_to_ep(struct nvt_udc_chip *chip, int id, int in)
 {
+#ifdef CONFIG_TARGET_NA51055
+	if (nvt_get_chip_id() == CHIP_NA51055)
+		return (id < 0) ? 0 : ((id & 0x07) + 1);
+	else
+		return (id < 0) ? 0 : ((id & 0x03) + 1);
+#else
 	return (id < 0) ? 0 : ((id & 0x07) + 1);
+#endif
 }
 
 static inline int ep_to_fifo(struct nvt_udc_chip *chip, int id)
 {
+#ifdef CONFIG_TARGET_NA51055
+	if (nvt_get_chip_id() == CHIP_NA51055)
+		return (id <= 0) ? -1 : ((id - 1) & 0x07);
+	else
+		return (id <= 0) ? -1 : ((id - 1) & 0x03);
+#else
 	if ( id == 0 )
 		return DMAFIFO_CX_NO;
 	else
 		return (id < 0) ? -1 : ((id - 1) & 0x07);
-
+#endif
 }
 
 static inline int ep_reset(struct nvt_udc_chip *chip, uint8_t ep_addr)
@@ -362,21 +533,31 @@ static inline int ep_reset(struct nvt_udc_chip *chip, uint8_t ep_addr)
 	int ep = ep_addr & USB_ENDPOINT_NUMBER_MASK;
 
 	struct nvt_udc_ext_regs *regs = chip->ext_regs;
+
+	#ifdef CONFIG_USB_GADGET_NVTIVOT_525
+	/* reset endpoint */
+	setbits_le64_nvt(&regs->ep[ep - 1], EP_RESET);
+	mdelay(1);
+	setbits_le64_nvt(&regs->ep[ep - 1], EP_RESET);
+	/* clear endpoint stall */
+	setbits_le64_nvt(&regs->ep[ep - 1], EP_STALL);
+	#else
 	if (ep_addr & USB_DIR_IN) {
 		/* reset endpoint */
-		setbits_le64(&regs->iep[ep - 1], IEP_RESET);
+		setbits_le64_nvt(&regs->iep[ep - 1], IEP_RESET);
 		mdelay(1);
-		clrbits_le64(&regs->iep[ep - 1], IEP_RESET);
+		clrbits_le64_nvt(&regs->iep[ep - 1], IEP_RESET);
 		/* clear endpoint stall */
-		clrbits_le64(&regs->iep[ep - 1], IEP_STALL);
+		clrbits_le64_nvt(&regs->iep[ep - 1], IEP_STALL);
 	} else {
 		/* reset endpoint */
-		setbits_le64(&regs->oep[ep - 1], OEP_RESET);
+		setbits_le64_nvt(&regs->oep[ep - 1], OEP_RESET);
 		mdelay(1);
-		clrbits_le64(&regs->oep[ep - 1], OEP_RESET);
+		clrbits_le64_nvt(&regs->oep[ep - 1], OEP_RESET);
 		/* clear endpoint stall */
-		clrbits_le64(&regs->oep[ep - 1], OEP_STALL);
+		clrbits_le64_nvt(&regs->oep[ep - 1], OEP_STALL);
 	}
+	#endif
 
 	return 0;
 }
@@ -391,6 +572,7 @@ static int nvt_udc_reset(struct nvt_udc_chip *chip)
 
 	struct nvt_udc_ext_regs *regs = chip->ext_regs;
 
+	printf("nvt_udc_a64_v2 initial, ver: %s\n", DRV_VERSION);
 	/* chip enable */
 	writel(DEVCTRL_EN, &regs->dev_ctrl);
 
@@ -405,8 +587,14 @@ static int nvt_udc_reset(struct nvt_udc_chip *chip)
 	writel(IMR_MASK, &regs->imr);
 	writel(GIMR_MASK, &regs->gimr);
 	writel(GIMR0_MASK, &regs->gimr0);
+
+	#ifdef CONFIG_USB_GADGET_NVTIVOT_525
+	writel(GIMR1_MASK, &regs->gimr1);
+	writel(GIMR2_MASK, &regs->gimr2);
+	#else
 	writel(GIMR1_EXT_MASK, &regs->gimr1);
 	writel(GIMR2_EXT_MASK, &regs->gimr2);
+	#endif
 
 	/* clear interrupts */
 	writel(ISR_MASK, &regs->isr);
@@ -416,7 +604,7 @@ static int nvt_udc_reset(struct nvt_udc_chip *chip)
 	writel(0xFFFFFFFF, &regs->gisr1);
 	writel(0xFFFFFFFF, &regs->gisr2);
 	/* chip reset */
-	setbits_le64(&regs->dev_ctrl, DEVCTRL_RESET);
+	setbits_le64_nvt(&regs->dev_ctrl, DEVCTRL_RESET);
 	mdelay(10);
 	if (readl(&regs->dev_ctrl) & DEVCTRL_RESET) {
 		printf("nvt_udc: chip reset failed\n");
@@ -424,7 +612,7 @@ static int nvt_udc_reset(struct nvt_udc_chip *chip)
 	}
 
 	/* CX FIFO reset */
-	setbits_le64(&regs->cxfifo, CXFIFO_CXFIFOCLR);
+	setbits_le64_nvt(&regs->cxfifo, CXFIFO_CXFIFOCLR);
 	mdelay(10);
 	if (readl(&regs->cxfifo) & CXFIFO_CXFIFOCLR) {
 		printf("nvt_udc: ep0 fifo reset failed\n");
@@ -432,11 +620,51 @@ static int nvt_udc_reset(struct nvt_udc_chip *chip)
 	}
 
 	/* create static ep-fifo map (EP1 <-> FIFO0, EP2 <-> FIFO1 ...) */
+	#ifdef CONFIG_USB_GADGET_NVTIVOT_525
+	for (i = 0; i < 15; ++i) {
+		writel(0, &regs->ep[i]);
+		writel(CFG_EPX_MAX_PACKET_SIZE, &regs->ep[i]);
+		//writel((i << 24) | (i << 28), &regs->ep[i]);
+	}
+
+	/* FIFO reset */
+	for (i = 0; i < 4; ++i) {
+		writel(FIFOCSR_RESET, &regs->fifocsr[i]);
+		mdelay(10);
+		if (readl(&regs->fifocsr[i]) & FIFOCSR_RESET) {
+			printf("nvt_udc: fifo%d reset failed\n", i);
+			return -1;
+		}
+	}
+
+	/* enable only device interrupt and triggered at level-high */
+	writel(IMR_HOST | IMR_OTG, &regs->imr);
+	writel(ISR_MASK, &regs->isr);
+	/* disable EP0 IN/OUT interrupt */
+	writel(GIMR0_CXOUT | GIMR0_CXIN, &regs->gimr0);
+	/* disable EPX IN+SPK+OUT interrupts */
+	writel(GIMR1_MASK, &regs->gimr1);
+	/* disable wakeup+idle+dma+zlp interrupts */
+	writel(GIMR2_WAKEUP | GIMR2_IDLE \
+			| GIMR2_DMA5FIN | GIMR2_DMA4FIN | GIMR2_DMA3FIN \
+			| GIMR2_DMA2FIN | GIMR2_DMA1FIN | GIMR2_DMA0FIN \
+			| GIMR2_ZLPRX | GIMR2_ZLPTX, &regs->gimr2);
+	/* enable all group interrupt */
+	writel(0, &regs->gimr);
+
+	/* suspend delay = 3 ms */
+	writel(3, &regs->idle);
+
+	/* turn-on device interrupts */
+	setbits_le64_nvt(&regs->dev_ctrl, DEVCTRL_GIRQ_EN);
+
+	#else
 	writel(EPMAP14_DEFAULT, &regs->epmap14);
 	writel(EPMAP58_DEFAULT, &regs->epmap58);
 	writel(FIFOMAP_DEFAULT, &regs->fifomap);
 
 	writel(0, &regs->fifocfg);
+
 	for (i = 0; i < 8; ++i) {
 		writel(CFG_EPX_MAX_PACKET_SIZE, &regs->iep[i]);
 		writel(CFG_EPX_MAX_PACKET_SIZE, &regs->oep[i]);
@@ -469,10 +697,11 @@ static int nvt_udc_reset(struct nvt_udc_chip *chip)
 	writel(3, &regs->idle);
 
 	/* turn-on device interrupts */
-	setbits_le64(&regs->dev_ctrl, DEVCTRL_GIRQ_EN);
+	setbits_le64_nvt(&regs->dev_ctrl, DEVCTRL_GIRQ_EN);
+	#endif
 
 #ifdef CONFIG_NVT_FPGA_EMULATION
-	setbits_le64(&regs->dev_ctrl, DEVCTRL_HALFSPD);
+	setbits_le64_nvt(&regs->dev_ctrl, DEVCTRL_HALFSPD);
 #endif
 
 	return 0;
@@ -494,9 +723,107 @@ static inline int nvt_udc_cxwait(struct nvt_udc_chip *chip, uint32_t mask)
 	if (ret)
 		printf("nvt_udc: cx/ep0 timeout value 0x%x mask 0x%x\n", readl(&regs->cxfifo), mask);
 
-
 	return ret;
 }
+
+#ifdef CONFIG_TARGET_NA51055
+static int usb_cx_fifo_rdwr_ext(struct nvt_udc_ep *ep, struct nvt_udc_ext_regs *regs, struct nvt_udc_request *req)
+{
+	struct nvt_udc_chip *chip = ep->chip;
+	uint8_t *buf  = req->req.buf + req->req.actual;
+	uint32_t count  = req->req.length - req->req.actual;
+	signed int i, ep0_dma_size, ep0_rx_size;
+	u32 *pbuf;
+
+	if (ep->desc->bEndpointAddress & USB_DIR_IN) {
+		u32 reg;
+		ep0_dma_size = count;
+
+		if (ep0_dma_size > EP0_PACKET_SIZE) {
+			ep0_dma_size = EP0_PACKET_SIZE;
+		}
+
+		nvt_udc_cxwait(chip, CXFIFO_CXFIFOE);
+
+		// Enable DATAPORT
+		reg = readl(&regs->cxfifo);
+		reg = (reg & ~(0x7F<<16)) | (CXFIFO_DATA_EN | (ep0_dma_size << 16));
+		writel(reg, &regs->cxfifo);
+
+		pbuf = (u32 *)buf;
+		i = 0;
+
+		while (ep0_dma_size > 0) {
+			writel(pbuf[i++], &regs->ep0_data);
+			ep0_dma_size -= 4;
+		};
+
+		clrbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
+
+		req->req.status = 0;
+		if (count > EP0_PACKET_SIZE) {
+			req->req.actual += EP0_PACKET_SIZE;
+			return EP0_PACKET_SIZE;
+		} else {
+			req->req.actual += count;
+			return count;
+		}
+	} else {
+		ep0_dma_size = count;
+		ep0_rx_size = (readl(&regs->cxfifo) & 0x7F000000) >> 24;
+
+		// Make sure fifo got something to start read
+		if (count > EP0_PACKET_SIZE) {
+			while (ep0_rx_size != EP0_PACKET_SIZE) {
+				ep0_rx_size = (readl(&regs->cxfifo) & 0x7F000000) >> 24;
+			}
+		} else {
+			while (ep0_rx_size != count) {
+				ep0_rx_size = (readl(&regs->cxfifo) & 0x7F000000) >> 24;
+			}
+		}
+
+		// Enable DATAPORT
+		setbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
+
+		pbuf = (u32 *)buf;
+		i = 0;
+
+		while (ep0_rx_size > 0) {
+			u32 temp;
+
+			temp = readl(&regs->ep0_data);
+			ep0_rx_size -= 4;
+
+			if (ep0_dma_size >= 4) {
+				pbuf[i++] = temp;
+				ep0_dma_size -= 4;
+			} else if (ep0_dma_size == 1) {
+				pbuf[i] &= ~0xFF;
+				temp    &=  0xFF;
+				pbuf[i] += temp;
+				ep0_dma_size = 0;
+			} else if (ep0_dma_size == 2) {
+				pbuf[i] &= ~0xFFFF;
+				temp    &=  0xFFFF;
+				pbuf[i] += temp;
+				ep0_dma_size = 0;
+			} else if (ep0_dma_size == 3) {
+				pbuf[i] &= ~0xFFFFFF;
+				temp    &=  0xFFFFFF;
+				pbuf[i] += temp;
+				ep0_dma_size = 0;
+			}
+		};
+
+		clrbits_le32(&regs->cxfifo, CXFIFO_DATA_EN);
+
+		req->req.status = 0;
+		req->req.actual += count - ep0_dma_size;
+		return count - ep0_dma_size;
+	}
+}
+#endif
 
 static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 {
@@ -508,6 +835,11 @@ static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 	int ret = -EBUSY;
 
 	struct nvt_udc_ext_regs *regs = chip->ext_regs;
+
+	#ifdef CONFIG_TARGET_NA51055
+	if (ep->id == 0)
+		return usb_cx_fifo_rdwr_ext(ep, regs, req);
+	#endif
 
 	/* 1. init dma buffer */
 	if (len > ep->maxpacket)
@@ -526,31 +858,58 @@ static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 		return ret;
 	}
 
+	if (nvt_get_chip_id() == CHIP_NA51055) {
+		writel(fifo, &regs->dma_fifo);
+	}
+
 	/* 3. DMA target setup */
 	if (ep->desc->bEndpointAddress & USB_DIR_IN)
-		flush_dcache_range((ulong)buf, (ulong)buf + roundup(len, ARCH_DMA_MINALIGN));
+		flush_dcache_range((uintptr_t)buf, (uintptr_t)buf + (uintptr_t)roundup(len, ARCH_DMA_MINALIGN));
 	else
-		invalidate_dcache_range((ulong)buf, (ulong)buf + roundup(len, ARCH_DMA_MINALIGN));
+		invalidate_dcache_range((uintptr_t)buf, (uintptr_t)buf + (uintptr_t)roundup(len, ARCH_DMA_MINALIGN));
 
 	writel(virt_to_phys(buf), &regs->dma_addr);
 
 	if (ep->desc->bEndpointAddress & USB_DIR_IN) {
+		#ifdef CONFIG_TARGET_NA51055
+		/* Wait until epx fifo empty */
+		nvt_udc_cxwait(chip, CXFIFO_EXT_FIFOE(fifo));
+		if (nvt_get_chip_id() == CHIP_NA51055)  {
+		} else {
+			writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
+		}
+
+		#else //CX_DMA_MODE
 		if (ep->id == 0) {
 			/* Wait until cx/ep0 fifo empty */
 			nvt_udc_cxwait(chip, CXFIFO_CXFIFOE);
 			udelay(1);
 			writel(DMAFIFO_FIFO(DMAFIFO_CX_NO), &regs->dma_fifo);
-
 		} else {
 			/* Wait until epx fifo empty */
 			nvt_udc_cxwait(chip, CXFIFO_EXT_FIFOE(fifo));
 			writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
 		}
+		#endif
 
 		writel(DMACTRL_LEN(len) | DMACTRL_MEM2FIFO, &regs->dma_ctrl);
 	} else {
 		uint32_t blen;
 
+		#ifdef CONFIG_TARGET_NA51055
+
+			#ifdef CONFIG_USB_GADGET_NVTIVOT_525
+			if (fifo % 2) {
+				blen = FIFOCSR_ODD_BYTES(readl(&regs->fifocsr[fifo/2]));
+			} else {
+				blen = FIFOCSR_EVEN_BYTES(readl(&regs->fifocsr[fifo/2]));
+			}
+			#else
+			writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
+			blen = FIFOCSR_BYTES(readl(&regs->fifocsr[fifo]));
+			#endif
+
+		#else //CX_DMA_mode
 		if (ep->id == 0) {
 			writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
 			do {
@@ -560,23 +919,38 @@ static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 			writel(DMAFIFO_FIFO(fifo), &regs->dma_fifo);
 			blen = FIFOCSR_BYTES(readl(&regs->fifocsr[fifo]));
 		}
+		#endif
 
 		len  = (len < blen) ? len : blen;
 		writel(DMACTRL_LEN(len) | DMACTRL_FIFO2MEM, &regs->dma_ctrl);
 	}
 
 	/* 4. DMA start */
-	setbits_le64(&regs->dma_ctrl, DMACTRL_START);
+	setbits_le64_nvt(&regs->dma_ctrl, DMACTRL_START);
 
 	/* 5. DMA wait */
 	ret = -EBUSY;
 	for (ts = get_timer(0); get_timer(ts) < CFG_CMD_TIMEOUT; ) {
 		tmp = readl(&regs->gisr2);
+		#ifdef CONFIG_USB_GADGET_NVTIVOT_525
+		/* DMA complete */
+		if (tmp & (GISR2_DMA0FIN)) {
+			ret = 0;
+			break;
+		}
+		/* resume, suspend, reset */
+		if (tmp & (GISR2_RESUME | GISR2_SUSPEND | GISR2_RESET | \
+					GISR2_DMAERR)) {
+			printf("nvt_udc: dma reset by host 0x%x\n", tmp);
+			break;
+		}
+		#else
 		/* DMA complete */
 		if (tmp & GISR2_EXT_DMAFIN) {
 			ret = 0;
 			break;
 		}
+
 		/* DMA error */
 		if (tmp & GISR2_EXT_DMAERR) {
 			printf("nvt_udc: dma error\n");
@@ -587,6 +961,7 @@ static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 			printf("nvt_udc: dma reset by host\n");
 			break;
 		}
+		#endif
 	}
 
 	/* 7. DMA target reset */
@@ -595,7 +970,9 @@ static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 
 	writel(tmp, &regs->gisr2);
 
+	#ifndef CONFIG_USB_GADGET_NVTIVOT_525
 	writel(0, &regs->dma_fifo);
+	#endif
 
 	req->req.status = ret;
 	if (!ret)
@@ -646,13 +1023,18 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 	}
 
 	// enable data port
-	setbits_le64(&regs->cxfifo, CXFIFO_DATA_EN);
+	setbits_le64_nvt(&regs->cxfifo, CXFIFO_DATA_EN);
 
 	/* fetch 8 bytes setup packet */
+	#ifdef CONFIG_TARGET_NA51055
+	tmp[0] = readl(&regs->ep0_data);
+	tmp[1] = readl(&regs->ep0_data);
+	#else
 	tmp[0] = readl(&regs->ep0_setup_data);
 	tmp[1] = readl(&regs->ep0_setup_data);
+	#endif
 
-	clrbits_le64(&regs->cxfifo, CXFIFO_DATA_EN);
+	clrbits_le64_nvt(&regs->cxfifo, CXFIFO_DATA_EN);
 
 	if (req->bRequestType & USB_DIR_IN)
 		ep0_desc.bEndpointAddress = USB_DIR_IN;
@@ -706,8 +1088,13 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 				switch (req->wValue) {
 					case 0:    /* Endpoint Halt */
 						id = req->wIndex & 0xf;
-						setbits_le64(&regs->iep[id - 1], IEP_STALL);
-						setbits_le64(&regs->oep[id - 1], OEP_STALL);
+
+						#ifdef CONFIG_USB_GADGET_NVTIVOT_525
+						setbits_le64_nvt(&regs->ep[id - 1], EP_STALL);
+						#else
+						setbits_le64_nvt(&regs->iep[id - 1], IEP_STALL);
+						setbits_le64_nvt(&regs->oep[id - 1], OEP_STALL);
+						#endif
 						ret = CX_FINISH;
 						break;
 					case 1:    /* Remote Wakeup */
@@ -744,11 +1131,11 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 
 	switch (ret) {
 		case CX_FINISH:
-			setbits_le64(&regs->cxfifo, CXFIFO_CXFIN);
+			setbits_le64_nvt(&regs->cxfifo, CXFIFO_CXFIN);
 			break;
 
 		case CX_STALL:
-			setbits_le64(&regs->cxfifo, CXFIFO_CXSTALL | CXFIFO_CXFIN);
+			setbits_le64_nvt(&regs->cxfifo, CXFIFO_CXSTALL | CXFIFO_CXFIN);
 			printf("nvt_udc: cx_stall!\n");
 			break;
 
@@ -757,7 +1144,6 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 		default:
 			break;
 	}
-
 }
 
 /*
@@ -790,7 +1176,7 @@ static void nvt_udc_recv(struct nvt_udc_chip *chip, int ep_id)
 	}
 
 	if (ep->id > 0 && list_empty(&ep->queue)) {
-		setbits_le64(&regs->gimr1,
+		setbits_le64_nvt(&regs->gimr1,
 				GIMR1_FIFO_RX(ep_to_fifo(chip, ep->id)));
 	}
 }
@@ -816,29 +1202,67 @@ static int nvt_udc_ep_enable(
 	ep->desc = desc;
 	ep->stopped = 0;
 
+
+	#ifdef CONFIG_USB_GADGET_NVTIVOT_525
 	struct nvt_udc_ext_regs *regs = chip->ext_regs;
-	if (in)
-		setbits_le64(&regs->fifomap, FIFOMAP(id, FIFOMAP_IN));
+	if (in) {
+		setbits_le64(&regs->ep[id], (id << 24));
+		clrbits_le64(&regs->ep[id], (0xF << 28));
+		clrbits_le64(&regs->ep[id], (0x1 << 16));
+		setbits_le64(&regs->fifocfg0 + (id/4), \
+				FIFOCFG_DIR(((id >= 4) ? id-4 : id), 0x1));
+	} else {
+		setbits_le64(&regs->ep[id], (id << 28));
+		clrbits_le64(&regs->ep[id], (0xF << 24));
+		setbits_le64(&regs->ep[id], (0x1 << 16));
+		clrbits_le64(&regs->fifocfg0 + (id/4), \
+				FIFOCFG_DIR(((id >= 4) ? id-4 : id), 0x1));
+	}
 
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 		case USB_ENDPOINT_XFER_CONTROL:
 			return -EINVAL;
 
 		case USB_ENDPOINT_XFER_ISOC:
-			setbits_le64(&regs->fifocfg,
+			setbits_le64(&regs->fifocfg0 + (id/4),
+					FIFOCFG(((id >= 4) ? id-4 : id), FIFOCFG_EN | FIFOCFG_ISOC));
+			break;
+
+		case USB_ENDPOINT_XFER_BULK:
+			setbits_le64(&regs->fifocfg0 + (id/4),
+					FIFOCFG(((id >= 4) ? id-4 : id), FIFOCFG_EN | FIFOCFG_BULK));
+			break;
+
+		case USB_ENDPOINT_XFER_INT:
+			setbits_le64(&regs->fifocfg0 + (id/4),
+					FIFOCFG(((id >= 4) ? id-4 : id), FIFOCFG_EN | FIFOCFG_INTR));
+			break;
+	}
+	#else
+	struct nvt_udc_ext_regs *regs = chip->ext_regs;
+	if (in)
+		setbits_le64_nvt(&regs->fifomap, FIFOMAP(id, FIFOMAP_IN));
+
+	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+		case USB_ENDPOINT_XFER_CONTROL:
+			return -EINVAL;
+
+		case USB_ENDPOINT_XFER_ISOC:
+			setbits_le64_nvt(&regs->fifocfg,
 					FIFOCFG_EXT(id, FIFOCFG_EXT_EN | FIFOCFG_ISOC));
 			break;
 
 		case USB_ENDPOINT_XFER_BULK:
-			setbits_le64(&regs->fifocfg,
+			setbits_le64_nvt(&regs->fifocfg,
 					FIFOCFG_EXT(id, FIFOCFG_EXT_EN | FIFOCFG_BULK));
 			break;
 
 		case USB_ENDPOINT_XFER_INT:
-			setbits_le64(&regs->fifocfg,
+			setbits_le64_nvt(&regs->fifocfg,
 					FIFOCFG_EXT(id, FIFOCFG_EXT_EN | FIFOCFG_INTR));
 			break;
 	}
+	#endif
 
 	return 0;
 }
@@ -852,9 +1276,18 @@ static int nvt_udc_ep_disable(struct usb_ep *_ep)
 	ep->desc = NULL;
 	ep->stopped = 1;
 
+	#ifdef CONFIG_USB_GADGET_NVTIVOT_525
 	struct nvt_udc_ext_regs *regs = chip->ext_regs;
-	clrbits_le64(&regs->fifocfg, FIFOCFG_EXT(id, FIFOCFG_EXT_CFG_MASK));
-	clrbits_le64(&regs->fifomap, FIFOMAP(id, FIFOMAP_DIR_MASK));
+	clrbits_le64(&regs->fifocfg0, \
+			FIFOCFG(((id >= 4) ? id-4 : id), FIFOCFG_CFG_MASK));
+	clrbits_le64(&regs->fifocfg1, \
+			FIFOCFG(((id >= 4) ? id-4 : id), FIFOCFG_CFG_MASK));
+	#else
+	struct nvt_udc_ext_regs *regs = chip->ext_regs;
+	clrbits_le64_nvt(&regs->fifocfg, FIFOCFG_EXT(id, FIFOCFG_EXT_CFG_MASK));
+	clrbits_le64_nvt(&regs->fifomap, FIFOMAP(id, FIFOMAP_DIR_MASK));
+	#endif
+
 	return 0;
 }
 
@@ -927,7 +1360,7 @@ static int nvt_udc_ep_queue(
 			list_add_tail(&req->queue, &ep->queue);
 
 			struct nvt_udc_ext_regs *regs = chip->ext_regs;
-			clrbits_le64(&regs->gimr1,
+			clrbits_le64_nvt(&regs->gimr1,
 					GIMR1_FIFO_RX(ep_to_fifo(chip, ep->id)));
 		}
 	}
@@ -974,6 +1407,22 @@ static int nvt_udc_ep_halt(struct usb_ep *_ep, int halt)
 
 	debug("nvt_udc: ep%d halt=%d\n", ep->id, halt);
 
+	#ifdef CONFIG_USB_GADGET_NVTIVOT_525
+	struct nvt_udc_ext_regs *regs = chip->ext_regs;
+	/* Endpoint STALL */
+	if (ep->id > 0 && ep->id <= CFG_NUM_ENDPOINTS) {
+		if (halt) {
+			/* wait until all ep fifo empty */
+			nvt_udc_cxwait(chip, 0xf00);
+			/* stall */
+
+			setbits_le64(&regs->ep[ep->id - 1], EP_STALL);
+		} else {
+			clrbits_le64(&regs->ep[ep->id - 1], EP_STALL);
+		}
+		ret = 0;
+	}
+	#else
 	struct nvt_udc_ext_regs *regs = chip->ext_regs;
 	/* Endpoint STALL */
 	if (ep->id > 0 && ep->id <= CFG_NUM_ENDPOINTS) {
@@ -982,23 +1431,24 @@ static int nvt_udc_ep_halt(struct usb_ep *_ep, int halt)
 			nvt_udc_cxwait(chip, 0xf00);
 			/* stall */
 			if (ep->desc->bEndpointAddress & USB_DIR_IN) {
-				setbits_le64(&regs->iep[ep->id - 1],
+				setbits_le64_nvt(&regs->iep[ep->id - 1],
 						IEP_STALL);
 			} else {
-				setbits_le64(&regs->oep[ep->id - 1],
+				setbits_le64_nvt(&regs->oep[ep->id - 1],
 						OEP_STALL);
 			}
 		} else {
 			if (ep->desc->bEndpointAddress & USB_DIR_IN) {
-				clrbits_le64(&regs->iep[ep->id - 1],
+				clrbits_le64_nvt(&regs->iep[ep->id - 1],
 						IEP_STALL);
 			} else {
-				clrbits_le64(&regs->oep[ep->id - 1],
+				clrbits_le64_nvt(&regs->oep[ep->id - 1],
 						OEP_STALL);
 			}
 		}
 		ret = 0;
 	}
+	#endif
 
 	return ret;
 }
@@ -1015,9 +1465,9 @@ static void pullup(struct nvt_udc_chip *chip, int is_on)
 			chip->state = USB_STATE_POWERED;
 			chip->pullup = 1;
 			/* enable the chip */
-			setbits_le64(&regs->dev_ctrl, DEVCTRL_EN);
+			setbits_le64_nvt(&regs->dev_ctrl, DEVCTRL_EN);
 			/* clear unplug bit (BIT0) */
-			clrbits_le64(&regs->phy_tmsr, PHYTMSR_UNPLUG);
+			clrbits_le64_nvt(&regs->phy_tmsr, PHYTMSR_UNPLUG);
 		}
 	} else {
 		chip->state = USB_STATE_NOTATTACHED;
@@ -1025,9 +1475,9 @@ static void pullup(struct nvt_udc_chip *chip, int is_on)
 		chip->addr = 0;
 		writel(chip->addr, &regs->dev_addr);
 		/* set unplug bit (BIT0) */
-		setbits_le64(&regs->phy_tmsr, PHYTMSR_UNPLUG);
+		setbits_le64_nvt(&regs->phy_tmsr, PHYTMSR_UNPLUG);
 		/* disable the chip */
-		clrbits_le64(&regs->dev_ctrl, DEVCTRL_EN);
+		clrbits_le64_nvt(&regs->dev_ctrl, DEVCTRL_EN);
 	}
 }
 
@@ -1167,7 +1617,7 @@ int usb_gadget_handle_interrupts(int index)
 		if (st & GISR0_CXSETUP)    /* setup */
 			nvt_udc_setup(chip);
 		else if (st & GISR0_CXEND) /* command finish */
-			setbits_le64(&regs->cxfifo, CXFIFO_CXFIN);
+			setbits_le64_nvt(&regs->cxfifo, CXFIFO_CXFIN);
 	}
 
 	/* FIFO interrupts */
@@ -1202,8 +1652,10 @@ int usb_gadget_handle_interrupts(int index)
 			printf("nvt_udc: iso error\n");
 		if (st & GISR2_ISOCABT)
 			printf("nvt_udc: iso abort\n");
+		#ifndef CONFIG_USB_GADGET_NVTIVOT_525
 		if (st & GISR2_EXT_DMAERR)
 			printf("nvt_udc: dma error\n");
+		#endif
 	}
 
 	return 0;
@@ -1263,16 +1715,20 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	pullup(chip, 0);
 
-	printf("udc remove~~\n");
 #if defined(CONFIG_TARGET_NA51102_A64)
-        /* clear reset flag*/
+	/* clear reset flag*/
 	tmpval2 = readl((volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
-        if (tmpval2 & 0x80) {
+	if (tmpval2 & 0x80) {
 		tmpval2 &= ~(0x80);
 		writel(tmpval2, (volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
 	} else {
 		//do nothing.
 	}
 #endif
+
+	if (nvt_get_chip_id() == CHIP_NS02301) {
+		nvtim_remove_power_save();
+	}
+
 	return 0;
 }

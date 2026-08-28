@@ -10,9 +10,11 @@
     published by the Free Software Foundation.
 */
 
+#include <cpu_func.h>
 #include <common.h>
 #include <asm/armv7.h>
 #include <asm/io.h>
+#include <asm/cache.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/nvt-common/rcw_macro.h>

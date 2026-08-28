@@ -22,10 +22,16 @@
 
 #define IOADDR_TV_REG_OFS       0x124
 
-#define IDEDEFAULT_EN_INT (IDE_V1BWF_IRQEN|IDE_V2BWF_IRQEN|IDE_OSD1BWF_IRQEN|IDE_V1_LINE_START_ERROR_IRQEN|IDE_V2_LINE_START_ERROR_IRQEN|IDE_O1_LINE_START_ERROR_IRQEN)
-//#define IDEDEFAULT_EN_INT 0
+//#define IDEDEFAULT_EN_INT (IDE_V1BWF_IRQEN|IDE_V2BWF_IRQEN|IDE_OSD1BWF_IRQEN|IDE_V1_LINE_START_ERROR_IRQEN|IDE_V2_LINE_START_ERROR_IRQEN|IDE_O1_LINE_START_ERROR_IRQEN|IDE_V1_YCC_ERROR_IRQEN|IDE_V2_YCC_ERROR_IRQEN)
+#define IDEDEFAULT_EN_INT 0
 
 #define IDE_CMLCOMPARE 0
+
+#if (defined __FREERTOS)
+#define IDEDATA_TYPE	UINT32
+#else
+#define IDEDATA_TYPE	UINT32
+#endif
 
 #if 1
 
@@ -94,8 +100,8 @@ void idec_set_pal0_rw(IDE_ID id, BOOL b_sel);
 BOOL idec_get_pal0_rw(IDE_ID id);
 //BOOL idec_get_pal_rw(IDE_ID id);
 
-extern void idec_set_reg(UINT32 id, UINT32 offset, REGVALUE value);
-extern REGVALUE idec_get_reg(UINT32 id, UINT32 offset);
+extern void idec_set_reg(UINT32 id, IDEDATA_TYPE offset, REGVALUE value);
+extern REGVALUE idec_get_reg(UINT32 id, IDEDATA_TYPE offset);
 extern IDE_LINE_COMPARATIVE g_ide_line_comparative;
 
 // Register default value
@@ -136,7 +142,7 @@ extern IDE_LINE_COMPARATIVE g_ide_line_comparative;
 
 #define IDE_0070_REG_DEFAULT        0x00000000
 #define IDE_0074_REG_DEFAULT        0x00000000
-#define IDE_0078_REG_DEFAULT        0x00000000
+#define IDE_0078_REG_DEFAULT        0x00000088
 #define IDE_007C_REG_DEFAULT        0x00000000
 
 #define IDE_0080_REG_DEFAULT        0x00000000
@@ -241,10 +247,10 @@ extern IDE_LINE_COMPARATIVE g_ide_line_comparative;
 
 #define IDE_01C0_REG_DEFAULT        0xFF00FF00
 #define IDE_01C4_REG_DEFAULT        0x0000FF00
-#define IDE_01C8_REG_DEFAULT        0x00000000
-#define IDE_01CC_REG_DEFAULT        0x00000000
+#define IDE_01C8_REG_DEFAULT        0xFF0F0FFF
+#define IDE_01CC_REG_DEFAULT        0x00000002
 
-#define IDE_01D0_REG_DEFAULT        0x00000010
+#define IDE_01D0_REG_DEFAULT        0x00000000
 #define IDE_01D4_REG_DEFAULT        0x00000000
 #define IDE_01D8_REG_DEFAULT        0x00000000
 #define IDE_01DC_REG_DEFAULT        0x00000000

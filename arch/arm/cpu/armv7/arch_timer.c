@@ -5,6 +5,9 @@
  */
 
 #include <common.h>
+#include <init.h>
+#include <time.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <div64.h>
 #include <bootstage.h>
@@ -25,7 +28,6 @@ int timer_init(void)
 {
 	gd->arch.tbl = 0;
 	gd->arch.tbu = 0;
-
 #ifdef CONFIG_SYS_HZ_CLOCK
 	gd->arch.timer_rate_hz = CONFIG_SYS_HZ_CLOCK;
 #else
@@ -46,9 +48,11 @@ unsigned long long get_ticks(void)
 	return (((unsigned long long)gd->arch.tbu) << 32) | gd->arch.tbl;
 }
 
-
 ulong timer_get_boot_us(void)
 {
+	if (!gd->arch.timer_rate_hz)
+		timer_init();
+
 	return lldiv(get_ticks(), gd->arch.timer_rate_hz / 1000000);
 }
 

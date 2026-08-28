@@ -281,7 +281,7 @@ static int config_pcie_ep(void) {
 
 
 /* this function is portable for the customer */
-int do_pcie_ep (cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+int do_pcie_ep (struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	printk("-------------- PCIe EP Version: %s -------------- \n", DRV_VER);
 

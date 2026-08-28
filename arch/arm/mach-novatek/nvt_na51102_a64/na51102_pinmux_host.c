@@ -11,6 +11,7 @@
 */
 
 #include <asm/arch/na51102_pinmux.h>
+#include <asm/arch/gpio.h>
 //#include <plat/pad.h>
 
 //static DEFINE_SPINLOCK(top_lock);

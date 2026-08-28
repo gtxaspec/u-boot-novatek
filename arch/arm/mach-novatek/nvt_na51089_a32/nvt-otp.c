@@ -769,3 +769,40 @@ UINT32 otp_key_manager(UINT32 rowAddress)
 
 	return uiData;
 }
+
+/*
+    exteact trim data valid
+
+    Parsing trim data is valid or not
+
+    @param [in] code    trim raw data
+    @param[out] pData   Point of valid trim data
+
+    @return read half-word efuse data
+        - @b  TRUE  : Valid data
+        - @b  FALSE : Invalid data
+*/
+BOOL extract_trim_valid(u32 code, u32 *pData)
+{
+	u32 i;
+	u32 ret = 0;
+	BOOL is_found = FALSE;
+
+	for (i = 0; i < 2; i++) {
+		if (code & (1 << 14)) {
+			// do nothing: skip this setting
+		} else if (code & (1 << 15)) {
+			ret = code & 0x3FFF;
+			*pData = ret;
+			is_found = TRUE;
+			break;
+		} else {
+			// bit[15..14] = 0x0: efuse never programmed
+			break;
+		}
+
+		code >>= 16;
+	}
+
+	return is_found;
+}

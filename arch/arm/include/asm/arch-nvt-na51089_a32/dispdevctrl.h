@@ -18,7 +18,7 @@
 
 #if defined __KERNEL__
 //#include "comm/sif_api.h"
-//#include "hdmitx.h"
+#include "hdmitx.h"
 #elif defined __FREERTOS
 #include "comm/sif_api.h"
 #include "hdmitx.h"
@@ -29,11 +29,7 @@
 #endif
 #include "dispcomn.h"
 
-/**
-    @addtogroup mIDrvIO_SIF
-*/
-//@{
-
+#define IDEDATA_TYPE	UINT32
 /**
     SIF channel ID
 
@@ -44,115 +40,14 @@ typedef enum {
 	SIF_CH1,                ///< SIF channel 1
 	SIF_CH2,                ///< SIF channel 2
 	SIF_CH3,                ///< SIF channel 3
+	SIF_CH4,                ///< SIF channel 4
+	SIF_CH5,                ///< SIF channel 5
+    SIF_TOTAL_CHANNEL,      ///< Total SIF channel number
+	SIF_CH6,                ///< SIF channel 6(not support)
+	SIF_CH7,                ///< SIF channel 7(not support)
 
-	SIF_TOTAL_CHANNEL,      ///< Total SIF channel number
 	ENUM_DUMMY4WORD(SIF_CH)
 } SIF_CH;
-
-/**
-    HDMI-Tx output Video Format ID
-
-    This enumeration is used in hdmitx_set_config(HDMI_CONFIG_ID_VIDEO) to specify the HDMI output video resolution,
-    and also used in the display device object control code "SET_HDMIMODE" to specify the video mode.
-    These definitions are from the TV standard CEA-861D and all of the output timngs such as frame rate/blanking/...
-    are the same as the CEA-861D listed.
-*/
-typedef enum {
-	HDMI_640X480P60         = 1,    ///< HDMI Video format is 640x480 & Progressive 60fps
-	HDMI_720X480P60         = 2,    ///< HDMI Video format is 720x480 & Progressive 60fps & 4:3
-	HDMI_720X480P60_16X9    = 3,    ///< HDMI Video format is 720x480 & Progressive 60fps & 16:9
-	HDMI_1280X720P60        = 4,    ///< HDMI Video format is 1280x720 & Progressive 60fps
-	HDMI_1920X1080I60       = 5,    ///< HDMI Video format is 1920x1080 & Interlaced 60fps
-	HDMI_720X480I60         = 6,    ///< HDMI Video format is 720x480 & Interlaced 60fps
-	HDMI_720X480I60_16X9    = 7,    ///< HDMI Video format is 720x480 & Interlaced 60fps & 16:9
-	HDMI_720X240P60         = 8,    ///< HDMI Video format is 720x240 & Progressive 60fps
-	HDMI_720X240P60_16X9    = 9,    ///< HDMI Video format is 720x240 & Progressive 60fps & 16:9
-	HDMI_1440X480I60        = 10,   ///< HDMI Video format is 1440x480 & Interlaced 60fps
-	HDMI_1440X480I60_16X9   = 11,   ///< HDMI Video format is 1440x480 & Interlaced 60fps & 16:9
-	HDMI_1440X240P60        = 12,   ///< HDMI Video format is 1440x240 & Progressive 60fps
-	HDMI_1440X240P60_16X9   = 13,   ///< HDMI Video format is 1440x240 & Progressive 60fps & 16:9
-	HDMI_1440X480P60        = 14,   ///< HDMI Video format is 1440x480 & Progressive 60fps
-	HDMI_1440X480P60_16X9   = 15,   ///< HDMI Video format is 1440x480 & Progressive 60fps & 16:9
-	HDMI_1920X1080P60       = 16,   ///< HDMI Video format is 1920x1080 & Progressive 60fps
-	HDMI_720X576P50         = 17,   ///< HDMI Video format is 720x576 & Progressive 50fps
-	HDMI_720X576P50_16X9    = 18,   ///< HDMI Video format is 720x576 & Progressive 50fps & 16:9
-	HDMI_1280X720P50        = 19,   ///< HDMI Video format is 1280x720 & Progressive 50fps
-	HDMI_1920X1080I50       = 20,   ///< HDMI Video format is 1920x1080 & Interlaced 50fps
-	HDMI_720X576I50         = 21,   ///< HDMI Video format is 720x576 & Interlaced 50fps
-	HDMI_720X576I50_16X9    = 22,   ///< HDMI Video format is 720x576 & Interlaced 50fps & 16:9
-	HDMI_720X288P50         = 23,   ///< HDMI Video format is 720x288 & Progressive 50fps
-	HDMI_720X288P50_16X9    = 24,   ///< HDMI Video format is 720x288 & Progressive 50fps & 16:9
-	HDMI_1440X576I50        = 25,   ///< HDMI Video format is 1440x576 & Interlaced 50fps
-	HDMI_1440X576I50_16X9   = 26,   ///< HDMI Video format is 1440x576 & Interlaced 50fps & 16:9
-	HDMI_1440X288P50        = 27,   ///< HDMI Video format is 1440x288 & Progressive 50fps
-	HDMI_1440X288P50_16X9   = 28,   ///< HDMI Video format is 1440x288 & Progressive 50fps & 16:9
-	HDMI_1440X576P50        = 29,   ///< HDMI Video format is 1440x576 & Progressive 50fps
-	HDMI_1440X576P50_16X9   = 30,   ///< HDMI Video format is 1440x576 & Progressive 50fps & 16:9
-	HDMI_1920X1080P50       = 31,   ///< HDMI Video format is 1920x1080 & Progressive 50fps
-	HDMI_1920X1080P24       = 32,   ///< HDMI Video format is 1920x1080 & Progressive 24fps
-	HDMI_1920X1080P25       = 33,   ///< HDMI Video format is 1920x1080 & Progressive 25fps
-	HDMI_1920X1080P30       = 34,   ///< HDMI Video format is 1920x1080 & Progressive 30fps
-	HDMI_1920X1080I50_VT1250 = 39,  ///< HDMI Video format is 1920x1080 & Interlaced  50fps & V-total is 1250 lines
-	HDMI_1920X1080I100      = 40,   ///< HDMI Video format is 1920x1080 & Interlaced  100fps
-	HDMI_1280X720P100       = 41,   ///< HDMI Video format is 1280X720  & Progressive 100fps
-	HDMI_720X576P100        = 42,   ///< HDMI Video format is 720X576   & Progressive 100fps
-	HDMI_720X576P100_16X9   = 43,   ///< HDMI Video format is 720X576   & Progressive 100fps & 16:9
-	HDMI_720X576I100        = 44,   ///< HDMI Video format is 720X576  & Interlaced 100fps
-	HDMI_720X576I100_16X9   = 45,   ///< HDMI Video format is 720X576  & Interlaced 100fps & 16:9
-	HDMI_1920X1080I120      = 46,   ///< HDMI Video format is 1920X1080 & Interlaced 120fps
-	HDMI_1280X720P120       = 47,   ///< HDMI Video format is 1280X720  & Progressive 120fps
-	HDMI_720X480P120        = 48,   ///< HDMI Video format is 720X480   & Progressive 120fps
-	HDMI_720X480P120_16X9   = 49,   ///< HDMI Video format is 720X480   & Progressive 120fps & 16:9
-	HDMI_720X480I120        = 50,   ///< HDMI Video format is 720X480  & Interlaced 120fps
-	HDMI_720X480I120_16X9   = 51,   ///< HDMI Video format is 720X480  & Interlaced 120fps & 16:9
-	HDMI_720X576P200        = 52,   ///< HDMI Video format is 720X576  & Progressive 200fps
-	HDMI_720X576P200_16X9   = 53,   ///< HDMI Video format is 720X576  & Progressive 200fps & 16:9
-	HDMI_720X576I200        = 54,   ///< HDMI Video format is 720X576  & Interlaced 200fps
-	HDMI_720X576I200_16X9   = 55,   ///< HDMI Video format is 720X576  & Interlaced 200fps & 16:9
-	HDMI_720X480P240        = 56,   ///< HDMI Video format is 720X480  & Progressive 240fps
-	HDMI_720X480P240_16X9   = 57,   ///< HDMI Video format is 720X480  & Progressive 240fps & 16:9
-	HDMI_720X480I240        = 58,   ///< HDMI Video format is 720X480  & Interlaced 240fps
-	HDMI_720X480I240_16X9   = 59,   ///< HDMI Video format is 720X480  & Interlaced 240fps & 16:9
-
-	HDMI_3840X2160P24       = 93,   ///< HDMI Video format is 3840x2160 & Progressive 24fps
-	HDMI_3840X2160P25       = 94,   ///< HDMI Video format is 3840x2160 & Progressive 25fps
-	HDMI_3840X2160P30       = 95,   ///< HDMI Video format is 3840x2160 & Progressive 30fps
-	HDMI_4096X2160P24       = 98,   ///< HDMI Video format is 4096x2160 & Progressive 24fps
-	HDMI_4096X2160P25       = 99,   ///< HDMI Video format is 4096x2160 & Progressive 25fps
-	HDMI_4096X2160P30       = 100,  ///< HDMI Video format is 4096x2160 & Progressive 30fps
-
-	HDMI14B_3840X2160P30    = 95+128,///< HDMI 1.4B Extended foramt HDMI_VIC=1. Video format is 3840x2160 & Progressive 30fps
-	HDMI14B_3840X2160P25    = 94+128,///< HDMI 1.4B Extended foramt HDMI_VIC=2. Video format is 3840x2160 & Progressive 30fps
-	HDMI14B_3840X2160P24    = 93+128,///< HDMI 1.4B Extended foramt HDMI_VIC=3. Video format is 3840x2160 & Progressive 24fps
-	HDMI14B_4096X2160P24    = 98+128,///< HDMI 1.4B Extended foramt HDMI_VIC=4. Video format is 4096x2160 & Progressive 24fps
-
-	// Non-std HDMI formats
-	HDMI_1024X768P60        = 35+128,///< HDMI Video format is 1024X768  & Progressive 60fps
-	HDMI_1280X1024P60       = 36+128,///< HDMI Video format is 1280X1024  & Progressive 60fps
-	HDMI_1600X1200P60       = 37+128,///< HDMI Video format is 1600X1200  & Progressive 60fps
-	HDMI_2560X1440P60       = 38+128,///< HDMI Video format is 2560X1440  & Progressive 60fps
-
-	HDMI_VID_NO_CHANGE      = 0xFF, ///< HDMI Video format use current setting
-	ENUM_DUMMY4WORD(HDMI_VIDEOID)
-} HDMI_VIDEOID;
-
-/**
-    HDMI-Tx input audio format
-
-    This structure is used in hdmitx_set_config(HDMI_CONFIG_ID_AUDIO) to specify the Audio Sampling Rate in HDMI audio stream.
-    This definition would be used in the HDMI audio infoFrame. Only these three audio modes are maindatory modes in HDMI specification,
-    so sampling rates less than 32KHz are not supported in HDMI audio.
-    Besides, we must also note that the HDMI has only the Stereo Audio Channels. The Mono channel can only playback to left ot right channel
-    on the HDMI audio. The audio channel number larger than two are not supported in current chip version.
-*/
-typedef enum {
-	HDMI_AUDIO32KHZ,                ///< HDMI Audio sampling rate uses 32KHz.
-	HDMI_AUDIO44_1KHZ,              ///< HDMI Audio sampling rate uses 44.1KHz.
-	HDMI_AUDIO48KHZ,                ///< HDMI Audio sampling rate uses 48KHz.
-
-	HDMI_AUDIO_NO_CHANGE  = 0xFF,   ///< Reserve the curretn HDMI audio sampling rate.
-	ENUM_DUMMY4WORD(HDMI_AUDIOFMT)
-} HDMI_AUDIOFMT;
 
 /**
     @name Display Device Control Group
@@ -220,6 +115,13 @@ typedef struct {
 	UINT32                  ui_win_height;
 } DISPDEV_GET_PRESIZE, *PDISPDEV_GET_PRESIZE;
 
+typedef struct {
+	UINT32 	vid;		/* HDMI_VIDEOID */
+	UINT32	output_mode;/* HDMI_MODE */
+	UINT32	audio_fmt; 	/* HDMI_AUDIOFMT */
+	UINT32	source; 	/* HDMI_source_selset*/
+	UINT32	pclk;       /* HDMI_pclk*/
+} DISP_HDMI_CFG, *PDISP_HDMI_CFG;
 
 /**
     Display Device Object Structure
@@ -241,6 +143,7 @@ typedef struct {
 
 	void (*set_dev_io_ctrl)(FP);                                       ///< Set Display Device IOCTRL API.
 	DISPDEV_SPECIFIC_CTRL   specific_ctrl;                           ///< Device specific control, such as backlight/power pin control.
+	ER (*presetconfig)(PDISP_HDMI_CFG config);     					///< Set HDMI config before open
 } DISPDEV_OBJ, *PDISPDEV_OBJ;
 
 
@@ -268,6 +171,7 @@ typedef enum {
 	DISPDEV_SET_TVPAR,                          ///< Set TV's parameter
 	DISPDEV_SET_OUTPUT_DRAM,                    ///< Set ide data output to dram(only available in IDE1 with VDO2 disable)
 	DISPDEV_SET_TVFULL,                         ///< Set TV full screen
+	DISPDEV_SET_LOGOMODE,                       ///< Set LOGO MODE
 
 	/* GET control group */
 	DISPDEV_GET_ACT_DEVICE,                     ///< Get current active device. (panel/TV/HDMI)
@@ -283,6 +187,7 @@ typedef enum {
 	DISPDEV_GET_LCDMODE,
 	DISPDEV_GET_POWERDOWN,                      ///< Get Powerdown
 	DISPDEV_GET_TVPAR,                          ///< Get TV's parameter
+	DISPDEV_GET_LOGOMODE,                       ///< Get LOGO MODE
 
 	ENUM_DUMMY4WORD(DISPDEV_OP)
 } DISPDEV_OP;
@@ -474,7 +379,7 @@ typedef struct {
 		\n  pDispObj->dev_ctrl(DISPDEV_REG_WRITE, &DispDev);
 		*/
 		struct { // DISPDEV_REG_WRITE
-			UINT32          ui_addr;         ///< LCD Register address
+			IDEDATA_TYPE          ui_addr;         ///< LCD Register address
 			UINT32          ui_value;        ///< The LCD register configuration value
 		} REG_WRITE;
 
@@ -611,8 +516,8 @@ typedef struct {
 		\n  pDispObj->dev_ctrl(DISPDEV_SET_TVPAR, &DispDev);
 		*/
 		struct { // DISPDEV_SET_OUTPUT_DRAM
-			UINT32      y_addr;                  ///< Output Y address
-			UINT32      uv_addr;                 ///< Output UV address
+			IDEDATA_TYPE      y_addr;                  ///< Output Y address
+			IDEDATA_TYPE      uv_addr;                 ///< Output UV address
 			UINT32      output_width;            ///< Output width
 			UINT32      output_height;           ///< Output height
 			UINT32      output_line_ofs;          ///< Output line offset(unit:byte)
@@ -633,6 +538,18 @@ typedef struct {
 			BOOL        b_en_full;               ///< Enable/Disable TV Full screen
 		} SET_TVFULL;
 
+		/**
+		   Set LOGO mode
+
+		   This structure is used for display device control operation code "DISPDEV_SET_LOGOMODE"
+		   to set the parameters.
+		   This structure shuld be used like this:
+		\n  DispDev.SEL.SET_LOGOMODE.b_en_logo  = TRUE or FALSE;
+		\n  pDispObj->dev_ctrl(DISPDEV_SET_LOGOMODE, &DispDev);
+		*/
+		struct { // DISPDEV_SET_LOGOMODE
+			BOOL      b_en_logo;
+		} SET_LOGOMODE;
 
 		/* GET control group */
 
@@ -840,6 +757,19 @@ typedef struct {
 			UINT32      ui_pal_cr_scaling;       ///< TV PAL Cr Scale(valid value:0~0xFF)
 		} GET_TVPAR;
 
+		/**
+		   Get LOGO mode
+
+		   This structure is used for display device control operation code "DISPDEV_GET_LOGOMODE"
+		   to set the parameters.
+		   This structure shuld be used like this:
+		\n  DispDev.SEL.GET_LOGOMODE.b_en_logo  = TRUE or FALSE;
+		\n  pDispObj->dev_ctrl(DISPDEV_GET_LOGOMODE, &DispDev);
+		*/
+		struct { // DISPDEV_SET_LOGOMODE
+			BOOL      b_en_logo;
+		} GET_LOGOMODE;
+
 	} SEL;
 } DISPDEV_PARAM, *PDISPDEV_PARAM;
 //@}
@@ -847,15 +777,27 @@ typedef struct {
 typedef ER(*DISPDEVCTRL)(DISPDEV_OP, PDISPDEV_PARAM);
 
 
+typedef struct {
 
+	PDISPDEV_OBJ (*get_hdmi_dev_obj)(void);
+
+	void (*set_config)(HDMI_CONFIG_ID config_id, UINT32 ui_config);
+	UINT32 (*get_edid_info)(void);
+	void (*get_video_ability)(UINT32 *p_len, PHDMI_VDOABI vdo_ability);
+	void (*get_edid_raw_data)(UINT32 *p_len, UINT8 *data);
+
+} DISPDEVHDMI_CTRL, *PDISPDEVHDMI_CTRL;
 
 //
 //  Exported Get Display Device Object API
 //
 //extern PDISPDEV_OBJ dispdev_get_tv_dev_obj(void);
-//extern PDISPDEV_OBJ dispdev_get_hdmi_dev_obj(void);
+extern PDISPDEV_OBJ dispdev_get_hdmi_dev_obj(void);
+extern PDISPDEV_OBJ dispdev_get_hdmi2_dev_obj(void);
+
 extern PDISPDEV_OBJ dispdev_get_lcd1_dev_obj(void);
-//extern PDISPDEV_OBJ dispdev_get_lcd2_dev_obj(void);
+extern PDISPDEV_OBJ dispdev_get_lcd2_dev_obj(void);
+extern PDISPDEV_OBJ dispdev_get_lcd3_dev_obj(void);
 
 
 #endif

@@ -38,12 +38,7 @@ struct fotg210_regs {
 	uint32_t rsvd5[2];
 	uint32_t cxfifo;/* 0x120: CX FIFO Register */
 	uint32_t idle;	/* 0x124: IDLE Counter Register */
-#ifdef CONFIG_ARCH_NOVATEK
-	uint32_t ep0_data; /* 0x128: EP0 Setup Packet PIO Register */
-	uint32_t rsvd6[1];
-#else
 	uint32_t rsvd6[2];
-#endif
 	uint32_t gimr;	/* 0x130: Group Interrupt Mask Register */
 	uint32_t gimr0; /* 0x134: Group Interrupt Mask Register 0 */
 	uint32_t gimr1; /* 0x138: Group Interrupt Mask Register 1 */
@@ -67,9 +62,7 @@ struct fotg210_regs {
 	uint32_t rsvd8[1];
 	uint32_t dma_ctrl; /* 0x1c8: DMA Control Register */
 	uint32_t dma_addr; /* 0x1cc: DMA Address Register */
-#ifndef CONFIG_ARCH_NOVATEK
 	uint32_t ep0_data; /* 0x1d0: EP0 Setup Packet PIO Register */
-#endif
 };
 
 /* Miscellaneous Register */
@@ -185,9 +178,6 @@ struct fotg210_regs {
 #define PHYTMSR_UNPLUG      (1 << 0) /* Enable soft-detachment */
 
 /* CX FIFO Register */
-#ifdef CONFIG_ARCH_NOVATEK
-#define CXFIFO_DATA_EN      (1 << 31) /* CX_DATAPORT_EN */
-#endif
 #define CXFIFO_BYTES(x)     (((x) >> 24) & 0x7f) /* CX/EP0 FIFO byte count */
 #define CXFIFO_FIFOE(x)     (1 << (((x) & 0x03) + 8)) /* EPx FIFO empty */
 #define CXFIFO_FIFOE_FIFO0  (1 << 8)
@@ -201,9 +191,6 @@ struct fotg210_regs {
 #define CXFIFO_CXSTALL      (1 << 2) /* CX Stall */
 #define CXFIFO_TSTPKTFIN    (1 << 1) /* Test packet data transfer finished */
 #define CXFIFO_CXFIN        (1 << 0) /* CX data transfer finished */
-#ifdef CONFIG_ARCH_NOVATEK
-#define EP0_PACKET_SIZE     64
-#endif
 
 /* IDLE Counter Register */
 #define IDLE_MS(x)          ((x) & 0x07) /* PHY suspend delay = x ms */

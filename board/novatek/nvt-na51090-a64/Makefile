@@ -7,6 +7,6 @@
 BUILD_DATE = 20`date +'%y%m%d'`
 ccflags-y += -D_BUILD_DATE_=$(BUILD_DATE)
 
-obj-y := na51090evb.o na51090_hw_init.o na51090_plat_utils.o
+obj-y := na51090evb.o na51090_hw_init.o
 obj-y += nvt_headinfo.o
 obj-y += nvt_pcie/

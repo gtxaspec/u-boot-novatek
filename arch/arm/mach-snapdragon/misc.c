@@ -41,13 +41,13 @@ void msm_generate_mac_addr(u8 *mac)
 	int i;
 	char sn[9];
 
-	snprintf(sn, 8, "%08x", msm_board_serial());
+	snprintf(sn, 9, "%08x", msm_board_serial());
 
 	/* fill in the mac with serialno, use locally adminstrated pool */
 	mac[0] = 0x02;
 	mac[1] = 00;
 	for (i = 3; i >= 0; i--) {
-		mac[i + 2] = simple_strtoul(&sn[2 * i], NULL, 16);
+		mac[i + 2] = hextoul(&sn[2 * i], NULL);
 		sn[2 * i] = 0;
 	}
 }

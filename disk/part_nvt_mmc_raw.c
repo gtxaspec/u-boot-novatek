@@ -76,7 +76,7 @@ static int nvt_mmc_raw_emmc_part_parsing(uchar *name, unsigned long *start, unsi
 
 /* only boot records will be listed as valid partitions */
 static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
-			   disk_partition_t *info)
+			   struct disk_partition *info)
 {
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 	EMB_PARTITION *pEmb = emb_partition_info_data_curr;
@@ -87,8 +87,8 @@ static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
 		return -1;
 
 	info->blksz = dev_desc->blksz;
-	strcpy((char *)info->type, "NVT_MMC_RAW");
-	if (env_get("nvtemmcpart")) {
+	strncpy((char *)info->type, "U-Boot", strlen("U-Boot"));
+	if (env_get("nvtemmcpart") != NULL) {
 
 		if (nvt_mmc_raw_emmc_part_parsing(info->name, &info->start, &info->size, part_num) < 0)
 			return -1;
@@ -107,6 +107,9 @@ static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
 				break;
 			case EMBTYPE_FDT:
 				strcpy((char *)info->name, "fdt");
+				break;
+			case EMBTYPE_FDTFAST:
+				strcpy((char *)info->name, "fdtfast");
 				break;
 			case EMBTYPE_ATF:
 				strcpy((char *)info->name, "atf");
@@ -131,7 +134,7 @@ static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
 				strcpy((char *)info->name, "unknow");
 				break;
 
-		}	
+		}
 		info->size = p->PartitionSize / info->blksz;
 		info->start = p->PartitionOffset / info->blksz;
 #endif
@@ -145,7 +148,7 @@ static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
 static void nvt_mmc_raw_part_print(struct blk_desc *dev_desc)
 {
 	int part_num = 0;
-	disk_partition_t info;
+	struct disk_partition info;
 	while (nvt_mmc_raw_part_get_info(dev_desc, part_num, &info) == 0)
 	{
 		if (strncmp((const char *)info.name, "unknow", 6))
@@ -156,7 +159,7 @@ static void nvt_mmc_raw_part_print(struct blk_desc *dev_desc)
 
 static int nvt_mmc_raw_part_test(struct blk_desc *dev_desc)
 {
-	disk_partition_t info;
+	struct disk_partition info;
 
 	return nvt_mmc_raw_part_get_info(dev_desc, 1, &info);
 }

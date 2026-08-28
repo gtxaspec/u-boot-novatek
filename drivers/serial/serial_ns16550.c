@@ -5,20 +5,13 @@
  */
 
 #include <common.h>
+#include <clock_legacy.h>
+#include <ns16550.h>
+#include <serial.h>
+#include <asm/global_data.h>
 #include <linux/compiler.h>
 
-#include <ns16550.h>
-#ifdef CONFIG_NS87308
-#include <ns87308.h>
-#endif
-
-#include <serial.h>
-
 #ifndef CONFIG_NS16550_MIN_FUNCTIONS
-
-#ifdef CONFIG_NVT_BOARD
-extern u32 uart_disable_anchor;
-#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -44,34 +37,34 @@ DECLARE_GLOBAL_DATA_PTR;
 /* Note: The port number specified in the functions is 1 based.
  *	 the array is 0 based.
  */
-static NS16550_t serial_ports[6] = {
+static struct ns16550 *serial_ports[6] = {
 #ifdef CONFIG_SYS_NS16550_COM1
-	(NS16550_t)CONFIG_SYS_NS16550_COM1,
+	(struct ns16550 *)CONFIG_SYS_NS16550_COM1,
 #else
 	NULL,
 #endif
 #ifdef CONFIG_SYS_NS16550_COM2
-	(NS16550_t)CONFIG_SYS_NS16550_COM2,
+	(struct ns16550 *)CONFIG_SYS_NS16550_COM2,
 #else
 	NULL,
 #endif
 #ifdef CONFIG_SYS_NS16550_COM3
-	(NS16550_t)CONFIG_SYS_NS16550_COM3,
+	(struct ns16550 *)CONFIG_SYS_NS16550_COM3,
 #else
 	NULL,
 #endif
 #ifdef CONFIG_SYS_NS16550_COM4
-	(NS16550_t)CONFIG_SYS_NS16550_COM4,
+	(struct ns16550 *)CONFIG_SYS_NS16550_COM4,
 #else
 	NULL,
 #endif
 #ifdef CONFIG_SYS_NS16550_COM5
-	(NS16550_t)CONFIG_SYS_NS16550_COM5,
+	(struct ns16550 *)CONFIG_SYS_NS16550_COM5,
 #else
 	NULL,
 #endif
 #ifdef CONFIG_SYS_NS16550_COM6
-	(NS16550_t)CONFIG_SYS_NS16550_COM6
+	(struct ns16550 *)CONFIG_SYS_NS16550_COM6
 #else
 	NULL
 #endif
@@ -86,7 +79,7 @@ static NS16550_t serial_ports[6] = {
 		int clock_divisor; \
 		clock_divisor = ns16550_calc_divisor(serial_ports[port-1], \
 				CONFIG_SYS_NS16550_CLK, gd->baudrate); \
-		NS16550_init(serial_ports[port-1], clock_divisor); \
+		ns16550_init(serial_ports[port - 1], clock_divisor); \
 		return 0 ; \
 	} \
 	static void eserial##port##_setbrg(void) \
@@ -124,17 +117,10 @@ static NS16550_t serial_ports[6] = {
 
 static void _serial_putc(const char c, const int port)
 {
+	if (c == '\n')
+		ns16550_putc(PORT, '\r');
 
-#ifdef CONFIG_NVT_BOARD
-	if (uart_disable_anchor)
-	if (uart_disable_anchor == 1)
-		return;
-#endif
-
-	if (c == '\n' && (port == CONFIG_CONS_INDEX))
-		NS16550_putc(PORT, '\r');
-
-	NS16550_putc(PORT, c);
+	ns16550_putc(PORT, c);
 }
 
 static void _serial_puts(const char *s, const int port)
@@ -146,42 +132,21 @@ static void _serial_puts(const char *s, const int port)
 
 static int _serial_getc(const int port)
 {
-	return NS16550_getc(PORT);
+	return ns16550_getc(PORT);
 }
 
 static int _serial_tstc(const int port)
 {
-	return NS16550_tstc(PORT);
+	return ns16550_tstc(PORT);
 }
 
 static void _serial_setbrg(const int port)
 {
 	int clock_divisor;
 
-#ifdef CONFIG_NVT_IVOT_SOC
-	u32 source_clk;
-
-	if (port != 1)
-		source_clk = CONFIG_SYS_NS16550_HSCLK;
-	else
-		source_clk = CONFIG_SYS_NS16550_CLK;
-
-//NT98636 uart2 baudrate can not excess 115200
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64))
-	if(port == 2 && gd->baudrate > 115200){
-		gd->baudrate = 115200;
-		printf("baudrate for uart2 can not excess 115200!\n");
-		printf("baudrate set to 115200!\n");
-	}
-#endif
-
-	clock_divisor = ns16550_calc_divisor(PORT, source_clk,
-						 gd->baudrate);
-#else
 	clock_divisor = ns16550_calc_divisor(PORT, CONFIG_SYS_NS16550_CLK,
 					     gd->baudrate);
-#endif
-	NS16550_reinit(PORT, clock_divisor);
+	ns16550_reinit(PORT, clock_divisor);
 }
 
 static inline void

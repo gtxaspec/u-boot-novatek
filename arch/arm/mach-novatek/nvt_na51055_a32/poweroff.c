@@ -1,9 +1,11 @@
 #include <common.h>
+#include <command.h>
 #include <asm/io.h>
 #include <compiler.h>
 #include <stdlib.h>
 #include <asm/armv7.h>
 #include <asm/arch/IOAddress.h>
+#include <linux/delay.h>
 #include <asm/arch/hardware.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
@@ -19,7 +21,7 @@
 #define RTC_GETREG(ofs)        INW(IOADDR_RTC_REG_BASE+(ofs))
 #define RTC_SETREG(ofs, value) OUTW(IOADDR_RTC_REG_BASE +(ofs),(value))
 
-int do_nvt_poweroff(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_poweroff(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 
 		u32 reg_data;
@@ -38,8 +40,7 @@ int do_nvt_poweroff(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		return 0;
 }
 
-
 U_BOOT_CMD(
-	nvt_poweroff,   1,  0,  do_nvt_poweroff,
-	"To do nvt platform poweroff.", "\n"
+    nvt_poweroff,   1,  0,  do_nvt_poweroff,
+    "To do nvt platform poweroff.", "\n"
 );

@@ -5,7 +5,11 @@
  */
 
 #include <common.h>
+#include <init.h>
+#include <log.h>
 #include <dm/uclass.h>
+#include <env.h>
+#include <env_internal.h>
 #include <fdtdec.h>
 #include <fpga.h>
 #include <malloc.h>
@@ -13,36 +17,17 @@
 #include <watchdog.h>
 #include <wdt.h>
 #include <zynqpl.h>
+#include <asm/global_data.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/sys_proto.h>
+#include "../common/board.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_WDT)
-static struct udevice *watchdog_dev __attribute__((section(".data"))) = NULL;
-#endif
-
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_BOARD_EARLY_INIT_F)
-int board_early_init_f(void)
-{
-	return 0;
-}
-#endif
-
 int board_init(void)
 {
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_WDT)
-	if (uclass_get_device_by_seq(UCLASS_WDT, 0, &watchdog_dev)) {
-		debug("Watchdog: Not found by seq!\n");
-		if (uclass_get_device(UCLASS_WDT, 0, &watchdog_dev)) {
-			puts("Watchdog: Not found!\n");
-			return 0;
-		}
-	}
-
-	wdt_start(watchdog_dev, 0, 0);
-	puts("Watchdog: Started\n");
-# endif
+	if (IS_ENABLED(CONFIG_SPL_BUILD))
+		printf("Silicon version:\t%d\n", zynq_get_silicon_version());
 
 	return 0;
 }
@@ -53,6 +38,14 @@ int board_late_init(void)
 	const char *mode;
 	char *new_targets;
 	char *env_targets;
+
+	if (!(gd->flags & GD_FLG_ENV_DEFAULT)) {
+		debug("Saved variables - Skipping\n");
+		return 0;
+	}
+
+	if (!CONFIG_IS_ENABLED(ENV_VARS_UBOOT_RUNTIME_CONFIG))
+		return 0;
 
 	switch ((zynq_slcr_get_boot_mode()) & ZYNQ_BM_MASK) {
 	case ZYNQ_BM_QSPI:
@@ -68,11 +61,11 @@ int board_late_init(void)
 		env_set("modeboot", "norboot");
 		break;
 	case ZYNQ_BM_SD:
-		mode = "mmc";
+		mode = "mmc0";
 		env_set("modeboot", "sdboot");
 		break;
 	case ZYNQ_BM_JTAG:
-		mode = "pxe dhcp";
+		mode = "jtag pxe dhcp";
 		env_set("modeboot", "jtagboot");
 		break;
 	default:
@@ -98,7 +91,7 @@ int board_late_init(void)
 
 	env_set("boot_targets", new_targets);
 
-	return 0;
+	return board_late_init_xilinx();
 }
 
 #if !defined(CONFIG_SYS_SDRAM_BASE) && !defined(CONFIG_SYS_SDRAM_SIZE)
@@ -128,24 +121,33 @@ int dram_init(void)
 }
 #endif
 
-#if defined(CONFIG_WATCHDOG)
-/* Called by macro WATCHDOG_RESET */
-void watchdog_reset(void)
+enum env_location env_get_location(enum env_operation op, int prio)
 {
-# if !defined(CONFIG_SPL_BUILD)
-	static ulong next_reset;
-	ulong now;
+	u32 bootmode = zynq_slcr_get_boot_mode() & ZYNQ_BM_MASK;
 
-	if (!watchdog_dev)
-		return;
+	if (prio)
+		return ENVL_UNKNOWN;
 
-	now = timer_get_us();
-
-	/* Do not reset the watchdog too often */
-	if (now > next_reset) {
-		wdt_reset(watchdog_dev);
-		next_reset = now + 1000;
+	switch (bootmode) {
+	case ZYNQ_BM_SD:
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_FAT))
+			return ENVL_FAT;
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_EXT4))
+			return ENVL_EXT4;
+		return ENVL_NOWHERE;
+	case ZYNQ_BM_NAND:
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_NAND))
+			return ENVL_NAND;
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_UBI))
+			return ENVL_UBI;
+		return ENVL_NOWHERE;
+	case ZYNQ_BM_NOR:
+	case ZYNQ_BM_QSPI:
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_SPI_FLASH))
+			return ENVL_SPI_FLASH;
+		return ENVL_NOWHERE;
+	case ZYNQ_BM_JTAG:
+	default:
+		return ENVL_NOWHERE;
 	}
-# endif
 }
-#endif

@@ -12,6 +12,9 @@
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_rsa.h>
+#include <asm/cache.h>
+
+#include <linux/delay.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition

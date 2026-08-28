@@ -12,15 +12,16 @@
 */
 
 #include <common.h>
+#include <command.h>
 #include <asm/armv7.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
-#include <asm/arch/efuse_protected.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
+#include <asm/arch/efuse_protected.h>
 
 #define SYSTEM_CLOCK_RATE_OFS           0x10
 #define CPU_CLOCK_RATE_RATIO0_OFS       0x4820
@@ -54,112 +55,13 @@ u32 ca53_get_cycle_count(void);
 void ca53_cycle_count_stop(void);
 void ca53_cycle_count_start(BOOL do_reset, BOOL enable_divider);
 
-inline void apll_set_data(u8 offset, u8 value)
-{
-#if 0
-	writel(value, (APLL_BASE_ADDR + (offset * 4)));
-#endif
-}
-
-inline u32 apll_get_data(u8 offset)
-{
-	return 0;
-}
-
-#ifdef CONFIG_NVT_FPGA_EMULATION
-static int nvt_cpu_get_freq_by_core_timer(void)
-{
-	u32 freq;
-	u32 time_1, time_2, temp, time_interval;
-
-	ca53_cycle_count_start(TRUE, FALSE);
-	time_1 = ca53_get_cycle_count();
-	core_timer_delay(CALCULATE_CPU_FREQ_UNIT_US);
-	time_2 = ca53_get_cycle_count();
-	if (time_2 > time_1) {
-		time_interval = (time_2 - time_1);
-	} else {
-		temp = 0xFFFFFFFF - time_1;
-		time_interval = temp + time_2;
-	}
-	freq = (time_interval) / (CALCULATE_CPU_FREQ_UNIT_US);
-	ca53_cycle_count_stop();
-	return (freq * 1000);
-}
-#endif
-
-#if 0
-inline void apll_enable(pll_page_t page)
-{
-	if (PLL_PAGE_0 == page) {
-		writel(APLL_PAGE_0_EN, (APLL_PAGE_EN_ADDR));
-	} else if (PLL_PAGE_B == page) {
-		writel(APLL_PAGE_B_EN, (APLL_PAGE_EN_ADDR));
-	} else {
-		/* ignore */
-	}
-}
-#endif
-
 inline void mpll_set_data(u8 offset, u8 value)
 {
-#if 0
-	writel(value, (MPLL_BASE_ADDR + (offset * 4)));
-#endif
+
 }
 
 inline u32 mpll_get_data(u8 offset)
 {
-	return 0;
-#if 0
-	return readl((MPLL_BASE_ADDR + (offset * 4)));
-#endif
-}
-
-#if 0
-inline void mpll_enable(pll_page_t page)
-{
-	if (PLL_PAGE_0 == page) {
-		writel(MPLL_PAGE_0_EN, (MPLL_PAGE_EN_ADDR));
-	} else if (PLL_PAGE_B == page) {
-		writel(MPLL_PAGE_B_EN, (MPLL_PAGE_EN_ADDR));
-	} else {
-		/* ignore */
-	}
-}
-#endif
-
-void set_sys_mpll(unsigned long off, unsigned long val)
-{
-#if 0
-	val <<= 17;
-	val  /= 12;
-
-	mpll_enable(PLL_PAGE_B);
-
-	mpll_set_data((off + 0), ((val >> 0) & 0xff));
-	mpll_set_data((off + 1), ((val >> 8) & 0xff));
-	mpll_set_data((off + 2), ((val >> 16) & 0xff));
-#endif
-}
-
-unsigned long get_sys_mpll(unsigned long off)
-{
-#if 0
-	unsigned long val;
-
-	mpll_enable(PLL_PAGE_B);
-
-	val  = mpll_get_data(off);
-	val |= (mpll_get_data((off + 1)) << 8);
-	val |= (mpll_get_data((off + 2)) << 16);
-
-	val *= 12;
-	val += ((1UL << 17) - 1);
-	val >>= 17;
-
-	return val;
-#endif
 	return 0;
 }
 
@@ -324,7 +226,7 @@ void ca53_cycle_count_stop(void)
 
 
 
-int do_nvt_cpu_get_freq(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_cpu_get_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 fpga = 0;
 	u32 /*test, */freq;
@@ -374,7 +276,7 @@ U_BOOT_CMD(
 );
 #endif
 
-int do_nvt_cpu_freq(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 value = simple_strtoul(argv[1], NULL, 10);
 	u32 uiReg;
@@ -537,7 +439,7 @@ U_BOOT_CMD(
 );
 
 
-int do_nvt_ddr_freq(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_ddr_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	unsigned int freq_ratio;
 	unsigned int freq_ratio0, freq_ratio1, freq_ratio2;
@@ -614,7 +516,7 @@ int prepare_power_trim(int mode)
 }
 
 
-int do_nvt_pwr_ctrl(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_pwr_ctrl(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 value = simple_strtoul(argv[1], NULL, 10);
 	//u32 uiReg;

@@ -3,6 +3,7 @@
  * Copyright 2014 Broadcom Corporation.
  */
 
+#include <compiler.h>
 #include <part.h>
 #include <sparse_format.h>
 
@@ -19,7 +20,7 @@ struct sparse_storage {
 				 lbaint_t blkcnt,
 				 const void *buffer);
 
-	lbaint_t	(*read)(struct sparse_storage *info,
+	lbaint_t        (*read)(struct sparse_storage *info,
 				 lbaint_t blk,
 				 lbaint_t blkcnt,
 				 const void *buffer);
@@ -44,11 +45,10 @@ static inline int is_sparse_image(void *buf)
 
 int write_sparse_image(struct sparse_storage *info, const char *part_name,
 		       void *data, char *response);
-
 int read_sparse_image(struct sparse_storage *info, const char *part_name,
-			void *data, char *response);
+		                        void *data, char *response);
 #ifdef CONFIG_ARCH_NOVATEK
 unsigned int write_spimg_on_dfu(struct sparse_storage *info, const char *part_name,
-		       void *data, char *response, unsigned int data_size);
+		                       void *data, char *response, unsigned int data_size);
 #endif
 

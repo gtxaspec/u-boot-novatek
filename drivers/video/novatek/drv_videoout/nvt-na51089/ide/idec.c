@@ -54,6 +54,8 @@
 */
 //@{
 #define HS_DELAY_CNT    5
+#define DISABLE_LINE_ERROR_INT	0
+#define IDE_INT_MODE      1
 
 // Default comparative for video cover
 IDE_LINE_COMPARATIVE g_ide_line_comparative = IDE_LINE_COMPARATIVE_GTLE;
@@ -66,12 +68,14 @@ static UINT32   v_wait_num[] = {0, 0};
 
 /// ide Frame H sync count
 static UINT8            v_ide_opened[] = {FALSE, FALSE};
-//static ID             v_ide_lock_status[] = {NO_TASK_LOCKED, NO_TASK_LOCKED};
+//static ID               v_ide_lock_status[] = {NO_TASK_LOCKED, NO_TASK_LOCKED};
 //static UINT32           v_ide_int_status[] = {0x0, 0x0};
 
 //function prototype
 //ID idec_get_lock_status(IDE_ID id);
 void ide_isr(void);
+void ide2_isr(void);
+
 
 //extern void idec_dump_info(UINT32 id);
 extern UINT32 idec_dump_status(UINT32 *p_data);
@@ -79,7 +83,7 @@ extern UINT32 idec_dump_status(UINT32 *p_data);
 static BOOL cmd_ide_dumpinfo(CHAR *strCmd)
 {
     idec_dump_info(0);
-    idec_dump_info(1);
+    //idec_dump_info(1);
     return TRUE;
 }
 
@@ -130,7 +134,7 @@ void ide_isr(void)
 	UINT32 i = 0;
 	UINT32 dead_zone = 0;
 
-	v_ide_int_status[IDE_ID_1] = idec_get_reg((UINT32)IDE_ID_1, IDE_INT_OFS);//ide2_getInterruptStatus();
+	v_ide_int_status[IDE_ID_1] = idec_get_reg((UINT32)IDE_ID_1, IDE_INT_STS_OFS);//ide2_getInterruptStatus();
 
 	v_ide_int_status[IDE_ID_1] &= (idec_get_interrupt_en(IDE_ID_1) << IDE_INTSTS_SFT);
 
@@ -222,6 +226,7 @@ void ide_isr(void)
 		    DBG_WRN("ide O2 BW not enough!\r\n");
 		}
 		*/
+#if !DISABLE_LINE_ERROR_INT
 		else if (v_ide_int_status[IDE_ID_1] & IDE_V1_LINE_START_ERROR_IRQSTS) {
 			idec_clear_interrupt_status(IDE_ID_1, IDE_V1_LINE_START_ERROR_IRQSTS);
 			DBG_WRN("ide V1 Line start error!\r\n");
@@ -232,7 +237,29 @@ void ide_isr(void)
 			idec_clear_interrupt_status(IDE_ID_1, IDE_O1_LINE_START_ERROR_IRQSTS);
 			DBG_WRN("ide O1 Line start error!\r\n");
 		}
-
+#endif
+		else if (v_ide_int_status[IDE_ID_1] & IDE_WB_Y_OVERRUN_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_1, IDE_WB_Y_OVERRUN_IRQSTS);
+			DBG_WRN("ide Y write back overrun error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_1] & IDE_WB_C_OVERRUN_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_1, IDE_WB_C_OVERRUN_IRQSTS);
+			DBG_WRN("ide C write back overrun error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_1] & IDE_DMA_ERROR_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_1, IDE_DMA_ERROR_IRQSTS);
+			DBG_WRN("ide dma error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_1] & IDE_V1_YCC_ERROR_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_1, IDE_V1_YCC_ERROR_IRQSTS);
+			DBG_WRN("ide v1 ycc error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_1] & IDE_V2_YCC_ERROR_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_1, IDE_V2_YCC_ERROR_IRQSTS);
+			DBG_WRN("ide v2 ycc error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_1] & IDE_MON_N1_LINE_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_1, IDE_MON_N1_LINE_IRQSTS);
+			DBG_WRN("ide monitor N1 line!\r\n");
+		}else if (v_ide_int_status[IDE_ID_1] & IDE_MON_N2_LINE_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_1, IDE_MON_N2_LINE_IRQSTS);
+			DBG_WRN("ide monitor N2 line!\r\n");
+		}
 
 	}
 }
@@ -246,23 +273,73 @@ void ide_isr(void)
 */
 void ide2_isr(void)
 {
-	v_ide_int_status[IDE_ID_2] = idec_get_reg((UINT32)IDE_ID_2, IDE_INT_OFS);//ide2_getInterruptStatus();
+	UINT32 i = 0;
+	UINT32 dead_zone = 0;
+
+	v_ide_int_status[IDE_ID_2] = idec_get_reg((UINT32)IDE_ID_2, IDE_INT_STS_OFS);//ide2_getInterruptStatus();
 
 	v_ide_int_status[IDE_ID_2] &= (idec_get_interrupt_en(IDE_ID_2) << IDE_INTSTS_SFT);
 
 	if (v_ide_int_status[IDE_ID_2] != 0) {
+#if defined(_BSP_NA51000_)
 		if (v_ide_int_status[IDE_ID_2] & IDE_VS_IRQSTS) {
 
 			// Clear Interrupt
 			idec_clear_interrupt_status(IDE_ID_2, IDE_VS_IRQSTS);
 
-			// signal event flag for interrupt notification
-			ide_platform_flg_set(IDE_ID_2, (FLGPTN)v_wait_num[IDE_ID_2]);
+			while(((idec_get_reg(IDE_ID_2, IDE_CTRL_OFS) >> 28) & 0x1)){
+				i++;
+				if (i == 5) {
+					dead_zone = 1;
+					break;
+				}
+			}
 
 			// Disable interrupt
-			idec_clr_interrupt_en(IDE_ID_2, IDE_VS_IRQEN);
+			if (dead_zone == 0)
+				idec_clr_interrupt_en(IDE_ID_2, IDE_VS_IRQEN);
+
+			if (!ide_platform_list_empty(IDE_ID_2)) {
+				ide_platform_set_ist_event(IDE_ID_2);
+			} else if ((dead_zone == 0) && (v_wait_num[IDE_ID_2] != 0)) {
+				ide_platform_flg_set(IDE_ID_2, (FLGPTN)v_wait_num[IDE_ID_2]);
+			}
 		}
-		/*
+
+#else
+		if (v_ide_int_status[IDE_ID_2] & IDE_FRAME_END_IRQSTS) {
+
+			// Clear Interrupt
+			idec_clear_interrupt_status(IDE_ID_2, IDE_FRAME_END_IRQSTS);
+
+			while(((idec_get_reg(IDE_ID_2, IDE_CTRL_OFS) >> 28) & 0x1)){
+				i++;
+				if (i == 5) {
+					dead_zone = 1;
+					break;
+				}
+			}
+
+			// Disable interrupt
+			if (dead_zone == 0)
+				idec_clr_interrupt_en(IDE_ID_2, IDE_FRAME_END_IRQEN);
+
+			if (!ide_platform_list_empty(IDE_ID_2)) {
+				ide_platform_set_ist_event(IDE_ID_2);
+			} else if ((dead_zone == 0) && (v_wait_num[IDE_ID_2] != 0)) {
+				ide_platform_flg_set(IDE_ID_2, (FLGPTN)v_wait_num[IDE_ID_2]);
+			}
+		}
+#endif
+
+		else if (v_ide_int_status[IDE_ID_2] & IDE_YUV_OUT_DRAM_END_IRQSTS) {
+			DBG_IND("ide2 YUV output done\r\n");
+			// Clear Interrupt
+			idec_clear_interrupt_status(IDE_ID_2, IDE_YUV_OUT_DRAM_END_IRQSTS);
+
+			ide_platform_flg_set(IDE_ID_2, FLGPTN_IDE_DMA_DONE);         // signal event flag for interrupt notification
+		}
+        /*
 		else if (g_IDEIntStatus & IDE_HS_IRQSTS)
 		{
 		     g_IDEHsyncCnt ++;
@@ -271,40 +348,115 @@ void ide2_isr(void)
 
 		    iset_flg(FLG_ID_IDE, FLGPTN_IDE);         // signal event flag for interrupt notification
 		}
-		*/
+        */
 		else if (v_ide_int_status[IDE_ID_2] & IDE_V1BWF_IRQSTS) {
 			idec_clear_interrupt_status(IDE_ID_2, IDE_V1BWF_IRQSTS);
-			DBG_WRN("IDE2 V1 BW not enough!\r\n");
-		}
-		/*
-		else if (v_ide_int_status[IDE_ID_2] & IDE_V2BWF_IRQSTS)
-		{
-		    idec_clear_interrupt_status(IDE_ID_2, IDE_V2BWF_IRQSTS);
-		    DBG_WRN("IDE2 V2 BW not enough!\r\n");
-		}
-		*/
-		else if (v_ide_int_status[IDE_ID_2] & IDE_OSD1BWF_IRQSTS) {
+			#ifndef CONFIG_NVT_FPGA_EMULATION
+			DBG_WRN("ide2 V1 BW not enough!\r\n");
+			#endif
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_V2BWF_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_V2BWF_IRQSTS);
+			DBG_WRN("ide2 V2 BW not enough!\r\n");
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_OSD1BWF_IRQSTS) {
 			idec_clear_interrupt_status(IDE_ID_2, IDE_OSD1BWF_IRQSTS);
-			DBG_WRN("IDE2 O1 BW not enough!\r\n");
+			DBG_WRN("ide2 O1 BW not enough!\r\n");
 		}
 		/*
 		else if (v_ide_int_status[IDE_ID_2] & IDE_OSD2BWF_IRQSTS)
 		{
 		    idec_clear_interrupt_status(IDE_ID_2, IDE_OSD2BWF_IRQSTS);
-		    DBG_WRN("IDE2 O2 BW not enough!\r\n");
+		    DBG_WRN("ide O2 BW not enough!\r\n");
 		}
 		*/
+#if !DISABLE_LINE_ERROR_INT
 		else if (v_ide_int_status[IDE_ID_2] & IDE_V1_LINE_START_ERROR_IRQSTS) {
 			idec_clear_interrupt_status(IDE_ID_2, IDE_V1_LINE_START_ERROR_IRQSTS);
-			DBG_WRN("IDE2 V1 Line start error!\r\n");
+			DBG_WRN("ide2 V1 Line start error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_V2_LINE_START_ERROR_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_V2_LINE_START_ERROR_IRQSTS);
+			DBG_WRN("ide2 V2 Line start error!\r\n");
 		} else if (v_ide_int_status[IDE_ID_2] & IDE_O1_LINE_START_ERROR_IRQSTS) {
 			idec_clear_interrupt_status(IDE_ID_2, IDE_O1_LINE_START_ERROR_IRQSTS);
-			DBG_WRN("IDE2 O1 Line start error!\r\n");
+			DBG_WRN("ide2 O1 Line start error!\r\n");
 		}
+#endif
+		else if (v_ide_int_status[IDE_ID_2] & IDE_WB_Y_OVERRUN_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_WB_Y_OVERRUN_IRQSTS);
+			DBG_WRN("ide2 Y write back overrun error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_WB_C_OVERRUN_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_WB_C_OVERRUN_IRQSTS);
+			DBG_WRN("ide2 C write back overrun error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_DMA_ERROR_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_DMA_ERROR_IRQSTS);
+			DBG_WRN("ide2 dma error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_V1_YCC_ERROR_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_V1_YCC_ERROR_IRQSTS);
+			DBG_WRN("ide2 v1 ycc error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_V2_YCC_ERROR_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_V2_YCC_ERROR_IRQSTS);
+			DBG_WRN("ide2 v2 ycc error!\r\n");
+		} else if (v_ide_int_status[IDE_ID_2] & IDE_MON_N1_LINE_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_MON_N1_LINE_IRQSTS);
+			DBG_WRN("ide2 monitor N1 line!\r\n");
+		}else if (v_ide_int_status[IDE_ID_2] & IDE_MON_N2_LINE_IRQSTS) {
+			idec_clear_interrupt_status(IDE_ID_2, IDE_MON_N2_LINE_IRQSTS);
+			DBG_WRN("ide2 monitor N2 line!\r\n");
+		}
+
 	}
 }
-#endif
 
+void idec_parsing_interrupt(IDE_ID id)
+{
+	INT32 interrupt_status=0;
+	UINT32 error_int_flag = IDE_V1_LINE_START_ERROR_IRQSTS|
+							IDE_V2_LINE_START_ERROR_IRQSTS|
+							IDE_O1_LINE_START_ERROR_IRQSTS|
+							IDE_WB_Y_OVERRUN_IRQSTS|
+							IDE_WB_C_OVERRUN_IRQSTS|
+							IDE_DMA_ERROR_IRQSTS|
+							IDE_V1_YCC_ERROR_IRQSTS|
+							IDE_V2_YCC_ERROR_IRQSTS;
+
+	interrupt_status = v_ide_int_status[id];
+	//printf("int status 0x%x\n", interrupt_status);
+	if(interrupt_status & IDE_V1_LINE_START_ERROR_IRQSTS){
+		DBG_ERR("IDE%d, V1 line start error!\n", id+1);
+	}
+	if(interrupt_status & IDE_V2_LINE_START_ERROR_IRQSTS){
+		DBG_ERR("IDE%d, V2 line start error!\n", id+1);
+	}
+	if(interrupt_status & IDE_O1_LINE_START_ERROR_IRQSTS){
+		DBG_ERR("IDE%d, O1 line start error!\n", id+1);
+	}
+	if(interrupt_status & IDE_V1BWF_IRQSTS){
+		DBG_ERR("IDE%d, V1 BW not enough!\n", id+1);
+	}
+	if(interrupt_status & IDE_V2BWF_IRQSTS){
+		DBG_ERR("IDE%d, V2 BW not enough!\n", id+1);
+	}
+	if(interrupt_status & IDE_OSD1BWF_IRQSTS){
+		DBG_ERR("IDE%d, O1 BW not enough!\n", id+1);
+	}
+	if(interrupt_status & IDE_V1_YCC_ERROR_IRQSTS){
+		DBG_ERR("IDE%d, V1 YCC decode error!\n", id+1);
+	}
+	if(interrupt_status & IDE_V2_YCC_ERROR_IRQSTS){
+		DBG_ERR("IDE%d, V2 YCC decode error!\n", id+1);
+	}
+	if(interrupt_status & IDE_WB_Y_OVERRUN_IRQSTS){
+		DBG_ERR("IDE%d, WB Y over run!\n", id+1);
+	}
+	if(interrupt_status & IDE_WB_C_OVERRUN_IRQSTS){
+		DBG_ERR("IDE%d, WB C over run!\n", id+1);
+	}
+	if(interrupt_status & IDE_DMA_ERROR_IRQSTS){
+		DBG_ERR("IDE%d, DMA error!\n", id+1);
+	}
+	if(v_ide_int_status[id] & error_int_flag) ide_log_cnt[id]++;
+
+}
+#endif
 ER idec_set_config(IDE_ID id, IDE_CONFIG_ID config_id, UINT32 config_context)
 {
 	if (id > IDE_ID_2) {
@@ -478,7 +630,7 @@ void idec_isr_bottom(IDE_ID id, UINT32 events)
 {
 	IDE_REQ_LIST_NODE *p_node;
 	BOOL is_list_empty;
-	UINT32 spin_flags;
+	ULONG spin_flags;
 
 	while (1) {
 	    p_node = ide_platform_get_head(id);
@@ -515,23 +667,25 @@ ER idec_open(IDE_ID id)
 {
 //	ER er_return;
 
-	//idec_installCmd();
-
+#if 0//defined __FREERTOS
+	idec_installCmd();
+#endif
+#if 0
 	if (id > IDE_ID_1) {
 		return E_NOSPT;
 	}
-
+#endif
 	if (v_ide_opened[id]) {
 		return E_OK;
 	}
 #if defined __FREERTOS
-	ide_platform_create_resource();
+	ide_platform_create_resource(id);
 #endif
-//	er_return = ide_platform_flg_clear(id, FLGPTN_IDE | FLGPTN_IDE_2 | FLGPTN_IDE_3 | FLGPTN_IDE_4 | FLGPTN_IDE_5);
-//	if (er_return != E_OK) {
-//		return er_return;
-//	}
-//	ide_platform_int_enable(id);
+/*	er_return = ide_platform_flg_clear(id, FLGPTN_IDE | FLGPTN_IDE_2 | FLGPTN_IDE_3 | FLGPTN_IDE_4 | FLGPTN_IDE_5);
+	if (er_return != E_OK) {
+		return er_return;
+	}
+	ide_platform_int_enable(id);*/
 
 
 	idec_set_interrupt_en(id, IDEDEFAULT_EN_INT);
@@ -563,30 +717,43 @@ ER idec_open(IDE_ID id)
 */
 ER idec_close(IDE_ID id)
 {
-	if (id > IDE_ID_1) {
+#if 0
+	if (id > IDEC_IDEIDX) {
 		return E_NOSPT;
 	}
-
+#endif
 #if defined __FREERTOS
-	ide_platform_release_resource();
+	ide_platform_release_resource(0);
+	ide_platform_release_resource(1);
+
 #endif
 //	ide_platform_int_disable(id);
 	// Enable ide's sram shutdown => disable ide sram
 	//ide_platform_sram_enable(id);
 
 	idec_clr_interrupt_en(id, IDE_INTEN_MSK);
-
-//	if (v_wait_num[id] != 0) {
+/*
+	if (v_wait_num[id] != 0) {
 		// signal event flag for interrupt notification
-//		ide_platform_flg_set(id, FLGPTN_IDE | FLGPTN_IDE_2 | FLGPTN_IDE_3 | FLGPTN_IDE_4 | FLGPTN_IDE_5);
+		ide_platform_flg_set(id, FLGPTN_IDE | FLGPTN_IDE_2 | FLGPTN_IDE_3 | FLGPTN_IDE_4 | FLGPTN_IDE_5);
 
-//		v_wait_num[id] = 0;
-//	}
+		v_wait_num[id] = 0;
+	}*/
 
 	v_ide_opened[id] = FALSE;
 
 	return E_OK;
 }
+
+void idec_interrupt_enable(IDE_ID id)
+{
+	idec_set_interrupt_en(id, IDEDEFAULT_EN_INT);
+}
+/*
+void idec_clear_log_cnt(IDE_ID id)
+{
+	ide_log_cnt[id] = 0;
+}*/
 
 /**
     ide open status.
@@ -869,25 +1036,8 @@ BOOL idec_set_video_win_attr_ex(IDE_ID id, IDE_VIDEOID video_id, VOSD_WINDOW_ATT
 	factor_h_dec = factor_h;
 
 	if (video_id == IDE_VIDEOID_1) {
-		if (idec_get_rgbd(id) == 1) {
-//			idec_set_v1_win_dim(id, (des_w * 4 - 1), (pv_win_attr->des_h - 1));
-//			idec_set_v1_win_pos(id, win_x * 4, pv_win_attr->win_y + gui_const_win_y[id]);
-			idec_set_v1_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
-			idec_set_v1_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
-		} else if (idec_get_through(id) == 1) {
-//			idec_set_v1_win_dim(id, (des_w * 3 - 1), (pv_win_attr->des_h - 1));
-//			idec_set_v1_win_pos(id, win_x * 3, pv_win_attr->win_y + gui_const_win_y[id]);
-			idec_set_v1_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
-			idec_set_v1_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
-		} else {
-			if (idec_get_interlace(id) == 1) {
-				idec_set_v1_win_dim(id, (des_w - 1), (pv_win_attr->des_h / 2 - 1));
-			} else {
-				idec_set_v1_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
-			}
-			idec_set_v1_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
-		}
-
+		idec_set_v1_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
+		idec_set_v1_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
 		idec_set_v1_fmt(id, pv_win_attr->win_format);
 
 #if IDE_CMLCOMPARE
@@ -919,25 +1069,8 @@ BOOL idec_set_video_win_attr_ex(IDE_ID id, IDE_VIDEOID video_id, VOSD_WINDOW_ATT
 		idec_set_v1_scale_ctrl(id, w_scale_key, h_scale_key);
 
 	} else {
-		if (idec_get_rgbd(id) == 1) {
-			//idec_set_v2_win_dim(id, (des_w * 4 - 1), (pv_win_attr->des_h - 1));
-			//idec_set_v2_win_pos(id, win_x * 4, pv_win_attr->win_y + gui_const_win_y[id]);
-			idec_set_v2_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
-			idec_set_v2_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
-		} else if (idec_get_through(id) == 1) {
-			//idec_set_v2_win_dim(id, (des_w * 3 - 1), (pv_win_attr->des_h - 1));
-			//idec_set_v2_win_pos(id, win_x * 3, pv_win_attr->win_y + gui_const_win_y[id]);
-			idec_set_v2_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
-			idec_set_v2_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
-		} else {
-			if (idec_get_interlace(id) == 1) {
-				idec_set_v2_win_dim(id, (des_w - 1), (pv_win_attr->des_h / 2 - 1));
-			} else {
-				idec_set_v2_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
-			}
-			idec_set_v2_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
-		}
-
+		idec_set_v2_win_dim(id, (des_w - 1), (pv_win_attr->des_h - 1));
+		idec_set_v2_win_pos(id, win_x, pv_win_attr->win_y + gui_const_win_y[id]);
 		idec_set_v2_fmt(id, pv_win_attr->win_format);
 		// Set V2 H-Scaling method
 		if ((pv_win_attr->win_format == COLOR_ARGB8565) || (pv_win_attr->win_format == COLOR_ARGB4565)) {
@@ -1031,7 +1164,7 @@ void idec_set_video_vsf_init(IDE_ID id, IDE_VIDEOID video_id, UINT32 ui_init0, U
 
     @return TRUE or FALSE.
 */
-BOOL idec_set_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, UINT32 ui_osd_addr)
+BOOL idec_set_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, IDEDATA_TYPE ui_osd_addr)
 {
 	if ((osd_id != IDE_OSDID_1)/* && (osd_id != IDE_OSDID_2)*/) {
 		return FALSE;
@@ -1059,7 +1192,7 @@ BOOL idec_set_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, UINT32 ui_osd_addr)
 
     @return TRUE or FALSE.
 */
-BOOL idec_get_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, UINT32 *pui_osd_addr)
+BOOL idec_get_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, IDEDATA_TYPE *pui_osd_addr)
 {
 	if ((osd_id != IDE_OSDID_1)/* && (osd_id != IDE_OSDID_2)*/) {
 		return FALSE;
@@ -1259,11 +1392,7 @@ BOOL idec_set_osd_win_attr_ex(IDE_ID id, IDE_OSDID osd_id, VOSD_WINDOW_ATTR *p_o
 			idec_set_o1_win_dim(id, (des_w * 3 - 1), (p_osd_win_attr->des_h - 1));
 			idec_set_o1_win_pos(id, win_x * 3, p_osd_win_attr->win_y + gui_const_win_y[id]);
 		} else {
-			if (idec_get_interlace(id) == 1) {
-				idec_set_o1_win_dim(id, (des_w - 1), (p_osd_win_attr->des_h / 2 - 1));
-			} else {
-				idec_set_o1_win_dim(id, (des_w - 1), (p_osd_win_attr->des_h - 1));
-			}
+			idec_set_o1_win_dim(id, (des_w - 1), (p_osd_win_attr->des_h - 1));
 			idec_set_o1_win_pos(id, win_x, p_osd_win_attr->win_y + gui_const_win_y[id]);
 		}
 
@@ -1447,10 +1576,10 @@ void idec_set_palette_group(IDE_ID id, UINT32 ui_start, UINT32 ui_number, UINT32
 	UINT32 i = 0;
 	UINT32 current_pal;
 
-	//if((ui_start+ui_number) > IDE_PAL_NUM)
-	//{
-	//    DBG_WRN("Palette entry exceed the total palette size! ui_start=%d  ui_number=%d\r\n",ui_start,ui_number);
-	//}
+	if((ui_start+ui_number) > IDE_PAL_NUM)
+	{
+	    DBG_WRN("Palette entry exceed the total palette size! ui_start=%d  ui_number=%d\r\n",ui_start,ui_number);
+	}
 
 
 	if (ui_start < IDE_PAL_NUM) {
@@ -1461,13 +1590,15 @@ void idec_set_palette_group(IDE_ID id, UINT32 ui_start, UINT32 ui_number, UINT32
 		idec_set_pal0_rw(id, 1);
 
 		for (current_pal = ui_start; current_pal < end; current_pal++) {
-			idec_set_pal(id, current_pal, p_palette_entry[i++]);
+			idec_set_pal(id, current_pal, p_palette_entry[i]);
+			idec_set_pal_shadow(id, current_pal, p_palette_entry[i]);  // for OSD vertical bilinear
+			i++;
 		}
 
 		idec_set_pal0_rw(id, 0);
 
 	}
-
+#if 0
 	if ((ui_start + ui_number) > IDE_PAL_NUM) {
 		UINT32 start;
 
@@ -1481,8 +1612,7 @@ void idec_set_palette_group(IDE_ID id, UINT32 ui_start, UINT32 ui_number, UINT32
 
 		idec_set_pal0_rw(id, 0);
 	}
-
-
+#endif
 
 }
 
@@ -1784,10 +1914,13 @@ void idec_wait_frame_end(IDE_ID id, BOOL wait)
 		DBG_WRN("parameter wait must be true! NOT SUPPORT NON BLOCKING(auto change parameter wait to TRUE)\r\n");
 		wait = TRUE;
 	}
-	if (id > IDE_ID_1) {
+#if 0
+	if (id > IDEC_IDEIDX) {
 		DBG_WRN("error id\r\n");
 		return;
 	}
+#endif
+
 
 	if (idec_get_en(id) == 1) {
 		if ((idec_get_interrupt_en(id) & IDE_FRAME_END_IRQEN) != IDE_FRAME_END_IRQEN) {
@@ -1805,6 +1938,7 @@ void idec_wait_frame_end(IDE_ID id, BOOL wait)
 		// So we add 40ms delay to ensure the ide disable is activate.
 		ide_platform_delay_ms(40);//25Hz
 	}
+
 }
 
 /**
@@ -1815,22 +1949,26 @@ void idec_wait_frame_end(IDE_ID id, BOOL wait)
 */
 void idec_wait_yuv_output_done(IDE_ID id)
 {
-
+#if 0
 	if (id == IDE_ID_2) {
 		DBG_ERR("YUV output only available at IDE1\r\n");
 		return;
 	}
-
+#endif
 	if (idec_get_en(id) == 1) {
+		/*flag = ide_platform_spin_lock(id);
 
-//		idec_set_interrupt_en(id, IDE_YUV_OUT_DRAM_END_IRQEN);
+		idec_clear_interrupt_status(id, IDE_YUV_OUT_DRAM_END_IRQSTS);
+
+		idec_set_interrupt_en(id, IDE_YUV_OUT_DRAM_END_IRQEN);
+
+		ide_platform_spin_unlock(id, flag);
+
+		ide_platform_flg_wait(id, FLGPTN_IDE_DMA_DONE);*/
+
 		idec_clr_interrupt_en(id, IDE_YUV_OUT_DRAM_END_IRQEN);
 
-		//ide_platform_flg_wait(id, FLGPTN_IDE_DMA_DONE);
 		while(!((idec_get_interrupt_status(id) & IDE_YUV_OUT_DRAM_END_IRQSTS) == IDE_YUV_OUT_DRAM_END_IRQSTS)) {};
-
-		//idec_clr_interrupt_en(id, IDE_YUV_OUT_DRAM_END_IRQEN);
-
 		idec_clear_interrupt_status(id, IDE_YUV_OUT_DRAM_END_IRQSTS);
 	}
 }
@@ -2002,7 +2140,7 @@ void idec_set_video_buffer_content(IDE_ID id, IDE_VIDEOID video_id, IDE_BUFFERID
 	//#NT#2015/10/07#Steven Wang -end
 	UINT32  ui_total_cbcr_length = 0;
 	UINT8   uc_buffer_selected;
-	UINT32  ui_y_addr, ui_cb_addr, ui_cr_addr;
+	IDEDATA_TYPE  ui_y_addr, ui_cb_addr, ui_cr_addr;
 	IDE_BJMODE ui_bjmode;
 	IDE_OP_BUF ui_optbuf;
 	IDE_BUF_NUM ui_buf_num;
@@ -2313,6 +2451,7 @@ void idec_get_constant_window_offset(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y)
 
 #if (0)//def __KERNEL__
 EXPORT_SYMBOL(idec_open);
+EXPORT_SYMBOL(idec_interrupt_enable);
 EXPORT_SYMBOL(idec_set_color_comp_ccon_en);
 EXPORT_SYMBOL(idec_set_color_ctrl_hue);
 EXPORT_SYMBOL(idec_wait_frame_end);
@@ -2378,6 +2517,11 @@ EXPORT_SYMBOL(idec_get_en);
 EXPORT_SYMBOL(idec_set_v2_buf0_addr);
 EXPORT_SYMBOL(idec_get_icst0);
 EXPORT_SYMBOL(idec_set_dram_out_format);
+EXPORT_SYMBOL(idec_get_dram_out_format);
+EXPORT_SYMBOL(idec_set_dram_out_uvswap);
+EXPORT_SYMBOL(idec_get_dram_out_uvswap);
+EXPORT_SYMBOL(idec_get_dram_out);
+EXPORT_SYMBOL(idec_set_dram_out);
 EXPORT_SYMBOL(idec_get_v1_read_order);
 EXPORT_SYMBOL(idec_set_osd_win_attr_ex);
 EXPORT_SYMBOL(idec_set_out_comp);
@@ -2387,6 +2531,9 @@ EXPORT_SYMBOL(idec_set_all_window_dis);
 EXPORT_SYMBOL(idec_get_o1_en);
 EXPORT_SYMBOL(idec_get_color_comp_yofs);
 EXPORT_SYMBOL(idec_set_o1_hsm);
+EXPORT_SYMBOL(idec_set_o1_vsm);
+EXPORT_SYMBOL(idec_get_o1_hsm);
+EXPORT_SYMBOL(idec_get_o1_vsm);
 EXPORT_SYMBOL(idec_get_osd1_colorkey);
 EXPORT_SYMBOL(idec_set_color_comp_adj_en);
 EXPORT_SYMBOL(idec_get_v1_win_dim);
@@ -2411,6 +2558,7 @@ EXPORT_SYMBOL(idec_get_icst0_pre_offset);
 EXPORT_SYMBOL(idec_get_o1_fmt);
 EXPORT_SYMBOL(idec_set_color_ctrl_sat);
 EXPORT_SYMBOL(idec_set_v2_hsm);
+EXPORT_SYMBOL(idec_get_v2_hsm);
 EXPORT_SYMBOL(idec_set_color_comp_yofs);
 EXPORT_SYMBOL(idec_is_opened);
 EXPORT_SYMBOL(idec_get_v2_win_pos);
@@ -2433,11 +2581,15 @@ EXPORT_SYMBOL(idec_set_icst0_coef);
 EXPORT_SYMBOL(idec_get_rgb_gamma);
 EXPORT_SYMBOL(idec_set_dmach_dis);
 EXPORT_SYMBOL(idec_set_en);
+EXPORT_SYMBOL(idec_set_frm_reset_delay_count);
+EXPORT_SYMBOL(idec_set_axien);
+EXPORT_SYMBOL(idec_set_swreset);
 EXPORT_SYMBOL(idec_set_fd_win_bord);
 EXPORT_SYMBOL(idec_get_color_ctrl_en);
 EXPORT_SYMBOL(idec_get_palette_group);
 //EXPORT_SYMBOL(ide_get_tv_power_down);
 EXPORT_SYMBOL(idec_set_v1_hsm);
+EXPORT_SYMBOL(idec_get_v1_hsm);
 EXPORT_SYMBOL(idec_get_icst);
 EXPORT_SYMBOL(idec_set_gamma_en);
 EXPORT_SYMBOL(idec_set_v2_en);
@@ -2485,6 +2637,42 @@ EXPORT_SYMBOL(idec_get_fd_all_en);
 EXPORT_SYMBOL(idec_set_v2_fmt);
 EXPORT_SYMBOL(idec_set_callback);
 EXPORT_SYMBOL(idec_set_rgbd_swap);
+EXPORT_SYMBOL(idec_set_v1_yccen);
+EXPORT_SYMBOL(idec_get_v1_yccen);
+EXPORT_SYMBOL(idec_set_v2_yccen);
+EXPORT_SYMBOL(idec_get_v2_yccen);
+EXPORT_SYMBOL(idec_set_ycc_qtable_0);
+EXPORT_SYMBOL(idec_get_ycc_qtable_0);
+EXPORT_SYMBOL(idec_set_hwcur_en);
+EXPORT_SYMBOL(idec_get_hwcur_en);
+EXPORT_SYMBOL(idec_set_hwcur_rw);
+EXPORT_SYMBOL(idec_get_hwcur_rw);
+EXPORT_SYMBOL(idec_set_hwcur_pos);
+EXPORT_SYMBOL(idec_get_hwcur_pos);
+EXPORT_SYMBOL(idec_set_hwcur_pal);
+EXPORT_SYMBOL(idec_get_hwcur_pal);
+EXPORT_SYMBOL(idec_set_hwcur_font);
+EXPORT_SYMBOL(idec_get_hwcur_font);
+EXPORT_SYMBOL(idec_set_o1_rld_en);
+EXPORT_SYMBOL(idec_get_o1_rld_en);
+EXPORT_SYMBOL(idec_get_interlace);
+EXPORT_SYMBOL(idec_set_pal_shadow);
+EXPORT_SYMBOL(idec_clear_log_cnt);
+EXPORT_SYMBOL(idec_get_o1_rld_readsize);
+EXPORT_SYMBOL(idec_get_o1_rld_alpha_readsize);
+EXPORT_SYMBOL(idec_get_o1_rld_ctrl);
+EXPORT_SYMBOL(idec_set_o1_rld_readsize);
+EXPORT_SYMBOL(idec_set_o1_rld_alpha_readsize);
+EXPORT_SYMBOL(idec_set_o1_rld_ctrl);
+EXPORT_SYMBOL(idec_set_vpi_en);
+EXPORT_SYMBOL(idec_set_vpi_coef);
+EXPORT_SYMBOL(idec_get_vpi_en);
+EXPORT_SYMBOL(idec_get_vpi_coef);
+EXPORT_SYMBOL(idec_get_v1_buf_dim);
+EXPORT_SYMBOL(idec_get_v2_buf_dim);
+EXPORT_SYMBOL(idec_get_o1_buf_dim);
+
+
 #endif
 
 

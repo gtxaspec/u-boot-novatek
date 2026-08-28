@@ -16,11 +16,6 @@
 #define DSI_GPIO(pin)                   (pin + 0xE0)
 #define A_GPIO(pin)                     (pin + 0x100)
 
-#define NVT_GPIO_STG_DATA_0		(0)
-#define NVT_GPIO_STG_DIR_0		(0x30)
-#define NVT_GPIO_STG_SET_0		(0x60)
-#define NVT_GPIO_STG_CLR_0		(0x90)
-
 /*
  * Empty file - cmd_gpio.c requires this. The implementation
  * is in drivers/gpio/na51xxx_gpio.c instead of inlined here.

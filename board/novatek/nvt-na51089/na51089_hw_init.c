@@ -13,6 +13,7 @@
 
 
 #include <common.h>
+#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
@@ -21,12 +22,17 @@
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 #include <asm/arch/raw_scanMP.h>
 #include <asm/arch/hardware.h>
+#include <asm/cache.h>
 #endif
 #include <linux/libfdt.h>
 
 #define WDT_REG_ADDR(ofs)       (IOADDR_WDT_REG_BASE+(ofs))
 #define WDT_GETREG(ofs)         INW(WDT_REG_ADDR(ofs))
 #define WDT_SETREG(ofs,value)   OUTW(WDT_REG_ADDR(ofs), (value))
+
+#define LPV_REG_ADDR(ofs)       (IOADDR_LPV_REG_BASE+(ofs))
+#define LPV_GETREG(ofs)         INW(LPV_REG_ADDR(ofs))
+#define LPV_SETREG(ofs,value)   OUTW(LPV_REG_ADDR(ofs), (value))
 
 #define CG_REG_ADDR(ofs)       (IOADDR_CG_REG_BASE+(ofs))
 #define CG_GETREG(ofs)         INW(CG_REG_ADDR(ofs))
@@ -127,7 +133,6 @@ void nvt_ivot_reset_cpu(void)
 static void ethernet_init(void)
 {
 #if 0
-	ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 	int nodeoffset, len;
 	u32 *cell = NULL;
 	char path[20] = {0};
@@ -135,13 +140,13 @@ static void ethernet_init(void)
 
 	sprintf(path,"/top@%x/sensor",IOADDR_TOP_REG_BASE);
 
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
 		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
 		return ;
 	}
 
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "pinmux", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
 	if (len == 0) {
 		printf("%s(%d) len = 0\n",__func__, __LINE__);
 		return ;
@@ -152,13 +157,13 @@ static void ethernet_init(void)
 
 	sprintf(path,"/eth@%x",IOADDR_ETH_REG_BASE);
 
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
 		printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
 		return ;
 	}
 
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "sp-clk", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
 	if (len == 0) {
 		printf("%s(%d) len = 0\n", __func__, __LINE__);
 		return ;
@@ -254,9 +259,7 @@ static void axi_bridge_timeout_en(void)
 
 int nvt_ivot_hw_init(void)
 {
-	if (nvt_ivot_set_cpuclk() != 0) {
-		printf("Set CPU clock fail, use default clock frequency\n");
-	}
+	nvt_ivot_set_cpuclk();
 
 	ethernet_init();
 
@@ -270,7 +273,13 @@ int nvt_ivot_hw_init(void)
 
 int nvt_ivot_hw_init_early(void)
 {
+	UINT32 uiReg;
 	otp_init();
+
+	uiReg = CG_GETREG(0x70);
+	uiReg &= ~(0x10000);
+	CG_SETREG(0x70, uiReg);
+
 	return 0;
 }
 
@@ -302,11 +311,12 @@ void nvt_ddr_scan(void)
 	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
 
 	if (nvt_get_chip_id() == CHIP_NA51089) {
-		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
+		memcpy_toio((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
+        dcache_disable();
 	} else {
 		printf("Not support\n");
 	}

@@ -19,3 +19,4 @@ config NVT_RSA
 	help
 	  Novatek NA51089 processors have rsa engine accelerator.
 	  Select this if you want to use the rsa engine.
+

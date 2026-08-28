@@ -14,7 +14,7 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 
-#define GPIO_VERSION "1.0.00"
+#define GPIO_VERSION "1.0.01"
 
 struct nvt_gpio_bank {
 	phys_addr_t base;
@@ -25,7 +25,7 @@ struct nvt_gpio_bank {
 
 static int gpio_validation(unsigned pin)
 {
-	if ((pin < C_GPIO(0)) || (pin > C_GPIO(13) && pin < J_GPIO(0)) || \
+	if ((pin > C_GPIO(13) && pin < J_GPIO(0)) || \
 	(pin > J_GPIO(5) && pin < P_GPIO(0)) || \
 	(pin > P_GPIO(44) && pin < E_GPIO(0)) || \
 	(pin > E_GPIO(31) && pin < D_GPIO(0)) || \

@@ -15,7 +15,9 @@
 
 #include <asm/arch/IOAddress.h>
 #include <asm/nvt-common/rcw_macro_bit.h>
-#include <asm/arch/efuse_protected.h>
+//#include <asm/nvt-common/rcw_macro.h>
+
+//#include <asm/arch/efuse_protected.h>
 
 
 

@@ -13,6 +13,7 @@
 
 
 #include <common.h>
+#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
@@ -21,6 +22,7 @@
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 #include <asm/arch/raw_scanMP.h>
 #include <asm/arch/hardware.h>
+#include <asm/cache.h>
 #endif
 #include <linux/libfdt.h>
 
@@ -128,7 +130,6 @@ void nvt_ivot_reset_cpu(void)
 static void ethernet_init(void)
 {
 #if 0
-	ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 	int nodeoffset, len;
 	u32 *cell = NULL;
 	char path[20] = {0};
@@ -136,13 +137,13 @@ static void ethernet_init(void)
 
 	sprintf(path,"/top@%x/sensor",IOADDR_TOP_REG_BASE);
 
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
 		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
 		return ;
 	}
 
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "pinmux", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
 	if (len == 0) {
 		printf("%s(%d) len = 0\n",__func__, __LINE__);
 		return ;
@@ -153,13 +154,13 @@ static void ethernet_init(void)
 
 	sprintf(path,"/eth@%x",IOADDR_ETH_REG_BASE);
 
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
 		printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
 		return ;
 	}
 
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "sp-clk", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
 	if (len == 0) {
 		printf("%s(%d) len = 0\n", __func__, __LINE__);
 		return ;
@@ -234,6 +235,19 @@ static void usbphy_init(void)
 	}
 }
 
+static void usb_powerdown_cmd(void)
+{
+	printf("set usb power down\n");
+	OUTW(0xF06010D0, 0xFF);
+	OUTW(0xF06010D4, 0x34);
+	OUTW(0xF0601008, 0x14);
+	OUTW(0xF0601000, 0x88);
+	OUTW(0xF0601030, 0x35);
+	OUTW(0xF060102C, 0xFF);
+	OUTW(0xF0601028, 0x20);
+	OUTW(0xF0601024, 0x93);
+}
+
 static void axi_bridge_timeout_en(void)
 {
 	OUTW(0xF0012018, 0x7c);
@@ -250,6 +264,7 @@ int nvt_ivot_hw_init(void)
 
 	usbphy_init();
 
+	usb_powerdown_cmd();
 	return 0;
 }
 
@@ -269,18 +284,19 @@ void nvt_ddr_scan(void)
 	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
 
 	if (nvt_get_chip_id() == CHIP_NA51084) {
-		memcpy((void *)JUMP_ADDR, ddr_scan_528, sizeof(ddr_scan_528));
+		memcpy_toio((void *)JUMP_ADDR, ddr_scan_528, sizeof(ddr_scan_528));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan_528));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan_528), ARCH_DMA_MINALIGN));
 	} else {
-		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
+		memcpy_toio((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	}
+	dcache_disable();
 	printf("done\r\n");
 	printf("Jump into sram\n");
 	image_entry = (LDR_GENERIC_CB)(*((unsigned long*)JUMP_ADDR));

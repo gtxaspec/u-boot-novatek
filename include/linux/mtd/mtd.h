@@ -129,8 +129,8 @@ struct mtd_oob_region {
 struct mtd_ooblayout_ops {
 	int (*ecc)(struct mtd_info *mtd, int section,
 		   struct mtd_oob_region *oobecc);
-	int (*free)(struct mtd_info *mtd, int section,
-		    struct mtd_oob_region *oobfree);
+	int (*rfree)(struct mtd_info *mtd, int section,
+		     struct mtd_oob_region *oobfree);
 };
 
 /*
@@ -332,15 +332,14 @@ struct mtd_info {
 };
 
 #if IS_ENABLED(CONFIG_DM)
-static inline void mtd_set_of_node(struct mtd_info *mtd,
-				   const struct device_node *np)
+static inline void mtd_set_ofnode(struct mtd_info *mtd, ofnode node)
 {
-	mtd->dev->node.np = np;
+	dev_set_ofnode(mtd->dev, node);
 }
 
-static inline const struct device_node *mtd_get_of_node(struct mtd_info *mtd)
+static inline const ofnode mtd_get_ofnode(struct mtd_info *mtd)
 {
-	return mtd->dev->node.np;
+	return dev_ofnode(mtd->dev);
 }
 #else
 struct device_node;
@@ -392,7 +391,7 @@ static inline void mtd_set_ooblayout(struct mtd_info *mtd,
 	mtd->ooblayout = ooblayout;
 }
 
-static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
+static inline u32 mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
 {
 	return ops->mode == MTD_OPS_AUTO_OOB ? mtd->oobavail : mtd->oobsize;
 }
@@ -582,17 +581,21 @@ static inline int del_mtd_partitions(struct mtd_info *mtd)
 }
 #endif
 
+#if defined(CONFIG_MTD_PARTITIONS) && CONFIG_IS_ENABLED(DM) && \
+    CONFIG_IS_ENABLED(OF_CONTROL)
+int add_mtd_partitions_of(struct mtd_info *master);
+#else
+static inline int add_mtd_partitions_of(struct mtd_info *master)
+{
+	return 0;
+}
+#endif
+
 struct mtd_info *__mtd_next_device(int i);
 #define mtd_for_each_device(mtd)			\
 	for ((mtd) = __mtd_next_device(0);		\
 	     (mtd) != NULL;				\
 	     (mtd) = __mtd_next_device(mtd->index + 1))
-
-int mtd_arg_off(const char *arg, int *idx, loff_t *off, loff_t *size,
-		loff_t *maxsize, int devtype, uint64_t chipsize);
-int mtd_arg_off_size(int argc, char *const argv[], int *idx, loff_t *off,
-		     loff_t *size, loff_t *maxsize, int devtype,
-		     uint64_t chipsize);
 
 /* drivers/mtd/mtdcore.c */
 void mtd_get_len_incl_bad(struct mtd_info *mtd, uint64_t offset,

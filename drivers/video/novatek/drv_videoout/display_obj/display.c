@@ -55,7 +55,9 @@ volatile UINT32          gui_disp_obj_opened[DISP_MAX] = {0};
 */
 static DISP_OBJ    gp_disp_obj[DISP_MAX] = {
 	{DISP_1, disp_get_disp1_cap, disp_open_disp1, disp_close_disp1, disp_is_disp1_opened, disp_set_disp1_control, disp_set_disp1_layer_ctrl, disp_set_disp1_device_ctrl, disp_set_disp1_load, disp_wait_disp1_frame_end, disp_wait_disp1_yuv_output_done, NULL},
+#if !(defined(CONFIG_TARGET_NS02302_A64)||defined(CONFIG_TARGET_NS02301)||defined(CONFIG_TARGET_NA51089))
 	{DISP_2, disp_get_disp2_cap, disp_open_disp2, disp_close_disp2, disp_is_disp2_opened, disp_set_disp2_control, disp_set_disp2_layer_ctrl, disp_set_disp2_device_ctrl, disp_set_disp2_load, disp_wait_disp2_frame_end, disp_wait_disp2_yuv_output_done, NULL},
+#endif
 };
 
 /*

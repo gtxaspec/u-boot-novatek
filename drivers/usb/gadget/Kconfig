@@ -15,6 +15,8 @@
 
 menuconfig USB_GADGET
 	bool "USB Gadget Support"
+	depends on DM
+	select DM_USB
 	help
 	   USB is a master/slave protocol, organized with one master
 	   host (such as a PC) controlling up to 127 peripheral devices.
@@ -39,7 +41,7 @@ if USB_GADGET
 config USB_GADGET_MANUFACTURER
 	string "Vendor name of the USB device"
 	default "Allwinner Technology" if ARCH_SUNXI
-	default "NVTIVOT USB" if ARCH_NOVATEK
+	default "Rockchip" if ARCH_ROCKCHIP
 	default "U-Boot"
 	help
 	  Vendor name of the USB device emulated, reported to the host device.
@@ -48,7 +50,8 @@ config USB_GADGET_MANUFACTURER
 config USB_GADGET_VENDOR_NUM
 	hex "Vendor ID of the USB device"
 	default 0x1f3a if ARCH_SUNXI
-	default 0x07B4 if ARCH_NOVATEK
+	default 0x2207 if ARCH_ROCKCHIP
+	default 0x07b4 if ARCH_NOVATEK
 	default 0x0
 	help
 	  Vendor ID of the USB device emulated, reported to the host device.
@@ -58,6 +61,11 @@ config USB_GADGET_VENDOR_NUM
 config USB_GADGET_PRODUCT_NUM
 	hex "Product ID of the USB device"
 	default 0x1010 if ARCH_SUNXI
+	default 0x310a if ROCKCHIP_RK3036
+	default 0x310c if ROCKCHIP_RK3128
+	default 0x320a if ROCKCHIP_RK3229 || ROCKCHIP_RK3288
+	default 0x330a if ROCKCHIP_RK3328
+	default 0x330c if ROCKCHIP_RK3399
 	default 0x0109 if ARCH_NOVATEK
 	default 0x0
 	help
@@ -94,6 +102,15 @@ config USB_GADGET_DWC2_OTG_PHY_BUS_WIDTH_8
 
 endif # USB_GADGET_DWC2_OTG
 
+config USB_GADGET_OS_DESCRIPTORS
+	bool "USB OS Feature Descriptors support"
+	help
+	  This is a porting patch from linux kernel: 37a3a533429e
+	  ("usb: gadget: OS Feature Descriptors support"), the original commit
+	  log see below:
+	  There is a custom (non-USB IF) extension to the USB standard:
+	  http://msdn.microsoft.com/library/windows/hardware/gg463182
+
 config CI_UDC
 	bool "ChipIdea device controller"
 	select USB_GADGET_DUALSPEED
@@ -101,29 +118,44 @@ config CI_UDC
 	  Say Y here to enable device controller functionality of the
 	  ChipIdea driver.
 
-config USB_GADGET_NVTIVOT
-	bool "Novatek USB device controller"
+config USB_GADGET_NVTIVOT_A64
+	bool "Novatek USB device 64 bit controller"
 	select USB_GADGET_DUALSPEED
-	depends on (!TARGET_NA51090_A64 && !TARGET_NA51102_A64 && !TARGET_NA51103_A64)
+	depends on (TARGET_NS02201_A64) || (TARGET_NS02401_A64) || (TARGET_NA51102_A64) || (TARGET_NS02301) || (TARGET_NA51089) || (TARGET_NA51103) || (TARGET_NA51103_A64) || (TARGET_NA51055)
 	help
 	  Say Y here to enable device controller functionality of the
 	  Novatek USB device driver.
 
-config USB_GADGET_NVTIVOT_A64
-	bool "Novatek USB device 64 bit controller"
-	select USB_GADGET_DUALSPEED
-	depends on (TARGET_NA51090_A64 || TARGET_NA51102_A64 || TARGET_NA51103_A64)
+if USB_GADGET_NVTIVOT_A64
+config USB_GADGET_NVTIVOT_525
+	bool "NT98525_PROJECT"
+	depends on (USB_GADGET_NVTIVOT_A64) || (TARGET_NA51055)
 	help
-	  Say Y here to enable device controller functionality of the
-	  Novatek USB device driver.
+	  NT98525/NT98520: Enable this config
+	  NT98528: Disable this config
+endif #TARGET_NA51055
 
 config USB_GADGET_NVTIVOT_FOTG330
 	bool "Novatek USB device with FOTG330 controller"
 	select USB_GADGET_DUALSPEED
-	depends on (TARGET_NA51102_A64)
+	depends on (TARGET_NS02201_A64) || (TARGET_NA51102_A64) || (TARGET_NS02302_A64) || (TARGET_NS02401_A64)
 	help
 	  Say Y here to enable device controller functionality of the
 	  Novatek FOTG330 USB device driver.
+
+config USB3_2
+	bool "Novatek USB3 controller channel 2 [USB3_2]"
+	select USB_GADGET_DUALSPEED
+	depends on (TARGET_NS02201_A64)
+	help
+	  Say Y here to enable device controller functionality of the
+	  Novatek FOTG330 USB3 channel 2.
+
+config USB_GADGET_MAX3420
+	bool "MAX3420 USB Over SPI"
+	depends on DM_SPI
+	help
+	  MAX3420, from MAXIM, implements USB-over-SPI Full-Speed device controller.
 
 config USB_GADGET_VBUS_DRAW
 	int "Maximum VBUS Power usage (2-500 mA)"
@@ -141,6 +173,10 @@ config USB_GADGET_VBUS_DRAW
 
 	   This value will be used except for system-specific gadget
 	   drivers that have more specific information.
+
+config SDP_LOADADDR
+	hex "Default load address at SDP_WRITE and SDP_JUMP"
+	default 0
 
 # Selected by UDC drivers that support high-speed operation.
 config USB_GADGET_DUALSPEED
@@ -240,11 +276,5 @@ config USBNET_HOST_ADDR
 	  address of the usb_ether interface
 
 endif # USB_ETHER
-
-config USB_GADGET_CXSETUP_DMA
-       bool "Enable CX DATA TRANSFER DMA FEATURE"
-       help
-         Disable PIO data transfer way for control transfer, and use DMA way
-
 
 endif # USB_GADGET

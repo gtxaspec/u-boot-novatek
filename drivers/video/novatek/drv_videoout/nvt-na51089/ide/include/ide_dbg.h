@@ -27,17 +27,19 @@
 #define NVT_DBG_VALUE     7
 #define NVT_DBG_USER      8
 
-#ifdef DEBUG
 
+#ifdef DEBUG
+extern unsigned int ide_log_cnt[2];
 extern unsigned int ide_debug_level;
 #define nvt_dbg(level, fmt, args...)                \
 	do {                                               \
 		if (unlikely(NVT_DBG_##level <= ide_debug_level))    \
-			vk_pr_warn("%s:" fmt, __func__, ##args);   \
+			vk_pr_warn(fmt, ##args);   \
 	} while (0)
 #else
 #define nvt_dbg(fmt, ...)
 #endif
+
 
 #define DBG_FATAL(fmt, args...) nvt_dbg(FATAL, fmt, ##args)
 #define DBG_ERR(fmt, args...) nvt_dbg(ERR, fmt, ##args)

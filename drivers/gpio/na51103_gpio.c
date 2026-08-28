@@ -13,7 +13,7 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 
-#define GPIO_VERSION "1.0.00"
+#define GPIO_VERSION "1.0.01"
 
 struct nvt_gpio_bank {
 	phys_addr_t base;
@@ -24,7 +24,7 @@ struct nvt_gpio_bank {
 
 static int gpio_validation(unsigned pin)
 {
-	if ((pin < C_GPIO(0)) || (pin > C_GPIO(7) && pin < J_GPIO(0)) || \
+	if ((pin > C_GPIO(7) && pin < J_GPIO(0)) || \
 	(pin > J_GPIO(4) && pin < P_GPIO(0)) || \
 	(pin > P_GPIO(31) && pin < E_GPIO(0)) || \
 	(pin > E_GPIO(15) && pin < D_GPIO(0)) || \
@@ -167,8 +167,8 @@ U_BOOT_DRIVER(gpio_msm) = {
 	.name	= "gpio_nvt",
 	.id	= UCLASS_GPIO,
 	.of_match = nvt_gpio_ids,
-	.ofdata_to_platdata = nvt_gpio_ofdata_to_platdata,
+	.of_to_plat = nvt_gpio_ofdata_to_platdata,
 	.probe	= nvt_gpio_probe,
 	.ops	= &gpio_nvt_ops,
-	.priv_auto_alloc_size = sizeof(struct nvt_gpio_bank),
+	.priv_auto = sizeof(struct nvt_gpio_bank),
 };

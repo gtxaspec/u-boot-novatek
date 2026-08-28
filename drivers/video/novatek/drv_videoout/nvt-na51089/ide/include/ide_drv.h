@@ -7,9 +7,9 @@
 #include <linux/completion.h>
 #include <linux/clk.h>
 
-#define MODULE_IRQ_NUM          1
-#define MODULE_REG_NUM          1
-#define MODULE_CLK_NUM          1
+#define MODULE_IRQ_NUM          2
+#define MODULE_REG_NUM          2
+#define MODULE_CLK_NUM          2
 
 #define WRITE_REG(value, addr)  iowrite32(value, addr)
 #define READ_REG(addr)          ioread32(addr)

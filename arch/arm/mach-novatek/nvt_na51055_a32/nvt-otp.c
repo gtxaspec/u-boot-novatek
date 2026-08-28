@@ -49,43 +49,43 @@
 #endif
 #endif
 
-#define INREG32(x)          *((volatile UINT32*)(x))    ///< Write 32bits IO register
+#define INREG32(x)      	*((volatile UINT32*)(x))    ///< Write 32bits IO register
 #define OUTREG32(x, y)      (*((volatile UINT32*)(x)) = (y))    ///< Write 32bits IO register
 
 extern INT32    local_load(UINT32 uiRowAddress);
 extern INT32    local_store(UINT32 uiRowAddress);
 
-#define PLL_CLKSEL_APB_MASK         (0x03 << PLL_CLKSEL_APB)
-#define PLL_CLKSEL_APB              8
-#define PLL_CLKSEL_APB_48           (0x00 << PLL_CLKSEL_APB)      //< Select APB  48MHz
-#define PLL_CLKSEL_APB_60           (0x01 << PLL_CLKSEL_APB)      //< Select APB  60MHz
-#define PLL_CLKSEL_APB_80           (0x02 << PLL_CLKSEL_APB)      //< Select APB  80MHz
-#define PLL_CLKSEL_APB_120          (0x03 << PLL_CLKSEL_APB)      //< Select APB 120MHz
+#define PLL_CLKSEL_APB_MASK       	(0x03 << PLL_CLKSEL_APB)
+#define PLL_CLKSEL_APB           	8
+#define PLL_CLKSEL_APB_48         	(0x00 << PLL_CLKSEL_APB)      //< Select APB  48MHz
+#define PLL_CLKSEL_APB_60         	(0x01 << PLL_CLKSEL_APB)      //< Select APB  60MHz
+#define PLL_CLKSEL_APB_80         	(0x02 << PLL_CLKSEL_APB)      //< Select APB  80MHz
+#define PLL_CLKSEL_APB_120        	(0x03 << PLL_CLKSEL_APB)      //< Select APB 120MHz
 
-#define OTP_48_TIMING               0x692618
-#define OTP_60_TIMING               0x8B3026
-#define OTP_80_TIMING               0xAF4032
-#define OTP_120_TIMING              0xFF6050
+#define OTP_48_TIMING				0x692618
+#define OTP_60_TIMING				0x8B3026
+#define OTP_80_TIMING				0xAF4032
+#define OTP_120_TIMING				0xFF6050
 
 void otp_init(void)
 {
-	UINT32  uiReg;
+	UINT32	uiReg;
 
 	DBG_DUMP("otp_init!\r\n");
 
 	uiReg = INREG32(IOADDR_CG_REG_BASE + 0x10);
 
 
-	if ((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_48) {
+	if((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_48) {
 		DBG_DUMP("48MHz\r\n");
 		OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, OTP_48_TIMING);
-	} else if ((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_60) {
+	} else if((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_60) {
 		DBG_DUMP("60MHz\r\n");
 		OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, OTP_60_TIMING);
-	} else if ((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_80) {
+	} else if((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_80) {
 		DBG_DUMP("80MHz\r\n");
 		OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, OTP_80_TIMING);
-	} else if ((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_120) {
+	} else if((uiReg & PLL_CLKSEL_APB_MASK) == PLL_CLKSEL_APB_120) {
 		DBG_DUMP("120MHz\r\n");
 		OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, OTP_120_TIMING);
 	}
@@ -173,42 +173,42 @@ static ER set_key_destination(OTP_KEY_DESTINATION key_dst, SCE_KEY_SET_TO_OTP_FI
      @param[out]     id_H   MSB of ID (17bit)
 
      @return IC success or fail
-        - @b    EFUSE_SUCCESS       success
-        - @b    EFUSE_OPS_ERR       fail
+        - @b   	EFUSE_SUCCESS      	success
+        - @b	EFUSE_OPS_ERR		fail
 */
-ER efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H)
+ER efuse_get_unique_id(UINT32 * id_L, UINT32 * id_H)
 {
 	UINT64  value;
-	UINT32  xy;
+	UINT32	xy;
 	UINT64  dec6 = 0x81BF1000ul;
 	UINT64  dec5 = 0x39AA400ul;
 	union T_EFUSE_LOT_ID1_REG lot_id_1_reg;
-	union T_EFUSE_LOT_ID2_REG lot_id_2_reg;
+    union T_EFUSE_LOT_ID2_REG lot_id_2_reg;
 
-	lot_id_1_reg.Reg = otp_key_manager(EFUSE_LOT_ID1);
-	lot_id_2_reg.Reg = otp_key_manager(EFUSE_LOT_ID2);
+    lot_id_1_reg.Reg = otp_key_manager(EFUSE_LOT_ID1);
+    lot_id_2_reg.Reg = otp_key_manager(EFUSE_LOT_ID2);
 
 #if 0
-	lot_id_1_reg.Bit.lot_id_no_1_5_0 = 36;
-	lot_id_1_reg.Bit.lot_id_no_2_5_0 = 36;
-	lot_id_1_reg.Bit.lot_id_no_3_5_0 = 36;
-	lot_id_1_reg.Bit.lot_id_no_4_5_0 = 36;
-	lot_id_1_reg.Bit.lot_id_no_5_5_0 = 36;
-	lot_id_2_reg.Bit.wafer_id = 26;
+    lot_id_1_reg.Bit.lot_id_no_1_5_0 = 36;
+    lot_id_1_reg.Bit.lot_id_no_2_5_0 = 36;
+    lot_id_1_reg.Bit.lot_id_no_3_5_0 = 36;
+    lot_id_1_reg.Bit.lot_id_no_4_5_0 = 36;
+    lot_id_1_reg.Bit.lot_id_no_5_5_0 = 36;
+    lot_id_2_reg.Bit.wafer_id = 26;
 #endif
 	//catch 36bit
-	value  = (INT64)(lot_id_1_reg.Bit.lot_id_no_1_5_0);
-	DBG_IND("Unique ID value=[0x%llx]\r\n", value);
-	value += (INT64)(lot_id_1_reg.Bit.lot_id_no_2_5_0 * 36);
-	DBG_IND("Unique ID value=[0x%llx]\r\n", value);
-	value += (INT64)(lot_id_1_reg.Bit.lot_id_no_3_5_0 * 1296);
-	DBG_IND("Unique ID value=[0x%llx]\r\n", value);
-	value += (INT64)(lot_id_1_reg.Bit.lot_id_no_4_5_0 * 46656);
-	DBG_IND("Unique ID value=[0x%llx]\r\n", value);
-	value += (INT64)(lot_id_1_reg.Bit.lot_id_no_5_5_0 * 1679616);
-	DBG_IND("Unique ID value=[0x%llx]\r\n", value);
+    value  = (INT64)(lot_id_1_reg.Bit.lot_id_no_1_5_0);
+    DBG_IND("Unique ID value=[0x%llx]\r\n", value);
+    value += (INT64)(lot_id_1_reg.Bit.lot_id_no_2_5_0 * 36);
+    DBG_IND("Unique ID value=[0x%llx]\r\n", value);
+    value += (INT64)(lot_id_1_reg.Bit.lot_id_no_3_5_0 * 1296);
+    DBG_IND("Unique ID value=[0x%llx]\r\n", value);
+    value += (INT64)(lot_id_1_reg.Bit.lot_id_no_4_5_0 * 46656);
+    DBG_IND("Unique ID value=[0x%llx]\r\n", value);
+    value += (INT64)(lot_id_1_reg.Bit.lot_id_no_5_5_0 * 1679616);
+    DBG_IND("Unique ID value=[0x%llx]\r\n", value);
 
-	value += (UINT64)(((lot_id_2_reg.Bit.lot_id_no_6_5_2 << 2) | lot_id_1_reg.Bit.lot_id_no_6_1_0) * dec5);
+    value += (UINT64)(((lot_id_2_reg.Bit.lot_id_no_6_5_2 << 2) | lot_id_1_reg.Bit.lot_id_no_6_1_0) * dec5);
 	value += (INT64)(lot_id_2_reg.Bit.wafer_id * dec6);
 
 	xy  = lot_id_2_reg.Bit.x_coordinate;
@@ -217,11 +217,10 @@ ER efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H)
 	* id_L = (UINT32)value;
 	* id_H = ((((value >> 32) & 0xF) | (xy << 4)) & 0x1FFFF);
 
-	if ((*id_L + *id_H) == 0) {
+	if((*id_L + *id_H) == 0)
 		return EFUSE_OPS_ERR;
-	} else {
+	else
 		return EFUSE_SUCCESS;
-	}
 }
 
 
@@ -241,7 +240,7 @@ ER efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H)
 INT32 otp_write_key(EFUSE_OTP_KEY_SET_FIELD key_set_index, UINT8 *uc_key)
 {
 	INT32   result = EFUSE_SUCCESS;
-	UINT32  key_data;
+	UINT32	key_data;
 	UINT32  u32_key = (UINT32)(uc_key);
 	UINT32  data[4];
 	UINT32  key_field_start_index = 16;
@@ -323,14 +322,14 @@ INT32 otp_write_key(EFUSE_OTP_KEY_SET_FIELD key_set_index, UINT8 *uc_key)
 			break;
 		} else {
 			key_data = otp_key_manager(key_field_start_index + index_cnt);
-			if (key_data != data[index_cnt]) {
+			if(key_data != data[index_cnt]) {
 				DBG_ERR("[%d]set key => write addr[%2d][0x%08lx] fail\r\n", (int)(((key_field_start_index - 16) / 4) + 1), (int)(key_field_start_index + index_cnt), (unsigned long)data[index_cnt]);
 				result = EFUSE_CONTENT_ERR;
 				break;
 			}
 		}
 	}
-	if (result == EFUSE_SUCCESS) {
+	if(result == EFUSE_SUCCESS) {
 		enable_secure_boot(enable_secure_number);
 	}
 	return result;
@@ -448,7 +447,7 @@ INT32 otp_set_key_read_lock(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 */
 INT32 otp_set_key_engine_access_right(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 {
-	UINT32  key_set_engine_access_right_index;
+	UINT32	key_set_engine_access_right_index;
 	switch (key_set_index) {
 	case EFUSE_OTP_1ST_KEY_SET_FIELD:
 		key_set_engine_access_right_index = OTP_1ST_KEY_BIT_START;
@@ -590,12 +589,6 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
-	case SECUREBOOT_NT_OVR_CLK:
-		if ((sec & OTP_NT_OVR_CLK) == OTP_NT_OVR_CLK) {
-			result = TRUE;
-		}
-		break;
-
 	default:
 		break;
 	}
@@ -693,7 +686,7 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		result = TRUE;
 		break;
 
-		//2ND & 3RD key set can not configured as read lock(because of RSA checksum)
+	//2ND & 3RD key set can not configured as read lock(because of RSA checksum)
 #if 0
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 		KEY_MANAGER_WRITE_PARAM(OTP_2ND_KEY_READ_LOCK);
@@ -744,4 +737,41 @@ UINT32 otp_key_manager(UINT32 rowAddress)
 	uiData = local_load(rowAddress);
 
 	return uiData;
+}
+
+/*
+   exteact trim data valid
+
+   Parsing trim data is valid or not
+
+   @param [in] code    trim raw data
+   @param[out] pData   Point of valid trim data
+
+   @return read half-word efuse data
+   - @b  TRUE  : Valid data
+   - @b  FALSE : Invalid data
+   */
+BOOL extract_trim_valid(u32 code, u32 *pData)
+{
+	u32 i;
+	u32 ret = 0;
+	BOOL is_found = FALSE;
+
+	for (i = 0; i < 2; i++) {
+		if (code & (1 << 14)) {
+			// do nothing: skip this setting
+		} else if (code & (1 << 15)) {
+			ret = code & 0x3FFF;
+			*pData = ret;
+			is_found = TRUE;
+			break;
+		} else {
+			// bit[15..14] = 0x0: efuse never programmed
+			break;
+		}
+
+		code >>= 16;
+	}
+
+	return is_found;
 }

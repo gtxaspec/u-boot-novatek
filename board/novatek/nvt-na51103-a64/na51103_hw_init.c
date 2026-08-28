@@ -13,14 +13,22 @@
 
 
 #include <common.h>
+#include <cli.h>
+#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/efuse_protected.h>
+#include <asm/arch/gpio.h>
+#ifdef CONFIG_NVT_IVOT_STBC_PMC_SUPPORT
+#include <asm/arch/raw_stbcPMC.h>
+#include <asm/arch/hardware.h>
+#endif
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 #include <asm/arch/raw_scanMP.h>
 #include <asm/arch/hardware.h>
+#include <asm/cache.h>
 #endif
 #include <linux/libfdt.h>
 

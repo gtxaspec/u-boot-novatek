@@ -12,6 +12,9 @@
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_hash.h>
+#include <asm/cache.h>
+
+#include <linux/delay.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -23,7 +26,7 @@
  *  Global Definition
  *************************************************************************************/
 //#define NVT_HASH_DEBUG
-//#define NVT_HASH_DMA_36BIT_SUPPORT      1
+#define NVT_HASH_DMA_36BIT_SUPPORT      1
 
 #define PLAT_CACHE_LINE_SIZE            CONFIG_SYS_CACHELINE_SIZE
 #define PLAT_CACHE_LINE_MASK            (CONFIG_SYS_CACHELINE_SIZE-1)

@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <stdio.h>
+
 #include <string.h>
 
 #define true 1
@@ -30,12 +30,6 @@
 #define ir2c6  			277
 #define ir2s6  			669
 #define ir2  				181
-
-#define PXL_FMT_YUV420		0
-#define PXL_FMT_YUV422		1
-#define PXL_FMT_ARGB8888	2
-#define PXL_FMT_ARGB4444	3
-#define PXL_FMT_ARGB1555	4
 
 typedef struct
 {
@@ -123,6 +117,7 @@ static short total_nodes;
 static short dc_total_nodes[MAX_COMPONENTS];
 static short ac_total_nodes[MAX_COMPONENTS];
 static short size,amplitude,symbol,run;
+
 static short prev_dc_amplitude[MAX_COMPONENTS];
 
 static short component[4][4][MAX_COMPONENTS][8][8];
@@ -343,20 +338,16 @@ static void set_pixel_vyuy(unsigned x, unsigned y, unsigned char y1, unsigned ch
 		videobuf[idx+1] = y1;
 	}
 }
-#undef FMT_ARGB1555
-#undef FMT_ARGB8888
-#undef FMT_ARGB1565
-#define FMT_ARGB4444
-
 static void set_pixel(unsigned x,unsigned y, unsigned char red,unsigned char green,unsigned char blue)
 {
 	int idx;
-	unsigned int tmp = 0;
-	//idx = (y * sof_info.width + x) * 2;
+
+	//idx = (y * sof_info.width + x) * 3;
 
 	idx = (int)y;
 	idx *= sof_info.width;
 	idx += x;
+	idx *= 3;
 #if 0
 	if(idx % 2)
 	{
@@ -371,41 +362,9 @@ static void set_pixel(unsigned x,unsigned y, unsigned char red,unsigned char gre
 		videobuf[idx+1] = (blue<<8);
 	}
 #else
-	switch(out_format)
-	{
-		case PXL_FMT_ARGB8888:
-			idx *= 4;
-		    videobuf[idx+3] = 0xff;
-		    videobuf[idx+2] = red;
-		    videobuf[idx+1] = green;
-		    videobuf[idx] = blue;
-			break;
-		case PXL_FMT_ARGB4444:
-		    idx *= 2;
-		    tmp = 0xF;
-		    tmp <<= 4;
-		    tmp |= (unsigned char)((red >> 4) & 0xf);
-		    tmp <<= 4;
-		    tmp |= (unsigned char)((green >> 4) & 0xf);
-		    tmp <<= 4;
-		    tmp |= (unsigned char)((blue >> 4) & 0xf);
-		    videobuf[idx+1] = (tmp >> 8)&0xff;
-		    videobuf[idx] = (tmp&0xff);
-			break;
-		case PXL_FMT_ARGB1555:
-		    idx *= 2;
-		    tmp = 1;
-		    tmp <<= 5;
-		    tmp |= (unsigned char)((red >> 3) & 0x1f);
-		    tmp <<= 5;
-		    tmp |= (unsigned char)((green >> 3) & 0x1f);
-		    tmp <<= 5;
-		    tmp |= (unsigned char)((blue >> 3) & 0x1f);
-		    videobuf[idx+1] = (tmp >> 8)&0xff;
-		    videobuf[idx] = (tmp&0xff);
-			break;
-	}
-//	printf("[r,g,b] = [%x,%x,%x],argb=%x\r\n",red,green,blue,tmp);
+	videobuf[idx] = red;
+	videobuf[idx+1] = green;
+	videobuf[idx+2] = blue;
 #endif
 }
 
@@ -1257,21 +1216,10 @@ static void display_data_block(short i,short j)
          //v_comp=component[h_data_index][v_data_index][2][(x+i*8)/h_div[2]][(y+j*8)/v_div[2]];
 */
 
-
-		switch(out_format)
-		{
-#if defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
-			case PXL_FMT_ARGB8888:
-			case PXL_FMT_ARGB4444:
-			case PXL_FMT_ARGB1555:
-	        	convert_yuv_to_rgb(y_comp,u_comp,v_comp,&r,&g,&b);
-				break;
+#if 1		//YUV422
+#else		//RGB888
+         convert_yuv_to_rgb(y_comp,u_comp,v_comp,&r,&g,&b);
 #endif
-			case PXL_FMT_YUV420:
-			case PXL_FMT_YUV422:
-			default:
-				break;
-		}
          mcu_x=mcu_ctr % mcu_width;
          mcu_y=mcu_ctr/mcu_width;
 
@@ -1281,27 +1229,19 @@ static void display_data_block(short i,short j)
          if (x_pos<sof_info.width && y_pos<sof_info.height)
 #if 1		//YUV422
 			{
-				switch(out_format)
-    	    	{
-        	    	case PXL_FMT_ARGB8888:
-	        	    case PXL_FMT_ARGB4444:
-    	        	case PXL_FMT_ARGB1555:
-						set_pixel(x_pos, y_pos, r, g, b);
-						break;
-					case PXL_FMT_YUV420:
-					case PXL_FMT_YUV422:
-						if(y_comp < 0) y_comp = 0;
-						if(u_comp < 0) u_comp = 0;
-						if(v_comp < 0) v_comp = 0;
-						if(y_comp > 0xFF) y_comp = 0xFF;
-						if(u_comp > 0xFF) u_comp = 0xFF;
-						if(v_comp > 0xFF) v_comp = 0xFF;
-						if(out_format==PXL_FMT_YUV422) 
-							set_pixel_yuv422(x_pos, y_pos, (unsigned char)y_comp, (unsigned char)u_comp, (unsigned char)v_comp);
-						else if(out_format == PXL_FMT_YUV420)
-							set_pixel_vyuy(x_pos, y_pos, (unsigned char)y_comp, (unsigned char)u_comp, (unsigned char)v_comp);
+//printf("(%02d, %02d)=%04X, %04X, %04X\n", x_pos, y_pos, y_comp, u_comp, v_comp);
+				if(y_comp < 0) y_comp = 0;
+				if(u_comp < 0) u_comp = 0;
+				if(v_comp < 0) v_comp = 0;
+				if(y_comp > 0xFF) y_comp = 0xFF;
+				if(u_comp > 0xFF) u_comp = 0xFF;
+				if(v_comp > 0xFF) v_comp = 0xFF;
+				if(out_format==1) {
+					set_pixel_yuv422(x_pos, y_pos, (unsigned char)y_comp, (unsigned char)u_comp, (unsigned char)v_comp);
+				} else {
+					set_pixel_vyuy(x_pos, y_pos, (unsigned char)y_comp, (unsigned char)u_comp, (unsigned char)v_comp);
 				}
-			}		
+			}
 #else		//RGB888
             set_pixel(x_pos, y_pos, r, g, b);
 #endif

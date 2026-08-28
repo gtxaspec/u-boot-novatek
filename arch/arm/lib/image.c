@@ -5,7 +5,10 @@
  */
 
 #include <common.h>
+#include <image.h>
 #include <mapmem.h>
+#include <asm/global_data.h>
+#include <linux/bitops.h>
 #include <linux/sizes.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -64,10 +67,15 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 	 * images->ep.  Otherwise, relocate the image to the base of RAM
 	 * since memory below it is not accessible via the linear mapping.
 	 */
+#ifdef CONFIG_ARCH_NOVATEK
+	/* Set forced relocations to prevent the kernel from running out of memory */
+	dst = gd->ram_base;
+#else
 	if (!force_reloc && (le64_to_cpu(ih->flags) & BIT(3)))
 		dst = image - text_offset;
 	else
 		dst = gd->bd->bi_dram[0].start;
+#endif
 
 	*relocated_addr = ALIGN(dst, SZ_2M) + text_offset;
 

@@ -11,6 +11,7 @@
     published by the Free Software Foundation.
 */
 
+#include <cpu_func.h>
 #include <common.h>
 #include <asm/armv7.h>
 #include <asm/io.h>
@@ -191,12 +192,6 @@ void enable_caches(void)
 	dcache_enable();
 	icache_enable();
 }
-
-
-void __weak reset_cpu(unsigned long ignored)
-{
-}
-
 
 #ifdef CONFIG_ARCH_MISC_INIT
 #ifdef CONFIG_NOVATEK_PAD

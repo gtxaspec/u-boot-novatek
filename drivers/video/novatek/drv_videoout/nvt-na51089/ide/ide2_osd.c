@@ -158,12 +158,12 @@ BOOL idec_get_o2_en(IDE_ID id)
 
     @return void
 */
-void idec_set_o1_buf_addr(IDE_ID id, UINT32 ui_addr)
+void idec_set_o1_buf_addr(IDE_ID id, IDEDATA_TYPE ui_addr)
 {
 	T_IDE_BUF_ADDR reg;
 
 	reg.reg = idec_get_reg(id, IDE_O1_ST_OFS);
-#if defined __UITRON || defined __ECOS
+#if defined __UITRON || defined __ECOS || defined __FREERTOS
 	reg.bit.addr = ide_platform_va2pa(ui_addr);
 #else
 	reg.bit.addr = ui_addr;
@@ -179,12 +179,12 @@ void idec_set_o1_buf_addr(IDE_ID id, UINT32 ui_addr)
 
     @return void
 */
-void idec_set_o1_buf_alpha_addr(IDE_ID id, UINT32 ui_addr)
+void idec_set_o1_buf_alpha_addr(IDE_ID id, IDEDATA_TYPE ui_addr)
 {
 	T_IDE_BUF_ADDR reg;
 
 	reg.reg = idec_get_reg(id, IDE_O1_AST_OFS);
-#if defined __UITRON || defined __ECOS
+#if defined __UITRON || defined __ECOS || defined __FREERTOS
 	reg.bit.addr = ide_platform_va2pa(ui_addr);
 #else
 	reg.bit.addr = ui_addr;
@@ -388,7 +388,7 @@ void idec_set_o2_read_order(IDE_ID id, IDE_HOR_READ b_l2r, IDE_VER_READ b_t2b)
 
     @return void
 */
-void idec_get_o1_buf_addr(IDE_ID id, UINT32 *ui_addr)
+void idec_get_o1_buf_addr(IDE_ID id, IDEDATA_TYPE *ui_addr)
 {
 	T_IDE_BUF_ADDR reg;
 
@@ -404,7 +404,7 @@ void idec_get_o1_buf_addr(IDE_ID id, UINT32 *ui_addr)
 
     @return void
 */
-void idec_get_o1_alpha_buf_addr(IDE_ID id, UINT32 *ui_addr)
+void idec_get_o1_alpha_buf_addr(IDE_ID id, IDEDATA_TYPE *ui_addr)
 {
 	T_IDE_BUF_ADDR reg;
 
@@ -941,11 +941,13 @@ void idec_set_o1_palette_sel(IDE_ID id, IDE_PALETTE_SEL ui_psel)
 */
 void idec_set_o1_palette_high_addr(IDE_ID id, UINT8 ui_hi_addr)
 {
+#if 0
 	T_IDE_OSD_WIN_ATTR2 reg;
 
 	reg.reg = idec_get_reg(id, IDE_O1_WIN_ATTR2_OFS);
 	reg.bit.oh = ui_hi_addr;
 	idec_set_reg(id, IDE_O1_WIN_ATTR2_OFS, reg.reg);
+#endif	
 }
 
 /**
@@ -986,7 +988,60 @@ void idec_set_o1_fmt(IDE_ID id, IDE_COLOR_FORMAT ui_fmt)
 	idec_set_reg(id, IDE_O1_WIN_ATTR1_OFS, reg.reg);
 }
 
+/**
+    Set ide OSD1 RLD enable/disable.
 
+    @param[in] id   ide ID
+    @param[in] b_en enable/disable RLD for the specific window
+		- @b TRUE:Enable
+		- @b FALSE:Disable.
+
+    @return void
+*/
+void idec_set_o1_rld_en(IDE_ID id, BOOL b_en)
+{
+	T_IDE_OSD_WIN_ATTR2 reg;
+
+	reg.reg = idec_get_reg(id, IDE_O1_WIN_ATTR2_OFS);
+
+	reg.bit.rld_en = b_en;
+
+	idec_set_reg(id, IDE_O1_WIN_ATTR2_OFS, reg.reg);
+}
+
+void idec_set_o1_rld_ctrl(IDE_ID id, IDE_RLD_COUNT ui_cnt, IDE_RLD_LENGTH ui_len)
+{
+	T_IDE_RLD_CTRL reg;
+
+	reg.reg = idec_get_reg(id, IDE_RLD_CTRL_OFS);
+
+	reg.bit.rld_cnt = ui_cnt;
+	reg.bit.rld_len = ui_len;
+
+	idec_set_reg(id, IDE_RLD_CTRL_OFS, reg.reg);
+}
+
+void idec_set_o1_rld_readsize(IDE_ID id, UINT32 ui_size)
+{
+	T_IDE_RLD_SIZE reg;
+
+	reg.reg = idec_get_reg(id, IDE_RLD_READ_SIZE_OFS);
+
+	reg.bit.rld_size = ui_size;
+
+	idec_set_reg(id, IDE_RLD_READ_SIZE_OFS, reg.reg);
+}
+
+void idec_set_o1_rld_alpha_readsize(IDE_ID id, UINT32 ui_size)
+{
+	T_IDE_RLD_SIZE reg;
+
+	reg.reg = idec_get_reg(id, IDE_RLD_ALPHA_READ_SIZE_OFS);
+
+	reg.bit.rld_size = ui_size;
+
+	idec_set_reg(id, IDE_RLD_ALPHA_READ_SIZE_OFS, reg.reg);
+}
 #if 0
 /**
     Set ide OSD2 horizontal scaling method
@@ -1186,10 +1241,12 @@ void idec_get_o1_palette_sel(IDE_ID id, IDE_PALETTE_SEL *ui_psel)
 */
 void idec_get_o1_palette_high_addr(IDE_ID id, UINT8 *ui_hi_addr)
 {
+#if 0
 	T_IDE_OSD_WIN_ATTR2 reg;
 
 	reg.reg = idec_get_reg(id, IDE_O1_WIN_ATTR2_OFS);
 	*ui_hi_addr = reg.bit.oh;
+#endif	
 }
 
 /**
@@ -1207,6 +1264,89 @@ void idec_get_o1_fmt(IDE_ID id, IDE_COLOR_FORMAT *ui_fmt)
 	reg.reg = idec_get_reg(id, IDE_O1_WIN_ATTR1_OFS);
 
 	*ui_fmt = reg.bit.fmt;
+}
+
+/**
+    Get ide OSD1 Horizontal scaling method
+
+    @param[in] id   ide ID
+    @param[in] hsm horizontal scaling method
+		- IDE_SCALEMETHOD_DROP:duplicate/drop
+		- IDE_SCALEMETHOD_BILINEAR:bilinear
+
+    @return void
+*/
+IDE_SCALE_METHOD idec_get_o1_hsm(IDE_ID id)
+{
+	T_IDE_OSD_WIN_ATTR0 reg;
+
+	reg.reg = idec_get_reg(id, IDE_O1_WIN_ATTR0_OFS);
+
+	return reg.bit.hsm;
+}
+
+/**
+    Get ide OSD1 Vertical scaling method
+
+    @param[in] id   ide ID
+    @param[in] vsm vertical scaling method
+		- IDE_SCALEMETHOD_DROP:duplicate/drop
+		- IDE_SCALEMETHOD_BILINEAR:bilinear
+
+    @return void
+*/
+IDE_SCALE_METHOD idec_get_o1_vsm(IDE_ID id)
+{
+	T_IDE_OSD_WIN_ATTR0 reg;
+
+	reg.reg = idec_get_reg(id, IDE_O1_WIN_ATTR0_OFS);
+
+	return reg.bit.vsm;
+}
+
+/**
+    Get ide OSD1 RLD enable/disable.
+
+    @param[in] id   ide ID
+    @return
+		- @b TRUE: enable
+		- @b FALSE: disable.
+*/
+BOOL idec_get_o1_rld_en(IDE_ID id)
+{
+	T_IDE_OSD_WIN_ATTR2 reg;
+
+	reg.reg = idec_get_reg(id, IDE_O1_WIN_ATTR2_OFS);
+
+	return reg.bit.rld_en;
+}
+
+void idec_get_o1_rld_ctrl(IDE_ID id, IDE_RLD_COUNT *ui_cnt, IDE_RLD_LENGTH *ui_len)
+{
+	T_IDE_RLD_CTRL reg;
+
+	reg.reg = idec_get_reg(id, IDE_RLD_CTRL_OFS);
+
+	*ui_cnt = reg.bit.rld_cnt;
+	*ui_len = reg.bit.rld_len;
+}
+
+void idec_get_o1_rld_readsize(IDE_ID id, UINT32 *ui_size)
+{
+	T_IDE_RLD_SIZE reg;
+
+	reg.reg = idec_get_reg(id, IDE_RLD_READ_SIZE_OFS);
+
+	*ui_size = reg.bit.rld_size;
+}
+
+void idec_get_o1_rld_alpha_readsize(IDE_ID id, UINT32 *ui_size)
+{
+	T_IDE_RLD_SIZE reg;
+
+	reg.reg = idec_get_reg(id, IDE_RLD_ALPHA_READ_SIZE_OFS);
+
+	*ui_size = reg.bit.rld_size;
 }
 #if 0
 /**
@@ -1766,6 +1906,7 @@ void idec_get_o2_low_pass_coef(IDE_ID id, UINT8 *ui_pcoef)
 */
 BOOL idec_set_o1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chdma, IDE_DMA_BURST_LEN chrgb)
 {
+#if 0 // 530 not support
 	T_IDE_DMA_LEN reg;
 
 	reg.reg = idec_get_reg(id, IDE_DMA_LEN_OFS);
@@ -1788,7 +1929,7 @@ BOOL idec_set_o1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chdma, IDE_DMA_BURST_LEN
 	reg.bit.o1_a_len = chdma;
 	reg.bit.o1_rgb_len = chrgb;
 	idec_set_reg(id, IDE_DMA_LEN_OFS, reg.reg);
-
+#endif
 	return TRUE;
 }
 
@@ -1806,13 +1947,14 @@ BOOL idec_set_o1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN chdma, IDE_DMA_BURST_LEN
 */
 BOOL idec_get_o1_burst_len(IDE_ID id, IDE_DMA_BURST_LEN *chdma, IDE_DMA_BURST_LEN *chrgb)
 {
+#if 0 // 530 not support
 	T_IDE_DMA_LEN reg;
 
 	reg.reg = idec_get_reg(id, IDE_DMA_LEN_OFS);
 
 	*chdma = reg.bit.o1_a_len;
 	*chrgb = reg.bit.o1_rgb_len;
-
+#endif
 	return TRUE;
 }
 

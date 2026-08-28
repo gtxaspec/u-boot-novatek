@@ -9,9 +9,13 @@
 
 #ifdef CONFIG_NVT_HASH
 #include <common.h>
+#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_hash.h>
+
+#include <linux/delay.h>
+#include <cpu_func.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -23,7 +27,6 @@
  *  Global Definition
  *************************************************************************************/
 //#define NVT_HASH_DEBUG
-//#define NVT_HASH_DMA_36BIT_SUPPORT      1
 
 #define PLAT_CACHE_LINE_SIZE            CONFIG_SYS_CACHELINE_SIZE
 #define PLAT_CACHE_LINE_MASK            (CONFIG_SYS_CACHELINE_SIZE-1)
@@ -100,6 +103,7 @@
 #define NVT_HASH_KEY_READ_REG           0xA0           ///< hash key readable control
 #define NVT_HASH_DMA_SRC_H_REG          0xA4           ///< source dma high address
 #define NVT_HASH_DMA_DST_H_REG          0xA8           ///< destination dma high address
+#define NVT_HASH_AXI_CHANNEL_REG		0xB0		   ///< AXI DMA Channel 
 
 /*************************************************************************************
  *  Local Definition
@@ -110,15 +114,20 @@ static void nvt_hash_platform_init(void)
 {
 	uint32_t tmp;
 
-	/* Hash clock select, 0:PLL2(400MHz) 1:PLL13(350MHz) */
+	/* Hash clock select, 0:PLL13(400MHz) 1:fix(320MHz) */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x24);
 	tmp &= ~(0x1<<8);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x24, tmp);
 
-	/* Hash master clock enable */
+	/* Hash clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);
 	tmp |= (0x1<<29);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x70, tmp);
+
+	/* Hash master clock enable */
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x00);
+	tmp |= (0x1<<0);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x00, tmp);
 
 	/* Hash program clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0xE0);
@@ -412,6 +421,9 @@ int nvt_hash_dma_sha(struct nvt_hash_pio_t *p_hash)
     hash_write(NVT_HASH_DMA_SRC_H_REG, DMA_ADDR_HI(p_hash->src));
 #endif
 	hash_write(NVT_HASH_DMA_TX_SIZE_REG, p_hash->src_size);
+
+	/*clear DMA channel disable*/
+	hash_write(NVT_HASH_AXI_CHANNEL_REG, ~(0x1<<16));
 
 	/* clear DMA interrupt status */
 	hash_write(NVT_HASH_INT_STS_REG, 0x1);

@@ -14,7 +14,7 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 
-#define GPIO_VERSION "1.0.00"
+#define GPIO_VERSION "1.0.01"
 
 struct nvt_gpio_bank {
 	phys_addr_t base;
@@ -23,9 +23,14 @@ struct nvt_gpio_bank {
 #define GPIO_GETREG(ofs)	INW(IOADDR_GPIO_REG_BASE+(ofs))
 #define GPIO_SETREG(ofs, value)	OUTW(IOADDR_GPIO_REG_BASE +(ofs),(value))
 
+#define NVT_GPIO_STG_DATA_0		(0)
+#define NVT_GPIO_STG_DIR_0		(0x30)
+#define NVT_GPIO_STG_SET_0		(0x60)
+#define NVT_GPIO_STG_CLR_0		(0x90)
+
 static int gpio_validation(unsigned pin)
 {
-	if ((pin < C_GPIO(0)) || (pin > C_GPIO(23) && pin < L_GPIO(0)) || \
+	if ((pin > C_GPIO(23) && pin < L_GPIO(0)) || \
 	(pin > L_GPIO(30) && pin < P_GPIO(0)) || \
 	(pin > P_GPIO(37) && pin < HSI_GPIO(0)) || \
 	(pin > HSI_GPIO(23) && pin < D_GPIO(0)) || \
@@ -131,7 +136,7 @@ static int nvt_gpio_get_function(struct udevice *dev, unsigned offset)
 	reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
 
 	if (reg_data & (1<<offset))
-		return GPIOF_OUTPUT;		
+		return GPIOF_OUTPUT;
 
 	return GPIOF_INPUT;
 }
@@ -169,8 +174,8 @@ U_BOOT_DRIVER(gpio_msm) = {
 	.name	= "gpio_nvt",
 	.id	= UCLASS_GPIO,
 	.of_match = nvt_gpio_ids,
-	.ofdata_to_platdata = nvt_gpio_ofdata_to_platdata,
+	.of_to_plat = nvt_gpio_ofdata_to_platdata,
 	.probe	= nvt_gpio_probe,
 	.ops	= &gpio_nvt_ops,
-	.priv_auto_alloc_size = sizeof(struct nvt_gpio_bank),
+	.priv_auto = sizeof(struct nvt_gpio_bank),
 };

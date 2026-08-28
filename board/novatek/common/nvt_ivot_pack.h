@@ -1,10 +1,10 @@
 /**
     NVT utilities for all-in-one image pack
 
-    @file       nvt_ivot_soc_utils.h
+    @file       nvt_ivot_pack.h
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2019.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2022.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as
@@ -26,7 +26,7 @@ typedef enum _NVTPACK_ER {
 	NVTPACK_ER_USER_BREAK = -5,
 	NVTPACK_ER_PARAM = -6,
 	NVTPACK_ER_MEM_NOT_ENOUGH = -7,
-	NVTPACK_ER_UITRON_SIZE_ALIGN4 = -8, ///< uITRON size must align by 4
+	NVTPACK_ER_RTOS_SIZE_ALIGN4 = -8, ///< rtos size must align by 4
 	NVTPACK_ER_INVALID_WHOLE_SIZE = -9, ///< after nvtpack, whole size must align by 4
 	NVTPACK_ER_SRC_NAME_BLANK = -10, ///< resource's SrcName cannot be NULL or blank
 	NVTPACK_ER_SRC_NAME_EXCEED = -11, ///< resource's SrcName cannot exceed 12 bytes
