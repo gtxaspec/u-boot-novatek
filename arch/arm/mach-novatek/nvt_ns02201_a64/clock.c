@@ -17,7 +17,6 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
-#include <asm/arch/efuse_protected.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>

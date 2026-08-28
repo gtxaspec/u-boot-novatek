@@ -141,7 +141,7 @@
 /*
  * To include nvt memory layout
  */
-#include "novatek/ns02301_a32.h"
+#include "novatek/na51089_a32.h"
 
 /*
  * Our DDR memory always starts at 0x00000000 and U-Boot shall have
@@ -169,17 +169,18 @@
 
 #if (defined(CONFIG_CMD_DFU) && defined(_EMBMEM_EMMC_))
 #define CONFIG_DFU_MMC  1
+#ifndef CONFIG_FS_EXT4
 #define CONFIG_FS_EXT4  1
+#endif
+#ifndef CONFIG_EXT4_WRITE
 #define CONFIG_EXT4_WRITE   1
-#define CONFIG_SYS_DFU_MAX_FILE_SIZE CONFIG_LINUX_SDRAM_SIZE
+#endif
 
 /* EMMC partition */
 #define DFU_ALT_INFO \
 			"rootfs ext4 2 1;" \
-			"rootfs1 fat 2 2;" \
-			"rootfs2 ext4 2 3;" \
-			"mbr1 mbr 2 4;" \
-			"rootfsl1 part 2 5"
+			"rootfs1 part 2 2;" \
+			"mbr1 raw 2 4" 
 #endif
 
 #if (defined(CONFIG_CMD_DFU) && defined(CONFIG_NVT_SPI_NAND))

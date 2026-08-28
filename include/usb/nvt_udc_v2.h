@@ -441,6 +441,14 @@ struct nvt_udc_ext_regs {
 #define USB_CG_PHYRST_OFS 0x88
 #define USB_PHYRST_BIT (0x1<<19)
 
+#elif defined(CONFIG_TARGET_NA51089)
+/* NA51089 */
+#define USB_CG_RST_OFS 0x84
+#define USB_RST_BIT    (0x1<<19)
+#define USB_SRAM_SD_OFS 0x1000
+#define USB_SRAM_SD_BIT 19
+#define USB_PHYTOP_REG_OFS 0x400
+
 #else
 #endif
 #endif

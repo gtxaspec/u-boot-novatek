@@ -19,10 +19,7 @@
 
 
 
-
 #define HDMI_VERSION "1.04.00"
-
-
 
 
 #define PLATFORM_MAX_CHIP_CNT 1
@@ -100,7 +97,10 @@ typedef enum {
 //@{
 #define HDMI_EFUSE_USED 1
 
-#define HDMITX_SCDC_SUPPORT         DISABLE
+#define HDMI_UBOOT_I2C 1
+
+
+#define HDMITX_SCDC_SUPPORT         ENABLE
 #define HDMITX_SCDC_READREQUEST     DISABLE
 #define HDMITX_SCDC_RRTEST          DISABLE
 
@@ -127,7 +127,7 @@ typedef enum {
 #define HDMITX_DEBUG_FORCE_YUV      DISABLE
 #define HDMITX_DEBUG_FORCE_YUV422   DISABLE
 #define HDMITX_DEBUG_FORCE_OVSCAN   DISABLE
-#define HDMITX_DEBUG_SKIP_EDID      ENABLE
+#define HDMITX_DEBUG_SKIP_EDID      DISABLE
 #else
 #define hdmitx_debug(msg)
 #endif
@@ -331,6 +331,9 @@ extern void __iomem *_HDMITX_REG_BASE_ADDR[MODULE_REG_NUM];
 #else
 #define CG_SETREG(ofs, value)     OUTW((IOADDR_CG_REG_BASE+(ofs)), (value))
 #define CG_GETREG(ofs)            INW(IOADDR_CG_REG_BASE+(ofs))
+
+#define PAD_SETREG(ofs, value)     OUTW((IOADDR_PAD_REG_BASE+(ofs)), (value))
+#define PAD_GETREG(ofs)            INW(IOADDR_PAD_REG_BASE+(ofs))
 
 
 #define HDMI_SETREG(ofs, value)     OUTW((IOADDR_HDMI_REG_BASE+(ofs)), (value))

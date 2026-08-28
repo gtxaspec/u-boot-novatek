@@ -13,6 +13,7 @@
 #ifndef __ARCH_EFUSE_PROTECTED_H
 #define __ARCH_EFUSE_PROTECTED_H
 
+#include <asm/arch/IOAddress.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/rcw_macro.h>
 

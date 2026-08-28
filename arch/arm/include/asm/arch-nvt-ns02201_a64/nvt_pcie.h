@@ -1,32 +1,34 @@
 #ifndef _ARCH_PCIE_H
 #define _ARCH_PCIE_H
 
-#define	PCIE_HVYLD_BASE				0xec030000
-#define PCIE_TOP_REG_BASE				0xf04f0000
-#define PCIE_DBI_REG_BASE				0xfd000000
+#define PCIE_TOP_REG_BASE				0x2f0b40000
+#define PCIE_DBI_REG_BASE				0x2f2000000
 
-#define	PCIE_SLV_oATU0_BASE			0xFF0000000 //RC oATU memory, (map to register)
-#define	PCIE_SLV_oATU0_LIM			0xFFfffffff
+#define BOOT_SOURCE_PCIE_MODE_MSK			(1<<15)	// 0: RC, 1: EP
+#define BOOT_SOURCE_PCIE_LANE_MSK			(1<<16)	// 0: one x2, 1: two x1
+#define BOOT_SOURCE_REFCLK_MSK				(1<<17)	// 0: PLL24, 1: REFCLK pad
 
-#define	PCIE_SLV_oATU1_BASE			0x400000000 //RC oATU memory, (map to MAU)
-#define	PCIE_SLV_oATU1_LIM			0x41fffffff
-//#define	PCIE_SLV_oATU1_LIM			0x1fffffff
-#define	PCIE_SLV_oATU2_BASE			0x500000000 //RC oATU memory, (map to MAU2)
-#define	PCIE_SLV_oATU2_LIM			0x51fffffff
-#define	PCIE_EP0CFG_BASE			0x70000000
-#define	PCIE_EP0CFG_LIM				0x7000ffff
 
-#define	PCIE_EP0_MEM_BASE			0x400000000
-#define	PCIE_EP0_MEM2_BASE			0x500000000
-#define	PCIE_EP0_REG_BASE			0xFF0000000
-#define	PCIE_EP0_C1_BASE			0x51000000
-#define	PCIE_EP0_EC_BASE			0x5c000000
-//#define	PCIE_EP0_REAL_MEM_BASE			0x2F0000000
-#define	PCIE_EP0_REAL_MEM_BASE			0x20000000
-#define	PCIE_EP0_REAL_MEM2_BASE			0x120000000
-#define	PCIE_EP0_REAL_C1_BASE			0xc1000000
-#define	PCIE_EP0_REAL_REG_BASE			0x2F0000000
-#define	PCIE_EP0_REAL_EC_BASE			0xec000000
+//#define	PCIE_SLV_oATU0_BASE			0xFF0000000 //RC oATU memory, (map to register)
+//#define	PCIE_SLV_oATU0_LIM			0xFFfffffff
+
+//#define	PCIE_SLV_oATU1_BASE			0x400000000 //RC oATU memory, (map to MAU)
+//#define	PCIE_SLV_oATU1_LIM			0x41fffffff
+//#define	PCIE_SLV_oATU2_BASE			0x500000000 //RC oATU memory, (map to MAU2)
+//#define	PCIE_SLV_oATU2_LIM			0x51fffffff
+//#define	PCIE_EP0CFG_BASE			0x70000000
+//#define	PCIE_EP0CFG_LIM				0x7000ffff
+
+//#define	PCIE_EP0_MEM_BASE			0x400000000
+//#define	PCIE_EP0_MEM2_BASE			0x500000000
+//#define	PCIE_EP0_REG_BASE			0xFF0000000
+//#define	PCIE_EP0_C1_BASE			0x51000000
+//#define	PCIE_EP0_EC_BASE			0x5c000000
+//#define	PCIE_EP0_REAL_MEM_BASE			0x20000000
+//#define	PCIE_EP0_REAL_MEM2_BASE			0x120000000
+//#define	PCIE_EP0_REAL_C1_BASE			0xc1000000
+//#define	PCIE_EP0_REAL_REG_BASE			0x2F0000000
+//#define	PCIE_EP0_REAL_EC_BASE			0xec000000
 
 #define PCIE_ATU_TYPE_MEM			(0x0 << 0)
 #define PCIE_ATU_TYPE_IO			(0x2 << 0)

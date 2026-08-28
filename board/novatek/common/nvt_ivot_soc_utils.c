@@ -1678,6 +1678,11 @@ static int nvt_boot_linux_bin_auto(void)
 
 		sprintf(cmd, "0x%lx", nvt_memory_cfg[MEMTYPE_LINUX].addr);
 		env_set("kernel_comp_addr_r", cmd);
+
+		if ((size < sizeof(image_header_t)) || (size > nvt_memory_cfg[MEMTYPE_KERNEL_IMG].size)) {
+			printf("%s: kernel img size: %lx\n", __func__, size );
+			return -1;
+		}
 		sprintf(cmd, "0x%lx", size);
 		env_set("kernel_comp_size", cmd);
 #else
@@ -2005,6 +2010,89 @@ U_BOOT_CMD(
 	nvt_boot,   1,  0,  do_nvt_boot_cmd,
 	"To do nvt platform boot init.", "\n"
 );
+
+#if defined(CONFIG_NVT_LINUX_EMMC_BOOT)
+int do_nvt_mmc_erase_all_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	int curr_device = -1;
+	bool force_init = false;
+	char cmd[256] = {0};
+	u32 cnt;
+	struct mmc *mmc;
+
+	if (argc != 2)
+		return CMD_RET_USAGE;
+
+	curr_device = (int)hextoul(argv[1], NULL);
+
+	mmc = find_mmc_device(curr_device);
+	if (!mmc) {
+		printf("no mmc device at slot %x\n", curr_device);
+		return CMD_RET_FAILURE;
+	}
+
+	if (!mmc_getcd(mmc))
+		force_init = true;
+
+	if (force_init)
+		mmc->has_init = 0;
+
+	if (IS_ENABLED(CONFIG_MMC_SPEED_MODE_SET))
+		mmc->user_speed_mode = MMC_MODES_END;
+
+	if (mmc_init(mmc))
+		return CMD_RET_FAILURE;
+
+#ifdef CONFIG_BLOCK_CACHE
+	struct blk_desc *bd = mmc_get_blk_desc(mmc);
+	blkcache_invalidate(bd->if_type, bd->devnum);
+#endif
+
+	if (IS_SD(mmc) || mmc->version < MMC_VERSION_4_41) {
+		printf("Device: %s is SD Card!\n", mmc->cfg->name);
+		return CMD_RET_FAILURE;
+	}
+
+	printf("Device: %s\n", mmc->cfg->name);
+#if CONFIG_IS_ENABLED(MMC_WRITE)
+	printf("Erase Group Size: 0x%lx\n", ((u64)mmc->erase_grp_size));
+#endif
+	sprintf(cmd, "mmc dev %d", curr_device);
+	run_command(cmd, 0);
+
+	printf("User Capacity: 0x%lx\n", ((u64)mmc->capacity_user));
+	cnt = (u32)(mmc->capacity_user/mmc->erase_grp_size);
+	printf("Erase User Partition ...\n");
+	sprintf(cmd, "mmc partconf 2 1 1 0");
+	printf("%s\n", cmd);
+	run_command(cmd, 0);
+	sprintf(cmd, "mmc erase 0x0 0x%x", cnt);
+	run_command(cmd, 0);
+
+	printf("Boot Capacity: 0x%lx\n", ((u64)mmc->capacity_boot));
+	cnt = (u32)(mmc->capacity_boot/mmc->erase_grp_size);
+	printf("Erase Boot Partition #0 ...\n");
+	sprintf(cmd, "mmc partconf 2 1 1 1");
+	printf("%s\n", cmd);
+	run_command(cmd, 0);
+	sprintf(cmd, "mmc erase 0x0 0x%x", cnt);
+	run_command(cmd, 0);
+
+	printf("Erase Boot Partition #1 ...\n");
+	sprintf(cmd, "mmc partconf 2 1 1 2");
+	printf("%s\n", cmd);
+	run_command(cmd, 0);
+	sprintf(cmd, "mmc erase 0x0 0x%x", cnt);
+	run_command(cmd, 0);
+
+	return CMD_RET_SUCCESS;
+}
+
+U_BOOT_CMD(
+	nvt_mmc_erase_all,   2,  0,  do_nvt_mmc_erase_all_cmd,
+	"Erase User Partition and Boot Partition in mmc dev.", "dev\n"
+);
+#endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
 
 
 

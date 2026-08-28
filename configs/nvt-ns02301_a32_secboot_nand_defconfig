@@ -1143,6 +1143,7 @@ CONFIG_NOVATEK_MAC_ENET=y
 # CONFIG_RTC_S35392A is not set
 # CONFIG_RTC_MC146818 is not set
 # CONFIG_RTC_M41T62 is not set
+# CONFIG_NVT_NS02301_RTC is not set
 # CONFIG_SCSI is not set
 # CONFIG_DM_SCSI is not set
 

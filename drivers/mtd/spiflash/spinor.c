@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.13"
+#define NOR_VERSION "1.0.14"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;
@@ -420,7 +420,7 @@ static void nvt_parse_parameter(u32 *trace_stdtable)
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "indly", NULL);
 	if (cell > 0) {
 		info->indly = __be32_to_cpu(cell[0]);
-		printf("set indly = %d \n", info->indly);
+		printf("dtsi indly = %d \n", info->indly);
 	} else {
 		info->indly = 0;
 	}
@@ -1135,6 +1135,15 @@ static int nvt_spinor_probe_slave(struct spi_flash *flash)
 
 	nvt_parse_parameter(&info->trace_stdtable);
 
+	if (info->indly) {
+		union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
+
+		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+		phy_dly2.Bit.INDLY_SEL = info->indly;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
+		nand_dll_reset();
+	}
+
 	info->flash_info->config_nand_type = CONFIG_NAND_TYPE_SPINOR;
 
 	/* Read the ID codes */
@@ -1268,15 +1277,6 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 		} else {
 			printf("nand auto tuning finish\n");
 		}
-	}
-
-	if (info->indly) {
-		union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
-
-		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
-		phy_dly2.Bit.INDLY_SEL = info->indly;
-		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
-		nand_dll_reset();
 	}
 
 	printf("nvt spinor %d Hz\n", info->ops_freq);

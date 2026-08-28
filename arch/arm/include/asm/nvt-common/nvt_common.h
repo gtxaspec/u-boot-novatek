@@ -253,8 +253,6 @@ void nvt_ddr_scan(void);
 #endif
 void nvt_stbc_pmc(UINT32 debug);
 
-void nvt_print_system_info(void);
-
 #if defined(CONFIG_NVT_IVOT_DUAL_RTOS)
 extern int nvt_decide_dual_rtos_idx(void);
 extern void nvt_update_dual_rtos_info(void *p_bininfo, int boot_bank);

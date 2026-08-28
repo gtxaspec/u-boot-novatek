@@ -407,7 +407,7 @@ static void nvtim_init_usbhc(int index)
 		mdelay(5);
 		U3_U2PHY_SETREG(0x51, 0x00);
 	}
-#elif defined(CONFIG_TARGET_NS02301)
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NA51089)
 	{
 		u8 u2_trim_swctrl = 4, u2_trim_sqsel = 4, u2_trim_resint = 8;
 
@@ -425,6 +425,11 @@ static void nvtim_init_usbhc(int index)
 				// check if usb trim value is valid
 				is_found = extract_trim_valid(code, (u32 *)&trim);
 				if (is_found) {
+					if (nvt_get_chip_id() == CHIP_NA51089) {
+						printf("%s: [trim_rawdata(0x%04x)] [trim(0x%04x)]\r\n", __func__, (int)trim, (int)(trim >> 6));
+						trim = (trim >> 6);
+					}
+
 					if ((TRIM_RESINT_LOWER <= (trim & 0x1F)) && ((trim & 0x1F) <= TRIM_RESINT_UPPER)) {
 						u2_trim_resint = trim & 0x1F;
 						printf("%s: [is_found(%d) code(%d)] [trim(0x%04x) 12K_resistor(0x%04x)]\r\n", __func__, code, is_found, (int)trim, (int)u2_trim_resint);
@@ -439,12 +444,14 @@ static void nvtim_init_usbhc(int index)
 			}
 		}
 
-		// best setting
-		U2PHY_SETREG(MAP_PHY(0x14), 0xd3);   // Port0 VCHSEL = 11
-		U2PHY_SETREG(MAP_PHY(0x180), 0x01);  // sw datarpusel = 0
-		U2PHY_SETREG(MAP_PHY(0x30), 0x20);   // Port0 datarpu1 = 1
-		U2PHY_SETREG(MAP_PHY(0x2c), 0x20);   // sw set enable of reg_datarpu1 = 1
-		U2PHY_SETREG(MAP_PHY(0x18c), 0x60);  // sw reg_tx_cs_pdn = 1
+		if (nvt_get_chip_id() == CHIP_NS02301) {
+			// best setting
+			U2PHY_SETREG(MAP_PHY(0x14), 0xd3);   // Port0 VCHSEL = 11
+			U2PHY_SETREG(MAP_PHY(0x180), 0x01);  // sw datarpusel = 0
+			U2PHY_SETREG(MAP_PHY(0x30), 0x20);   // Port0 datarpu1 = 1
+			U2PHY_SETREG(MAP_PHY(0x2c), 0x20);   // sw set enable of reg_datarpu1 = 1
+			U2PHY_SETREG(MAP_PHY(0x18c), 0x60);  // sw reg_tx_cs_pdn = 1
+		}
 
 		// r45 cali lock
 		U2PHY_SETREG(MAP_PHY(0x144), 0x20);

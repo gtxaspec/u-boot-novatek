@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.15"
+#define NAND_VERSION "1.0.17"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {
@@ -169,7 +169,7 @@ static void nvt_parse_parameter(struct drv_nand_dev_info *info)
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "indly", NULL);
 	if (cell > 0) {
 		info->indly = __be32_to_cpu(cell[0]);
-		printf("set indly = %d \n", info->indly);
+		printf("dtsi indly = %d \n", info->indly);
 	} else {
 		info->indly = 0;
 	}
@@ -676,6 +676,15 @@ int nvt_nand_board_nand_init(struct nand_chip *nand)
 	nand_phy_config(info);
 	nand_dll_reset();
 
+	if (info->indly) {
+		union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
+
+		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+		phy_dly2.Bit.INDLY_SEL = info->indly;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
+		nand_dll_reset();
+	}
+
 	/*Delay 1 ms for spinand characteristic*/
 	mdelay(1);
 
@@ -802,15 +811,6 @@ int nvt_nand_board_nand_init(struct nand_chip *nand)
 		} else {
 			printf("nand auto tuning finish\n");
 		}
-	}
-
-	if (info->indly) {
-		union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
-
-		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
-		phy_dly2.Bit.INDLY_SEL = info->indly;
-		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
-		nand_dll_reset();
 	}
 
 	printf("nvt spinand %d-bit mode @ %d Hz\n", \

@@ -1660,7 +1660,7 @@ void nand_host_indly_scan(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType
 		if (info->indly) {
 			printf("[NAND]   ===> Dtsi indly check[%d]: ", info->indly);
 			if ((info->indly > (PsZoneStart+10)) && \
-				(info->indly < (PsZoneEnd-10)) && \
+				((info->indly + 10) < PsZoneEnd) && \
 				(PsZoneLen>20)) {
 				printf("(safe) \r\n");
 			} else if ((info->indly > PsZoneStart) && \
@@ -1671,13 +1671,21 @@ void nand_host_indly_scan(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType
 			}
 		}
 
+		printf("[NAND]   ===> Autok best indly: %d \r\n", PsZoneStart+(PsZoneLen/2));
 		// Apply scan result
 		if (info->autok_param & NAND_AUTOK_APPLY) {
 			info->indly = PsZoneStart+(PsZoneLen/2);
-			printf("[NAND]   ===> Apply autok best indly: %d \r\n", info->indly);
+			printf("[NAND]   ===> Apply Autok best indly\r\n");
 		} else {
 			printf("phy dll: reset to driver default setting\r\n");
 			nand_phy_config(info);
+			nand_dll_reset();
+		}
+
+		if (info->indly) {
+			phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+			phy_dly2.Bit.INDLY_SEL = info->indly;
+			NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
 			nand_dll_reset();
 		}
 	}

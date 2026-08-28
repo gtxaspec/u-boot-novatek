@@ -23,7 +23,7 @@
 UINT32              hdmi2_ctrl_option[HDMICFG_OPTION_ALL] = {TRUE,  TRUE, FALSE, FALSE, FALSE};
 #else
 // FORCE_RGB / FORCE_UNDERSCAN / VERIFY_VID /FORCE_YUV / TIMING_FACTOR_EN
-UINT32              hdmi2_ctrl_option[HDMICFG_OPTION_ALL] = {FALSE, TRUE, FALSE, FALSE, FALSE};
+UINT32              hdmi2_ctrl_option[HDMICFG_OPTION_ALL] = {TRUE, TRUE, FALSE, FALSE, FALSE};
 #endif
 
 
@@ -1497,6 +1497,18 @@ void _hdmitx2_disableclk_platform(int id){
 
 
 /*
+    HDMI Pad contorl 
+
+    This api is used to pull-none pad HPD gpio to get correct status from pin
+*/
+static void hdmitx2_hpd_pad_control(void)
+{
+ 	PAD_SETREG(0x10,PAD_GETREG(0x10)&0xFCFFFFFF);
+	DELAY_MS(5);
+}
+
+
+/*
     HDMI2 Driver Attach
 
     This api would open DDC's pinmux and then enable HDMI2's source clock.
@@ -1965,9 +1977,15 @@ static UINT32 hdmitx2_config_video(HDMI_VIDEOID vid_code)
 
 			if (vid_code == HDMI_3840X2160P24 ||
 				vid_code == HDMI_3840X2160P25||
-				vid_code == HDMI_3840X2160P30) {
+				vid_code == HDMI_3840X2160P30 ||
+				vid_code == HDMI_1024X768P60 ||
+				vid_code == HDMI_1280X1024P60 ||
+				vid_code == HDMI_1600X1200P60 ||
+				vid_code == HDMI_2560X1440P60 ||
+				vid_code == HDMI_1680X720P60) {
 				vid_code = 0;
 			}
+
 
 			//reg_info0.bit.CHSUM  = (HDMIINFO_AVI_TYPE + HDMIINFO_AVI_VER + HDMIINFO_AVI_LEN + under_scan + mode_fmt + pic_aspect_ratio + (vid_code&0x7F) + pr);
 			reg_info0.bit.CHSUM  = (HDMIINFO_AVI_TYPE + HDMIINFO_AVI_VER + HDMIINFO_AVI_LEN + HDMI_COLORIMETRY_ITUBT709 + HDMI_AFI_PRESENT + HDMIINFO_AVI_YCC_FULL_RANGE + under_scan + mode_fmt + pic_aspect_ratio + vid_code + pr);
@@ -2098,6 +2116,7 @@ ER hdmitx2_open(void)
 
 	if (!hdmi2_init) {
 		hdmi2_init = TRUE;
+		hdmitx2_hpd_pad_control();
 		hdmi2_hpd_status = hdmitx2_check_hotplug();
 #if defined(__FREERTOS)
 		hdmitx2_create_resource();
@@ -2517,7 +2536,7 @@ void hdmitx2_set_config(HDMI_CONFIG_ID config_id, UINT32 ui_config)
 						DBG_WRN("Write SCDC scramble, tmds 1:40 enable success\r\n");	
 
 						do {
-							vos_task_delay_ms(5);
+							DELAY_MS(5);
 							if (hdmitx2_scdc_read(0x21, &data) != E_OK) {
 	                            DBG_ERR("Read SCDC scramble sts , no support SCDC deviced\r\n");
 	                            return;
@@ -2545,7 +2564,7 @@ void hdmitx2_set_config(HDMI_CONFIG_ID config_id, UINT32 ui_config)
 
 
 					do {
-						vos_task_delay_ms(5);
+						DELAY_MS(5);
 						if (hdmitx2_scdc_read(0x40, &data) != E_OK) {
 							DBG_ERR("Read SCDC clock detect sts , no support SCDC deviced\r\n");
 							return;

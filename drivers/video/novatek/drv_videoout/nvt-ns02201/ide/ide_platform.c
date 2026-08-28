@@ -140,6 +140,8 @@ unsigned int ide_pa_en[LCD_ID_1+3]={0,0,0};
 
 #define PLL_CLKSEL_LCD_CLKSRC_OFFSET		20
 #define PLL_CLKSEL_LCD2_CLKSRC_OFFSET		24
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_OFFSET		0
+
 
 
 
@@ -1185,9 +1187,10 @@ ER ide_platform_set_clksrc(IDE_ID id, UINT32 src)
 #if 1//defined __UITRON || defined __ECOS || defined __FREERTOS
 	if (id == LCD_ID_1)
 		pll_set_clock_rate(PLL_CLKSEL_LCD_CLKSRC, (src<<PLL_CLKSEL_LCD_CLKSRC_OFFSET));
-	else
+	else if (id == LCD_ID_2)
 		pll_set_clock_rate(PLL_CLKSEL_LCD2_CLKSRC, (src<<PLL_CLKSEL_LCD2_CLKSRC_OFFSET));
-	
+	else
+		pll_set_clock_rate(PLL_CLKSEL_LCD_LITE_CLKSRC, (src<<PLL_CLKSEL_LCD_LITE_CLKSRC_OFFSET));
 	return E_OK;
 
 #else

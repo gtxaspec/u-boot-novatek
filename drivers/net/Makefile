@@ -99,6 +99,9 @@ obj-$(CONFIG_HIGMACV300_ETH) += higmacv300.o
 obj-$(CONFIG_MDIO_SANDBOX) += mdio_sandbox.o
 obj-$(CONFIG_FSL_ENETC) += fsl_enetc.o fsl_enetc_mdio.o
 obj-$(CONFIG_FSL_LS_MDIO) += fsl_ls_mdio.o
+ifeq ($(CONFIG_TARGET_NA51089)$(CONFIG_TARGET_NA51089_A64),y)
+	obj-$(CONFIG_NOVATEK_MAC_ENET) += eth_na51089.o
+endif
 ifeq ($(CONFIG_TARGET_NA51102)$(CONFIG_TARGET_NA51102_A64),y)
 	obj-$(CONFIG_NOVATEK_MAC_ENET) += eth_na51102.o
 endif

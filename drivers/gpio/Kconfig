@@ -506,6 +506,16 @@ config NA51089_GPIO
 	  Supported devices:
 	  - NA51089 Series
 
+config NA51090_GPIO
+	bool "Novatek GPIO driver"
+	depends on DM_GPIO && (TARGET_NA51090 || TARGET_NA51090_A64)
+	select GPIO_EXTRA_HEADER
+	default n
+	help
+	  Support GPIO controllers on Novatek Video Platform family of SoCs.
+	  Supported devices:
+	  - NA51090 Series
+
 config NA51102_GPIO
         bool "Novatek GPIO driver"
         depends on DM_GPIO && (TARGET_NA51102 || TARGET_NA51102_A64)
@@ -515,6 +525,16 @@ config NA51102_GPIO
           Support GPIO controllers on Novatek Video Platform family of SoCs.
           Supported devices:
           - NA51102 Series
+
+config NA51103_GPIO
+        bool "Novatek GPIO driver"
+        depends on DM_GPIO && (TARGET_NA51103 || TARGET_NA51103_A64)
+        select GPIO_EXTRA_HEADER
+        default n
+        help
+          Support GPIO controllers on Novatek Video Platform family of SoCs.
+          Supported devices:
+          - NA51103 Series
 
 config NS02201_GPIO
         bool "Novatek GPIO driver"

@@ -19,6 +19,7 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/crypto.h>
 #include <asm/arch/efuse_protected.h>
+#include <asm/arch/nvt_crypto.h>
 
 #define CRYPTO_SETREG(ofs,value)    	OUTW(IOADDR_CRYPTO_REG_BASE+(ofs),(value))
 #define CRYPTO_GETREG(ofs)          	INW(IOADDR_CRYPTO_REG_BASE+(ofs))
@@ -179,37 +180,19 @@ static void crypto_dma_enable(u32 uiMode, u32 uiOPMode, u32 uiType, u32 SrcAddr,
 
 s32 crypto_data_operation(EFUSE_OTP_KEY_SET_FIELD key_set, CRYPT_OP crypt_op_param)
 {
-
-	UINT32  reg;
 	s32  	ret;
-	//reg = INREG32(CLOCK_GEN_REG_BASE_ADDR + 0x4);
-	reg = INREG32(CLOCK_GEN_PLL_STS_REG);
-	if((reg & CKGEN_PLLEN_PLL2) != CKGEN_PLLEN_PLL2) {
-
-		SETREG32(CLOCK_GEN_PLL_PWR_REG, CKGEN_PLLEN_PLL2);
-
-		while (1) // wait PLL2 enabled
-	    {
-	        if (INREG32(CLOCK_GEN_PLL_STS_REG) & (CKGEN_PLLEN_PLL2))
-	        {
-	            break;
-	        }
-	    }
-
-	}
-	SETREG32(CLOCK_GEN_ENABLE_REG0, (0x01 << 31));
-
-
+	
+	nvt_crypto_open();
 	ret = crypto_set_mode(CRYPTO_AES, crypt_op_param.op_mode, crypt_op_param.en_de_crypt);
 	if (ret < 0) {
 		return ret;
 	}
 	otp_set_key_destination(key_set);
 	crypto_dma_enable(CRYPTO_AES, crypt_op_param.op_mode, crypt_op_param.en_de_crypt, crypt_op_param.src_addr, crypt_op_param.dst_addr, crypt_op_param.length);
-	CLRREG32(CLOCK_GEN_ENABLE_REG0, (0x01 << 31));
+	nvt_crypto_close();
+
 	return 0;
 }
-
 
 
 //CRYPTO_AES, crypt_op_param.op_mode, crypt_op_param.en_de_crypt, CRYPTO_DMA);

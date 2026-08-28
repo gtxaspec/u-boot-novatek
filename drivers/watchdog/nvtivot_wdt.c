@@ -63,6 +63,15 @@
 #define WDT_CLK_DIV	(1024)
 #define WDT_TIMEOUT_MAX	(89)
 
+#elif defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103)
+#define CG_ENABLE_OFS 0x7C
+#define CG_RESET_OFS 0x9C
+#define WDT_POS (1 << 4)
+#define WDT_RST (1 << 12)
+
+#define WDT_CLK_DIV	(2048)
+#define WDT_TIMEOUT_MAX	(178)
+
 #else
 #define CG_ENABLE_OFS 0x400
 #define CG_RESET_OFS 0x9C

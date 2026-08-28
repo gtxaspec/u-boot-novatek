@@ -1309,7 +1309,10 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 		if (host->data) {
 			printf("data %s error\n", \
 			   (host->data->flags & MMC_DATA_WRITE) ? "write" : "read");
-			printf("(CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
+
+			if (host->cmd)
+				printf("(CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
+			
 			sdiohost_resetdata(host);
 			//printf("MMCST_DATA_CRC_FAIL\r\n");
 			sdiohost_setstatus(host, MMCST_DATA_CRC_FAIL);	
@@ -1382,7 +1385,7 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 		}
 	}
 
-	if (end_command) {
+	if (end_command && (host->cmd)) {
 		mmc_nvt_cmd_done(host);
 	} else {
 		printf("end_command IS NULL\r\n");

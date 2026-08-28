@@ -18,6 +18,9 @@
 #include "kwrap/error_no.h"
 #include <kwrap/debug.h>
 #endif
+#include <dm.h>
+#include <i2c.h>
+
 
 //#include <kwrap/verinfo.h>
 
@@ -831,163 +834,58 @@ static void hdmitx2_ddc_init(void)
 }
 
 static ER hdmitx2_ddc_read(UINT32 addr, UINT32 segm, UINT32 offset, UINT32 cnt)
-{/*
-#if 0 //def __KERNEL__
-	struct i2c_msg  msgs[3];
-	unsigned char   buf0[1], buf1[1], *buf2;
-	int msg_cnt = 0;
-	int retry_cnt = 10;
-	int i;
+{
+#if HDMI_UBOOT_I2C
+	uchar t_val,*t_val2;
+	uint t_addr, d_addr;
+	int ret,len;
+	struct udevice *dev;
 
-	hdmitx_edidmsg(("DDC-Read:  addr=0x%X  segm=0x%X  offset=0x%X  cnt=0x%X\r\n", addr, segm, offset, cnt));
-
-	if (segm != 0) {
-		buf0[0] = segm;
-
-		msgs[msg_cnt].addr  = (0x60>>1);
-		msgs[msg_cnt].flags = 0;//w
-		msgs[msg_cnt].len   = 1;
-		msgs[msg_cnt].buf   = buf0;
-		msg_cnt++;
-	}
-
-	buf1[0] = offset;
-	msgs[msg_cnt].addr  = (addr>>1);
-	msgs[msg_cnt].flags = 0;//w
-	msgs[msg_cnt].len   = 1;
-	msgs[msg_cnt].buf   = buf1;
-	msg_cnt++;
-
-	buf2 = (unsigned char *)kzalloc(cnt, GFP_KERNEL);
-	if (!buf2) {
-		DBG_ERR("buf2 alloc failed(%d)\r\n", cnt);
-	}
-
-	msgs[msg_cnt].addr  = (addr>>1);
-	msgs[msg_cnt].flags = 1;//r
-	msgs[msg_cnt].len   = cnt;
-	msgs[msg_cnt].buf   = buf2;
-	msg_cnt++;
-
-    do {
-		retry_cnt--;
-	    if (i2c_transfer(hdmitx_i2c_info->iic_adapter, msgs, msg_cnt) != msg_cnt) {
-			DBG_ERR("%s, retry = [%d] \n",__FUNCTION__,10-retry_cnt);
-			if (retry_cnt == 0) {
-				DBG_ERR("%s fail: i2c_transfer not OK \n", __FUNCTION__);
-				hdmi_edid_error = 1;
-				return -1;
-			}	               
-	    } else {
-			retry_cnt = 0;	 
-		}
-		if (hdmitx2_check_hotplug() != TRUE) {
-			DBG_ERR("hdmi cable is unplug while %s. \n",__FUNCTION__);
-			hdmi_edid_error = 1;
-			return -1;
-		}
+	if(hdmitx2_check_hotplug() != 1){
+		return -1;
+	}	
 		
-    } while(retry_cnt > 0);
+	if (segm != 0) {
+		d_addr	= 0x60>>1;
+		t_addr	= segm;
+		len    = 0;
+		
+		//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
 	
-
-	if ((segm == 0) && (offset == 0) && (cnt >= 0x80)) {
-		hdmi_ext_blk = buf2[0x7E];
+		ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
+		if (ret < 0) {
+			printf("[debug] hdmitx2_ddc_read no device get\n");
+		 	return -1;
+		}			
+		ret = dm_i2c_write(dev, t_addr, &t_val, len);
 	}
-
-	for(i=0;i<cnt;i+=4){
-		hdmitx_edidmsg(("DDC_%d = 0x%02X 0x%02X 0x%02X 0x%02X \r\n", i, buf2[i], buf2[i+1], buf2[i+2], buf2[i+3]));
-	}
-
-	kfree(buf2);
 	
+	
+	d_addr	= HDMI_DDCSLAVE_ADDR>>1;
+	t_addr	= offset;
+	len    = cnt;
+	
+	//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
+		
+	ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
+	if(ret < 0) {
+		printf("[debug] hdmitx2_ddc_read no device get\n");
+	 	return -1;
+	}
+	
+	ret = dm_i2c_read(dev, t_addr, t_val2, len);
 
+	if(ret){
+		hdmi_edid_error = 1;
+		printf("hdmi_edid_error\r\n");
+	}
+	
 	if(hdmi_edid_error){
 		return -1;
 	} else {
 		return E_OK;
 	}
-#else
-
-	UINT32      ui_rest;
-	I2C_DATA    I2cData;
-	I2C_BYTE    I2cByte[4];
-
-	hdmitx_edidmsg(("DDC-Read:  addr=0x%X  segm=0x%X  offset=0x%X  cnt=0x%X\r\n", addr, segm, offset, cnt));
-	//return E_OK;
-
-	hdmi2_i2c_obj[hdmi2_i2c_select].lock(hdmi2_i2c_ses);
-
-	// Write Segment and Offset
-	//I2cData.VersionInfo         = DRV_VER_96680;
-	I2cData.pByte               = I2cByte;
-
-	if (segm != 0) {
-		I2cData.ByteCount   = I2C_BYTE_CNT_4;
-
-		I2cByte[0].uiValue  = 0x60;// WRITE
-		I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[1].uiValue  = segm;
-		I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
-
-		I2cByte[2].uiValue  = addr;// WRITE
-		I2cByte[2].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[3].uiValue  = offset;
-		I2cByte[3].Param    = I2C_BYTE_PARAM_NONE;
-	} else {
-		I2cData.ByteCount   = I2C_BYTE_CNT_2;
-
-		I2cByte[0].uiValue  = addr;// WRITE
-		I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[1].uiValue  = offset;
-		I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
-	}
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err 1!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
-	}
-
-	// Read Operation
-	I2cData.ByteCount   = I2C_BYTE_CNT_1;
-
-	I2cByte[0].uiValue  = addr | 0x1; // READ
-	I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err 2!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
-	}
-
-	ui_rest = cnt;
-	while (ui_rest) {
-		I2cByte[0].Param    = I2C_BYTE_PARAM_ACK;
-		I2cByte[1].Param    = I2C_BYTE_PARAM_ACK;
-		I2cByte[2].Param    = I2C_BYTE_PARAM_ACK;
-		I2cByte[3].Param    = I2C_BYTE_PARAM_ACK;
-
-		if (ui_rest > 4) {
-			I2cData.ByteCount       = I2C_BYTE_CNT_4;
-		} else {
-			I2cData.ByteCount       = ui_rest;
-			I2cByte[ui_rest - 1].Param = I2C_BYTE_PARAM_NACK | I2C_BYTE_PARAM_STOP;
-		}
-
-		hdmi2_i2c_obj[hdmi2_i2c_select].receive(&I2cData);
-
-		hdmitx_edidmsg(("DDC_%d = 0x%02X 0x%02X 0x%02X 0x%02X \r\n", cnt - ui_rest, I2cByte[0].uiValue, I2cByte[1].uiValue, I2cByte[2].uiValue, I2cByte[3].uiValue));
-		//hdmitx2_debug(("DDC_%d = 0x%02X 0x%02X \r\n",(cnt-ui_rest),I2cByte[0].uiValue,I2cByte[1].uiValue));
-
-		ui_rest -= I2cData.ByteCount;
-	}
-
-	return hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-
-	return E_OK;
 #endif
-*/
-	return E_OK;
 }
 
 //#include <plat/i2c_reg.h>
@@ -995,296 +893,107 @@ static ER hdmitx2_ddc_read(UINT32 addr, UINT32 segm, UINT32 offset, UINT32 cnt)
 
 static ER hdmitx2_ddc_read_byte2(UINT32 segm, UINT32 offset, UINT32 *pui_data)
 {
-/*
-#if 0//def __KERNEL__
-	struct i2c_msg  msgs[3];
-	unsigned char   buf0[1], buf1[1], buf2[1];
-	int msg_cnt = 0, trycnt=0;
+#if HDMI_UBOOT_I2C
+	uchar t_val;
+	uint t_addr, d_addr;
+	int ret,len;
+	struct udevice *dev;
 
-retry:
-	msg_cnt = 0;
-	trycnt++;
-
-#if 0
-	if (trycnt == 1){
-		int rt;
-		struct i2c_msg i2c_msg_cfg;
-		UINT8 i2c_msg_cfg_buf[2];
-
-		//DBG_ERR("NVT_I2C_AUTO_BUCLEAR gogo\r\n");
-		i2c_msg_cfg_buf[0] = NVT_I2C_AUTO_BUCLEAR;
-		i2c_msg_cfg_buf[1] = 1; // 0: DISABLE, 1: ENABLE
-		i2c_msg_cfg.addr = msgs->addr;
-		i2c_msg_cfg.flags = NVT_I2C_SET_CFG_FLG;
-		i2c_msg_cfg.len = 2;
-		i2c_msg_cfg.buf = i2c_msg_cfg_buf;
-		rt = i2c_transfer(hdmitx_i2c_info->iic_adapter, &i2c_msg_cfg, 1);
-		if (rt != 1) {
-				DBG_ERR(" i2c_transfer fail. \r\n");
-				return -1;
-		}
-		//DBG_ERR("NVT_I2C_SET_RST gogo\r\n");
-		i2c_msg_cfg_buf[0] = NVT_I2C_SET_RST;
-		i2c_msg_cfg_buf[1] = 1; // 0: DISABLE, 1: ENABLE
-		i2c_msg_cfg.addr = msgs->addr;
-		i2c_msg_cfg.flags = NVT_I2C_SET_CFG_FLG;
-		i2c_msg_cfg.len = 2;
-		i2c_msg_cfg.buf = i2c_msg_cfg_buf;
-		rt = i2c_transfer(hdmitx_i2c_info->iic_adapter, &i2c_msg_cfg, 1);
-		if (rt != 1) {
-				DBG_ERR(" i2c_transfer fail. \r\n");
-				return -1;
-		}
-
+	if(hdmitx2_check_hotplug() != 1){
+		return -1;
 	}
-
-	if (HDMI_RST_I2C) {
-		int rt;
-		struct i2c_msg i2c_msg_cfg;
-		UINT8 i2c_msg_cfg_buf[2];
-
-		//DBG_ERR("NVT_I2C_SET_CTL_EN_IMM gogo\r\n");
-		i2c_msg_cfg_buf[0] = NVT_I2C_SET_CTL_EN_IMM;
-		i2c_msg_cfg_buf[1] = 0; // 0: DISABLE, 1: ENABLE
-		i2c_msg_cfg.addr = msgs->addr;
-		i2c_msg_cfg.flags = NVT_I2C_SET_CFG_FLG;
-		i2c_msg_cfg.len = 2;
-		i2c_msg_cfg.buf = i2c_msg_cfg_buf;
-		rt = i2c_transfer(hdmitx_i2c_info->iic_adapter, &i2c_msg_cfg, 1);
-		if (rt != 1) {
-				DBG_ERR(" i2c_transfer fail. \r\n");
-				return -1;
-		}
-
-		i2c_msg_cfg_buf[1] = 1; // 0: DISABLE, 1: ENABLE
-		rt = i2c_transfer(hdmitx_i2c_info->iic_adapter, &i2c_msg_cfg, 1);
-		if (rt != 1) {
-				DBG_ERR(" i2c_transfer fail. \r\n");
-				return -1;
-		}
-	}
-#endif
+	
 	if (segm != 0) {
-		buf0[0] = segm;
-
-		msgs[msg_cnt].addr  = (0x60>>1);
-		msgs[msg_cnt].flags = 0;//w
-		msgs[msg_cnt].len   = 1;
-		msgs[msg_cnt].buf   = buf0;
-		msg_cnt++;
+		d_addr	= 0x60>>1;
+		t_addr	= segm;
+		len    = 0;
+		
+		//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
+	
+		ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
+		if (ret < 0) {
+			printf("[debug] hdmitx2_ddc_read_byte2 no device get\n");
+		 	return -1;
+		}		
+		ret = dm_i2c_write(dev, t_addr, &t_val, len);
 	}
+	
+	
+	d_addr	= HDMI_DDCSLAVE_ADDR>>1;
+	t_addr	= offset;
+	len    = 1;
+	
+	//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
+	
+	ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
 
-	buf1[0] = offset;
-	msgs[msg_cnt].addr  = (HDMI_DDCSLAVE_ADDR>>1);
-	msgs[msg_cnt].flags = 0;//w
-	msgs[msg_cnt].len   = 1;
-	msgs[msg_cnt].buf   = buf1;
-	msg_cnt++;
-
-	buf2[0] = 0;
-
-	msgs[msg_cnt].addr  = (HDMI_DDCSLAVE_ADDR>>1);
-	msgs[msg_cnt].flags = 1;//r
-	msgs[msg_cnt].len   = 1;
-	msgs[msg_cnt].buf   = buf2;
-	msg_cnt++;
-
-	if (i2c_transfer(hdmitx_i2c_info->iic_adapter, msgs, msg_cnt) != msg_cnt) {
-		DBG_ERR("%s fail: i2c_transfer not OK, trycnt %d\n", __FUNCTION__, trycnt);
-		if(trycnt < 6) {
-			goto retry;
-		}
+	if (ret < 0) {
+		printf("[debug] hdmitx2_ddc_read_byte2 no device get\n");
+	 	return -1;
 	}
-	*pui_data = (UINT32)buf2[0];
-	return E_OK;
-#else
+	ret = dm_i2c_read(dev, t_addr, &t_val, len);
 
-	//UINT8       reg = 0x0;
-	I2C_DATA    I2cData;
-	I2C_BYTE    I2cByte[4];
-
-	//hdmitx2_debug(("DDC-Read_Byte:  segm=0x%X  offset=0x%X\r\n",segm,offset));
-
-	hdmi2_i2c_obj[hdmi2_i2c_select].lock(hdmi2_i2c_ses);
-
-	// Write Segment and Offset
-	//I2cData.VersionInfo     = DRV_VER_96680;
-	I2cData.pByte           = I2cByte;
-	if (segm != 0) {
-		I2cData.ByteCount   = I2C_BYTE_CNT_4;
-
-		I2cByte[0].uiValue  = 0x60;
-		I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[1].uiValue  = segm;
-		I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
-
-		I2cByte[2].uiValue  = HDMI_DDCSLAVE_ADDR;
-		I2cByte[2].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[3].uiValue  = offset;
-		I2cByte[3].Param    = I2C_BYTE_PARAM_NONE;
-	} else {
-		I2cData.ByteCount   = I2C_BYTE_CNT_2;
-
-		I2cByte[0].uiValue  = HDMI_DDCSLAVE_ADDR;
-		I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[1].uiValue  = offset;
-		I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
+	if(ret < 0 ){
+		printf("[debug] hdmitx2_ddc_read_byte2 read fail\n");
 	}
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err 1!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
-	}
-
-
-
-	// Read One Byte
-	I2cData.ByteCount       = I2C_BYTE_CNT_1;
-
-	I2cByte[0].uiValue      = HDMI_DDCSLAVE_ADDR | 0x1;
-	I2cByte[0].Param        = I2C_BYTE_PARAM_START;
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err 2!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
-	}
-
-	I2cData.ByteCount       = I2C_BYTE_CNT_1;
-	I2cByte[0].Param        = I2C_BYTE_PARAM_NACK | I2C_BYTE_PARAM_STOP;
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].receive(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("hdmi:i2c transmit err 3!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
-	}
-
-
-	hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-
-	*pui_data = I2cByte[0].uiValue;
-	return E_OK;
-
-	return E_OK;
+	
+	
+	*pui_data = (UINT32)t_val;
 #endif
-*/
 	return E_OK;
 }
 
 
 static UINT8 hdmitx2_ddc_read_byte(UINT8 segm, UINT8 offset)
 {
-/*
-#ifdef __KERNEL__
-	struct i2c_msg  msgs[3];
-	unsigned char   buf0[1], buf1[1], buf2[1];
-	int msg_cnt = 0;
-	int trycnt = 0;
+#if HDMI_UBOOT_I2C
+	uchar t_val;
+	uint t_addr, d_addr;
+	int ret,len;
+	struct udevice *dev;
 	
-retry:
-		msg_cnt = 0;
-		trycnt++;
+	if(hdmitx2_check_hotplug() != 1){
+		return -1;
+	}
 
+	
 	if (segm != 0) {
-		buf0[0] = segm;
-
-		msgs[msg_cnt].addr  = (0x60>>1);
-		msgs[msg_cnt].flags = 0;//w
-		msgs[msg_cnt].len   = 1;
-		msgs[msg_cnt].buf   = buf0;
-		msg_cnt++;
+		d_addr	= 0x60>>1;
+		t_addr	= segm;
+		len    = 0;
+		
+		//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
+	
+		ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
+		if (ret < 0) {
+			 printf("[debug] hdmitx2_ddc_read_byte no device get\n");
+		 return -1;
+		}			
+		ret = dm_i2c_write(dev, t_addr, &t_val, len);
 	}
+	
+	
+	d_addr	= HDMI_DDCSLAVE_ADDR>>1;
+	t_addr	= offset;
+	len    = 1;
 
-	buf1[0] = offset;
-	msgs[msg_cnt].addr  = (HDMI_DDCSLAVE_ADDR>>1);
-	msgs[msg_cnt].flags = 0;//w
-	msgs[msg_cnt].len   = 1;
-	msgs[msg_cnt].buf   = buf1;
-	msg_cnt++;
-
-	buf2[0] = 0;
-
-	msgs[msg_cnt].addr  = (HDMI_DDCSLAVE_ADDR>>1);
-	msgs[msg_cnt].flags = 1;//r
-	msgs[msg_cnt].len   = 1;
-	msgs[msg_cnt].buf   = buf2;
-	msg_cnt++;
-
-	if (i2c_transfer(hdmitx_i2c_info->iic_adapter, msgs, msg_cnt) != msg_cnt) {
-		DBG_ERR("%s fail: i2c_transfer not OK, trycnt %d\n", __FUNCTION__, trycnt);
-		if(trycnt < 6) {
-			goto retry;
-		}
+	//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
+		
+	ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
+	if (ret < 0) {
+		printf("[debug] hdmitx2_ddc_read_byte no device get\n");
+	 	return -1;
 	}
-
-	return (UINT8)buf2[0];
-#else
-
-	//UINT8       reg = 0x0;
-	I2C_DATA    I2cData;
-	I2C_BYTE    I2cByte[4];
-
-	//hdmitx2_debug(("DDC-Read_Byte:  segm=0x%X  offset=0x%X\r\n",segm,offset));
-
-	hdmi2_i2c_obj[hdmi2_i2c_select].lock(hdmi2_i2c_ses);
-
-	// Write Segment and Offset
-	//I2cData.VersionInfo     = DRV_VER_96680;
-	I2cData.pByte           = I2cByte;
-	if (segm != 0) {
-		I2cData.ByteCount   = I2C_BYTE_CNT_4;
-
-		I2cByte[0].uiValue  = 0x60;
-		I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[1].uiValue  = segm;
-		I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
-
-		I2cByte[2].uiValue  = HDMI_DDCSLAVE_ADDR;
-		I2cByte[2].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[3].uiValue  = offset;
-		I2cByte[3].Param    = I2C_BYTE_PARAM_NONE;
-	} else {
-		I2cData.ByteCount   = I2C_BYTE_CNT_2;
-
-		I2cByte[0].uiValue  = HDMI_DDCSLAVE_ADDR;
-		I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-		I2cByte[1].uiValue  = offset;
-		I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
-	}
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err 1!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return 0x00;
-	}
-
-
-
-	// Read One Byte
-	I2cData.ByteCount       = I2C_BYTE_CNT_1;
-
-	I2cByte[0].uiValue      = HDMI_DDCSLAVE_ADDR | 0x1;
-	I2cByte[0].Param        = I2C_BYTE_PARAM_START;
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err 2!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return 0x00;
-	}
-
-	I2cData.ByteCount       = I2C_BYTE_CNT_1;
-	I2cByte[0].Param        = I2C_BYTE_PARAM_NACK | I2C_BYTE_PARAM_STOP;
-	hdmi2_i2c_obj[hdmi2_i2c_select].receive(&I2cData);
-
-	hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-
-	//hdmitx2_debug(("0x%02X\r\n",(I2cByte[0].uiValue & 0xFF)));
-	return (UINT8)(I2cByte[0].uiValue & 0xFF);
-
-	return E_OK;
+	
+	ret = dm_i2c_read(dev, t_addr, &t_val, len);
+	
+	if (ret < 0) {
+		printf("[debug] hdmitx2_ddc_read_byte error\n");
+	 	return -1;
+	}	
+	
+	return t_val;
 #endif
-*/
-	return E_OK;
 }
 
 
@@ -1367,142 +1076,76 @@ static ER hdmitx2_parse_edid(UINT32 ext_blk)
 
 ER hdmitx2_scdc_write(UINT32 offset, UINT32 data)
 {
-/*
-#ifdef __KERNEL__
-	struct i2c_msg  msgs[3];
-	unsigned char   buf1[2];
-	int msg_cnt = 0;
+#if HDMI_UBOOT_I2C
+	uchar t_val;
+	uint t_addr, d_addr;
+	int ret,len;
+	struct udevice *dev;
 
-	buf1[0] = offset&0xFF;
-	buf1[1] = data&0xFF;
-
-	msgs[msg_cnt].addr  = (HDMI2_SCDC_SLAVEADDR>>1);
-	msgs[msg_cnt].flags = 0;//w
-	msgs[msg_cnt].len   = 2;
-	msgs[msg_cnt].buf   = buf1;
-	msg_cnt++;
-
-	if (i2c_transfer(hdmitx_i2c_info->iic_adapter, msgs, msg_cnt) != msg_cnt) {
-		DBG_ERR("%s fail: i2c_transfer not OK \n", __FUNCTION__);
+	if(hdmitx2_check_hotplug() != 1){
 		return -1;
 	}
-	return E_OK;
-#else
-
-	I2C_DATA    I2cData;
-	I2C_BYTE    I2cByte[4];
 
 
-	hdmi2_i2c_obj[hdmi2_i2c_select].lock(hdmi2_i2c_ses);
+	d_addr = HDMI2_SCDC_SLAVEADDR>>1;
+	t_addr = offset;
+	t_val  = (uchar)data;
+	len	   = 1;
 
-	// Write Segment and Offset
-	I2cData.VersionInfo         = DRV_VER_96680;
-	I2cData.pByte               = I2cByte;
+	//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
 
-
-	I2cData.ByteCount   = I2C_BYTE_CNT_3;
-
-	I2cByte[0].uiValue  = HDMI2_SCDC_SLAVEADDR;
-	I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-	I2cByte[1].uiValue  = offset;
-	I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
-	I2cByte[2].uiValue  = data;
-	I2cByte[2].Param    = I2C_BYTE_PARAM_STOP;
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("HDMI i2c_11 transmit err 1!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
+	ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
+	if (ret < 0) {
+		 printf("[debug] hdmitx2_scdc_write no device get\n");
+	 return -1;
 	}
+	
+	ret = dm_i2c_write(dev, t_addr, &t_val, len);
 
-	hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-
-	return E_OK;
+	if(ret){
+		printf("[debug] dm_i2c_write error\n");
+		 return -1;
+	}
+	
 #endif
-*/
 	return E_OK;
 }
 
 
 ER hdmitx2_scdc_read(UINT32 offset, UINT32 *pdata)
 {
-/*
-#ifdef __KERNEL__
-	struct i2c_msg  msgs[3];
-	unsigned char   buf1[1], buf2[1];
-	int msg_cnt = 0, trycnt = 0;
+#if HDMI_UBOOT_I2C
+	uchar t_val;
+	uint t_addr, d_addr;
+	int ret,len;
+	struct udevice *dev;
+
+	if(hdmitx2_check_hotplug() != 1){
+		return -1;
+	}
+
+
+	d_addr = HDMI2_SCDC_SLAVEADDR>>1;
+	t_addr = offset;
+	len	   = 1;
+
+	//printf("[debug] your dev address is 0x%x, register address is 0x%x\n",d_addr, t_addr);
+
+	ret = i2c_get_chip_for_busnum(1, d_addr, 1, &dev);
+	if (ret < 0) {
+		 printf("[debug] hdmitx2_scdc_read no device get\n");
+	 	return -1;
+	}
 	
-retry:
-	msg_cnt = 0;
-	trycnt++;
+	ret = dm_i2c_read(dev, t_addr, &t_val, len);
 
-	buf1[0] = offset;
-
-	msgs[msg_cnt].addr  = (HDMI2_SCDC_SLAVEADDR>>1);
-	msgs[msg_cnt].flags = 0;//w
-	msgs[msg_cnt].len   = 1;
-	msgs[msg_cnt].buf   = buf1;
-	msg_cnt++;
-
-	buf2[0] = 0;
-
-	msgs[msg_cnt].addr  = (HDMI2_SCDC_SLAVEADDR>>1);
-	msgs[msg_cnt].flags = 1;//r
-	msgs[msg_cnt].len   = 1;
-	msgs[msg_cnt].buf   = buf2;
-	msg_cnt++;
-
-	if (i2c_transfer(hdmitx_i2c_info->iic_adapter, msgs, msg_cnt) != msg_cnt) {
-		DBG_ERR("%s fail: i2c_transfer not OK, trycnt %d\n", __FUNCTION__, trycnt);
-		if(trycnt < 6) {
-			goto retry;
-		}
+	if(ret){
+		 printf("[debug] hdmitx2_scdc_read error\n");
+		  return -1;
 	}
 
-	*pdata = (UINT32)buf2[0];
-
-	return E_OK;
-#else
-
-	I2C_DATA    I2cData;
-	I2C_BYTE    I2cByte[4];
-
-	hdmi2_i2c_obj[hdmi2_i2c_select].lock(hdmi2_i2c_ses);
-
-	// Write Segment and Offset
-	I2cData.VersionInfo         = DRV_VER_96680;
-	I2cData.pByte               = I2cByte;
-
-	I2cData.ByteCount   = I2C_BYTE_CNT_3;
-
-	I2cByte[0].uiValue  = HDMI2_SCDC_SLAVEADDR;
-	I2cByte[0].Param    = I2C_BYTE_PARAM_START;
-	I2cByte[1].uiValue  = offset;
-	I2cByte[1].Param    = I2C_BYTE_PARAM_NONE;
-	I2cByte[2].uiValue  = HDMI2_SCDC_SLAVEADDR + 1;
-	I2cByte[2].Param    = I2C_BYTE_PARAM_START;
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].transmit(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err scdc 1!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
-	}
-
-	I2cData.ByteCount   = I2C_BYTE_CNT_1;
-	I2cByte[0].Param    = I2C_BYTE_PARAM_NACK | I2C_BYTE_PARAM_STOP;
-
-	if (hdmi2_i2c_obj[hdmi2_i2c_select].receive(&I2cData) != I2C_STS_OK) {
-		DBG_ERR("i2c transmit err scdc 2!\r\n");
-		hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-		return E_SYS;
-	}
-
-	*pdata = I2cByte[0].uiValue;
-
-	return hdmi2_i2c_obj[hdmi2_i2c_select].unlock(hdmi2_i2c_ses);
-
+	*pdata = (UINT32)t_val;
 #endif
-*/
 	return E_OK;
 }
 

@@ -62,7 +62,6 @@
 #define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))
 
 #define CPU_NORMAL_FREQ_MAX             (800000000)        //800MHz
-#define CPU_OVER_CLKING_FREQ_MAX        (960000000)        //960MHz
 
 void core_timer_delay(u32 us);
 u32 ca53_get_cycle_count(void);
@@ -301,18 +300,12 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	if (code == 0) {
 		//value = 800;
 		printf("[InHs][CPU clk =@%dMHz]\n", value);
-	} /*else {
-		if(quary_secure_boot(SECUREBOOT_CPU_OVER_CLOCKING) == TRUE) {
-			if (value > CPU_OVER_CLKING_FREQ_MAX) {
-				value = CPU_OVER_CLKING_FREQ_MAX;
-			}
-		} else {
-			if (value > CPU_NORMAL_FREQ_MAX) {
-				value = CPU_NORMAL_FREQ_MAX;
-				printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX/1000000));
-			}
-		}
-	}*/
+	} else {
+		if (value > CPU_NORMAL_FREQ_MAX) {
+			value = CPU_NORMAL_FREQ_MAX;
+			printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX/1000000));
+		}		
+	}
 	
 #endif
 	switch (argc) {
@@ -410,34 +403,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				}
 			}
 			break;
-
-		case 960:
-			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
-				uiReg = readl(IOADDR_CG_REG_BASE);
-				if ((uiReg & (1 << PLL_CPU_NO)) != (1 << PLL_CPU_NO)) {
-					printf("PLL%d = Disabled => Enable it\n", PLL_CPU_NO);
-					uiReg |= (1 << PLL_CPU_NO);
-					writel(uiReg, IOADDR_CG_REG_BASE); // B0
-					uiReg = readl(IOADDR_CG_REG_BASE);
-					//Polling PLL16
-					while (!(readl(IOADDR_CG_REG_BASE + 0x04) & (1 << PLL_CPU_NO)));
-//					printf("PLL%d enable done= 0x%08x 0x%08x\n", PLL_CPU_NO, readl(IOADDR_CG_REG_BASE + 0x00), readl(IOADDR_CG_REG_BASE + 0x04));
-				}
-				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-				uiReg &= ~PLL_CLKSEL_CPUMASK;
-				uiReg |= PLL_CLKSEL_CPU_ARMPLL;
-				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
-				writel(0x34, (IOADDR_CG_REG_BASE + 0xA0));
-				while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
-				writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
-			}
-			//CPU 1000 MHz -> CPU-MPLL-125Mhz = 0x053555
-			writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0xA0, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2			
-			printf("Set CPU clk 960MHz\n");
-			break;
+		
 		case 800:
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
@@ -654,8 +620,7 @@ U_BOOT_CMD(
 	"nvt_cpu_freq  320(PLL)\n"
 	"nvt_cpu_freq  480(Fix480)\n"
 	"nvt_cpu_freq 600\n"
-	"nvt_cpu_freq 800(default)\n"
-	"nvt_cpu_freq 960\n"	
+	"nvt_cpu_freq 800(default)\n"	
 #endif
 );
 

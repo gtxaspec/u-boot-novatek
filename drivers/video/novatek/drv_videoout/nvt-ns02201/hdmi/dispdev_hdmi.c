@@ -21,7 +21,7 @@ int hdmi_cts_test = 1;
 int hdmi_ddc_init_delay = 0;
 
 #if 1//defined(__FREERTOS)
-int skip_edid = 1;
+int skip_edid = 0;
 int print_edid =0;
 #endif
 
@@ -47,6 +47,10 @@ MODULE_PARM_DESC(hdmi_ddc_init_delay, " hdmi_ddc_init_delay ");
 
 #if DISPDEVIOUSED
 static DISPDEV_IOCTRL   p_hdmi_io_control[HDMI_ID_MAX];
+HDMI_OBJ		 hdmi_obj[HDMI_ID_MAX]={
+										{hdmitx_set_config, hdmitx_get_config, hdmitx_get_edid_info},
+										{hdmitx2_set_config, hdmitx2_get_config, hdmitx2_get_edid_info},
+										};
 #endif
 
 /* dispdev_hdmi_obj api for HDMI1*/
@@ -219,7 +223,7 @@ static BOOL dispdev_init_hdmi_vid_format(HDMI_ID id, HDMI_VIDEOID vid_code)
 	//
 	//  Handle the TV overscan/underscan capability.
 	//
-	if ((!hdmitx_get_config(HDMI_CONFIG_ID_FORCE_UNDERSCAN)) && ((hdmitx_get_edid_info()&HDMITX_TV_UNDERSCAN) == 0x0) && (hdmitx_get_edid_info() != 0x0)) {
+	if ((!hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_FORCE_UNDERSCAN)) && ((hdmi_obj[id].hdmitx_get_edid_info()&HDMITX_TV_UNDERSCAN) == 0x0) && (hdmi_obj[id].hdmitx_get_edid_info() != 0x0)) {
 		// Overscan
 #if DISPDEVIOUSED
 		dev_io_ctrl.SEL.SET_CONST_OFS.ui_win_const_ofs_x = disp_video_timing[g_dispdev_hdmi_index[id]].WINX_OFS;
@@ -240,19 +244,19 @@ static BOOL dispdev_init_hdmi_vid_format(HDMI_ID id, HDMI_VIDEOID vid_code)
 	p_dispdev_control(DISPDEV_IOCTRL_SET_CONST_OFS, &dev_io_ctrl);
 #endif
 
-	if ((!hdmitx_get_config(HDMI_CONFIG_ID_FORCE_RGB)) && (hdmitx_get_edid_info()&HDMITX_TV_YCBCR444)) {
+	if ((!hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_FORCE_RGB)) && (hdmi_obj[id].hdmitx_get_edid_info()&HDMITX_TV_YCBCR444)) {
 		g_dispdev_hdmi_mode[id] = HDMI_MODE_YCBCR444;
-	} else if ((!hdmitx_get_config(HDMI_CONFIG_ID_FORCE_RGB)) && (hdmitx_get_edid_info()&HDMITX_TV_YCBCR422)) {
+	} else if ((!hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_FORCE_RGB)) && (hdmi_obj[id].hdmitx_get_edid_info()&HDMITX_TV_YCBCR422)) {
 		g_dispdev_hdmi_mode[id] = HDMI_MODE_YCBCR422;
 	} else {
 		g_dispdev_hdmi_mode[id] = HDMI_MODE_RGB444;
 	}
 #if DISPDEVIOUSED
-	if (hdmitx_get_config(HDMI_CONFIG_ID_FORCE_YUV444)) {
+	if (hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_FORCE_YUV444)) {
 		g_dispdev_hdmi_mode[id] = HDMI_MODE_YCBCR444;
-	} else if (hdmitx_get_config(HDMI_CONFIG_ID_FORCE_YUV422)) {
+	} else if (hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_FORCE_YUV422)) {
 		g_dispdev_hdmi_mode[id] = HDMI_MODE_YCBCR422;
-	} else if (hdmitx_get_config(HDMI_CONFIG_ID_FORCE_YUV420)) {
+	} else if (hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_FORCE_YUV420)) {
 		g_dispdev_hdmi_mode[id] = HDMI_MODE_YCBCR420;
 	}
 #endif
@@ -302,8 +306,8 @@ static void dispdev_init_hdmi_display(HDMI_ID id)
 	hdmitx_set_pg_pattern(0x0A);
 #endif
 
-	hdmitx_set_config(HDMI_CONFIG_ID_VSYNC_INVERT, disp_video_timing[g_dispdev_hdmi_index[id]].VS);
-	hdmitx_set_config(HDMI_CONFIG_ID_HSYNC_INVERT, disp_video_timing[g_dispdev_hdmi_index[id]].HS);
+	hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_VSYNC_INVERT, disp_video_timing[g_dispdev_hdmi_index[id]].VS);
+	hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_HSYNC_INVERT, disp_video_timing[g_dispdev_hdmi_index[id]].HS);
 
 	dev_io_ctrl.SEL.SET_VLD_INVERT.b_hvld_inv    = disp_video_timing[g_dispdev_hdmi_index[id]].HVLD;
 	dev_io_ctrl.SEL.SET_VLD_INVERT.b_vvld_inv    = disp_video_timing[g_dispdev_hdmi_index[id]].VVLD;
@@ -353,35 +357,35 @@ static void dispdev_init_hdmi_display(HDMI_ID id)
 		dev_io_ctrl.SEL.SET_ICST_EN.b_en    = TRUE;
 		dev_io_ctrl.SEL.SET_ICST_EN.select = CST_YCBCR2RGB;
 		p_dispdev_control(DISPDEV_IOCTRL_SET_ICST_EN, &dev_io_ctrl);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 0);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 1);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 2);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 0);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 1);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 2);
 	} else if (g_dispdev_hdmi_mode[id] == HDMI_MODE_YCBCR444) {
 		/* output=YCbCr for 444 mode */
 		dev_io_ctrl.SEL.SET_ICST_EN.b_en    = FALSE;
 		dev_io_ctrl.SEL.SET_ICST_EN.select = CST_RGB2YCBCR;
 		p_dispdev_control(DISPDEV_IOCTRL_SET_ICST_EN, &dev_io_ctrl);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 1);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 2);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 0);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 1);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 2);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 0);
 	} else if (g_dispdev_hdmi_mode[id] == HDMI_MODE_YCBCR422){
 		/* output=YCbCr for 422 mode */
 		dev_io_ctrl.SEL.SET_ICST_EN.b_en = FALSE;
 		dev_io_ctrl.SEL.SET_ICST_EN.select = CST_RGB2YCBCR;
 		p_dispdev_control(DISPDEV_IOCTRL_SET_ICST_EN, &dev_io_ctrl);
 
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 0);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 2);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 1);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 0);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 2);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 1);
 	} else {
 		/* output=YCbCr for 420 mode */
 		dev_io_ctrl.SEL.SET_ICST_EN.b_en = FALSE;
 		dev_io_ctrl.SEL.SET_ICST_EN.select = CST_RGB2YCBCR;
 		p_dispdev_control(DISPDEV_IOCTRL_SET_ICST_EN, &dev_io_ctrl);
 
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 0);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 2);
-		hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 1);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT0, 0);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT1, 2);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_COMPONENT2, 1);
 	}
 
 	switch(g_dispdev_hdmi_mode[id]){
@@ -1362,7 +1366,7 @@ static ER dispdev_open_hdmi(void)
 			return E_NOSPT;
 		}
 
-		if (hdmitx_get_config(HDMI_CONFIG_ID_VERIFY_VIDEOID)) {
+		if (hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_VERIFY_VIDEOID)) {
 			hdmitx_verify_video_id(&g_dispdev_hdmi_vid[id]);
 			/* if vid is not supported, it will be changed to HDMI_640X480P60 */
 			if (g_dispdev_hdmi_vid[id] == HDMI_640X480P60)
@@ -1382,11 +1386,11 @@ static ER dispdev_open_hdmi(void)
 #endif
 
 		// init HDMI phy after clock ready
-		hdmitx_set_config(HDMI_CONFIG_ID_PHY_INIT, TRUE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_PHY_INIT, TRUE);
 		
-		hdmitx_set_config(HDMI_CONFIG_ID_VIDEO, g_dispdev_hdmi_vid[id]);
-		hdmitx_set_config(HDMI_CONFIG_ID_AUDIO, g_dispdev_aud_fmt[id]);
-		hdmitx_set_config(HDMI_CONFIG_ID_SOURCE, g_dispdev_src_fmt[id]);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_VIDEO, g_dispdev_hdmi_vid[id]);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_AUDIO, g_dispdev_aud_fmt[id]);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_SOURCE, g_dispdev_src_fmt[id]);
 
 		// Configure VID content
 		if (dispdev_init_hdmi_vid_format(id, g_dispdev_hdmi_vid[id]) == FALSE) {
@@ -1412,25 +1416,25 @@ static ER dispdev_open_hdmi(void)
 #endif
 		
 		hdmitx_check_video_stable();
-		hdmitx_set_config(HDMI_CONFIG_ID_OE,             TRUE);
-		hdmitx_set_config(HDMI_CONFIG_ID_AUDIO_STREAM_EN, TRUE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_OE,             TRUE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_AUDIO_STREAM_EN, TRUE);
 		
 		DBG_WRN("=================================\n");
 		DBG_WRN("audio stream enable. \n");
 
-		hdmitx_set_config(HDMI_CONFIG_ID_SCDC_ENABLE,    ENABLE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_SCDC_ENABLE,    ENABLE);
 
 	} else {
 		//
 		// HDMI is already opened, Just changing HDMI format
 		//
-		hdmitx_set_config(HDMI_CONFIG_ID_AV_MUTE, TRUE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_AV_MUTE, TRUE);
 		//p_dispdev_control(DISPDEV_IOCTRL_WAIT_FRAMEEND, NULL);
 
-		hdmitx_set_config(HDMI_CONFIG_ID_AUDIO_STREAM_EN, FALSE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_AUDIO_STREAM_EN, FALSE);
 		//p_dispdev_control(DISPDEV_IOCTRL_WAIT_FRAMEEND, NULL);
 
-		if (hdmitx_get_config(HDMI_CONFIG_ID_VERIFY_VIDEOID)) {
+		if (hdmi_obj[id].hdmitx_get_config(HDMI_CONFIG_ID_VERIFY_VIDEOID)) {
 			hdmitx_verify_video_id(&g_dispdev_hdmi_vid[id]);
 		}
 
@@ -1462,9 +1466,9 @@ static ER dispdev_open_hdmi(void)
 		p_dispdev_control(DISPDEV_IOCTRL_SET_DISPSIZE, &dev_io_ctrl);
 		#endif
 		// Open HDMI-Tx
-		hdmitx_set_config(HDMI_CONFIG_ID_VIDEO, g_dispdev_hdmi_vid[id]);
-		hdmitx_set_config(HDMI_CONFIG_ID_AUDIO, g_dispdev_aud_fmt[id]);
-		hdmitx_set_config(HDMI_CONFIG_ID_SOURCE, g_dispdev_src_fmt[id]);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_VIDEO, g_dispdev_hdmi_vid[id]);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_AUDIO, g_dispdev_aud_fmt[id]);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_SOURCE, g_dispdev_src_fmt[id]);
 		#if DISPDEVIOUSED
 		p_dispdev_control(DISPDEV_IOCTRL_SET_LOAD,      NULL);
 
@@ -1474,13 +1478,13 @@ static ER dispdev_open_hdmi(void)
 		#endif
 		
 		hdmitx_check_video_stable();
-		hdmitx_set_config(HDMI_CONFIG_ID_OE,             TRUE);
-		hdmitx_set_config(HDMI_CONFIG_ID_AUDIO_STREAM_EN, TRUE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_OE,             TRUE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_AUDIO_STREAM_EN, TRUE);
 
-		hdmitx_set_config(HDMI_CONFIG_ID_SCDC_ENABLE,    ENABLE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_SCDC_ENABLE,    ENABLE);
 
 		// Wait TV Video Stable and then clear AV-Mute
-		hdmitx_set_config(HDMI_CONFIG_ID_AV_MUTE, FALSE);
+		hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_AV_MUTE, FALSE);
 	}
 
 	dispdev_check_sample_rate(ENABLE);
@@ -1512,7 +1516,7 @@ static ER dispdev_close_hdmi(void)
 
 	disphdmi_debug(("DEVHDMI: close\r\n"));
 
-	hdmitx_set_config(HDMI_CONFIG_ID_OE, FALSE);
+	hdmi_obj[id].hdmitx_set_config(HDMI_CONFIG_ID_OE, FALSE);
 	// Close HDMI
 	hdmitx_close();
 #if DISPDEVIOUSED

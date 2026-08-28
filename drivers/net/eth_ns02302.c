@@ -47,7 +47,7 @@
 #include <linux/delay.h>
 #include <asm/arch/efuse_protected.h>
 
-#define ETHVERSION "1.0.0.5"
+#define ETHVERSION "1.0.0.6"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
@@ -1078,7 +1078,13 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 		return -EINVAL;
 	}
 
+	eqos_inval_buffer((void *)packet, length);
+
 	rx_desc = &(eqos->rx_descs[eqos->rx_desc_idx]);
+	rx_desc->des0 = 0;
+	mb();
+	eqos_flush_desc(rx_desc);
+	eqos_inval_buffer((void *)packet, length);
 	rx_desc->des0 = (u32)(ulong)packet;
 	rx_desc->des1 = 0;
 	rx_desc->des2 = 0;
@@ -1204,6 +1210,9 @@ static int eqos_probe_resources_core(struct udevice *dev)
 		goto err_free_rx_dma_buf;
 	}
 	debug("%s: rx_pkt=%p\n", __func__, eqos->rx_pkt);
+
+	eqos_inval_buffer((void *)eqos->rx_dma_buf,
+			EQOS_MAX_PACKET_SIZE * EQOS_DESCRIPTORS_RX);
 
 	debug("%s: OK\n", __func__);
 	return 0;

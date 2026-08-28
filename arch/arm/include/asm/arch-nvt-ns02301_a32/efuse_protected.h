@@ -84,44 +84,25 @@ typedef enum {
 #define KEY_MANAGER_KEY_ENGINE_RIGHT_ADDRESS    (IOADDR_EFUSE_REG_BASE + 0x40)
 
 
-#define EFUSE_TRIM_DATA_SATA1_PRI                       0x0
-#define EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI      0x1
-#define EFUSE_TRIM_DATA_DDR_DRIVING_PRI                 0x2
-#define EFUSE_TRIM_DATA_HDMI_H_PHY_RESISTOR_PRI         0x3
-#define OTP_PKGUID_FIELD								0x4
-#define EFUSE_TRIM_DATA_USB_SATA_PRI                    0x5
-#define EFUSE_TRIM_DATA_THERMAL_PRI                     0x6
-#define EFUSE_TRIM_DATA_IDDQ_PRI                        0x7
-#define EFUSE_TRIM_V_ZQK_LPDDR4X_CKE_RST_PRI            0x24
-#define EFUSE_TRIM_V_ZQK_LPDDR4X_DQ_DQS_CLK_CS_CA_PRI   0x25
+#define EFUSE_TRIM_DATA_ETHERNET_PRI            0x0
+#define EFUSE_TRIM_DATA_USB_PRI                        0x1
+#define EFUSE_TRIM_DATA_DDR_RZQ_LDO_PRI         0x2
+#define EFUSE_TRIM_DATA_A_PRI                          0x3
+#define OTP_PKGUID_FIELD                        0x4
+#define EFUSE_TRIM_DATA_B_PRI                   0x5
+#define EFUSE_TRIM_DATA_THERMAL_PRI             0x6
+#define EFUSE_TRIM_DATA_FLL_PRI                 0x7
+#define EFUSE_TRIM_DATA_MIPI_TX_RX_PRI          0x8
 
-#define EFUSE_TRIM_V_ZQK_LPDDR4_CKE_RST_PRI             0x26
-#define EFUSE_TRIM_V_ZQK_LPDDR4_DQ_DQS_CLK_CS_CA_PRI    0x27
+#define OTP_8538_TRIM                          0x3C1
+#define OTP_6538_TRIM                           0x3A2
+#define OTP_8539_TRIM                           0x383
+#define OTP_6539_TRIM                           0x364
 
-#define EFUSE_TRIM_V_ZQK_DDR4_CLK_CS_CKE_CA_RST_PRI     0x28
-#define EFUSE_TRIM_V_ZQK_DDR4_DQ_DQS_PRI                0x29
-
-#define EFUSE_TRIM_DATA_USB3_1_USB2_DUAL_PHY_PRI        0x2A
-#define EFUSE_TRIM_DATA_SLVSEC_PRI                      0x2B
-#define EFUSE_TRIM_DATA_HDMI_2_0_V_PHY_VL_TRIM_PRI      0x2C
-#define EFUSE_TRIM_DATA_HDMI_1_4_V_PHY_VL_TRIM_PRI      0x2D
-#define EFUSE_TRIM_DATA_HDMI_V_PHY_RESISTOR_PRI         0x2E
-#define EFUSE_TRIM_DATA_HDMI_1_4_H_PHY_VL_TRIM_PRI      0x2F
-#define EFUSE_TRIM_PCIex_RINT_PRI                       0x30
-#define EFUSE_TRIM_PCIe0_ODT_PRI                        0x31
-#define EFUSE_TRIM_PCIe1_ODT_PRI                        0x32
-
-#define EFUSE_TRIM_USB_LDO_PRI                          0x39
-
-#define EFUSE_TRIM_DSITXPLL_RG_LEVEL_LDO_PRI            0x3A
-#define EFUSE_TRIM_DATA_CSI_4_I_TRIM_R_TERM_PRI         0x3B
-#define EFUSE_TRIM_DATA_CSI_3_I_TRIM_R_TERM_PRI         0x3C
-#define EFUSE_TRIM_DATA_CSI_2_I_TRIM_R_TERM_PRI         0x3D
-#define EFUSE_TRIM_DATA_CSI_1_I_TRIM_R_TERM_PRI         0x3E
+#define OTP_690_TRIM                                                   0x3C1
+#define OTP_692_TRIM                                                   0x3A2
 
 
-#define OTP_690_TRIM							0x3C1
-#define OTP_692_TRIM							0x3A2
 /**
     Crypto engine check
 */

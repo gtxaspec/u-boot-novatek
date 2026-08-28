@@ -1131,14 +1131,18 @@ dtb-$(CONFIG_TARGET_IMX8MM_CL_IOT_GATE) += imx8mm-cl-iot-gate.dtb
 dtb-$(CONFIG_TARGET_EA_LPC3250DEVKITV2) += lpc3250-ea3250.dtb
 
 # For NVT board
+dtb-$(CONFIG_TARGET_NA51089) += nvt-na51089-evb.dtb
+dtb-$(CONFIG_TARGET_NA51090) += nvt-na51090-evb.dtb
+dtb-$(CONFIG_TARGET_NA51090_A64) += nvt-na51090-evb-a64.dtb
+dtb-$(CONFIG_TARGET_NA51102) += nvt-na51102-evb.dtb
 dtb-$(CONFIG_TARGET_NA51102_A64) += nvt-na51102-evb-a64.dtb
+dtb-$(CONFIG_TARGET_NA51103) += nvt-na51103-evb.dtb
+dtb-$(CONFIG_TARGET_NA51103_A64) += nvt-na51103-evb-a64.dtb
+dtb-$(CONFIG_TARGET_NS02201) += nvt-ns02201-evb.dtb
 dtb-$(CONFIG_TARGET_NS02201_A64) += nvt-ns02201-evb-a64.dtb
+dtb-$(CONFIG_TARGET_NS02301) += nvt-ns02301-evb.dtb
 dtb-$(CONFIG_TARGET_NS02302_A64) += nvt-ns02302-evb-a64.dtb
 dtb-$(CONFIG_TARGET_NS02401_V0_A64) += nvt-ns02401-v0-evb-a64.dtb
-dtb-$(CONFIG_TARGET_NA51102) += nvt-na51102-evb.dtb
-dtb-$(CONFIG_TARGET_NA51089) += nvt-na51089-evb.dtb
-dtb-$(CONFIG_TARGET_NS02201) += nvt-ns02201-evb.dtb
-dtb-$(CONFIG_TARGET_NS02301) += nvt-ns02301-evb.dtb
 
 targets += $(dtb-y)
 

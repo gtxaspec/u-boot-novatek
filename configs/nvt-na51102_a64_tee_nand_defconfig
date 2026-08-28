@@ -1101,7 +1101,6 @@ CONFIG_NETDEVICES=y
 # CONFIG_RTC_MC146818 is not set
 # CONFIG_RTC_M41T62 is not set
 # CONFIG_NVT_NA51102_RTC is not set
-# CONFIG_NVT_NS02201_RTC is not set
 # CONFIG_SCSI is not set
 # CONFIG_DM_SCSI is not set
 

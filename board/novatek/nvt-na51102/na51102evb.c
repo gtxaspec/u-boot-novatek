@@ -157,7 +157,7 @@ int board_eth_init(struct bd_info *bis)
 	int rc = 0;
 
 #ifdef CFG_ETHNET
-	rc = na51000_eth_initialize(bis);
+	rc = na51102_eth_initialize(bis);
 #endif
 
 	return rc;

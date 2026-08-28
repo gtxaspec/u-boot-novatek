@@ -67,7 +67,7 @@ const char *warn =
 "are sure of what you are doing!\n"
 "\nReally do this cmd? <y/N>\n";
 
-static int do_nvt_switch_sec(cmd_tbl_t * cmdtp, int flag, int argc, char *const argv[])
+static int do_nvt_switch_sec(struct cmd_tbl * cmdtp, int flag, int argc, char *const argv[])
 {
 	char cmd[128];
 	int is_secure = 0;

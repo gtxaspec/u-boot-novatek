@@ -10293,7 +10293,11 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 			return E_CTX;
 		}
 
-		err = pinmux_config_hdl[i](info->top_pinmux[i].config);
+		if((i != PIN_FUNC_I2CII) && (i != PIN_FUNC_I2CIII)){/* won't init in uboot stage, because we are using gpio-mode i2c instead*/
+			err = pinmux_config_hdl[i](info->top_pinmux[i].config);
+		} else {
+			pr_err("top_config[%d].config skip\n", i);
+		}
 		if (err != E_OK) {
 			pr_err("top_config[%d].config config error\n", i);
 			/*Leave critical section*/

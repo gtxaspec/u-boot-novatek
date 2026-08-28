@@ -106,5 +106,15 @@ extern void hdmitx_set_pg_5(UINT32 VAW);
 extern void hdmitx_reset_sil9002(void);
 #endif
 
+/*
+	HDMI function object
+*/
+typedef struct {
+	void 	(*hdmitx_set_config)(HDMI_CONFIG_ID config_id, UINT32 ui_config);
+	UINT32  (*hdmitx_get_config)(HDMI_CONFIG_ID config_id);
+	UINT32  (*hdmitx_get_edid_info)(void);
+}HDMI_OBJ, *PHDMI_OBJ;
+
+
 
 #endif

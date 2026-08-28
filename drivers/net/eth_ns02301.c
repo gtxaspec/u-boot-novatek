@@ -45,8 +45,9 @@
 #include <asm/nvt-common/nvt_common.h>
 #include <linux/libfdt.h>
 #include <linux/delay.h>
+#include <asm/arch/efuse_protected.h>
 
-#define ETHVERSION "1.0.0.2"
+#define ETHVERSION "1.0.0.4"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
@@ -278,6 +279,12 @@ struct eqos_dma_regs {
 #if EQOS_DESCRIPTOR_SIZE != ARCH_DMA_MINALIGN
 #warning Cache line size is NOT equal to descriptor size
 #endif
+
+#define NVT_ETH_TX_TRIM_ROUT 0
+#define NVT_ETH_TX_TRIM_DAC 0
+#define NVT_ETH_TX_TRIM_SEL_RX 3
+#define NVT_ETH_TX_TRIM_SEL_TX 3
+#define NVT_TRIM_RANGE_CHECK(min, max, trim) ((trim) >= (min) && (trim) <= (max) ? 1 : 0)
 
 #define EQOS_DMA_AXI_CNRT_REGS_BASE 0x3040
 #define CH_DIS 3
@@ -1080,7 +1087,14 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 		return -EINVAL;
 	}
 
+	eqos_inval_buffer((void *)packet, length);
+
 	rx_desc = &(eqos->rx_descs[eqos->rx_desc_idx]);
+
+	rx_desc->des0 = 0;
+	mb();
+	eqos_flush_desc(rx_desc);
+	eqos_inval_buffer((void *)packet, length);
 	rx_desc->des0 = (u32)(ulong)packet;
 	rx_desc->des1 = 0;
 	rx_desc->des2 = 0;
@@ -1207,6 +1221,9 @@ static int eqos_probe_resources_core(struct udevice *dev)
 	}
 	debug("%s: rx_pkt=%p\n", __func__, eqos->rx_pkt);
 
+	eqos_inval_buffer((void *)eqos->rx_dma_buf,
+			EQOS_MAX_PACKET_SIZE * EQOS_DESCRIPTORS_RX);
+
 	debug("%s: OK\n", __func__);
 	return 0;
 
@@ -1258,6 +1275,56 @@ static void eth_phy_poweron(unsigned long base_addr)
 	writel(reg | (1 << 0), base_addr + 0x3800 + 0xDC);
 	reg = readl(base_addr + 0x3800 + 0x9C);
 	writel(reg & (~(1 << 0)), base_addr + 0x3800 + 0x9C);
+}
+
+static void set_eth_phy_trim(unsigned long base_addr)
+{
+	int trim_ret;
+	UINT32 trim_val;
+	UINT16 tx_trim_rout = NVT_ETH_TX_TRIM_ROUT;
+	UINT16 tx_trim_dac = NVT_ETH_TX_TRIM_DAC;
+	UINT16 tx_trim_sel_rx = NVT_ETH_TX_TRIM_SEL_RX;
+	UINT16 tx_trim_sel_tx = NVT_ETH_TX_TRIM_SEL_TX;
+	unsigned long reg;
+	bool is_found;
+
+	trim_ret = otp_key_manager(EFUSE_TRIM_DATA_ETHERNET_PRI);
+	if (trim_ret != -33) {
+		is_found = extract_trim_valid(trim_ret, (u32 *)&trim_val);
+		printk("%s: trim data 0x%04x \r\n", __func__, trim_val);
+		if(is_found) {
+			tx_trim_rout = trim_val & 0x7;              // bit[2..0]
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x7, tx_trim_rout)) {
+				tx_trim_rout = NVT_ETH_TX_TRIM_ROUT;
+			}
+
+			tx_trim_dac = (trim_val >> 3) & 0x1F;       // bit[7..3]
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0xc, tx_trim_dac) &&
+					!NVT_TRIM_RANGE_CHECK(0x14, 0x1f, tx_trim_dac)) {
+				tx_trim_dac = NVT_ETH_TX_TRIM_DAC;
+			}
+
+			tx_trim_sel_rx = (trim_val >> 8) & 0x7;     // bit[10..8]
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x6, tx_trim_sel_rx)) {
+				tx_trim_sel_rx = NVT_ETH_TX_TRIM_SEL_RX;
+			}
+
+			tx_trim_sel_tx = (trim_val >> 11) & 0x7;    // bit[13..11]
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x6, tx_trim_sel_tx)) {
+				tx_trim_sel_tx = NVT_ETH_TX_TRIM_SEL_TX;
+			}
+		}
+	}
+
+	reg = readl(base_addr + 0x3800 + 0x374);
+	reg &= ~(0x38);
+	writel(reg | (tx_trim_rout << 3), base_addr + 0x3800 + 0x374);
+	reg = readl(base_addr + 0x3800 + 0x378);
+	reg &= ~(0x1F);
+	writel(reg | tx_trim_dac, base_addr + 0x3800 + 0x378);
+	reg = readl(base_addr + 0x3800 + 0x368);
+	reg &= ~(0xFC);
+	writel(reg | (tx_trim_sel_rx << 5) | (tx_trim_sel_tx << 2), base_addr + 0x3800 + 0x368);
 }
 
 typedef enum {
@@ -1489,6 +1556,7 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 
 		eth_phy_poweron(IOADDR_ETH_REG_BASE);
 		// phy setting
+		set_eth_phy_trim(IOADDR_ETH_REG_BASE);
 		phy_sw_reset_enable(IOADDR_ETH_REG_BASE);
 		set_break_link_timer(IOADDR_ETH_REG_BASE);
 		set_led_blinking(IOADDR_ETH_REG_BASE);
@@ -1625,6 +1693,7 @@ static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 
 		eth_phy_poweron(IOADDR_ETH_REG_BASE);
 		        // phy setting
+			set_eth_phy_trim(IOADDR_ETH_REG_BASE);
 		        phy_sw_reset_enable(IOADDR_ETH_REG_BASE);
 		        set_break_link_timer(IOADDR_ETH_REG_BASE);
 		        set_led_blinking(IOADDR_ETH_REG_BASE);

@@ -18,14 +18,15 @@
 */
 //@{
 #define IOADDR_GLOBAL_BASE          (0x2F0000000)
+#define IOADDR_GLOBAL_BASE1         (0x4F0000000)
 
 // ---------------------------------------------
 // System category 0
 // ---------------------------------------------
 // Core timer
-#define IOADDR_SYSCNT_READ_BASE     (IOADDR_GLOBAL_BASE+0x0FE50000)
+#define IOADDR_SYSCNT_READ_BASE     (IOADDR_GLOBAL_BASE1+0x0FF10000)
 
-#define IOADDR_SYSCNT_CTRL_BASE     (IOADDR_GLOBAL_BASE+0x0FE60000)
+#define IOADDR_SYSCNT_CTRL_BASE     (IOADDR_GLOBAL_BASE1+0x0FF20000)
 
 // SDRAM Controller
 #define IOADDR_DRAM_REG_BASE        (IOADDR_GLOBAL_BASE+0x00180000)
@@ -119,7 +120,7 @@
 #define IOADDR_CSI_REG_BASE         (IOADDR_GLOBAL_BASE+0x00300000)
 
 // UART
-#define IOADDR_UART_REG_BASE        (IOADDR_GLOBAL_BASE+0x00110000)
+#define IOADDR_UART_REG_BASE        (IOADDR_GLOBAL_BASE+0x00130000)
 
 // Vx1
 //#define IOADDR_VX1_REG_BASE         (IOADDR_GLOBAL_BASE+0x002A0000)
@@ -141,10 +142,10 @@
 // ---------------------------------------------
 
 // UART2
-#define IOADDR_UART2_REG_BASE       (IOADDR_GLOBAL_BASE+0x00111000)
+#define IOADDR_UART2_REG_BASE       (IOADDR_GLOBAL_BASE+0x00131000)
 
 // UART3
-#define IOADDR_UART3_REG_BASE       (IOADDR_GLOBAL_BASE+0x00112000)
+#define IOADDR_UART3_REG_BASE       (IOADDR_GLOBAL_BASE+0x00132000)
 
 // SPI2
 #define IOADDR_SPI2_REG_BASE        (IOADDR_GLOBAL_BASE+0x00131000)
@@ -234,20 +235,20 @@
 // ---------------------------------------------
 
 // NAND
-#define IOADDR_NAND_REG_BASE        (IOADDR_GLOBAL_BASE+0x00350000)
+#define IOADDR_NAND_REG_BASE        (IOADDR_GLOBAL_BASE+0x007E0000)
 
 // SDIO
-#define IOADDR_SDIO_REG_BASE        (IOADDR_GLOBAL_BASE+0x00420000)
+#define IOADDR_SDIO_REG_BASE        (IOADDR_GLOBAL_BASE+0x007B0000)
 
 // ---------------------------------------------
 // Storage category 1
 // ---------------------------------------------
 
 // SDIO2
-#define IOADDR_SDIO2_REG_BASE       (IOADDR_GLOBAL_BASE+0x00430000)
+#define IOADDR_SDIO2_REG_BASE       (IOADDR_GLOBAL_BASE+0x007C0000)
 
 // SDIO3
-#define IOADDR_SDIO3_REG_BASE       (IOADDR_GLOBAL_BASE+0x00360000)
+#define IOADDR_SDIO3_REG_BASE       (IOADDR_GLOBAL_BASE+0x007D0000)
 
 
 // ---------------------------------------------

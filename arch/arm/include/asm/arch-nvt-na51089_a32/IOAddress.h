@@ -236,7 +236,8 @@
 // ---------------------------------------------
 
 // USB
-#define IOADDR_USB_REG_BASE         (IOADDR_GLOBAL_BASE+0x00600000)
+#define IOADDR_USB_REG_BASE         (IOADDR_GLOBAL_BASE+0x0F600000)
+#define IOADDR_USBPHY_REG_BASE      (IOADDR_GLOBAL_BASE+0x00600000)
 
 // USB3
 #define IOADDR_USB3_REG_BASE        (IOADDR_GLOBAL_BASE+0x01700000)
