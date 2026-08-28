@@ -26,8 +26,8 @@ int do_nvt_update_all_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const
 		return CMD_RET_USAGE;
 	}
 
-	size = cmd_get_data_size(argv[0], 4);
-	if (size < 0) {
+	ret = cmd_get_data_size(argv[0], 4);
+	if (ret < 0) {
 		return 1;
 	}
 
@@ -55,7 +55,7 @@ U_BOOT_CMD(
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 int do_nvt_ddr_scan(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64))
 	if (argc < 2) {
 		nvt_ddr_scan(0);
 	} else {
@@ -66,7 +66,7 @@ int do_nvt_ddr_scan(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 #endif
 	return 0;
 }
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64))
 U_BOOT_CMD(
 	nvt_ddr_scan, 2,    1,  do_nvt_ddr_scan,
 	"nvt ddr scan",

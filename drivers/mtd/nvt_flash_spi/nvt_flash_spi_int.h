@@ -30,6 +30,12 @@
 #include <asm/nvt-common/nvt_types.h>
 //#define dma_getPhyAddr(addr) 	((((uint32_t)(addr))>=0x60000000UL)?((uint32_t)(addr)-0x60000000UL):(uint32_t)(addr))
 
+#define NAND_AUTOK_MSG(info, fmt, args...) \
+	if(info->autok_param&NAND_AUTOK_DUMP_LOG) printf(fmt, ##args)
+
+#define NAND_AUTOK_DBG(info, fmt, args...) \
+	if(info->autok_param&NAND_AUTOK_DUMP_DBG) printf(fmt, ##args)
+
 #define  DUMP_NAND_DEBUG_MSG      DISABLE
 #define  NAND_DEBUG_MSG(fmt, args...) \
 	if(DUMP_NAND_DEBUG_MSG) printf(fmt, ##args)
@@ -43,8 +49,16 @@
 #define SPINAND_DUMMY_BYTE          (0x00)
 #define WORD_ALIGN_OFFSET           (4)
 #define ECC_CORRECTED               0xB0
+#define NVT_INDLY_STEP              128
 
 #define NVT_BCH_ECC_SUPPORT         (1)
+
+#if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64) || \
+	 defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64))
+#define NVT_OCTAL_IO_SUPPORT		ENABLE
+#else
+#define NVT_OCTAL_IO_SUPPORT		DISABLE
+#endif
 
 #define CONFIG_NAND_TYPE_ONFI       0
 #define CONFIG_NAND_TYPE_SPINAND    1
@@ -55,6 +69,15 @@
 #if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64))
 #ifdef  CONFIG_NVT_FPGA_EMULATION
 #define NVT_FLASH_SOURCE_CLK        12000000  // (24M/2)
+#define WAIT_COMP_TIMEOUT           6000
+#else
+#define NVT_FLASH_SOURCE_CLK        240000000 // (480M/2)
+#define WAIT_COMP_TIMEOUT           6000
+#endif
+
+#elif (defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64))
+#ifdef  CONFIG_NVT_FPGA_EMULATION
+#define NVT_FLASH_SOURCE_CLK        24000000  // (48M/2)
 #define WAIT_COMP_TIMEOUT           6000
 #else
 #define NVT_FLASH_SOURCE_CLK        240000000 // (480M/2)
@@ -101,6 +124,12 @@ typedef enum {
 	SPI_FLASH_BUSWIDTH_QUAD_DUMMY_6CYCLES = 0x400,//<  Require 6 dummy cycles in quad DTR mode
 
 	SPI_FLASH_NORMAL_WRITE = 0x8000, //< Suppport 4bit read, 1bit write
+
+	SPI_FLASH_BUSWIDTH_OCTAL_TYPE1   = 0x10000,   //< Support Octal IO Type1,
+	                                              //< Octal Page Program(1-1-8, 82h/84h) and Read(1-1-8, 8Bh/7Ch)
+	SPI_FLASH_BUSWIDTH_OCTAL_TYPE2   = 0x20000,   //< Support Octal IO Type2, MXIC only
+
+	SPI_FLASH_BUSWIDTH_DTR_READ      = 0x100000,   //< Support DTR IO read
 
 	ENUM_DUMMY4WORD(SPI_FLASH_BUSWIDTH)
 } SPI_FLASH_BUSWIDTH;
@@ -209,6 +238,7 @@ typedef enum
 	NAND_SPI_NORMAL_DUPLEX_MODE = 0,    //1bit
 	NAND_SPI_DUAL_MODE,
 	NAND_SPI_QUAD_MODE,
+	NAND_SPI_OCTAL_MODE,
 } NAND_SPI_BUS_WIDTH;
 
 typedef enum
@@ -289,12 +319,49 @@ struct spi_nand_sts {
 
 typedef enum
 {
-	SPI_NOR_NORMAL_READ = 0,
-	SPI_NOR_DUAL_READ = 1,
-	SPI_NOR_QUAD_READ = 2,
+	SPI_NOR_SINGLE_WRITE  = 0,
+	SPI_NOR_DUAL_WRITE    = 1,	/* unused */
+	SPI_NOR_QUAD_WRITE    = 2,
+	SPI_NOR_OCTAL_WRITE   = 3,
+
+	ENUM_DUMMY4WORD(NAND_SPI_NOR_WRITE_MODE)
+} NAND_SPI_NOR_WRITE_MODE;
+
+typedef enum
+{
+	SPI_NOR_NORMAL_READ   = 0,
+	SPI_NOR_DUAL_READ     = 1,
+	SPI_NOR_QUAD_READ     = 2,
+	SPI_NOR_OCTAL_READ    = 3,
 
 	ENUM_DUMMY4WORD(NAND_SPI_NOR_READ_MODE)
 } NAND_SPI_NOR_READ_MODE;
+
+typedef enum {
+	NANDCTRL_SDR_TYPE = 0x0,
+	NANDCTRL_DTR_TYPE,
+
+	DTR_TYPE_NUM,
+	ENUM_DUMMY4WORD(DTR_TYPE_SEL)
+} DTR_TYPE_SEL;
+
+typedef enum
+{
+	NAND_AUTOK_PATTERN_NONE = 0x0,     // Skip writing pattern action
+	NAND_AUTOK_PATTERN_EN   = 0x1,     // Writing x-bit pattern (x depends on bus width)
+
+	NAND_AUTOK_MODE1        = 0x10,    // Mode1: INDLY scan
+	NAND_AUTOK_MODE2        = 0x20,    // Mode2: DLL edge detect (no support)
+	NAND_AUTOK_MODE3        = 0x40,    // Mode2: DLL 1T edge detect (only 538 / 567 series can support)
+
+	NAND_AUTOK_DUMP_LOG     = 0x1000,  // Dump auto tuning log
+	NAND_AUTOK_DUMP_DBG     = 0x2000,  // Dump auto tuning debug msg
+
+	NAND_AUTOK_APPLY        = 0x10000, // apply scan result
+
+	ENUM_DUMMY4WORD(NAND_SPI_AUTO_TUNING)
+} NAND_SPI_AUTO_TUNING;
+
 
 struct nvt_nand_flash {
 	//const struct nvt_nand_timing *timing; /* NAND Flash timing */
@@ -312,8 +379,8 @@ struct nvt_nand_flash {
 	uint32_t chip_sel;          /* NAND flash chip select       */
 	uint32_t block_size;        /* NAND flash block size	    */
 	uint32_t module_config;     /* NAND controller configuration */
-	uint32_t nor_quad_support;  /* if nor flash support quad mode*/
-	NAND_SPI_NOR_READ_MODE nor_read_mode; /*normal/dual/quad read*/
+	NAND_SPI_NOR_READ_MODE  nor_read_mode;	/*normal/dual/quad/octal read*/
+	NAND_SPI_NOR_WRITE_MODE nor_write_mode;	/*normal/dual/quad/octal write*/
 	uint32_t qe_flags;          /* Flags to enable QE bits*/
 	int plane_flags;            /* Flags to distinguish dual planes flash*/
 	int ecc_strength;           /* NAND flash ecc strength size */
@@ -322,6 +389,10 @@ struct nvt_nand_flash {
 	uint32_t spare_size;		/* spare size per sector        */
 	uint32_t spare_align;		/* spare area reorganize        */
 	uint32_t spare_protect;		/* protect spare area or not    */
+	uint32_t dtr_dummy;         /* dummy clock in dtr read */
+	BOOL     dtr_en;            /* dtr mode enable  */
+	BOOL     dtr_read;          /* dtr read flag    */
+	BOOL     dqs_en;            /* DQS mode enable  */
 };
 
 struct smc_setup_trans {
@@ -348,6 +419,8 @@ struct drv_nand_dev_info {
 	dma_addr_t              data_buff_phys;
 	size_t                  data_buff_size;
 	dma_addr_t              data_desc_addr;
+
+	uint32_t                chip_id;
 
 	/* saved column/page_addr during CMD_SEQIN */
 	int                     seqin_column;
@@ -381,6 +454,12 @@ struct drv_nand_dev_info {
 
 	/* set flash ecc status type, 0x1 for XT26G01C ecc_bit[7..4] */
 	int						ecc_status_type;
+
+	/* auto tuning paraneter */
+	uint32_t                autok_param;
+	uint32_t                autok_addr;
+	uint32_t                indly;
+	uint32_t                bestPhase;
 };
 
 #define SRAMRDY_DELAY		    	5
@@ -403,6 +482,7 @@ struct drv_nand_dev_info {
 #define XTX_XT26G01C                    0x110B
 #define WINBOND_W25Q256FV               0x1940EF
 #define ESMT_EN25QH64A                  0x17701C
+#define GD_GD55X01GE                    0x1B48C8
 
 #define	EPERM                   1     /* Operation not permitted */
 #define	ENOENT                  2     /* No such file or directory */
@@ -537,6 +617,17 @@ struct drv_nand_dev_info {
 #define FLASH_CMD_RD_ALL_ID              0x90            //Read manufacture and device ID
 #define FLASH_CMD_RD_JEDEC_ID            (0x9Ful)        //Read JEDEC ID
 #define FLASH_CMD_RD_SFDP                (0x5Aul)        //Read SFDP
+
+#define FLASH_CMD_DTR_FASTREAD           0x0D            //FLASH CMD DTR FAST READ
+#define FLASH_CMD_DTR_DUAL_READ          0xBD            //FLASH CMD DTR DUAL READ
+#define FLASH_CMD_DTR_QUAD_READ          0xED            //FLASH CMD DTR QUAD READ
+
+// Octal NOR commands
+#define FLASH_CMD_PAGEPROG_8X            0x82            // Octal Page Program(1-1-8), 3Byte addr
+#define FLASH_CMD_PAGEPROG_8X_4BYTE      0x84            // Octal Page Program(1-1-8), 4Byte addr
+#define FLASH_CMD_OCTAL_READ             0x8B            // Octal Output Fast Read(1-1-8), 3Byte addr
+#define FLASH_CMD_OCTAL_READ_4BYTE       0x7C            // Octal Output Fast Read(1-1-8), 4Byte addr
+#define FLASH_CMD_OCTAL_READ_DTR         0xFD            // Octal I/O DTR Fast Read(1-8D-8D), 4Byte addr
 
 #define FLASH_CMD_AAI                    (0xADul)        //(AAI)Single-WORD program
 #define FLASH_CMD_EWSR                   (0x50)          //Enable Write Status Register
@@ -1124,6 +1215,7 @@ struct drv_nand_dev_info {
 // -----------------------------------------------------------------------------
 void	nand_store_cache(void *pbuf, u32 len);
 int     nand_hostSetNandType(struct drv_nand_dev_info *info, NAND_TYPE_SEL uiNandType);
+int     nand_hostSetDTRType(DTR_TYPE_SEL uiDTRType);
 int     nand_hostSetupPageSize(struct drv_nand_dev_info *info, NAND_PAGE_SIZE uiPageSize);
 int     nand_hostSetupStatusCheckBit(struct drv_nand_dev_info *info, u8 uiStatusMask, u8 uiStatusValue);
 int     nand_hostSetupAddressCycle(struct drv_nand_dev_info *info, NAND_ADDRESS_CYCLE_CNT uiRow, NAND_ADDRESS_CYCLE_CNT uiCol);
@@ -1193,6 +1285,8 @@ void	nand_host_set_spare_eccfree(struct drv_nand_dev_info *info, \
 					NAND_SPI_SPARE_ECC_FREE bSpareEccFree);
 
 void	nand_host_axi_ch_disable(struct drv_nand_dev_info *info, BOOL uiEN);
+
+int     nand_host_dll_auto_tuning(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType);
 
 void	nand_cmd_write_spare_sram(struct drv_nand_dev_info *info);
 

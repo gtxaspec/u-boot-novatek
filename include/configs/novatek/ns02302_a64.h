@@ -27,7 +27,7 @@
 #ifdef CONFIG_NVT_FPGA_EMULATION
 #define CONFIG_SYS_NS16550_CLK                          24000000        /* COM1: 24M, other COM port 48M */
 #else
-#define CONFIG_SYS_NS16550_CLK                          48000000        /* COM1: 24M, other COM port 48M */
+#define CONFIG_SYS_NS16550_CLK                          24000000        /* COM1: 24M, other COM port 48M */
 #endif
 
 /* Secure boot relative option */
@@ -53,5 +53,11 @@
 
 #ifdef _ENCRYPT_OPTEE_ON_
 #define CONFIG_ENCRYPT_OPTEE
+#endif
+
+#if defined(_SIGNATUREMETHOD_ECDSA_)
+#define CONFIG_SIGNATUREMETHOD_ECDSA
+#elif defined(SIGNATUREMETHOD_RSA)
+#define CONFIG_SIGNATUREMETHOD_RSA
 #endif
 

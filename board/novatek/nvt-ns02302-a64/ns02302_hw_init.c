@@ -13,6 +13,7 @@
 
 
 #include <common.h>
+#include <cli.h>
 #include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
@@ -34,9 +35,9 @@
 #define WDT_GETREG(ofs)         readl(WDT_REG_ADDR(ofs))
 #define WDT_SETREG(ofs,value)   writel(value, WDT_REG_ADDR(ofs))
 
-//#define STBC_REG_ADDR(ofs)       (IOADDR_STBC_CG_REG_BASE+(ofs))
-//#define STBC_GETREG(ofs)         readl(STBC_REG_ADDR(ofs))
-//#define STBC_SETREG(ofs,value)   writel(value, STBC_REG_ADDR(ofs))
+#define STBC_REG_ADDR(ofs)       (IOADDR_STBC_CG_REG_BASE+(ofs))
+#define STBC_GETREG(ofs)         readl(STBC_REG_ADDR(ofs))
+#define STBC_SETREG(ofs,value)   writel(value, STBC_REG_ADDR(ofs))
 
 
 
@@ -58,13 +59,13 @@
 #define TOP_SETREG(ofs,value)   writel(value, TOP_REG_ADDR(ofs))
 
 #define CG_PLL_ENABLE_OFS 0x0
-#define STBC_ENABLE_OFS 0x400
-#define CG_RESET_OFS 0x9C
+#define STBC_ENABLE_OFS 0x70
+#define CG_RESET_OFS 0x90
 #define CG_PLL4_DIV0_OFS 0x1318
 #define CG_PLL4_DIV1_OFS 0x131C
 #define CG_PLL4_DIV2_OFS 0x1320
-#define WDT_POS (1 << 24)
-#define WDT_RST (1 << 4)
+#define WDT_POS (1 << 0)
+#define WDT_RST (1 << 9)
 
 #define WDT_CTRL_OFS 0x0
 #define WDT_MANUL_OFS 0xC
@@ -125,8 +126,8 @@ void nvt_ivot_reset_cpu(void)
 	reg_value = CG_GETREG(CG_RESET_OFS);
 	CG_SETREG(CG_RESET_OFS, reg_value | WDT_RST);
 
-	//reg_value = STBC_GETREG(STBC_ENABLE_OFS);
-	//STBC_SETREG(STBC_ENABLE_OFS, reg_value | WDT_POS);
+	reg_value = STBC_GETREG(STBC_ENABLE_OFS);
+	STBC_SETREG(STBC_ENABLE_OFS, reg_value | WDT_POS);
 
 	WDT_SETREG(WDT_CTRL_OFS, 0x5A960112);
 
@@ -263,7 +264,7 @@ static void LPV_init(void)
 #else
 	u32 uiReg;
 	uiReg = LPV_GETREG(0x40);
-	uiReg |= (1<<8);
+	uiReg |= (1<<4);
 	LPV_SETREG(0x40, uiReg);
 #endif // CONFIG_NVT_FPGA_EMULATION
 }
@@ -282,7 +283,7 @@ static void power_init(void)
 	sprintf(path, "/top/sgpio_0_15");
 	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for sgpio_0_15, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -293,7 +294,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);
@@ -303,7 +304,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);
@@ -315,7 +316,7 @@ static void power_init(void)
 	sprintf(path, "/top/sgpio_16_31");
         nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
         cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-        if (cell < 0) {
+        if (cell == NULL) {
                 printf("%s: Not Existed power_config for sgpio_16_31, skip\n", __func__);
         } else {
                 pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -326,7 +327,7 @@ static void power_init(void)
 
                                 /* Stop boot */
                                 printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-                                while (1);
+                                cli_loop();
                         }
 
                         pad_set_power(&pad_power);
@@ -336,7 +337,7 @@ static void power_init(void)
 
                                 /* Stop boot */
                                 printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-                                while (1);
+                                cli_loop();
                         }
 
                         pad_set_power(&pad_power);
@@ -348,7 +349,7 @@ static void power_init(void)
 	sprintf(path, "/top/pgpio_0_19");
 	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for pgpio_0_19, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -375,7 +376,7 @@ static void power_init(void)
 	sprintf(path, "/top/cgpio_0_12");
 	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for cgpio_0_12, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -386,7 +387,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);
@@ -396,7 +397,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);
@@ -435,34 +436,59 @@ typedef void (*LDR_GENERIC_CB)(void);
 #define JUMP_ADDR 0x2f0d40000
 void nvt_ddr_scan(u32 type)
 {
+	int ratio = 0;
 	int reg = 0;
-	uint64_t    addr = 0xF0d40000;
+	uintptr_t   addr = 0xF0D40000;
 	int current_el = 0;
-	register uint64_t x0 __asm__("x0");
+	register uintptr_t x0 __asm__("x0");
 	addr = *(UINT32 *)JUMP_ADDR;
 
+	ratio = readl(0x2f0234400|0x20) | (readl(0x2f0234400|0x24) << 8) | (readl(0x2f0234400|0x28) << 16);
+	ratio = (ratio*12*8)/131072;
+	printf("\nDRAM1_");
+	if((readl(0x2f0180008)>>27)&0x1) {
+		if((readl(0x2f0180008)>>30)&0x1) {
+			printf("DDR4x2_");
+		} else {
+			printf("DDR4x1_");
+		}
+	} else {
+		printf("DDR3_");
+	}
+	printf("%d_", ratio);
+
+	if((readl(0x2f0180008)>>28)&0x1) {
+		printf("16B\n");
+	} else {
+		printf("32B\n");
+	}
 
 	//printf("Loader ini ver = 0x%02x\r\n", readl(0xfe20001c));
-//	void (*image_entry)(void) = NULL;
-	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
-	if (type) {
-		writel(type, 0x2f0060084);
-		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
+	void (*image_entry)(void) = NULL;
+	printf("memcpy->[0x%lx]", (uintptr_t)JUMP_ADDR);
+	if (type == 1) {
+		memcpy((void *)JUMP_ADDR, ddr_scan_quick, sizeof(ddr_scan_quick));
 		printf("->done\n");
-		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
+		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan_quick));
 		printf("flush->");
-		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
+		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan_quick), ARCH_DMA_MINALIGN));
+	} else if (type == 2) {
+		memcpy((void *)JUMP_ADDR, ddr_scan_phy, sizeof(ddr_scan_phy));
+		printf("->done\n");
+		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan_phy));
+		printf("flush->");
+		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan_phy), ARCH_DMA_MINALIGN));
 	} else {
-		writel(0x40050e7c, 0x2f0060084);
 		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	}
-	printf("done\r\n");
-	printf("Jump into sram entry point[0x%08x]\n", (int)addr);
-
+    printf("done\r\n");
+	printf("Jump into sram\n");
+	// image_entry = (LDR_GENERIC_CB)(*((unsigned long*)JUMP_ADDR));
+	// image_entry();
 	//1. switch register type 0x2Fxxx_xxxx to 0xFxxx_xxxx
 	reg = readl(0x2FFE41014);
 	reg &= ~(1);
@@ -502,8 +528,6 @@ void nvt_ddr_scan(u32 type)
 	} else {
 		printf("Unknow EL ...\r\n");
 	}
-	//image_entry = (LDR_GENERIC_CB)(*((unsigned long*)JUMP_ADDR));
-	//image_entry();
 }
 #endif
 

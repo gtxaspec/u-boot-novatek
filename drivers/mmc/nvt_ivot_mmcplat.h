@@ -3,6 +3,8 @@
 
 #if (defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
 #include "nvt_ivot_mmc_na51102.h"
+#elif (defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51089_A64))
+#include "nvt_ivot_mmc_na51089.h"
 #elif (defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
 #include "nvt_ivot_mmc_ns02201.h"
 #elif (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64))

@@ -63,7 +63,7 @@
 #define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))
 #define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))
 
-#define CPU_NORMAL_FREQ_MAX             (1400000000)        //1.4GHz
+#define CPU_NORMAL_FREQ_MAX             (1500000000)        //1.5GHz
 #define CPU_OVER_CLKING_FREQ_MAX        (1600000000)        //1.6GHz
 
 void core_timer_delay(u32 us);
@@ -659,42 +659,6 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				SETREG32(IOADDR_CG_REG_BASE + 0x8000, 0x1);
 			}
 			printf("Set CPU clk 1600MHz\n");
-			break;
-
-		case 1650:
-			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
-				uiReg = readl(IOADDR_CG_REG_BASE);
-				if ((uiReg & (1 << PLL_CPU_NO)) != (1 << PLL_CPU_NO)) {
-					printf("PLL%d = Disabled => Enable it\n", PLL_CPU_NO);
-					uiReg |= (1 << PLL_CPU_NO);
-					writel(uiReg, IOADDR_CG_REG_BASE); // B0
-					uiReg = readl(IOADDR_CG_REG_BASE);
-					//Polling PLL16
-					while (!(readl(IOADDR_CG_REG_BASE + 0x04) & (1 << PLL_CPU_NO)));
-					printf("PLL%d enable done= 0x%08x 0x%08x\n", PLL_CPU_NO, readl(IOADDR_CG_REG_BASE + 0x00), readl(IOADDR_CG_REG_BASE + 0x04));
-				}
-				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
-				uiReg &= ~PLL_CLKSEL_CPUMASK;
-				uiReg |= PLL_CLKSEL_CPU_ARMPLL;
-				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
-				writel(0x34, (IOADDR_CG_REG_BASE + 0xB0));
-				while (!(readl(IOADDR_CG_REG_BASE + 0xB0) & (1 << 3)));
-				writel(0x28, (IOADDR_CG_REG_BASE + 0xB0));
-			}
-			//CPU 1650 MHz -> CPU-MPLL-150Mhz = 0x089800
-			writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0x98, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x08, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
-			if ((INREG32(IOADDR_CG_REG_BASE + 0x8000) & 0x1) != 0x1) {
-				timer2_delay(300);
-				//resetb_armpll --> enable PLL & BG LDO ON
-				SETREG32(IOADDR_CG_REG_BASE + 0x8000 + 0x10, 0x3);
-				timer2_delay(500);
-				//select ti ARMPLL
-				SETREG32(IOADDR_CG_REG_BASE + 0x8000, 0x1);
-			}
-			printf("Set CPU clk 1650MHz\n");
 			break;
 
 		case 470:

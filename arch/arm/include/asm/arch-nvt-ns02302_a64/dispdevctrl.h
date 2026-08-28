@@ -518,19 +518,10 @@ typedef struct {
 		struct { // DISPDEV_SET_OUTPUT_DRAM
 			IDEDATA_TYPE      y_addr;                  ///< Output Y address
 			IDEDATA_TYPE      uv_addr;                 ///< Output UV address
-			UINT32      input_width;              ///< Output width
-			UINT32      input_height;             ///< Output height
 			UINT32      output_width;            ///< Output width
 			UINT32      output_height;           ///< Output height
 			UINT32      output_line_ofs;          ///< Output line offset(unit:byte)
-			UINT32      fmt;                      ///< output format (0:420/1:422/2:YCC420)
-			UINT32      sel;                      ////< output select path.
-			UINT32      en;                       ////< enable
-			UINT32      crop_x;              	 ///< crop x
-			UINT32      crop_y;             	 ///< crop y
-			UINT32      crop_width;              ///< crop width
-			UINT32      crop_height;             ///< crop height
-			UINT32      crop_en;                  ////< crop_enable
+			BOOL        is_yuv422;              ///< output format (0:420/1:422)
 		} SET_OUTPUT_DRAM_PAR;
 
 

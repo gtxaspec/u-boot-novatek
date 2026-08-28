@@ -37,22 +37,28 @@
     This feature can be assigned for each display layer with different setting.
 */
 typedef enum {
-	DISPBUFFORMAT_RGB565,               ///< Buffer uses format RGB 565.
-	DISPBUFFORMAT_ARGB1555,             ///< Buffer uses format ARGB 1555.
-	DISPBUFFORMAT_RGB888,               ///< Buffer uses format RGB 888.
-	DISPBUFFORMAT_ARGB8888,             ///< Buffer uses format ARGB 8888.
 	DISPBUFFORMAT_PAL1,                 ///< Buffer uses format 1bit palette.
 	DISPBUFFORMAT_PAL2,                 ///< Buffer uses format 2bit palette.
 	DISPBUFFORMAT_PAL4,                 ///< Buffer uses format 4bit palette.
 	DISPBUFFORMAT_PAL8,                 ///< Buffer uses format 8bit palette.
+
 	DISPBUFFORMAT_YUV444,               ///< Buffer uses format YUV444.
 	DISPBUFFORMAT_YUV422,               ///< Buffer uses format YUV422.
 	DISPBUFFORMAT_YUV420,               ///< Buffer uses format YUV420.
+
 	DISPBUFFORMAT_ARGB4565,             ///< Buffer uses format ARGB 4565.
 	DISPBUFFORMAT_ARGB8565,             ///< Buffer uses format ARGB 8565.
-	DISPBUFFORMAT_YUV422PACK=8,           ///< Buffer uses format YUV422.
-	DISPBUFFORMAT_YUV420PACK=9,           ///< Buffer uses format YUV420.
+
+	DISPBUFFORMAT_YUV422PACK,           ///< Buffer uses format YUV422.
+	DISPBUFFORMAT_YUV420PACK,           ///< Buffer uses format YUV420.
+
+	DISPBUFFORMAT_ARGB8888,             ///< Buffer uses format ARGB 8888.
+
 	DISPBUFFORMAT_ARGB4444,             ///< Buffer uses format ARGB 4444.
+	DISPBUFFORMAT_ARGB1555,             ///< Buffer uses format ARGB 1555.
+
+
+
 	ENUM_DUMMY4WORD(DISPBUFFORMAT)
 } DISPBUFFORMAT;
 
@@ -586,15 +592,10 @@ typedef struct {
 
 		struct { // DISPLAYER_OP_SET_COLORKEY
 			DISPCKOP            ck_op;           ///< color key operation
-			BOOL                b_ck_en;          ///< color key enable/disable
 			UINT32              ui_ck_y;          ///< color key color Y(R)
 			UINT32              ui_ck_cb;         ///< color key color Cb(G)
 			UINT32              ui_ck_cr;         ///< color key color Cr(B)
 			UINT32              ui_ck_alpha;      ///< color key alpha(only used in osd)
-			UINT32              ui_ck_h_y;          ///< high color key color Y(R)
-			UINT32              ui_ck_h_cb;         ///< high color key color Cb(G)
-			UINT32              ui_ck_h_cr;         ///< high color key color Cr(B)
-
 		} SET_COLORKEY;
 
 		struct { // DISPLAYER_OP_SET_BLINK
@@ -1125,13 +1126,9 @@ typedef struct {
 
 		struct { // DISPLAYER_OP_GET_COLORKEY
 			DISPCKOP            ck_op;           ///< color key operation
-			BOOL                b_ck_en;         ///< color key Enable/Disable
 			UINT32              ui_ck_y;          ///< color key color Y(R)
 			UINT32              ui_ck_cb;         ///< color key color Cb(G)
 			UINT32              ui_ck_cr;         ///< color key color Cr(B)
-			UINT32              ui_ck_h_y;          ///< high color key color Y(R)
-			UINT32              ui_ck_h_cb;         ///< high color key color Cb(G)
-			UINT32              ui_ck_h_cr;         ///< high color key color Cr(B)
 			UINT32              ui_ck_alpha;      ///< color key alpha(only used in osd)
 		} GET_COLORKEY;
 

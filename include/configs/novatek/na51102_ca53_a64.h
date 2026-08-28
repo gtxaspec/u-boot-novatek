@@ -29,3 +29,34 @@
 #else
 #define CONFIG_SYS_NS16550_CLK                          48000000        /* COM1: 24M, other COM port 48M */
 #endif
+
+/* Secure boot relative option */
+#ifdef _ENCRYPT_ATF_ON_
+#define CONFIG_ENCRYPT_ATF
+#endif
+
+#ifdef _ENCRYPT_DTS_ON_
+#define CONFIG_ENCRYPT_DTS
+#endif
+
+#ifdef _ENCRYPT_UBOOT_ON_
+#define CONFIG_ENCRYPT_UBOOT
+#endif
+
+#ifdef _ENCRYPT_KERNEL_ON_
+#define CONFIG_ENCRYPT_KERNEL
+#endif
+
+#ifdef _ENCRYPT_RTOS_ON_
+#define CONFIG_ENCRYPT_RTOS
+#endif
+
+#ifdef _ENCRYPT_OPTEE_ON_
+#define CONFIG_ENCRYPT_OPTEE
+#endif
+
+#if defined(_SIGNATUREMETHOD_ECDSA_)
+#define CONFIG_SIGNATUREMETHOD_ECDSA
+#elif defined(SIGNATUREMETHOD_RSA)
+#define CONFIG_SIGNATUREMETHOD_RSA
+#endif

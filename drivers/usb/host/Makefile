@@ -26,7 +26,7 @@ obj-$(CONFIG_USB_EHCI_ATMEL) += ehci-atmel.o
 obj-$(CONFIG_USB_EHCI_FSL) += ehci-fsl.o
 obj-$(CONFIG_USB_EHCI_FARADAY) += ehci-faraday.o
 obj-$(CONFIG_USB_EHCI_GENERIC) += ehci-generic.o
-ifeq ($(CONFIG_TARGET_NS02201_A64)$(CONFIG_TARGET_NA51102_A64),y)
+ifeq ($(CONFIG_TARGET_NS02201_A64)$(CONFIG_TARGET_NA51102_A64)$(CONFIG_TARGET_NS02301),y)
 obj-$(CONFIG_USB_EHCI_NVTIVOT) += ehci-nvtivot_a64_v2.o
 endif
 obj-$(CONFIG_USB_EHCI_EXYNOS) += ehci-exynos.o

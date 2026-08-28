@@ -12,6 +12,12 @@
 
 #include <linux/sizes.h>
 
+/* #define CONFIG_DEBUG 1 */
+
+#ifdef CONFIG_DEBUG
+#define DEBUG                       1
+#endif
+
 /*
  * High Level Configuration Options
  */
@@ -73,18 +79,70 @@
 #ifdef CONFIG_USB_GADGET_NVTIVOT
 #define CONFIG_USBD_HS
 #endif
+
+
 /*
- * DDR information.  If the CONFIG_NR_DRAM_BANKS is not defined,
- * we say (for simplicity) that we have 1 bank, always, even when
- * we have more.  We always start at 0x80000000, and we place the
- * initial stack pointer in our SRAM. Otherwise, we can define
- * CONFIG_NR_DRAM_BANKS before including this file.
+ * SATA Configuration
  */
+#ifdef CONFIG_AHCI_NVT  // CONFIG_AHCI_NVT
+
+#ifndef CONFIG_SCSI_AHCI_PLAT
+#define CONFIG_SCSI_AHCI_PLAT
+#endif
+#ifndef CONFIG_SCSI_AHCI
+#define CONFIG_SCSI_AHCI
+#endif
+#ifndef CONFIG_SYS_SCSI_MAX_SCSI_ID
+#define CONFIG_SYS_SCSI_MAX_SCSI_ID    1
+#endif
+#ifndef CONFIG_SYS_SCSI_MAX_LUN
+#define CONFIG_SYS_SCSI_MAX_LUN                1
+#endif
+#ifndef CONFIG_SYS_SCSI_MAX_DEVICE
+#define CONFIG_SYS_SCSI_MAX_DEVICE     (CONFIG_SYS_SCSI_MAX_SCSI_ID * \
+                                       CONFIG_SYS_SCSI_MAX_LUN)
+#endif
+#ifndef CONFIG_LIBATA
+#define CONFIG_LIBATA
+#endif
+
+//#define CONFIG_CMD_SATA
+//#define CONFIG_SYS_SATA_MAX_DEVICE CONFIG_SYS_SCSI_MAX_DEVICE
+#ifndef CONFIG_CMD_SCSI
+#define CONFIG_CMD_SCSI
+#endif
+#ifndef CONFIG_SCSI
+#define CONFIG_SCSI
+#endif
+//#define CONFIG_DOS_PARTITION
+/*
+#define CONFIG_PARTITION_UUIDS
+#define CONFIG_CMD_PART
+*/
+#ifndef CONFIG_FS_EXT4
+#define CONFIG_FS_EXT4
+#endif
+#ifndef CONFIG_EXT4_WRITE
+#define CONFIG_EXT4_WRITE
+#endif
+#ifndef CONFIG_CMD_EXT4
+#define CONFIG_CMD_EXT4
+#endif
+
+#ifndef CONFIG_AHCI
+#define CONFIG_AHCI
+#endif
+#ifndef CONFIG_DM_SCSI
+#define CONFIG_DM_SCSI
+#endif
+
+#endif  // CONFIG_AHCI_NVT
 
 /*
  * To include nvt memory layout
  */
 #include "novatek/ns02301_a32.h"
+
 /*
  * Our DDR memory always starts at 0x00000000 and U-Boot shall have
  * relocated itself to higher in memory by the time this value is used.
@@ -92,16 +150,22 @@
  * booting as the default is often used as the kernel load address.
  */
 #define CONFIG_STANDALONE_LOAD_ADDR			0x1A000000
-/* We set the max number of command args high to avoid HUSH bugs. */
 
+/* We set the max number of command args high to avoid HUSH bugs. */
+#define CONFIG_SYS_MAXARGS				64
+
+/* Console I/O Buffer Size */
+#define CONFIG_SYS_CBSIZE				1024
 /* Print Buffer Size */
 #define CONFIG_SYS_PBSIZE				(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
 /* Boot Argument Buffer Size */
 #define CONFIG_SYS_BARGSIZE				CONFIG_SYS_CBSIZE
 										/* even with bootdelay=0 */
 /* MTD */
-//#define CONFIG_CMD_MTDPARTS
 #define CONFIG_SYS_BOOTM_LEN				(25 << 20)
+
+/* DFU */
+#define CONFIG_SET_DFU_ALT_BUF_LEN      (SZ_1K)
 
 #if (defined(CONFIG_CMD_DFU) && defined(_EMBMEM_EMMC_))
 #define CONFIG_DFU_MMC  1
@@ -111,30 +175,77 @@
 #ifndef CONFIG_EXT4_WRITE
 #define CONFIG_EXT4_WRITE   1
 #endif
-#define CONFIG_SYS_DFU_MAX_FILE_SIZE CONFIG_LINUX_SDRAM_SIZE
 
 /* EMMC partition */
+#if defined(_NVT_ROOTFS_TYPE_RAMDISK_)
 #define DFU_ALT_INFO \
-			"rootfs ext4 2 1;" \
-			"rootfs1 fat 2 2;" \
-			"rootfs2 ext4 2 3;" \
-			"mbr1 mbr 2 4;" \
-			"rootfsl1 part 2 5"
+		"loader raw 0 0x10000 mmcpart 1;" \
+		"fdt part 2 1;" \
+		"uboot part 2 3;" \
+		"linux part 2 5;" \
+		"rootfs part 2 6;" \
+		"rootfs1 ext4 2 7;" \
+		"rootfs2 ext4 2 8"
+#else
+#define DFU_ALT_INFO \
+		"loader raw 0 0x10000 mmcpart 1;" \
+		"fdt part 2 1;" \
+		"uboot part 2 3;" \
+		"linux part 2 5;" \
+		"rootfs ext4 2 6;" \
+		"rootfs1 part 2 7;" \
+		"rootfs2 ext4 2 8"
 #endif
+#endif
+
 
 #if (defined(CONFIG_CMD_DFU) && defined(CONFIG_NVT_SPI_NAND))
 #define CONFIG_DFU_NAND 1
 #define CONFIG_DFU_NAND_TRIMFFS 1
 
 /* NAND partition */
+
+#if defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
+/* For OPTEE */
 #define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
+			"fdt part 0 1;" \
+			"optee part 0 2;" \
+			"uboot part 0 3;" \
+			"linux part 0 5;" \
+			"rootfs partubi 0 6;" \
+			"rootfs1 partubi 0 7;" \
+			"rootfs2 part 0 8"
+
+#else
+#if defined(_NVT_ROOTFS_TYPE_NAND_SQUASH_)
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
 			"fdt part 0 1;" \
 			"uboot part 0 2;" \
-			"uenv part 0 3;" \
 			"linux part 0 4;" \
-			"rootfs0 partubi 0 5;" \
+			"rootfs partubi 0 5;" \
 			"rootfs1 partubi 0 6;" \
 			"app partubi 0 7"
+#elif defined(_NVT_ROOTFS_TYPE_NAND_SQUASH_NEW_)
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
+			"fdt part 0 1;" \
+			"uboot part 0 2;" \
+			"linux part 0 4;" \
+			"rootfs part 0 5;" \
+			"app partubi 0 6"
+#else
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
+			"fdt part 0 1;" \
+			"uboot part 0 2;" \
+			"linux part 0 4;" \
+			"rootfs part 0 5;" \
+			"rootfs1 partubi 0 6;" \
+			"app partubi 0 7"
+#endif
+#endif
 #endif
 
 #if (defined(CONFIG_CMD_DFU) && defined(CONFIG_NVT_SPI_NOR))
@@ -142,12 +253,38 @@
 
 /* NOR partition */
 #define DFU_ALT_INFO \
+			"loader raw 0x0 0x10000;" \
 			"fdt part 0 1;" \
 			"uboot part 0 2;" \
-			"uenv part 0 3;" \
 			"linux part 0 4;" \
 			"rootfs part 0 5;" \
 			"app part 0 6"
+
+#endif
+
+#if (defined(CONFIG_CMD_DFU) && defined(CONFIG_NVT_SPI_NOR_NAND))
+#define CONFIG_DFU_NAND 1
+#define CONFIG_DFU_NAND_TRIMFFS 1
+#define CONFIG_DFU_SF   1
+
+
+/* NOR partition */
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x10000;" \
+			"fdt part 0 1;" \
+			"uboot part 0 2"
+
+/* NAND partition */
+#define DFU_ALT_INFO_NAND \
+			"linux part 0 1;" \
+			"rootfs part 0 2;" \
+			"rootfs1 partubi 0 3;" \
+			"app partubi 0 4"
+#endif
+
+#if (defined(CONFIG_CMD_DFU) && defined(CONFIG_DFU_RAM))
+#define DFU_ALT_INFO_RAM \
+			"all-in-one ram 0x14f00000 0x7800000"
 
 #endif
 #ifdef CONFIG_CMD_DFU

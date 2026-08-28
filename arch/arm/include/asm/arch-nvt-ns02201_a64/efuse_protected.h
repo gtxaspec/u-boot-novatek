@@ -18,12 +18,12 @@
 #include <asm/nvt-common/rcw_macro.h>
 
 typedef enum {
-	TRIM_1ST_FIELD 	= 0x0,
+	TRIM_1ST_FIELD  = 0x0,
 	TRIM_2ND_FIELD,
 } TRIM_FIELD_SET;
 
 typedef enum {
-	PWM0_CORE_POWER 	= 0x0,
+	PWM0_CORE_POWER     = 0x0,
 	PWM1_CPU_POWER,
 } PWM_POWER_SET;
 
@@ -51,10 +51,10 @@ typedef enum {
 } PWM_POWER_LEAKAGE;
 
 typedef enum {
-	NT98690_PKG 	= 0,
-	NT98692_PKG,	
+	NT98690_PKG     = 0,
+	NT98692_PKG,
 	NT98XXX_PKG_CNT = 2,
-	IC_PKG_CNT      = NT98XXX_PKG_CNT,	
+	IC_PKG_CNT      = NT98XXX_PKG_CNT,
 	UNKNOWN_PKG_VER,
 } NVT_PKG_UID;
 
@@ -121,7 +121,7 @@ typedef enum {
 #define EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI      0x1
 #define EFUSE_TRIM_DATA_DDR_DRIVING_PRI                 0x2
 #define EFUSE_TRIM_DATA_HDMI_H_PHY_RESISTOR_PRI         0x3
-#define OTP_PKGUID_FIELD								0x4
+#define OTP_PKGUID_FIELD                                0x4
 #define EFUSE_TRIM_DATA_USB_SATA_PRI                    0x5
 #define EFUSE_TRIM_DATA_THERMAL_PRI                     0x6
 #define EFUSE_TRIM_DATA_IDDQ_PRI                        0x7
@@ -151,10 +151,10 @@ typedef enum {
 #define EFUSE_TRIM_DATA_CSI_3_I_TRIM_R_TERM_PRI         0x3C
 #define EFUSE_TRIM_DATA_CSI_2_I_TRIM_R_TERM_PRI         0x3D
 #define EFUSE_TRIM_DATA_CSI_1_I_TRIM_R_TERM_PRI         0x3E
-	
 
-#define OTP_690_TRIM							0x3C1
-#define OTP_692_TRIM							0x3A2
+
+#define OTP_690_TRIM                            0x3C1
+#define OTP_692_TRIM                            0x3A2
 /**
     Crypto engine check
 */
@@ -182,12 +182,13 @@ typedef enum {
 	SECUREBOOT_DSP1_DISABLE,
 	SECUREBOOT_DSP2_DISABLE,
 	SECUREBOOT_GPU_DISABLE,
-	SECUREBOOT_MCU_DISABLE,	
+	SECUREBOOT_MCU_DISABLE,
 	SECUREBOOT_STATUS_NUM,
 
 	SECUREBOOT_VDEC_OVER_CLOCKING,      ///< Quary if VDEC can over clocking or not
 	SECUREBOOT_CPU_OVER_CLOCKING,       ///< Quary if CPU can over clocking or not
 
+	SECUREBOOT_CPU_LOWER_CLOCKING,      ///< Quary if CPU MUST lower clocking or not
 	SECUREBOOT_HDMI_AVAILABLE,          ///< Quary if HDMI is disabled
 } SECUREBOOT_STATUS;
 
@@ -206,7 +207,7 @@ typedef enum {
 #define EFUSE_SECURITY_ERR                  -1006          // efuse under security mode => can not read back
 #define EFUSE_PARAM_ERR                     -1007          // efuse param error
 #define EFUSE_CONTENT_ERR                   -1008          // efuse operation error
-#define EFUSE_POWER_ON_OFF_CALLBACK_ERR		-1009			// efuse program power callback not define
+#define EFUSE_POWER_ON_OFF_CALLBACK_ERR     -1009           // efuse program power callback not define
 
 #define OTP_HW_SECURE_EN                    (1 << 0)
 #define OTP_FW_SECURE_EN                    (1 << 5)
@@ -214,8 +215,8 @@ typedef enum {
 #define OTP_SIGNATURE_RSA                   (1 << 1)
 #define OTP_SIGNATURE_RSA_CHK_EN            (1 << 3)
 #define OTP_JTAG_DISABLE_EN                 (1 << 2)
-#define EFUSE_HDMI_USAGE_BIT            	11
-#define EFUSE_HDMI_USAGE_BIT_MASK       	(0x7<<11)
+#define EFUSE_HDMI_USAGE_BIT                11
+#define EFUSE_HDMI_USAGE_BIT_MASK           (0x7<<11)
 
 #define OTP_1ST_KEY_PROGRAMMED_BIT          27
 #define OTP_2ND_KEY_PROGRAMMED_BIT          28
@@ -229,13 +230,16 @@ typedef enum {
 
 //2nd identify
 #define OTP_MCU_DISABLE_BIT                 0
-#define OTP_CPU_OVER_CLOCKING_BIT       	18
-#define OTP_VDEC_OVER_CLOCKING_BIT      	19
+#define OTP_CPU_OVER_CLOCKING_BIT           18
+#define OTP_VDEC_OVER_CLOCKING_BIT          19
 
-#define HDMI_1ST_AVAILABLE              	(0)
-#define HDMI_1ST_DISABLE                	(0x1<<EFUSE_HDMI_USAGE_BIT)
-#define HDMI_2ND_AVAILABLE              	(0x3<<EFUSE_HDMI_USAGE_BIT)
-#define HDMI_2ND_DISABLE                	(0x7<<EFUSE_HDMI_USAGE_BIT)
+#define OTP_CPU_LOWER_CLOCKING_BIT          16
+
+
+#define HDMI_1ST_AVAILABLE                  (0)
+#define HDMI_1ST_DISABLE                    (0x1<<EFUSE_HDMI_USAGE_BIT)
+#define HDMI_2ND_AVAILABLE                  (0x3<<EFUSE_HDMI_USAGE_BIT)
+#define HDMI_2ND_DISABLE                    (0x7<<EFUSE_HDMI_USAGE_BIT)
 
 #define OTP_1ST_KEY_PROGRAMMED              (1 << OTP_1ST_KEY_PROGRAMMED_BIT)
 #define OTP_2ND_KEY_PROGRAMMED              (1 << OTP_2ND_KEY_PROGRAMMED_BIT)
@@ -247,9 +251,9 @@ typedef enum {
 #define OTP_DSP2_DISABLE                    (1 << OTP_DSP2_DISABLE_BIT)
 #define OTP_GPU_DISABLE                     (1 << OTP_GPU_DISABLE_BIT)
 #define OTP_MCU_DISABLE                     (1 << OTP_MCU_DISABLE_BIT)
-#define OTP_CPU_OVER_CLOCKING           	(1 << OTP_CPU_OVER_CLOCKING_BIT)
-#define OTP_VDEC_OVER_CLOCKING_AVL      	(1 << OTP_VDEC_OVER_CLOCKING_BIT)
-
+#define OTP_CPU_OVER_CLOCKING               (1 << OTP_CPU_OVER_CLOCKING_BIT)
+#define OTP_VDEC_OVER_CLOCKING_AVL          (1 << OTP_VDEC_OVER_CLOCKING_BIT)
+#define OTP_CPU_LOWER_CLOCKING              (1 << OTP_CPU_LOWER_CLOCKING_BIT)
 
 #define OTP_1ST_KEY_READ_LOCK_BIT           22
 #define OTP_2ND_KEY_READ_LOCK_BIT           23
@@ -295,7 +299,7 @@ typedef enum {
 #define is_GPU_available()                  !quary_secure_boot(SECUREBOOT_GPU_DISABLE)
 #define is_MCU_available()                  !quary_secure_boot(SECUREBOOT_MCU_DISABLE)
 
-#define is_hdmi_disable()                 	!quary_secure_boot(SECUREBOOT_HDMI_AVAILABLE)
+#define is_hdmi_disable()                   !quary_secure_boot(SECUREBOOT_HDMI_AVAILABLE)
 #define is_DSP1_disable()                   quary_secure_boot(SECUREBOOT_DSP1_DISABLE)
 #define is_DSP2_disable()                   quary_secure_boot(SECUREBOOT_DSP2_DISABLE)
 #define is_GPU_disable()                    quary_secure_boot(SECUREBOOT_GPU_DISABLE)
@@ -314,8 +318,9 @@ extern BOOL extract_trim_valid(u32 code, u32 *pData);
 extern ER   efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H);
 extern void otp_init(void);
 
-extern u32 	extract_trim_to_pwm_duty(PWM_POWER_SET power_set, UINT32 data);
-extern int 	prepare_power_trim(int mode);
+extern u32  extract_trim_to_pwm_duty(PWM_POWER_SET power_set, UINT32 data);
+extern int  prepare_power_trim(int mode);
+extern INT32 otp_get_pkg_version(void);
 /**
     efuse_secure_en
 
@@ -336,6 +341,6 @@ extern int 	prepare_power_trim(int mode);
 
 #define efuse_DSP1_dis()                enable_secure_boot(SECUREBOOT_DSP1_DISABLE)
 #define efuse_DSP2_dis()                enable_secure_boot(SECUREBOOT_DSP2_DISABLE)
-#define efuse_GPU_dis()                	enable_secure_boot(SECUREBOOT_GPU_DISABLE)
-#define efuse_MCU_dis()                	enable_secure_boot(SECUREBOOT_MCU_DISABLE)
+#define efuse_GPU_dis()                 enable_secure_boot(SECUREBOOT_GPU_DISABLE)
+#define efuse_MCU_dis()                 enable_secure_boot(SECUREBOOT_MCU_DISABLE)
 #endif /* __ARCH_EFUSE_PROTECTED_H */

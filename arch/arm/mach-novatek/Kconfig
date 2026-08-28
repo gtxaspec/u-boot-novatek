@@ -162,6 +162,7 @@ config NVT_BOARD
 
 # To inculde basic arch config
 source "arch/arm/mach-novatek/nvt_na51102_a32/Kconfig"
+source "arch/arm/mach-novatek/nvt_na51089_a32/Kconfig"
 source "arch/arm/mach-novatek/nvt_na51102_a64/Kconfig"
 source "arch/arm/mach-novatek/nvt_ns02201_a32/Kconfig"
 source "arch/arm/mach-novatek/nvt_ns02201_a64/Kconfig"

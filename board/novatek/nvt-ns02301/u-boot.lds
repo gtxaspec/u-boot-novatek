@@ -1,10 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
-/*
- * Copyright (c) 2004-2008 Texas Instruments
- *
- * (C) Copyright 2002
- * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
- */
+/**
+    uboot linker file
+    @file       uboot.lds
+    @ingroup
+    @note
+    Copyright   Novatek Microelectronics Corp. 2023.  All rights reserved.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License version 2 as
+    published by the Free Software Foundation.
+*/
 
 #include <config.h>
 #include <asm/psci.h>

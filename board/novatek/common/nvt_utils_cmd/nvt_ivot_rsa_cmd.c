@@ -6,13 +6,14 @@
 #include <stdlib.h>
 #include <common.h>
 #include <command.h>
+#include <dm.h>
+#include <timer.h>
+#include <malloc.h> 
 #include <asm/arch/nvt_rsa.h>
 
-#ifdef CONFIG_NVT_FPGA_EMULATION
 #define RSA1024_VERIFY
 #define RSA2048_VERIFY
 #define RSA4096_VERIFY
-#endif
 
 static uint8_t RSA512_KEY_N[] = {
 	0xAA, 0x36, 0xAB, 0xCE, 0x88, 0xAC, 0xFD, 0xFF, 0x55, 0x52, 0x3C, 0x7F, 0xC4, 0x52, 0x3F, 0x90,
@@ -568,6 +569,236 @@ exit:
 	return ret;
 }
 
+/**
+ * do_nvt_rsa() - Handle the "nvt_rsa" command-line command
+ * @cmdtp:	Command data struct pointer
+ * @flag:	Command flag
+ * @argc:	Command-line argument count
+ * @argv:	Array of command-line arguments
+ *
+ * Returns zero on success, CMD_RET_USAGE in case of misuse and negative
+ * on error.
+ */
+static int perf_nvt_rsa(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	int ret = 0;
+	int key_w;
+	int offset;
+	int dst_size;
+	uint8_t *dst_buf = NULL;
+	struct nvt_rsa_pio_t rsa;
+	int	test_size = 0;
+	unsigned long test_buf;
+	uint8_t* input;
+	uint32_t start, end;
+
+	/* Check argument */
+	if (argc < 3)
+		return CMD_RET_USAGE;
+
+	/* Key Length */
+	if (!strncmp(argv[1],      "rsa512", 6))
+		key_w = NVT_RSA_KEY_WIDTH_512;
+	else if (!strncmp(argv[1], "rsa1024", 7))
+		key_w = NVT_RSA_KEY_WIDTH_1024;
+	else if (!strncmp(argv[1], "rsa2048", 7))
+		key_w = NVT_RSA_KEY_WIDTH_2048;
+	else if (!strncmp(argv[1], "rsa4096", 7))
+		key_w = NVT_RSA_KEY_WIDTH_4096;
+	else
+		return CMD_RET_USAGE;
+
+	/* Command */
+	if (strncmp(argv[2], "perf", 6))
+		return CMD_RET_USAGE;
+
+	/* perf case */
+	switch (key_w) {
+		case NVT_RSA_KEY_WIDTH_512:
+			dst_size = NVT_RSA_512_OUT_SIZE;
+			break;
+		case NVT_RSA_KEY_WIDTH_1024:
+			dst_size = NVT_RSA_1024_OUT_SIZE;
+			break;
+		case NVT_RSA_KEY_WIDTH_2048:
+			dst_size = NVT_RSA_2048_OUT_SIZE;
+			break;
+		case NVT_RSA_KEY_WIDTH_4096:
+			dst_size = NVT_RSA_4096_OUT_SIZE;
+			break;
+			printf("nvt rsa %s verify not support!\n", argv[1]);
+			return CMD_RET_FAILURE;
+	}
+
+	/* Open RSA Device */
+	ret = nvt_rsa_open();
+	if (ret < 0) {
+		printf("nvt rsa open failed!\n");
+		return CMD_RET_FAILURE;
+	}
+
+	/* alloc buffer */
+	dst_buf = malloc(dst_size);
+	if (!dst_buf) {
+		printf("nvt rsa %s verify to allocate output buffer failed!\n", argv[1]);
+		ret = CMD_RET_FAILURE;
+		goto exit;
+	}
+
+	
+	/* alloc buffer */
+	test_size = dst_size - 11; // according to the maximum formula
+	test_buf = (unsigned long)malloc(test_size);
+	input = (uint8_t *)test_buf;
+	memset(input, 0xFF, test_size);
+
+	printf("PLAINTEXT is %d bytes\n", test_size);
+
+
+	/* RSA Encryption */
+	switch (key_w) {
+		case NVT_RSA_KEY_WIDTH_512:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA512_KEY_N;
+			rsa.key_ed      = RSA512_KEY_E;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA512_KEY_N);
+			rsa.key_ed_size = sizeof(RSA512_KEY_E);
+			break;
+
+		case NVT_RSA_KEY_WIDTH_1024:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA1024_KEY_N;
+			rsa.key_ed      = RSA1024_KEY_E;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA1024_KEY_N);
+			rsa.key_ed_size = sizeof(RSA1024_KEY_E);
+			break;
+
+
+		case NVT_RSA_KEY_WIDTH_2048:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA2048_KEY_N;
+			rsa.key_ed      = RSA2048_KEY_E;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA2048_KEY_N);
+			rsa.key_ed_size = sizeof(RSA2048_KEY_E);
+			break;
+
+		case NVT_RSA_KEY_WIDTH_4096:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA4096_KEY_N;
+			rsa.key_ed      = RSA4096_KEY_E;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA4096_KEY_N);
+			rsa.key_ed_size = sizeof(RSA4096_KEY_E);
+			break;
+
+		default:
+			ret = CMD_RET_FAILURE;
+			goto exit;
+	}
+	start = timer_get_us();
+	ret = nvt_rsa_pio_normal(&rsa);
+	end = timer_get_us();
+	if (ret < 0) {
+		printf("nvt rsa %s encryption failed!\n", argv[1]);
+		ret = CMD_RET_FAILURE;
+		goto exit;
+	}
+	printf("nvt rsa encryption %d us \n", (end-start)); 
+
+
+	/* RSA Decryption */
+	switch (key_w) {
+		case NVT_RSA_KEY_WIDTH_512:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA512_KEY_N;
+			rsa.key_ed      = RSA512_KEY_D;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA512_KEY_N);
+			rsa.key_ed_size = sizeof(RSA512_KEY_D);
+			break;
+
+		case NVT_RSA_KEY_WIDTH_1024:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA1024_KEY_N;
+			rsa.key_ed      = RSA1024_KEY_D;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA1024_KEY_N);
+			rsa.key_ed_size = sizeof(RSA1024_KEY_D);
+			break;
+
+		case NVT_RSA_KEY_WIDTH_2048:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA2048_KEY_N;
+			rsa.key_ed      = RSA2048_KEY_D;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA2048_KEY_N);
+			rsa.key_ed_size = sizeof(RSA2048_KEY_D);
+			break;
+
+		case NVT_RSA_KEY_WIDTH_4096:
+			rsa.key_w       = key_w;
+			rsa.src         = input;
+			rsa.dst         = dst_buf;
+			rsa.key_n       = RSA4096_KEY_N;
+			rsa.key_ed      = RSA4096_KEY_D;
+			rsa.src_size    = test_size;
+			rsa.dst_size    = dst_size;
+			rsa.key_n_size  = sizeof(RSA4096_KEY_N);
+			rsa.key_ed_size = sizeof(RSA4096_KEY_D);
+			break;
+
+		default:
+			ret = CMD_RET_FAILURE;
+			goto exit;
+	}
+	start = timer_get_us();
+	ret = nvt_rsa_pio_normal(&rsa);
+	end = timer_get_us();
+	if (ret < 0) {
+		printf("nvt rsa %s decryption failed!\n", argv[1]);
+		ret = CMD_RET_FAILURE;
+		goto exit;
+	}
+
+	printf("nvt rsa decryption %d us \n", (end-start)); 
+
+
+exit:
+	/* Close RSA Device */
+	nvt_rsa_close();
+	if (input)
+		free(input);
+
+	if (dst_buf)
+		free(dst_buf);
+
+	return ret;
+}
+
 /***************************************************/
 U_BOOT_CMD(
 	nvt_rsa, 3, 0, do_nvt_rsa,
@@ -582,4 +813,13 @@ U_BOOT_CMD(
 #ifdef RSA4096_VERIFY
 	"\nnvt_rsa rsa4096 verify - for verify rsa4096 encryption/decryption"
 #endif
+);
+
+U_BOOT_CMD(
+	nvt_rsa_perf, 3, 0, perf_nvt_rsa,
+	"nvt_rsa_perf operation",
+	"\nnvt_rsa_perf rsa512  perf - for perf rsa512  encryption/decryption"
+	"\nnvt_rsa_perf rsa1024 perf - for perf rsa1024 encryption/decryption"
+	"\nnvt_rsa_perf rsa2048 perf - for perf rsa2048 encryption/decryption"
+	"\nnvt_rsa_perf rsa4096 perf - for perf rsa4096 encryption/decryption"
 );

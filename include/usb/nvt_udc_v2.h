@@ -416,17 +416,29 @@ struct nvt_udc_ext_regs {
 
 /* Controller Init Related Register */
 #if defined(CONFIG_TARGET_NS02201_A64)
+/* NS02201 */
 #define USB_CG_RST_OFS 0x94
 #define USB_RST_BIT    (0x1<<25)
 #define USB_SRAM_SD_OFS 0x1000
 #define USB_SRAM_SD_BIT 12
 #define USB_PHYTOP_REG_OFS 0x400
+
 #elif defined(CONFIG_TARGET_NA51102_A64)
+/* NA51102 */
 #define USB_CG_RST_OFS 0x94
 #define USB_RST_BIT    (0x1<<25)
 #define USB_SRAM_SD_OFS 0x1000
 #define USB_SRAM_SD_BIT 12
 #define USB_PHYTOP_REG_OFS 0x400
+
+#elif defined(CONFIG_TARGET_NS02301)
+/* NS02301 */
+#define USB_CG_RST_OFS 0x84
+#define USB_RST_BIT    (0x1<<19)
+#define USB_SRAM_SD_OFS 0x1000
+#define USB_SRAM_SD_BIT 26
+#define USB_PHYTOP_REG_OFS 0x400
+
 #else
 #endif
 #endif

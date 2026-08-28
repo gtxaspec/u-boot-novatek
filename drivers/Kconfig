@@ -148,6 +148,8 @@ source "drivers/video/novatek/nvt_panel/Kconfig"
 
 source "drivers/video/novatek/nvt_panel/Kconfig1"
 
+source "drivers/video/novatek/nvt_panel/Kconfig2"
+
 config PHYS_TO_BUS
 	bool "Custom physical to bus address mapping"
 	help

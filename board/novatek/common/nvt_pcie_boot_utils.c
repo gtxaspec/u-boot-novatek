@@ -21,29 +21,7 @@
 #include <mapmem.h>
 #include <image.h>
 
-#ifdef CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT
-#include <asm/nvt-common/nvt_ivot_aes_smc.h>
-#include <asm/nvt-common/nvt_ivot_efuse_smc.h>
-#endif
-
 #define CMD_BUFFER_SIZE 255
-
-/**************************************************************************
- *
- *
- * Novatek common function
- *
- *
- **************************************************************************/
-
-#ifdef CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT
-static void get_bininfo_size_offset(unsigned char* bininfo,unsigned int* size,unsigned int *offset)
-{
-
-	        *size = bininfo[4] | bininfo[5]<<8 | bininfo[6] << 16 | bininfo[7] << 24;
-		        *offset = bininfo[0] | bininfo[1] << 8 | bininfo[2] << 16 | bininfo[3] <<24;
-}
-#endif
 
 /**************************************************************************
  *
@@ -52,61 +30,6 @@ static void get_bininfo_size_offset(unsigned char* bininfo,unsigned int* size,un
  *
  *
  **************************************************************************/
-#ifdef CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT
-static int nvt_ep_decrypt_linux(unsigned long addr)
-{
-	int ret = 0;
-	unsigned char test_aes_key[16]={0x04,0x03,0x02,0x01,0x08,0x07,0x06,0x05,0x12,0x11,0x10,0x09,0x16,0x15,0x14,0x013};
-	NVT_SMC_EFUSE_DATA efuse_data = {0};
-	efuse_data.cmd = NVT_SMC_EFUSE_IS_DATA_ENCRYPTED;
-	if (1 != nvt_ivot_optee_efuse_operation(&efuse_data)) {
-		printf("data encrypt not enable\n");
-		return 0;
-	}
-
-	HEADINFO *headinfo = (HEADINFO *)addr;
-	unsigned int crypto_offset = 0;
-	unsigned int crypto_size = 0;
-	unsigned char *encrypt_buf = NULL;
-	unsigned char * bininfo = headinfo->BinInfo_3;
-	get_bininfo_size_offset(headinfo->BinInfo_3, &crypto_size, &crypto_offset);
-
-	encrypt_buf = (unsigned char *)(addr + crypto_offset);
-
-	unsigned int total_size = headinfo->BinLength;
-
-	unsigned int decrypt_size = total_size - crypto_offset;
-	NVT_SMC_AES_DATA aes_data={0};
-	aes_data.crypto_type = NVT_SMC_AES_CRYPTO_DECRYPTION;
-	aes_data.aes_mode = NVT_SMC_AES_MODE_CBC;
-	aes_data.key_buf = (unsigned char *)test_aes_key;
-	memset(aes_data.IV,0,16);
-	aes_data.key_size = 16;
-	aes_data.input_data = (unsigned char *)encrypt_buf;
-	aes_data.input_size = crypto_size;
-	aes_data.output_data = (unsigned char *)addr;
-	ret = nvt_ivot_optee_aes_operation(&aes_data);
-	if(ret != 0)
-	{
-		printf("nvt_ivot_optee_aes_operation fail\r\n",ret);
-		return -1;
-	}
-	if(decrypt_size > crypto_size) {
-		//there are some data not encrypt, need copy to buf
-		unsigned char * tmp = (unsigned char *)addr;
-		memcpy(&tmp[crypto_size], &encrypt_buf[crypto_size], (decrypt_size - crypto_size));
-
-	}
-
-	if(ret != 0) {
-		printf("%s fail ret:%d\n", __func__, ret);
-		return -1;
-	}
-
-	return 0;
-}
-#endif
-
 static int nvt_ep_boot_prepare_env_and_boot(u64 linux_addr, u64 linux_size)
 {
 	char buf[CMD_BUFFER_SIZE], cmd[CMD_BUFFER_SIZE];
@@ -140,14 +63,34 @@ static int nvt_ep_boot_prepare_env_and_boot(u64 linux_addr, u64 linux_size)
 	env_set("bootm_low", buf);
 	env_set("kernel_comp_addr_r", buf);
 
-#ifdef CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT
-	HEADINFO *headinfo = (HEADINFO *)(unsigned long)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
-	kernel_size = headinfo->BinLength;
-	ret = nvt_ep_decrypt_linux(nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr);
-	if (ret < 0){
-		return ret;
+#if defined(CONFIG_ENCRYPT_KERNEL)
+	HEADINFO *encrypt_header = (HEADINFO *)(nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr);
+	kernel_size = encrypt_header->BinLength;
+
+	#if defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+	if(nvt_chk_signature((ulong)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, kernel_size)) {
+		printf("check signature fail\n");
+		return -1;
 	}
-#else
+	nvt_dbg(IND, "Verify encrypted linux PASS\r\n");
+
+	ret = nvt_decrypt_aes((unsigned long)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr);
+	#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+	if(nvt_chk_signature_on_uboot((ulong)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, kernel_size)) {
+		printf("check signature fail\n");
+		return -1;
+	}
+	nvt_dbg(IND, "Verify encrypted linux PASS\r\n");
+
+	ret = nvt_decrypt_aes_on_uboot(nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr);
+	#endif
+
+	if (ret < 0) {
+		nvt_dbg(ERR, "nvt_decrypt_aes fail ret %d\r\n", ret);
+		return -1;
+	}
+	nvt_dbg(ERR, "nvt_decrypt_aes PASS\r\n");
+#else /* !CONFIG_ENCRYPT_KERNEL */
 	hdr = (image_header_t *)(unsigned long)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
 	kernel_size = image_get_data_size(hdr);
 

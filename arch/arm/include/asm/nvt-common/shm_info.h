@@ -32,6 +32,8 @@
 #define LDCF_UPDATE_FW_DONE 0x0000100 ///< BIT 8.UPDATE_FW_DONE (0=no,1=yes)
 #define LDCF_S3_BOOT        0x0000200 ///< BIT 9.BOOT FROM S3 STATE (0=no,1=yes)
 #define LDCF_DTR80_BOOT     0x0000400 ///< BIT 10.BOOT WITH FLASH DTR-80 SUPPORT (0=no,1=yes)
+#define LDCF_8051_BOOT      0x0000800 ///< BIT 11.BOOT FROM 8051 (0=no,1=yes)
+#define LDCF_FAST_SENSOR    0x0001000 ///< BIT 12.INDICATE LOADER USE CFE TO CFG SENSOR (0=no,1=yes)
 //@}
 
 /**
@@ -43,14 +45,7 @@ typedef struct _BOOTINFO {
 	char LdInfo_1[16];  ///< LD-NAME(16) ------ w by Ld
 	__be32 LdCtrl;      ///< Fw flag (4) ----------- r by Ld
 	///<        BIT 0.enable part-load (0=full load,1=part load)
-	__be32 LdCtrl2;     ///< Ld flag (4) ----------- w by Ld
-	///<        BIT 0.UPDATE_FW (0=no,1=yes)
-	///<        BIT 1.UPDATE_LOADER (0=no,1=yes)
-	///<        BIT 2.BOOT_CARD (0=no,1=yes)
-	///<        BIT 3.BOOT_FLASH (0=no,1=yes)
-	///<        BIT 4.UPDATE_CAL (0=no,1=yes)
-	///<        BIT 8.UPDATE_FW_DONE (0=no,1=yes)
-	//<         BIT 9.BOOT FROM S3 STATE (0=no,1=yes)
+	__be32 LdCtrl2;     ///< Ld flag (4) ----------- w by Ld, Ref: LDCF_???????
 	__be32 LdLoadSize;  ///< Ld load size (4) ------ w by Ld (NOTE: this value must be block size align)
 	__be32 LdLoadTime;  ///< Ld exec time(us) (4) -- w by Ld
 	__be32 LdResvSize;  ///< Ld size (by bytes, reserved size in partition) (4) ------ w by Ld

@@ -4,8 +4,6 @@
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/rcw_macro.h>
 
-#define EFUSE_LOT_ID1_NEW	0x1E
-#define EFUSE_LOT_ID2_NEW	0x1F
 
 #define EFUSE_LOT_ID1       0xa
 #define EFUSE_LOT_ID2       0xb

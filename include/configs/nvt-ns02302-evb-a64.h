@@ -12,6 +12,12 @@
 
 #include <linux/sizes.h>
 
+/* #define CONFIG_DEBUG 1 */
+
+#ifdef CONFIG_DEBUG
+#define DEBUG                       1
+#endif
+
 /*
  * High Level Configuration Options
  */

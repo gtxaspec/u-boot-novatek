@@ -11,6 +11,8 @@
 #include <asm/arch/ns02301_regs.h>
 #include <linux/bitops.h>
 
+#define SDIO_32BIT
+
 /**************************
  *        Platform        *
  **************************/
@@ -30,53 +32,53 @@
 
 /* CLKSEL */
 #define CG_SDIO_CLKSEL_REG              (IOADDR_CG_REG_BASE + 0x20)
-#define CG_SDIO_CLKSEL_MASK             GENMASK(1, 0)
-#define CG_SDIO_CLKSEL_SHIFT            (0)
+#define CG_SDIO_CLKSEL_MASK             GENMASK(5, 4)
+#define CG_SDIO_CLKSEL_SHIFT            (4)
 
 #define CG_SDIO2_CLKSEL_REG             (IOADDR_CG_REG_BASE + 0x20)
-#define CG_SDIO2_CLKSEL_MASK            GENMASK(3, 2)
-#define CG_SDIO2_CLKSEL_SHIFT           (2)
+#define CG_SDIO2_CLKSEL_MASK            GENMASK(9, 8)
+#define CG_SDIO2_CLKSEL_SHIFT           (8)
 
-#define CG_SDIO3_CLKSEL_REG             (IOADDR_CG_REG_BASE + 0x20)
-#define CG_SDIO3_CLKSEL_MASK            GENMASK(5, 4)
-#define CG_SDIO3_CLKSEL_SHIFT           (4)
+#define CG_SDIO3_CLKSEL_REG             (IOADDR_CG_REG_BASE + 0x24)
+#define CG_SDIO3_CLKSEL_MASK            GENMASK(1, 0)
+#define CG_SDIO3_CLKSEL_SHIFT           (0)
 
-#define _CLKSEL_192MHZ                  (0x0)
-#define _CLKSEL_480MHZ                  (0x1)
+#define _CLKSEL_480MHZ                  (0x0)
+#define _CLKSEL_192MHZ                  (0x1)
 #define _CLKSEL_320MHZ                  (0x2)
 
 /* CLKDIV */
-#define CG_SDIO_CLKDIV_REG              (IOADDR_CG_REG_BASE + 0x40)
+#define CG_SDIO_CLKDIV_REG              (IOADDR_CG_REG_BASE + 0x3C)
 #define CG_SDIO_CLKDIV_MASK             GENMASK(10, 0)
 #define CG_SDIO_CLKDIV_SHIFT            (0)
 
-#define CG_SDIO2_CLKDIV_REG             (IOADDR_CG_REG_BASE + 0x40)
+#define CG_SDIO2_CLKDIV_REG             (IOADDR_CG_REG_BASE + 0x3C)
 #define CG_SDIO2_CLKDIV_MASK            GENMASK(26, 16)
 #define CG_SDIO2_CLKDIV_SHIFT           (16)
 
-#define CG_SDIO3_CLKDIV_REG             (IOADDR_CG_REG_BASE + 0x5C)
+#define CG_SDIO3_CLKDIV_REG             (IOADDR_CG_REG_BASE + 0x40)
 #define CG_SDIO3_CLKDIV_MASK            GENMASK(10, 0)
 #define CG_SDIO3_CLKDIV_SHIFT           (0)
 
 /* CLKEN */
 #define CG_SDIO_CLKEN_REG               (IOADDR_CG_REG_BASE + 0x74)
-#define CG_SDIO_CLKEN_MASK              BIT(11)
+#define CG_SDIO_CLKEN_MASK              BIT(2)
 
 #define CG_SDIO2_CLKEN_REG              (IOADDR_CG_REG_BASE + 0x74)
-#define CG_SDIO2_CLKEN_MASK             BIT(12)
+#define CG_SDIO2_CLKEN_MASK             BIT(3)
 
 #define CG_SDIO3_CLKEN_REG              (IOADDR_CG_REG_BASE + 0x74)
-#define CG_SDIO3_CLKEN_MASK             BIT(13)
+#define CG_SDIO3_CLKEN_MASK             BIT(14)
 
 /* RSTN */
-#define CG_SDIO_RSTN_REG                (IOADDR_CG_REG_BASE + 0x94)
-#define CG_SDIO_RSTN_MASK               BIT(11)
+#define CG_SDIO_RSTN_REG                (IOADDR_CG_REG_BASE + 0x84)
+#define CG_SDIO_RSTN_MASK               BIT(2)
 
-#define CG_SDIO2_RSTN_REG               (IOADDR_CG_REG_BASE + 0x94)
-#define CG_SDIO2_RSTN_MASK              BIT(12)
+#define CG_SDIO2_RSTN_REG               (IOADDR_CG_REG_BASE + 0x84)
+#define CG_SDIO2_RSTN_MASK              BIT(3)
 
-#define CG_SDIO3_RSTN_REG               (IOADDR_CG_REG_BASE + 0x94)
-#define CG_SDIO3_RSTN_MASK              BIT(13)
+#define CG_SDIO3_RSTN_REG               (IOADDR_CG_REG_BASE + 0x84)
+#define CG_SDIO3_RSTN_MASK              BIT(14)
 
 /* PINMUX */
 #define PIN_SDIO_CFG_SDIO_1             (0x1)
@@ -91,22 +93,22 @@
 
 /* TOP */
 #define TOP_SDIO_EN_REG                 (IOADDR_TOP_REG_BASE + 0x04)
-#define TOP_SDIO_EN_MASK                BIT(4)
+#define TOP_SDIO_EN_MASK                BIT(16)
 #define TOP_SDIO_EN_GPIO_REG            (IOADDR_TOP_REG_BASE + 0xA0)
-#define TOP_SDIO_EN_GPIO_MASK           BIT(11) | BIT(12) | BIT(13) | BIT(14) | BIT(15) | BIT(16)
+#define TOP_SDIO_EN_GPIO_MASK           BIT(13) | BIT(14) | BIT(15) | BIT(16) | BIT(17) | BIT(18)
 
 #define TOP_SDIO2_EN_REG                (IOADDR_TOP_REG_BASE + 0x04)
-#define TOP_SDIO2_EN_MASK               BIT(8)
+#define TOP_SDIO2_EN_MASK               BIT(18)
 #define TOP_SDIO2_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xA0)
-#define TOP_SDIO2_EN_GPIO_MASK          BIT(17) | BIT(18) | BIT(19) | BIT(20) | BIT(21) | BIT(22)
+#define TOP_SDIO2_EN_GPIO_MASK          BIT(19) | BIT(20) | BIT(21) | BIT(22) | BIT(23) | BIT(24)
 
 #define TOP_SDIO3_EN_REG                (IOADDR_TOP_REG_BASE + 0x04)
-#define TOP_SDIO3_EN_MASK               BIT(12)
+#define TOP_SDIO3_EN_MASK               BIT(20)
 #define TOP_SDIO3_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xA0)
-#define TOP_SDIO3_EN_GPIO_MASK          BIT(8) | BIT(10) | BIT(0) | BIT(1) | BIT(2) | BIT(3)
+#define TOP_SDIO3_EN_GPIO_MASK          BIT(10) | BIT(11) | BIT(0) | BIT(1) | BIT(2) | BIT(3)
 
 #define TOP_SDIO3_WIDTH_REG             (IOADDR_TOP_REG_BASE + 0x04)
-#define TOP_SDIO3_WIDTH_MASK            BIT(14)
+#define TOP_SDIO3_WIDTH_MASK            BIT(23)
 #define TOP_SDIO3_WIDTH_GPIO_REG        (IOADDR_TOP_REG_BASE + 0xA0)
 #define TOP_SDIO3_WIDTH_GPIO_MASK       BIT(4) | BIT(5) | BIT(6) | BIT(7)
 
@@ -140,23 +142,24 @@
 #define PAD_DS_CGPIO21                  (PAD_DS_CGPIO_BASE + 84)
 #define PAD_DS_CGPIO22                  (PAD_DS_CGPIO_BASE + 88)
 #define PAD_DS_CGPIO23                  (PAD_DS_CGPIO_BASE + 92)
+#define PAD_DS_CGPIO24                  (PAD_DS_CGPIO_BASE + 96)
 
-#define PAD_DS_SDIO_CLK                 PAD_DS_CGPIO11
-#define PAD_DS_SDIO_CMD                 PAD_DS_CGPIO12
-#define PAD_DS_SDIO_D0                  PAD_DS_CGPIO13
-#define PAD_DS_SDIO_D1                  PAD_DS_CGPIO14
-#define PAD_DS_SDIO_D2                  PAD_DS_CGPIO15
-#define PAD_DS_SDIO_D3                  PAD_DS_CGPIO16
+#define PAD_DS_SDIO_CLK                 PAD_DS_CGPIO13
+#define PAD_DS_SDIO_CMD                 PAD_DS_CGPIO14
+#define PAD_DS_SDIO_D0                  PAD_DS_CGPIO15
+#define PAD_DS_SDIO_D1                  PAD_DS_CGPIO16
+#define PAD_DS_SDIO_D2                  PAD_DS_CGPIO17
+#define PAD_DS_SDIO_D3                  PAD_DS_CGPIO18
 
-#define PAD_DS_SDIO2_CLK                PAD_DS_CGPIO17
-#define PAD_DS_SDIO2_CMD                PAD_DS_CGPIO18
-#define PAD_DS_SDIO2_D0                 PAD_DS_CGPIO19
-#define PAD_DS_SDIO2_D1                 PAD_DS_CGPIO20
-#define PAD_DS_SDIO2_D2                 PAD_DS_CGPIO21
-#define PAD_DS_SDIO2_D3                 PAD_DS_CGPIO22
+#define PAD_DS_SDIO2_CLK                PAD_DS_CGPIO19
+#define PAD_DS_SDIO2_CMD                PAD_DS_CGPIO20
+#define PAD_DS_SDIO2_D0                 PAD_DS_CGPIO21
+#define PAD_DS_SDIO2_D1                 PAD_DS_CGPIO22
+#define PAD_DS_SDIO2_D2                 PAD_DS_CGPIO23
+#define PAD_DS_SDIO2_D3                 PAD_DS_CGPIO24
 
-#define PAD_DS_SDIO3_CLK                PAD_DS_CGPIO8
-#define PAD_DS_SDIO3_CMD                PAD_DS_CGPIO9
+#define PAD_DS_SDIO3_CLK                PAD_DS_CGPIO10
+#define PAD_DS_SDIO3_CMD                PAD_DS_CGPIO11
 #define PAD_DS_SDIO3_D0                 PAD_DS_CGPIO0
 #define PAD_DS_SDIO3_D1                 PAD_DS_CGPIO1
 #define PAD_DS_SDIO3_D2                 PAD_DS_CGPIO2

@@ -14,6 +14,8 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 
+#define GPIO_VERSION "1.0.00"
+
 struct nvt_gpio_bank {
 	phys_addr_t base;
 };
@@ -149,6 +151,7 @@ static const struct dm_gpio_ops gpio_nvt_ops = {
 
 static int nvt_gpio_probe(struct udevice *dev)
 {
+	printf("GPIO version: %s\n", GPIO_VERSION);
 	return 0;
 }
 

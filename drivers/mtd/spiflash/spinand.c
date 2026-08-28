@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.06"
+#define NAND_VERSION "1.0.11"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {
@@ -148,6 +148,30 @@ static void nvt_parse_parameter(struct drv_nand_dev_info *info)
 		info->flash_info->chip_sel = __be32_to_cpu(cell[0]);
 	} else {
 		info->flash_info->chip_sel = 0;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "auto-tuning", NULL);
+	if (cell > 0) {
+		info->autok_param = __be32_to_cpu(cell[0]);
+		printf("auto-tuning = 0x%x \n", info->autok_param);
+	} else {
+		info->autok_param = 0;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "tuning-addr", NULL);
+	if (cell > 0) {
+		info->autok_addr = __be32_to_cpu(cell[0]);
+		printf("auto-tuning pattern address = 0x%x \n", info->autok_addr);
+	} else {
+		info->autok_addr = 0;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "indly", NULL);
+	if (cell > 0) {
+		info->indly = __be32_to_cpu(cell[0]);
+		printf("set indly = %d \n", info->indly);
+	} else {
+		info->indly = 0;
 	}
 
 	/*
@@ -591,6 +615,8 @@ static int drv_nand_reset(struct drv_nand_dev_info *info)
 	chid = nvt_get_chip_id();
 	NAND_DBG_GLOBAL("dbg CHID: 0x%x\r\n", chid);
 
+	info->chip_id = chid;
+
 	/* Config NAND module clock */
 	do {
 		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/top/nand");
@@ -609,8 +635,8 @@ static int drv_nand_reset(struct drv_nand_dev_info *info)
 		printf("%s: spi flash pinmux 0x%x\r\n", __func__, fdt_pinmux);
 	} while (0);
 
-	NAND_DBG_GLOBAL("dbg nand base addr: 0x%lx\r\n", CONFIG_SYS_NAND_BASE);
-	NAND_DBG_GLOBAL("dbg cg base addr: 0x%lx\r\n", IOADDR_CG_REG_BASE);
+	NAND_DBG_GLOBAL("dbg nand base addr: 0x%p\r\n", (void *)CONFIG_SYS_NAND_BASE);
+	NAND_DBG_GLOBAL("dbg cg base addr: 0x%p\r\n", (void *)IOADDR_CG_REG_BASE);
 
 	/* Config NAND module CLKEN */
 	reg = INW(IOADDR_CG_REG_BASE + 0x74);
@@ -900,6 +926,7 @@ int nvt_nand_board_nand_init(struct nand_chip *nand)
 #ifndef CONFIG_FLASH_ONLY_DUAL
 	if (((id & 0xFFFF) != TOSHIBA_TC58CVG) && \
 		((id & 0xFFFF) != TOSHIBA_TC58CVG2S0HRAIG) && \
+		((id & 0xFFFF) != TOSHIBA_TC58CVG2) && \
 		((id & 0xFFFF) != TOSHIBA_TC58CVG1S3)) {
 		info->flash_info->spi_nand_status.bQuadProgram = TRUE;
 	}
@@ -1004,6 +1031,23 @@ int nvt_nand_board_nand_init(struct nand_chip *nand)
 		info->flash_info->plane_flags = 1;
 	} else {
 		info->flash_info->plane_flags = 0;
+	}
+
+	if (info->autok_param) {
+		if (nand_host_dll_auto_tuning(info, NANDCTRL_SPI_NAND_TYPE) != E_OK) {
+			printf("nand auto tuning fail\n");
+		} else {
+			printf("nand auto tuning finish\n");
+		}
+	}
+
+	if (info->indly) {
+		union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
+
+		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+		phy_dly2.Bit.INDLY_SEL = info->indly;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
+		nand_dll_reset();
 	}
 
 	printf("nvt spinand %d-bit mode @ %d Hz\n", \

@@ -116,6 +116,16 @@ extern uint8_t *nvt_fdt_buffer;
 #define PLL10_OFFSET 0x2F00206A0
 #define DSI_RSTN_OFFSET 0x2F0020088
 
+#elif defined(CONFIG_TARGET_NS02302_A64)
+#define PLL_CLKSEL_IDE_CLKSRC_480   (0x00)    //< Select IDE clock source as 480 MHz
+#define PLL_CLKSEL_IDE_CLKSRC_PLL6  (0x01)    //< Select IDE clock source as PLL6 (for IDE/ETH)
+#define PLL_CLKSEL_IDE_CLKSRC_PLL4  (0x02)    //< Select IDE clock source as PLL4 (for SSPLL)
+#define PLL_CLKSEL_IDE_CLKSRC_PLL9  (0x03)    //< Select IDE clock source as PLL9 (for IDE backup)
+
+#define PLL4_OFFSET 0x2F02344E0
+#define PLL6_OFFSET 0x2F0234520
+#define PLL9_OFFSET 0x2F0234760
+#define DSI_RSTN_OFFSET 0x2F0020090
 
 #endif
 
@@ -163,7 +173,7 @@ void _boot_dump_reg(UINT64 ofs, int cnt, char *log)
 void pll_set_ideclock_rate(int id, u32 value)
 {
 	REGVALUE reg_data;
-#if CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201_A64
+#if CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64
 	UINT64 ui_reg_offset;
 #else
 	UINT32 ui_reg_offset;
@@ -418,6 +428,12 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	DISPDEV_PARAM   emu_disp_dev2;
 	DISPLAYER_PARAM emu_disp_lyr2;
 #endif
+#if CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64
+	PDISP_OBJ       p_emu_disp_obj3;
+	DISPCTRL_PARAM  emu_disp_ctrl3;
+	DISPDEV_PARAM   emu_disp_dev3;
+	DISPLAYER_PARAM emu_disp_lyr3;	
+#endif
 	ulong logo_addr, logo_size;
 	ulong logo_addr2, logo_size2;
 	ulong gpio_cs,gpio_clk,gpio_data;
@@ -501,23 +517,35 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 #endif
 	_W_LOG("do_bootlogo, layer = %d\r\n",layer);
 
-#if NT98690_BOOT_LOGO_SKIP
-	nvt_pinmux_probe();
 
-	
+#if !CONFIG_TARGET_NS02302_A64
+	//TODO
+	nvt_pinmux_probe();
+#endif
+
+#if NT98690_BOOT_LOGO_SKIP
+#if CONFIG_TARGET_NS02302_A64
+	reg_data = INREG32(DSI_RSTN_OFFSET);
+	reg_data &= 0xFFFFEFFF;
+	OUTW(DSI_RSTN_OFFSET, reg_data);
+	udelay(1000);
+	reg_data |= 0x1000;
+	OUTW(DSI_RSTN_OFFSET, reg_data);
+#else
 	reg_data = INREG32(DSI_RSTN_OFFSET);
 	reg_data &= 0xFFFFFFF7;
 	OUTW(DSI_RSTN_OFFSET, reg_data);
 	udelay(1000);
 	reg_data |= 0x8;
 	OUTW(DSI_RSTN_OFFSET, reg_data);
+#endif
 #endif	
 
 	if(panel){
 		p_emu_disp_obj = disp_get_display_object(DISP_1);
 		p_emu_disp_obj->open();
 
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64
 		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nvt-clk/clk_ide_src");
 		if (nodeoffset < 0) {
 			printf("no find node clk_ide_src\n");
@@ -580,7 +608,9 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		}
 
 		_Y_LOG("clock_source = %d clock_freq = %d\n",clock_source ,clock_freq);
+#ifndef CONFIG_TARGET_NS02302_A64
 		pll_set_ideclock_rate(clock_source, clock_freq);
+#endif
 
 		emu_disp_ctrl.SEL.SET_SRCCLK.src_clk = (DISPCTRL_SRCCLK)clock_source;//DISPCTRL_SRCCLK_PLL6;
 		p_emu_disp_obj->disp_ctrl(DISPCTRL_SET_SRCCLK, &emu_disp_ctrl);
@@ -590,7 +620,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		emu_disp_dev.SEL.SET_REG_IF.ui_sif_ch     = SIF_CH2;
 	if(nvt_getfdt_logo_gpio((ulong)nvt_fdt_buffer,&gpio_cs,&gpio_clk,&gpio_data) == 0)
 	{
-		printf("gpio_cs = %d, gpio_clk=%d, gpio_data=%d\r\n",gpio_cs,gpio_clk,gpio_data);
+		printf("gpio_cs=%d, gpio_clk=%d, gpio_data=%d\r\n",gpio_cs,gpio_clk,gpio_data);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = gpio_cs;
 	    emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = gpio_clk;
     	emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = gpio_data;
@@ -613,6 +643,10 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = L_GPIO(22);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = L_GPIO(23);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = L_GPIO(24);		
+#elif CONFIG_TARGET_NS02302_A64
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = L_GPIO(22);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = L_GPIO(23);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = L_GPIO(24); 
 
 #endif
 	}
@@ -791,21 +825,98 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 				emu_disp_ctrl.SEL.SET_ALL_LYR_EN.disp_lyr  = DISPLAYER_VDO1;
 			else
 				emu_disp_ctrl.SEL.SET_ALL_LYR_EN.disp_lyr  = DISPLAYER_OSD1;
+
+			
 			p_emu_disp_obj->disp_ctrl(DISPCTRL_SET_ALL_LYR_EN, &emu_disp_ctrl);
 			p_emu_disp_obj->load(TRUE);
 			p_emu_disp_obj->wait_frm_end(TRUE);
 
 			_W_LOG("DISPCTRL_SET_ALL_LYR_EN\r\n");
 
+			
+#if CONFIG_TARGET_NS02201_A64
+			//disp3 flow start
+			p_emu_disp_obj3 = disp_get_display_object(DISP_3);
+			p_emu_disp_obj3->open();			
 
+			
+			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.dev_id		    = DISPDEV_ID_PANEL;
+			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj	 = dispdev_get_lcd3_dev_obj();
+			p_emu_disp_obj3->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev3);
+			_Y_LOG("hook panel3 dev done \n");
+			
+			p_emu_disp_obj3->dev_ctrl(DISPDEV_OPEN_DEVICE, &emu_disp_dev3);
+		
+			p_emu_disp_obj3->dev_ctrl(DISPDEV_GET_DISPSIZE, &emu_disp_dev3);
+			
+			emu_disp_lyr3.SEL.SET_WINSIZE.ui_win_width	  = emu_disp_dev3.SEL.GET_DISPSIZE.ui_buf_width;
+			emu_disp_lyr3.SEL.SET_WINSIZE.ui_win_height		= emu_disp_dev3.SEL.GET_DISPSIZE.ui_buf_height;
+			emu_disp_lyr3.SEL.SET_WINSIZE.i_win_ofs_x	  = 0;
+			emu_disp_lyr3.SEL.SET_WINSIZE.i_win_ofs_y	  = 0;
+			p_emu_disp_obj3->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_WINSIZE, &emu_disp_lyr3);
+
+
+			emu_disp_lyr3.SEL.SET_MODE.buf_format   = DISPBUFFORMAT_YUV422PACK;
+			emu_disp_lyr3.SEL.SET_MODE.buf_mode	   = DISPBUFMODE_BUFFER_REPEAT;
+			emu_disp_lyr3.SEL.SET_MODE.buf_number   = DISPBUFNUM_3;
+			p_emu_disp_obj3->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_MODE, &emu_disp_lyr3);
+			_W_LOG("DISPLAYER3_OP_SET_MODE\r\n");
+	
+			emu_disp_lyr3.SEL.SET_BUFSIZE.ui_buf_width	=  buf_w;
+			emu_disp_lyr3.SEL.SET_BUFSIZE.ui_buf_height	=  buf_h;
+			emu_disp_lyr3.SEL.SET_BUFSIZE.ui_buf_line_ofs = buf_w;
+			p_emu_disp_obj3->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_BUFSIZE, &emu_disp_lyr3);
+						
+			_W_LOG("DISPLAYER3_OP_SET_BUFSIZE %d %d\r\n", emu_disp_lyr3.SEL.SET_BUFSIZE.ui_buf_line_ofs, buf_h);
+			
+
+			memset((void *)&emu_disp_lyr3, 0, sizeof(DISPLAYER_PARAM));
+
+			emu_disp_lyr3.SEL.SET_VDOBUFADDR.buf_sel = DISPBUFADR_0;
+			emu_disp_lyr3.SEL.SET_VDOBUFADDR.ui_addr_y0 = uiVDO_YAddr;
+			emu_disp_lyr3.SEL.SET_VDOBUFADDR.ui_addr_cb0 = uiVDO_UVAddr;
+			emu_disp_lyr3.SEL.SET_VDOBUFADDR.ui_addr_cr0 = uiVDO_UVAddr;
+			p_emu_disp_obj3->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_VDOBUFADDR, &emu_disp_lyr3);
+			
+			_W_LOG("DISPLAYER3_OP_SET_VDOBUFADDR\r\n");
+			
+			emu_disp_ctrl3.SEL.SET_ALL_LYR_EN.b_en	   = TRUE;
+			emu_disp_ctrl3.SEL.SET_ALL_LYR_EN.disp_lyr  = DISPLAYER_VDO1;
+
+			p_emu_disp_obj3->disp_ctrl(DISPCTRL_SET_ALL_LYR_EN, &emu_disp_ctrl3);
+			p_emu_disp_obj3->load(TRUE);
+			p_emu_disp_obj3->wait_frm_end(TRUE);
+			
+			_W_LOG("DISPCTRL3_SET_ALL_LYR_EN\r\n");
+#endif
+
+
+
+					
+
+#if CONFIG_TARGET_NS02201_A64
 			_boot_dump_reg(0x2f0400000, 200, "LCD1_reg");
 
-			_boot_dump_reg(0x2f0020000, 200, "CG_reg");
+			_boot_dump_reg(0x2f0420000, 200, "LCD3_reg");
+
+			_boot_dump_reg(0x2f0020000, 16, "CG_reg");
+
+			_boot_dump_reg(0x2f0020300, 16, "CG_LCD3_reg");
+
+			_boot_dump_reg(0x2f0024680, 16, "CG_LCD3_pll_reg");
+
+			_boot_dump_reg(0x2f0010000, 16, "TOP_reg");
 
 			_boot_dump_reg(0x2f0480000, 200, "HDMI1_reg");
 
 			_boot_dump_reg(0x2f0490000, 200, "HDMI2_reg");
 
+#elif CONFIG_TARGET_NS02302_A64
+
+			//_boot_dump_reg(0x2f0190000, 200, "LCD1_reg");
+
+			//_boot_dump_reg(0x2f0020000, 200, "CG_reg");
+#endif
 		}
 	}
 #if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 //|| CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 not done yet	

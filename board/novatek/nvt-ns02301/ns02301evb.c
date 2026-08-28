@@ -1,10 +1,10 @@
 /**
     NVT evb board file
-    To handle na51xxx basic init.
-    @file       na51xxxevb.c
+    To handle ns02201 basic init.
+    @file       ns02201evb.c
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2020.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2023.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as
@@ -14,6 +14,7 @@
 
 #include <cpu_func.h>
 #include <common.h>
+#include <cli.h>
 #include <env.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
@@ -40,6 +41,16 @@ const char *boardinfo[] = {
 #ifdef CONFIG_BOARD_EARLY_INIT_F
 int board_early_init_f(void)
 {
+	u32 val;
+
+	val = readl(IOADDR_SYSCNT_CTRL_BASE);
+	if (!(val & 0x01)) {
+		writel(0x01, IOADDR_SYSCNT_CTRL_BASE);
+		printf("ARM CA7 global timer init successfully\n");
+	} else {
+		printf("ARM CA7 global timer had already been initiated\n");
+	}
+
 	return nvt_get_memory_by_dts(gd->fdt_blob);
 }
 #endif
@@ -73,8 +84,8 @@ void reset_cpu(void)
 int board_init(void)
 {
 	int ret = 0;
-	unsigned int  cval_high;
-	unsigned int  cval_low;
+	//unsigned int  cval_high;
+	//unsigned int  cval_low;
 
 #ifdef CONFIG_NVT_IVOT_BOOT_FAST
 	char command[100] = {0};
@@ -90,15 +101,6 @@ int board_init(void)
 
 	invalidate_icache_all();
 	invalidate_dcache_all();
-
-	//asm volatile ("mrrc p15, 1, %0, %1, c15" : "=r" (cval_low), "=r" (cval_high));
-	//cval_low &= ~0x40;
-	//asm volatile ("mcrr p15, 1, %0, %1, c15" : : "r" (cval_low), "r" (cval_high));
-	//cval_low |= 0x40;
-	//asm volatile ("mcrr p15, 1, %0, %1, c15" : : "r" (cval_low), "r" (cval_high));
-	//asm volatile ("mrrc p15, 1, %0, %1, c15" : "=r" (cval_low), "=r" (cval_high));
-
-	//printf("CPUECTLR->SMPEN = %d\n", (cval_low & 0x40)?1:0);
 
 	icache_enable();
 	dcache_enable();
@@ -196,6 +198,7 @@ static int nvt_handle_fw_abin(void)
 		ret = nvt_fdt_init(true);
 		if (ret < 0) {
 			printf("modelext init fail\n");
+			return ret;
 		}
 	} else{
 		printf("%sUpdate successfully %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
@@ -265,39 +268,6 @@ static int nvt_handle_fw_tbin(void)
 #endif
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-static int nvt_handle_fw_update_fw(void)
-{
-	int ret = 0;
-	unsigned long val = 0;
-
-	printf("%sStarting to update firmware runtime %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-	/* To handle firmware update */
-	ret = nvt_fw_update(true);
-	if (ret < 0) {
-		printf("%sUpdate fail %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
-		val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_NG;
-		nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-		flush_dcache_all();
-		return -1;
-	} else {
-		printf("%sUpdate firmware successfully %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-
-		// Update finished.
-		val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_DONE;
-		nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-		flush_dcache_all();
-		while(1) {
-			// Waiting for itron trigger reboot.
-			printf(".");
-			mdelay(1000);
-		}
-	}
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_update_fw_by_usb_eth(void)
 {
 	int ret = 0;
@@ -333,16 +303,6 @@ static int nvt_handle_update_fw_by_usb_eth(void)
 #endif
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-static int nvt_handle_format_rw_rootfs(void)
-{
-	int ret = 0;
-	ret = nvt_process_rootfs_format();
-
-	return ret;
-}
-#endif
-
-#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_recovery_sys(void)
 {
 	int ret = 0;
@@ -374,12 +334,7 @@ static int nvt_handle_fw_auto(void)
 	int ret = 0;
 	unsigned long boot_reason = nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & COMM_UBOOT_BOOT_FUNC_BOOT_REASON_MASK;
 
-	if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPDFIRM) {
-		// Update by itron: firmware will be loaded by itron.
-		ret = nvt_handle_fw_update_fw();
-		if (ret < 0)
-			return ret;
-	} else if ((boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_USB) || \
+	if ((boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_USB) || \
 				(boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_ETH)){
 		// Update by USB/ETH: firmware will be loaded by loader.
 		ret = nvt_handle_update_fw_by_usb_eth();
@@ -390,10 +345,8 @@ static int nvt_handle_fw_auto(void)
 		if (ret < 0)
 			return ret;
 	} else if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_FORMAT_ROOTFS){
-		// Format R/W rootfs, we should check if this partition is existed firstly.
-		ret = nvt_handle_format_rw_rootfs();
-		if (ret < 0)
-			return ret;
+		printf("%s: COMM_UBOOT_BOOT_FUNC_BOOT_FORMAT_ROOTFS is not supported\n", __func__);
+		return -1;
 	} else if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_RECOVERY_SYS){
 		// Recovery system if loader send event to do system recovery. (EMMC boot only)
 		ret = nvt_handle_recovery_sys();
@@ -490,6 +443,7 @@ static int nvt_norflash_init(void)
  */
 int misc_init_r(void)
 {
+	/* if part of misc_init_r failed, print msg and go to boot shell cli_loop() */
 	int ret = 0;
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
@@ -503,18 +457,26 @@ int misc_init_r(void)
 
 #if defined(CONFIG_NVT_IVOT_EMMC)
 	ret = nvt_emmc_init();
-	if (ret < 0)
+	if (ret < 0) {
+		printf("nvt_emmc_init fail\n");
+		cli_loop();
 		return 0;
+	}
 #elif defined(CONFIG_NVT_SPI_NOR)
 	ret = nvt_norflash_init();
-	if (ret < 0)
+	if (ret < 0) {
+		printf("nvt_norflash_init fail\n");
+		cli_loop();
 		return 0;
+	}
 #endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 	ret = nvt_handle_fw_auto();
-	if (ret < 0)
-		return 0;
+	if (ret < 0) {
+		printf("nvt_handle_fw_auto fail\n");
+		cli_loop();
+	}
 #endif
 
 	/* Why to do this again?
@@ -524,6 +486,7 @@ int misc_init_r(void)
 	ret = nvt_board_init();
 	if (ret < 0) {
 		printf("board init fail\n");
+		cli_loop();
 		return 0;
 	}
 
@@ -561,5 +524,3 @@ int board_late_init(void)
 {
 	return 0;
 }
-
-

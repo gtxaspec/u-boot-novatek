@@ -71,7 +71,7 @@ extern u32 top_reg_addr;
 
 const char *pinmux_dts_name[] =
 {
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
+#if defined(CONFIG_TARGET_NA51102_A64)
 	"sdio",
 	"nand",
 	"eth",
@@ -99,6 +99,46 @@ const char *pinmux_dts_name[] =
 	"tv",
 	"sel_lcd",
 	"sel_lcd2",
+
+#elif defined(CONFIG_TARGET_NS02201_A64)
+
+	"sdio",
+	"nand",
+	"eth",
+	"i2c",
+	"i2cII",
+	"i2cIII",
+	"i2cIV",
+	"pwm",
+	"pwmII",
+	"ccnt",
+	"sensor",
+	"sensor2",
+	"sensormisc",
+	"sensormiscii",
+	"sensorsync",
+	"sensorsyncII",
+	"sensorsyncIII",
+	"sensorsyncIV",
+	"audio",
+	"uart",
+	"uartII",
+	"remote",
+	"sdp",
+	"spi",
+	"sif",
+	"misc",
+	"lcd",
+	"lcd2",
+	"lcd3",
+	"tv",
+	"lcd_pinout",
+	"sel_lcd",
+	"sel_lcd2",
+	"pcie",
+	"sel_pcie",
+
+
 
 #else
 	"sdio",
@@ -380,13 +420,13 @@ int nvt_pinmux_probe(void)
 #else
         sprintf(path,"/top@%x/%s",IOADDR_TOP_REG_BASE, pinmux_dts_name[i]);
 #endif
+		//printf("[%d]\r\n",i);
     	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
     	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
         info->top_pinmux[nr_pinmux].config = __be32_to_cpu(cell[0]);
         info->top_pinmux[nr_pinmux].pin_function = nr_pinmux;
 
-//printf("%s(top = top_base=%s, length=%x):\n", __func__ , pinmux_dts_name[i],
-	      //info->top_pinmux[nr_pinmux].config);
+		//printf("%s(top = top_base=%s, length=%x):\n", __func__ , pinmux_dts_name[i],info->top_pinmux[nr_pinmux].config);
 
         nr_pinmux++;
 

@@ -322,7 +322,7 @@ static void power_init(void)
 	sprintf(path,"/top/sgpio_0_15");
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for sgpio_0_15, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -355,7 +355,7 @@ static void power_init(void)
 	sprintf(path,"/top/sgpio_16_31");
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for sgpio_16_31, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -388,7 +388,7 @@ static void power_init(void)
 	sprintf(path,"/top/pgpio_0_19");
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for pgpio_0_19, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -415,7 +415,7 @@ static void power_init(void)
 	sprintf(path,"/top/cgpio_0_12");
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for cgpio_0_12, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);

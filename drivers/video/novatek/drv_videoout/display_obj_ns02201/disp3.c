@@ -20,7 +20,7 @@ static volatile DISP_INFO g_disp3_info = {
 	/* Display DATA */
 	{
 		DISPDEV_ID_NULL,            // active_dev
-		DISPCTRL_SRCCLK_DEFAULT,    // src_clk
+		DISPCTRL_SRCCLK_PLL10,    // src_clk
 		0x4ED,                      // ui_global_win_width
 		0xF0,                       // ui_global_win_height
 		{{0x140, 0xF0, 0x140 }, {0x140, 0xF0, 0x140 } },      // pui_vdo_buf_dim[DISPVDO_LYRNUM][3]

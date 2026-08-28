@@ -87,14 +87,14 @@ ENDPROC(lowlevel_init)
 #if 1
 ENTRY(local_load)
     dmb     sy
-    mov     x1, #0xf0240000
+    mov     x1, #0xf0160000
     movk    x1, #0x2, lsl #32
-    //x1 = 0x2F0240000
-    str     wzr, [x1]                       //0x2F0240000=0x0
+    //x1 = 0x2F0160000
+    str     wzr, [x1]                       //0x2F0160000=0x0
     dmb     sy
 
-    add     x1, x1, #0x30                   //x1=0x2F0240030
-    stur    w0, [x1, #-44]                  //0x2F0240004 = rowaddress
+    add     x1, x1, #0x30                   //x1=0x2F0160030
+    stur    w0, [x1, #-44]                  //0x2F0160004 = rowaddress
 
     ldr     w0, [x1]
     dmb     sy
@@ -104,12 +104,12 @@ ENTRY(local_load)
     dmb     sy
     mov     x2, #0x20                       // #32
     mov     w0, #0x1                        // #1
-    movk    x2, #0xf024, lsl #16
+    movk    x2, #0xf016, lsl #16
     movk    x2, #0x2, lsl #32
-    str     w0, [x2]                        //0x2F0240020 = 0x1
+    str     w0, [x2]                        //0x2F0160020 = 0x1
 
-    //x1 = 0x2F0240030
-    //x2 = 0x2F0240020
+    //x1 = 0x2F0160030
+    //x2 = 0x2F0160020
 POLL_SET_EN_STS_R:
     ldr     w0, [x1]
     dmb     sy
@@ -127,7 +127,7 @@ POLL_STATUS_R:
     tbz     w0, #1, POLL_STATUS_R           //polling until 0x30 bit[1] = 1
 
     mov     x0, #0x8                        // #8
-    movk    x0, #0xf024, lsl #16
+    movk    x0, #0xf016, lsl #16
     movk    x0, #0x2, lsl #32
     ldr     w0, [x0]                        //w0 = 0x2F0660008
     dmb     sy
@@ -148,7 +148,7 @@ ENDPROC(local_load)
 
 ENTRY(local_store)
     dmb     sy
-    mov     x1, #0xf0240000                 // #4033216512
+    mov     x1, #0xf0160000                 // #4033216512
     mov     w2, #0x4                        // w2 = #4
     movk    x1, #0x2, lsl #32
     str     w2, [x1]
@@ -156,7 +156,7 @@ ENTRY(local_store)
 
     str     w0, [x1, #4]                    // w0 = address
     mov     x0, #0x30                       // #48
-    movk    x0, #0xf024, lsl #16
+    movk    x0, #0xf016, lsl #16
     movk    x0, #0x2, lsl #32
     ldr     w1, [x0]                        //ldr 0x2F0240030
     dmb     sy
@@ -165,7 +165,7 @@ ENTRY(local_store)
     dmb     sy
     mov     x1, #0x20                       // #32
     mov     w2, #0x1                        // #1
-    movk    x1, #0xf024, lsl #16
+    movk    x1, #0xf016, lsl #16
     movk    x1, #0x2, lsl #32
     str     w2, [x1]                        //
 

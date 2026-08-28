@@ -11,8 +11,8 @@
     published by the Free Software Foundation.
 */
 
-
 #include <common.h>
+#include <cli.h>
 #include <command.h>
 #include <linux/delay.h>
 #include <env.h>
@@ -54,7 +54,14 @@ static struct mm_region evb_mem_map[] = {
 			 PTE_BLOCK_NON_SHARE
 			 /* TODO: Do we need these? */
 			 /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
-
+	}, {
+        .virt = 0x100000000UL,
+        .phys = 0x100000000UL,
+        .size = 0x100000000UL,
+        .attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+             PTE_BLOCK_NON_SHARE
+             /* TODO: Do we need these? */
+             /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
 	}, {
 	    .virt = 0x2f0000000UL, /* For 0x2F000_0000 peri io */
 		.phys = 0x2f0000000UL,
@@ -65,8 +72,8 @@ static struct mm_region evb_mem_map[] = {
 			 /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
 
 	}, {
-	    .virt = 0x400000000UL, /* For 0x4_0000_0000 pcie space  */
-		.phys = 0x400000000UL,
+	    .virt = 0x800000000UL, /* For 0x8_0000_0000 pcie space  */
+		.phys = 0x800000000UL,
 		.size = 0x1000000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 			 PTE_BLOCK_NON_SHARE
@@ -240,6 +247,7 @@ static int nvt_handle_fw_abin(void)
 		ret = nvt_fdt_init(true);
 		if (ret < 0) {
 			printf("modelext init fail\n");
+			return ret;
 		}
 	} else{
 		printf("%sUpdate successfully %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
@@ -305,39 +313,6 @@ static int nvt_handle_fw_tbin(void)
 #endif
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-static int nvt_handle_fw_update_fw(void)
-{
-	int ret = 0;
-	unsigned long val = 0;
-
-	printf("%sStarting to update firmware runtime %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-	/* To handle firmware update */
-	ret = nvt_fw_update(true);
-	if (ret < 0) {
-		printf("%sUpdate fail %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
-		val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_NG;
-		nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-		flush_dcache_all();
-		return -1;
-	} else {
-		printf("%sUpdate firmware successfully %s\r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-
-		// Update finished.
-		val = (nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & ~COMM_UBOOT_BOOT_FUNC_BOOT_DONE_MASK) | COMM_UBOOT_BOOT_FUNC_BOOT_DONE;
-		nvt_writel(val, (ulong)nvt_shminfo_comm_uboot_boot_func);
-		flush_dcache_all();
-		while(1) {
-			// Waiting for itron trigger reboot.
-			printf(".");
-			mdelay(1000);
-		}
-	}
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_update_fw_by_usb_eth(void)
 {
 	int ret = 0;
@@ -370,16 +345,6 @@ static int nvt_handle_update_fw_by_usb_eth(void)
 #endif
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-static int nvt_handle_format_rw_rootfs(void)
-{
-	int ret = 0;
-	ret = nvt_process_rootfs_format();
-
-	return ret;
-}
-#endif
-
-#ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 static int nvt_handle_recovery_sys(void)
 {
 	int ret = 0;
@@ -408,12 +373,7 @@ static int nvt_handle_fw_auto(void)
 	int ret = 0;
 	unsigned long boot_reason = nvt_readl((ulong)nvt_shminfo_comm_uboot_boot_func) & COMM_UBOOT_BOOT_FUNC_BOOT_REASON_MASK;
 
-	if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPDFIRM) {
-		// Update by itron: firmware will be loaded by itron.
-		ret = nvt_handle_fw_update_fw();
-		if (ret < 0)
-			return ret;
-	} else if ((boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_USB) || \
+	if ((boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_USB) || \
 				(boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_UPD_FRM_ETH)){
 		// Update by USB/ETH: firmware will be loaded by loader.
 		ret = nvt_handle_update_fw_by_usb_eth();
@@ -424,10 +384,8 @@ static int nvt_handle_fw_auto(void)
 		if (ret < 0)
 			return ret;
 	} else if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_FORMAT_ROOTFS){
-		// Format R/W rootfs, we should check if this partition is existed firstly.
-		ret = nvt_handle_format_rw_rootfs();
-		if (ret < 0)
-			return ret;
+		printf("%s: COMM_UBOOT_BOOT_FUNC_BOOT_FORMAT_ROOTFS is not supported\n", __func__);
+		return -1;
 	} else if (boot_reason == COMM_UBOOT_BOOT_FUNC_BOOT_RECOVERY_SYS){
 		// Recovery system if loader send event to do system recovery. (EMMC boot only)
 		ret = nvt_handle_recovery_sys();
@@ -524,6 +482,7 @@ static int nvt_norflash_init(void)
  */
 int misc_init_r(void)
 {
+	/* if part of misc_init_r failed, print msg and go to boot shell cli_loop() */
 	int ret = 0;
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
@@ -537,18 +496,26 @@ int misc_init_r(void)
 
 #if defined(CONFIG_NVT_IVOT_EMMC)
 	ret = nvt_emmc_init();
-	if (ret < 0)
+	if (ret < 0) {
+		printf("nvt_emmc_init fail\n");
+		cli_loop();
 		return 0;
+	}
 #elif defined(CONFIG_NVT_SPI_NOR)
 	ret = nvt_norflash_init();
-	if (ret < 0)
+	if (ret < 0) {
+		printf("nvt_norflash_init fail\n");
+		cli_loop();
 		return 0;
+	}
 #endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
 
 #ifdef CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 	ret = nvt_handle_fw_auto();
-	if (ret < 0)
-		return 0;
+	if (ret < 0) {
+		printf("nvt_handle_fw_auto fail\n");
+		cli_loop();
+	}
 #endif
 
 	/* Why to do this again?
@@ -557,7 +524,10 @@ int misc_init_r(void)
 	nvt_dbg(FUNC, "boot time: %lu(us) \n", get_nvt_timer0_cnt());
 	ret = nvt_board_init();
 	if (ret < 0) {
+#ifndef CONFIG_NVT_PCIE_DAUGHTER_BRD
 		printf("board init fail\n");
+		cli_loop();
+#endif
 		return 0;
 	}
 

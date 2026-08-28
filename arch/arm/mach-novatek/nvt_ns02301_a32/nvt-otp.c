@@ -4,7 +4,7 @@
     @file       nvt-otp.c
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2018.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2023.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as
@@ -72,10 +72,10 @@
 #define CLRREG32(x, y)          OUTW((x), INW(x) & ~(y))
 
 //Assert OTP RSTN
-#define OTP_RSTN_ENABLE()       CKG_CLRREG32((UINT32)0x9C, (UINT32)(1<<3));
+#define OTP_RSTN_ENABLE()       CKG_CLRREG32((UINT32)0x84, (UINT32)(1<<28));
 
 //De-assert OTP RSTN
-#define OTP_RSTN_DISABLE()      CKG_SETREG32((UINT32)0x9C, (UINT32)(1<<3));
+#define OTP_RSTN_DISABLE()      CKG_SETREG32((UINT32)0x84, (UINT32)(1<<28));
 
 
 #define TZPC_NV_CNT()           if(IOADDR_TZPC_REG_BASE) \
@@ -88,11 +88,11 @@
 extern s32 local_load(u32 uiRowAddress);
 extern s32 local_store(u32 uiRowAddress);
 
-#define OTP_120_TIMING              0x8F2620
+#define OTP_120_TIMING              0xFF6050
 #define RETRY_CNT                   3
-#define TIMING_1ST                  0x8F3620
-#define TIMING_2ND                  0x8F4620
-#define TIMING_3RD                  0x8F5620
+#define TIMING_1ST                  0xFF7050
+#define TIMING_2ND                  0xFF8050
+#define TIMING_3RD                  0xFF9050
 
 #define MACRO_A_EN                  0x1
 #define MACRO_B_EN                  0x2
@@ -137,7 +137,7 @@ void otp_init(void)
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
 {
-	return local_store(rol | (col << 6) | (macro_AB<<11));
+	return local_store(rol | (col << 5) | (macro_AB<<11));
 }
 
 static s32 key_write_data(u32 addr, u32 data)
@@ -524,6 +524,8 @@ s32 otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 	otp_key_manager(key_field_start_index + 2);
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 3);
 	otp_key_manager(key_field_start_index + 3);
+
+	set_key_destination(OTP_KEY_MANAGER_NONE, 0);
 	return E_OK;
 }
 
@@ -660,6 +662,13 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
+	case SECUREBOOT_SIGN_ECDSA:
+		if ((sec & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = TRUE;
+		}
+		break;
+
+
 	case SECUREBOOT_SIGN_RSA_CHK:
 		if ((sec & OTP_SIGNATURE_RSA_CHK_EN) == OTP_SIGNATURE_RSA_CHK_EN) {
 			result = TRUE;
@@ -732,6 +741,7 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
+#if (0)
 	case SECUREBOOT_HDMI_AVAILABLE:
 		if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_1ST_AVAILABLE) {
 			result = TRUE;
@@ -769,19 +779,7 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = TRUE;
 		}
 		break;
-
-	case SECUREBOOT_VDEC_OVER_CLOCKING:
-		if ((sec2 & OTP_VDEC_OVER_CLOCKING_AVL) == OTP_VDEC_OVER_CLOCKING_AVL) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_CPU_OVER_CLOCKING:
-		if ((sec2 & OTP_CPU_OVER_CLOCKING) == OTP_CPU_OVER_CLOCKING) {
-			result = TRUE;
-		}
-		break;
-
+#endif
 	default:
 		break;
 	}
@@ -833,6 +831,15 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		} else {
 			result = TRUE;
 			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+		}
+		break;
+
+	case SECUREBOOT_SIGN_ECDSA:
+		if ((sec & OTP_SIGNATURE_ECDSA) != 0x0) {
+			DBG_ERR("Signature use ECDSA bit already set ...");
+		} else {
+			result = TRUE;
+			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_ECDSA);
 		}
 		break;
 
@@ -891,6 +898,7 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		result = TRUE;
 		break;
 
+#if (0)
 	case SECUREBOOT_DSP1_DISABLE:
 		KEY_MANAGER_WRITE_PARAM(OTP_DSP1_DISABLE);
 		result = TRUE;
@@ -910,10 +918,12 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		KEY_MANAGER_WRITE_2ND_PARAM(OTP_MCU_DISABLE);
 		result = TRUE;
 		break;
-
+#endif
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");
+		result = FALSE;
+		break;
 	default:
 		result = FALSE;
 		break;

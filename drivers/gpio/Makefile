@@ -69,6 +69,7 @@ obj-$(CONFIG_MSCC_SGPIO)	+= mscc_sgpio.o
 obj-$(CONFIG_NA51102_GPIO)      += na51102_gpio.o
 obj-$(CONFIG_NS02201_GPIO)      += ns02201_gpio.o
 obj-$(CONFIG_NS02302_GPIO)      += ns02302_gpio.o
+obj-$(CONFIG_NS02301_GPIO)      += ns02301_gpio.o
 obj-$(CONFIG_NX_GPIO)		+= nx_gpio.o
 obj-$(CONFIG_SIFIVE_GPIO)	+= sifive-gpio.o
 obj-$(CONFIG_NOMADIK_GPIO)	+= nmk_gpio.o

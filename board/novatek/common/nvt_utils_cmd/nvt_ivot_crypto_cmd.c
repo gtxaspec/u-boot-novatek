@@ -3,10 +3,23 @@
  *
  */
 
-#include <common.h>
+#include <stdlib.h>
+#include <asm/byteorder.h>
+#include <asm/arch/clock.h>
+#include <linux/compiler.h>
+#include <fsl_sec.h>
+#include <mapmem.h>
 #include <memalign.h>
+#include <common.h>
 #include <command.h>
+#include <dm.h>
+#include <timer.h>
+#include <malloc.h> 
 #include <asm/arch/nvt_crypto.h>
+#include <asm/arch/IOAddress.h>
+#include <asm/nvt-common/rcw_macro.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 #define _ALIGNED(x)         __attribute__((aligned(x)))
 #define CACHE_LINE_SIZE     CONFIG_SYS_CACHELINE_SIZE
@@ -327,6 +340,185 @@ exit:
 	return ret;
 }
 
+/******************************************************************
+ NA51090 efuse key section 640bit => 20 word
+ =============================================================
+ key#   offset  word[0]  word[1]  word[2]  word[3]
+ =============================================================
+ key#0  [ 0]   xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx  => 128bit
+ key#1  [ 4]   xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx  => 128bit
+ key#2  [ 8]   xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx  => 128bit
+ key#3  [12]   xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx  => 128bit
+ key#4  [16]   xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx  => 128bit
+*******************************************************************/
+
+/**
+ * do_nvt_crypto() - Handle the "nvt_crypto" command-line command
+ * @cmdtp:	Command data struct pointer
+ * @flag:	Command flag
+ * @argc:	Command-line argument count
+ * @argv:	Array of command-line arguments
+ *
+ * Returns zero on success, CMD_RET_USAGE in case of misuse and negative
+ * on error.
+ */
+static int perf_nvt_crypto(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	int ret = 0;
+	int key_size;
+	int opmode;
+	int dma_mode;
+	NVT_CRYPTO_KEY_SRC_T key_src;
+	uint32_t key_ofs;
+	uint8_t *ciphertext;
+	uint8_t _ALIGNED(CACHE_LINE_SIZE) dst_buf[32];   ///< start address must alignment to 64 for cache operation in dma mode
+	struct nvt_crypto_pio_t crypto;
+	uint32_t start, end;
+
+	/* Check argument */
+	if (argc < 6)
+		return CMD_RET_USAGE;
+
+	/* Key Length */
+	if (!strncmp(argv[1], "aes128", 6))
+		key_size = NVT_CRYPTO_AES_128_KEY_SIZE;
+	else if (!strncmp(argv[1], "aes256", 6))
+		key_size = NVT_CRYPTO_AES_256_KEY_SIZE;
+	else
+		return CMD_RET_USAGE;
+
+	/* OPmode */
+	if (!strncmp(argv[2], "ecb", 3)) {
+		opmode     = NVT_CRYPTO_OPMODE_ECB;
+		ciphertext = (key_size == NVT_CRYPTO_AES_128_KEY_SIZE) ? AES128_ECB_CIPHERTEXT : AES256_ECB_CIPHERTEXT;
+	}
+	else if (!strncmp(argv[2], "cbc", 3)) {
+		opmode     = NVT_CRYPTO_OPMODE_CBC;
+		ciphertext = (key_size == NVT_CRYPTO_AES_128_KEY_SIZE) ? AES128_CBC_CIPHERTEXT : AES256_CBC_CIPHERTEXT;
+	}
+	else
+		return CMD_RET_USAGE;
+
+	key_src = NVT_CRYPTO_KEY_SRC_DATA;
+	key_ofs = 0;
+
+	/* PIO/DMA */
+	if (!strncmp(argv[4], "pio", 3)) {
+		dma_mode = 0;
+	}
+	else if (!strncmp(argv[4], "dma", 3)) {
+		dma_mode = 1;
+	}
+	else
+		return CMD_RET_USAGE;
+
+	/* Command */
+	if (strncmp(argv[5], "perf", 6))
+		return CMD_RET_USAGE;
+
+	/* Open Crypto Device */
+	ret = nvt_crypto_open();
+	if (ret < 0) {
+		printf("nvt crypto open failed!\n");
+		return CMD_RET_FAILURE;
+	}
+
+	uint8_t  *src      = NULL;
+	uint8_t  *dst      = NULL;
+	uint32_t data_size = 0x2000;
+
+	/* allocate source data buffer */
+	src = malloc_cache_aligned(data_size);
+	if (!src) {
+		printf("nvt crypto %s %s ekey verify to allocate source buffer failed!\n", argv[1], argv[2]);
+		ret = CMD_RET_FAILURE;
+		goto freemem;
+	}
+
+	/* allocate destination data buffer */
+	dst = malloc_cache_aligned(data_size);
+	if (!dst) {
+		printf("nvt crypto %s %s ekey verify to allocate destination buffer failed!\n", argv[1], argv[2]);
+		ret = CMD_RET_FAILURE;
+		goto freemem;
+	}
+
+	printf("nvt crypto data size = %d bytes \n", data_size); 
+
+	/* AES Encryption with efuse key */
+	crypto.encrypt  = 1;
+	crypto.opmode   = opmode;
+	crypto.src      = src;
+	crypto.dst      = dst;
+	crypto.key      = AES_KEY;
+	crypto.iv       = (opmode == NVT_CRYPTO_OPMODE_CBC) ? AES_IV  : NULL;
+	crypto.key_src  = key_src;
+	crypto.key_ofs  = key_ofs;
+	crypto.src_size = data_size;
+	crypto.dst_size = data_size;
+	crypto.key_size = key_size;
+	crypto.iv_size  = (opmode == NVT_CRYPTO_OPMODE_CBC) ? sizeof(AES_IV) : 0;
+	start = timer_get_us();
+	ret = (dma_mode) ? nvt_crypto_dma_aes(&crypto) : nvt_crypto_pio_aes(&crypto);
+	end = timer_get_us();
+	if (ret < 0) {
+		printf("nvt crypto %s %s ekey encrypt failed!\n", argv[1], argv[2]);
+		ret = CMD_RET_FAILURE;
+		goto freemem;
+	}
+
+	printf("nvt crypto encrypt %d us \n", (end-start)); 
+
+	/* AES Decryption with efuse test key */
+	crypto.encrypt  = 0;
+	crypto.opmode   = opmode;
+	crypto.src      = dst;
+	crypto.dst      = dst;
+#ifdef CONFIG_NVT_FPGA_EMULATION
+	crypto.key      = (uint8_t *)&EFUSE_TEST_KEY[key_ofs];
+	crypto.iv       = (opmode == NVT_CRYPTO_OPMODE_CBC) ? AES_IV : NULL;
+	crypto.key_src  = NVT_CRYPTO_KEY_SRC_DATA;
+	crypto.key_ofs  = 0;
+#else
+	crypto.key      = AES_KEY;
+	crypto.iv       = (opmode == NVT_CRYPTO_OPMODE_CBC) ? AES_IV : NULL;
+	crypto.key_src  = key_src;
+	crypto.key_ofs  = key_ofs;
+#endif
+	crypto.src_size = data_size;
+	crypto.dst_size = data_size;
+	crypto.key_size = key_size;
+	crypto.iv_size  = (opmode == NVT_CRYPTO_OPMODE_CBC) ? sizeof(AES_IV) : 0;
+	start = timer_get_us();
+	ret = (dma_mode) ? nvt_crypto_dma_aes(&crypto) : nvt_crypto_pio_aes(&crypto);
+	end = timer_get_us();
+	if (ret < 0) {
+		printf("nvt crypto %s %s ekey decrypt failed!\n", argv[1], argv[2]);
+		ret = CMD_RET_FAILURE;
+		goto freemem;
+	}
+
+	printf("nvt crypto decrypt %d us \n", (end-start)); 
+		
+
+freemem:
+	if (src)
+		free(src);
+	if (dst)
+		free(dst);
+	if (ret != 0)
+		goto exit;
+	
+
+	printf("nvt crypto %s %s perf passed!\n", argv[1], argv[2]);
+
+exit:
+	/* Close Crypto Device */
+	nvt_crypto_close();
+
+	return ret;
+}
+
 /***************************************************/
 U_BOOT_CMD(
 	nvt_crypto, 6, 0, do_nvt_crypto,
@@ -335,3 +527,9 @@ U_BOOT_CMD(
 	"\nnvt_crypto aes256 [ecb/cbc] [ekey0-4/ukey] [pio/dma] verify - for verify aes256 encryption/decryption"
 );
 
+U_BOOT_CMD(
+	nvt_crypto_perf, 6, 0, perf_nvt_crypto,
+	"nvt_crypto_perf operation",
+	"\nnvt_crypto_perf aes128 [ecb/cbc] ukey [pio/dma] perf - for perf aes128 encryption/decryption"
+	"\nnvt_crypto_perf aes256 [ecb/cbc] ukey [pio/dma] perf - for perf aes256 encryption/decryption"
+);

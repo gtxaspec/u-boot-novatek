@@ -347,7 +347,7 @@ u32 nvt_get_chip_id(void)
 // ROM code version number
 //
 #define TOP_ROMVER_A            0x00000102
-#define TOP_ROMVER_B            0x00000103
+#define TOP_ROMVER_C            0x00000103
 #define TOP_GETROMVER()         readl(0x2F0007FFC)
 u32 nvt_get_chip_ver(void)
 {
@@ -356,11 +356,11 @@ u32 nvt_get_chip_ver(void)
 	chip_ver = TOP_GETROMVER();
     if(chip_ver == TOP_ROMVER_A) {
         return CHIPVER_A;
-    } else if(chip_ver == TOP_ROMVER_B) {
-        return CHIPVER_B;
+    } else if(chip_ver == TOP_ROMVER_C) {
+        return CHIPVER_C;
     } else {
-		printf("force to Ver B\n");
-        return CHIPVER_B;
+		printf("force to Ver C\n");
+        return CHIPVER_C;
     }
 
 	return chip_ver;

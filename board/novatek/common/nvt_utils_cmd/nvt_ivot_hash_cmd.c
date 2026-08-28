@@ -3,8 +3,12 @@
  *
  */
 
+#include <stdlib.h>
 #include <common.h>
 #include <command.h>
+#include <dm.h>
+#include <timer.h>
+#include <malloc.h> 
 #include <asm/arch/nvt_hash.h>
 
 #define _ALIGNED(x)         __attribute__((aligned(x)))
@@ -111,10 +115,108 @@ exit:
 	return ret;
 }
 
+/**
+ * perf_nvt_hash() - Handle the "nvt_hash" command-line command
+ * @cmdtp:	Command data struct pointer
+ * @flag:	Command flag
+ * @argc:	Command-line argument count
+ * @argv:	Array of command-line arguments
+ *
+ * Returns zero on success, CMD_RET_USAGE in case of misuse and negative
+ * on error.
+ */
+static int perf_nvt_hash(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	int ret = 0;
+	int mode;
+	int dma_mode;
+	uint8_t *golden_digest;
+	uint8_t digest[NVT_HASH_SHA256_DIGEST_SIZE];
+	struct nvt_hash_pio_t hash;
+	uint32_t start, end;
+
+	unsigned long test_buf,test_buf_align;
+	uint8_t* input;
+
+	test_buf = (unsigned long)malloc(4 * 1024);
+	test_buf_align = (unsigned long)((test_buf + 63) & 0xFFFFFFC0);
+	input = (uint8_t *)test_buf_align;
+	memset(input, 0xFF, 4096);
+
+	/* Check argument */
+	if (argc < 4)
+		return CMD_RET_USAGE;
+
+	/* Mode */
+	if (!strncmp(argv[1], "sha1", 4)) {
+		mode          = NVT_HASH_MODE_SHA1;
+		golden_digest = SHA1_DIGEST;
+	}
+	else if (!strncmp(argv[1], "sha256", 6)) {
+		mode          = NVT_HASH_MODE_SHA256;
+		golden_digest = SHA256_DIGEST;
+	}
+	else
+		return CMD_RET_USAGE;
+
+	/* PIO/DMA */
+	if (!strncmp(argv[2], "pio", 3)) {
+		dma_mode = 0;
+	}
+	else if (!strncmp(argv[2], "dma", 3)) {
+		dma_mode = 1;
+	}
+	else
+		return CMD_RET_USAGE;
+
+	/* Command */
+	if (strncmp(argv[3], "perf", 6))
+		return CMD_RET_USAGE;
+
+	/* Open Hash Device */
+	ret = nvt_hash_open();
+	if (ret < 0) {
+		printf("nvt hash open failed!\n");
+		return CMD_RET_FAILURE;
+	}
+
+	printf("nvt hash start\n");
+	printf("PLAINTEXT is 4096 bytes\n");
+
+	/* Hash Data */
+	hash.mode        = mode;
+	hash.src         = input;
+	hash.digest      = digest;
+	hash.src_size    = 4096;
+	hash.digest_size = (mode == NVT_HASH_MODE_SHA256) ? NVT_HASH_SHA256_DIGEST_SIZE : NVT_HASH_SHA1_DIGEST_SIZE;
+
+	start = timer_get_us();
+	ret = (dma_mode) ? nvt_hash_dma_sha(&hash) : nvt_hash_pio_sha(&hash);
+	end = timer_get_us();
+
+	printf("nvt hash %d us \n", (end-start)); 
+
+exit:
+	/* Close Hash Device */
+	nvt_hash_close();
+
+	if (input)
+		free(input);
+
+	return ret;
+}
+
 /***************************************************/
 U_BOOT_CMD(
 	nvt_hash, 4, 0, do_nvt_hash,
 	"nvt_hash operation",
 	"\nnvt_hash sha1 [pio/dma] verify - for verify sha1"
 	"\nnvt_hash sha256 [pio/dma] verify - for verify sha256"
+);
+
+U_BOOT_CMD(
+	nvt_hash_perf, 4, 0, perf_nvt_hash,
+	"nvt_hash_perf operation",
+	"\nnvt_hash_perf sha1 [pio/dma] perf - for perf sha1"
+	"\nnvt_hash_perf sha256 [pio/dma] perf - for perf sha256"
 );

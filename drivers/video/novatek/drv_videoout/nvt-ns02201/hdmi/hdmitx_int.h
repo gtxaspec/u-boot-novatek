@@ -20,7 +20,7 @@
 
 
 
-#define HDMI_VERSION "1.03.03"
+#define HDMI_VERSION "1.04.00"
 
 
 

@@ -16,14 +16,13 @@
 #include <asm/io.h>
 #include <asm/arch-armv7/globaltimer.h>
 #include <asm/arch/clock.h>
-#include <asm/arch/ns02301_regs.h>
-#include <asm/arch/IOAddress.h>
+#include <asm/arch/na51089_regs.h>
 #include <div64.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 static struct globaltimer *global_timer = \
-			(struct globaltimer *)IOADDR_SYSCNT_READ_BASE;
+			(struct globaltimer *)GLOBAL_TIMER_BASE_ADDR;
 
 #define CLK2MHZ(clk)	(clk / 1000 / 1000)
 
@@ -51,21 +50,6 @@ static u64 get_cpu_global_timer(void)
 	return (u64)((timer << 32) | low);
 }
 
-int timer_init(void)
-{
-	u32 val;
-
-	val = readl(IOADDR_SYSCNT_CTRL_BASE);
-	if (!(val & 0x01)) {
-		writel(0x01, IOADDR_SYSCNT_CTRL_BASE);
-		printf("ARM CA7 global timer init successfully\n");
-	} else {
-		printf("ARM CA7 global timer had already been initiated\n");
-	}
-
-	return 0;
-}
-
 void __udelay(unsigned long usec)
 {
 	u64 wait_tick = 0;
@@ -88,12 +72,3 @@ ulong get_timer(ulong base)
 	return time_msec - base;
 }
 
-unsigned long long get_ticks(void)
-{
-	return get_cpu_global_timer();
-}
-
-ulong get_tbclk(void)
-{
-	return (ulong)get_timer_clk();
-}

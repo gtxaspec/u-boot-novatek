@@ -3,6 +3,7 @@
 #include <command.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
+#include <cpu_func.h>
 #include <part.h>
 #include <asm/hardware.h>
 #include <asm/nvt-common/nvt_types.h>
@@ -27,20 +28,7 @@
 #define _G_LOG(fmt, args...)            printf(DBG_COLOR_GREEN fmt DBG_COLOR_END, ##args)
 #define _W_LOG(fmt, args...)            printf(DBG_COLOR_WHITE fmt DBG_COLOR_END, ##args)
 #define _X_LOG(fmt, args...)            printf(DBG_COLOR_HI_GRAY fmt DBG_COLOR_END, ##args)
-static void debug_dump_addr(UINT64 addr, UINT32 size)
-{
-	UINT32 i;
-	UINT64 j;
 
-	for (j = addr; j < (addr + size); j += 0x10) {
-		printf("0x%lx:", j);
-		for (i = 0; i < 4; i++) {
-			printf("%08x", readl(j + 4 * i));
-			printf("  ");
-		}
-		printf("\r\n");
-	}
-}
 
 static UINT32 chip_id = 0x0;
 
@@ -55,6 +43,22 @@ static UINT32 chip_id = 0x0;
 
 #define ARB_SETREG(ofs,value)           OUTREG32(IOADDR_TZASC_REG_BASE+(ofs),(value))
 #define ARB_GETREG(ofs)                 INREG32(IOADDR_TZASC_REG_BASE+(ofs))
+
+
+static void debug_dump_addr(UINT64 addr, UINT32 size)
+{
+	UINT32 i;
+	UINT64 j;
+
+	for (j = addr; j < (addr + size); j += 0x10) {
+		printf("0x%lx:", j);
+		for (i = 0; i < 4; i++) {
+			printf("%08x", readl(j + 4 * i));
+			printf("  ");
+		}
+		printf("\r\n");
+	}
+}
 
 static UINT32 arb_get_reg(DDR_ARB id, UINT32 offset)
 {
@@ -172,6 +176,232 @@ void arb_disable_wp(DDR_ARB id, DMA_WRITEPROT_SET set)
 
 #endif
 }
+#elif defined(CONFIG_TARGET_NS02301)
+
+#define IOADDR_TZASC_REG_BASE         	0xF0FE0000
+
+#define ARB_SETREG(ofs,value)	OUTW(IOADDR_DRAM_REG_BASE+(ofs),(value))
+#define ARB_GETREG(ofs)		INW(IOADDR_DRAM_REG_BASE+(ofs))
+
+#define PROT_SETREG(ofs,value)	OUTW(IOADDR_TZASC_REG_BASE+(ofs),(value))
+#define PROT_GETREG(ofs)		INW(IOADDR_TZASC_REG_BASE+(ofs))
+
+#define PROTECT_START_ADDR_OFS(ch)      (DMA_PROTECT_STARTADDR0_REG0_OFS+(ch)*8)
+#define PROTECT_END_ADDR_OFS(ch)        (DMA_PROTECT_STOPADDR0_REG0_OFS+(ch)*8)
+#define PROTECT_CH_MSK0_OFS(ch)         (DMA_PROTECT_RANGE0_MSK0_REG_OFS+(ch)*32)
+#define PROTECT_CH_MSK1_OFS(ch)         (DMA_PROTECT_RANGE0_MSK1_REG_OFS+(ch)*32)
+#define PROTECT_CH_MSK2_OFS(ch)         (DMA_PROTECT_RANGE0_MSK2_REG_OFS+(ch)*32)
+#define PROTECT_CH_MSK3_OFS(ch)         (DMA_PROTECT_RANGE0_MSK3_REG_OFS+(ch)*32)
+#define PROTECT_CH_MSK4_OFS(ch)         (DMA_PROTECT_RANGE0_MSK4_REG_OFS+(ch)*32)
+#define PROTECT_CH_MSK5_OFS(ch)         (DMA_PROTECT_RANGE0_MSK5_REG_OFS+(ch)*32)
+
+static void debug_dump_addr(UINT32 addr, UINT32 size)
+{
+	UINT32 i;
+	UINT32 j;
+
+	for (j = addr; j < (addr + size); j += 0x10) {
+		printf("0x%lx:", j);
+		for (i = 0; i < 4; i++) {
+			printf("%08x", readl(j + 4 * i));
+			printf("  ");
+		}
+		printf("\r\n");
+	}
+}
+
+static UINT32 arb_get_reg(DDR_ARB id, UINT32 offset)
+{
+	if (id == DDR_ARB_1) {
+		return ARB_GETREG(offset);
+	} else {
+		return 0;//ARB2_GETREG(offset);
+	}
+}
+
+static void arb_set_reg(DDR_ARB id, UINT32 offset, REGVALUE value)
+{
+	if (id == DDR_ARB_1) {
+		ARB_SETREG(offset, value);
+	} else {
+		;//ARB2_SETREG(offset, value);
+	}
+}
+
+static UINT32 prot_get_reg(DDR_ARB id, UINT32 offset)
+{
+	if (id == DDR_ARB_1) {
+		return PROT_GETREG(offset);
+	} else {
+		return 0;//PROT2_GETREG(offset);
+	}
+}
+
+static void prot_set_reg(DDR_ARB id, UINT32 offset, REGVALUE value)
+{
+	if (id == DDR_ARB_1) {
+		PROT_SETREG(offset, value);
+	} else {
+		;//PROT2_SETREG(offset, value);
+	}
+}
+
+void arb_enable_wp(DDR_ARB id, DMA_WRITEPROT_SET set,
+		DMA_WRITEPROT_ATTR *p_attr)
+{
+	UINT32 i = 0;
+	//UINT32 lock;
+	UINT32 v_mask[DMA_CH_GROUP_CNT];
+	union T_DMA_PROTECT_INTSTS_REG sts_reg = {0};
+	//T_DMA_PROTECT_INTCTRL_REG intctrl_reg = {0};
+	union T_DMA_PROTECT_CTRL_REG wp_ctrl;
+	union T_DMA_PROTECT_REGION_EN_REG0 region_en0 = {0};
+	union T_DMA_PROTECT_REGION_EN_REG1 region_en1 = {0};
+
+	if (id > DDR_ARB_1) {
+		printf("invalid arb ch %d\r\n", id);
+		return;
+	}
+
+	if (set > WPSET_5) {
+		printf("invalid protect ch %d\r\n", set);
+		return;
+	}
+
+	for (i = 0; i < DMA_PROT_RGN_TOTAL; i++) {
+		if (p_attr->protect_rgn_attr[i].en) {
+			if (((UINT32)p_attr->protect_rgn_attr[i].starting_addr) & 0xF) {
+				printf("start addr 0x%x NOT 4 word align\r\n",
+					(unsigned int)p_attr->protect_rgn_attr[i].starting_addr);
+			}
+			if (((UINT32)p_attr->protect_rgn_attr[i].size) & 0xF) {
+				printf("size 0x%x NOT 4 word align\r\n",
+					(unsigned int)p_attr->protect_rgn_attr[i].size);
+			}
+		}
+	}
+
+	memcpy(v_mask, &p_attr->mask, sizeof(DMA_CH_MSK));
+
+	//lock = ddr_arb_platform_spin_lock();
+
+	// disable wp before setting
+	wp_ctrl.Reg = prot_get_reg(id, DMA_PROTECT_CTRL_REG_OFS);
+	wp_ctrl.Reg &= ~(1<<set);
+	prot_set_reg(id, DMA_PROTECT_CTRL_REG_OFS, wp_ctrl.Reg);
+
+	// disable ch inten before setting
+	/*intctrl_reg.reg = arb_get_reg(id, DMA_PROTECT_INTCTRL_REG_OFS);
+	for (i = 0; i < DMA_PROT_RGN_TOTAL; i++) {
+		if (p_attr->protect_rgn_attr[i].en) {
+			intctrl_reg.reg &= ~(1<<(set * 4 + i));
+		}
+	}
+	arb_set_reg(id, DMA_PROTECT_INTCTRL_REG_OFS, intctrl_reg.reg);*/
+
+	// ensure int sts is cleared
+	for (i = 0; i < DMA_PROT_RGN_TOTAL; i++) {
+		if (p_attr->protect_rgn_attr[i].en) {
+			sts_reg.Reg |= 1<<(set * 4 + i);
+		}
+	}
+	arb_set_reg(id, DMA_PROTECT_INTSTS_REG_OFS, sts_reg.Reg);
+
+	// setup protected channels
+	prot_set_reg(id, PROTECT_CH_MSK0_OFS(set), v_mask[DMA_CH_GROUP0]);
+	prot_set_reg(id, PROTECT_CH_MSK1_OFS(set), v_mask[DMA_CH_GROUP1]);
+	prot_set_reg(id, PROTECT_CH_MSK2_OFS(set), v_mask[DMA_CH_GROUP2]);
+	prot_set_reg(id, PROTECT_CH_MSK3_OFS(set), v_mask[DMA_CH_GROUP3]);
+	prot_set_reg(id, PROTECT_CH_MSK4_OFS(set), v_mask[DMA_CH_GROUP4]);
+	prot_set_reg(id, PROTECT_CH_MSK5_OFS(set), v_mask[DMA_CH_GROUP5]);
+
+	// setup range
+	for (i = 0; i < DMA_PROT_RGN_TOTAL; i++) {
+		if (p_attr->protect_rgn_attr[i].en) {
+			prot_set_reg(id, PROTECT_START_ADDR_OFS(set * 4 + i), p_attr->protect_rgn_attr[i].starting_addr);
+			prot_set_reg(id, PROTECT_END_ADDR_OFS(set * 4 + i),
+			p_attr->protect_rgn_attr[i].starting_addr + p_attr->protect_rgn_attr[i].size - 1);
+		}
+	}
+
+	// enable write protect
+	wp_ctrl.Reg |= 1 << set;
+
+	// set mode
+	wp_ctrl.Reg &= ~(1 << (set + 8));
+	wp_ctrl.Reg |= (p_attr->protect_mode << (set + 8));
+
+	// set level
+	wp_ctrl.Reg &= ~(0x3 << (set * 2 + 16));
+	wp_ctrl.Reg |= (p_attr->level << (set * 2 + 16));
+
+	prot_set_reg(id, DMA_PROTECT_CTRL_REG_OFS, wp_ctrl.Reg);
+
+	// enable region
+	if (set > WPSET_3) {
+		region_en1.Reg = prot_get_reg(id, DMA_PROTECT_REGION_EN_REG1_OFS);
+		for (i = 0; i < DMA_PROT_RGN_TOTAL; i++) {
+			if (p_attr->protect_rgn_attr[i].en) {
+				region_en1.Reg |= (1 << ((set - 4) * 8 + i));
+			}
+		}
+		prot_set_reg(id, DMA_PROTECT_REGION_EN_REG1_OFS, region_en1.Reg);
+	} else {
+		region_en0.Reg = prot_get_reg(id, DMA_PROTECT_REGION_EN_REG0_OFS);
+		for (i = 0; i < DMA_PROT_RGN_TOTAL; i++) {
+			if (p_attr->protect_rgn_attr[i].en) {
+				region_en0.Reg |= 1 << (set * 8 + i);
+			}
+		}
+		prot_set_reg(id, DMA_PROTECT_REGION_EN_REG0_OFS, region_en0.Reg);
+	}
+
+	/*// enable interrupt
+	for (i = 0; i < DMA_PROT_RGN_TOTAL; i++) {
+		if (p_attr->protect_rgn_attr[i].en) {
+			intctrl_reg.reg |= 1 << (set * 4 + i);
+		}
+	}
+	arb_set_reg(id, DMA_PROTECT_INTCTRL_REG_OFS, intctrl_reg.reg);*/
+
+	//ddr_arb_platform_spin_unlock(lock);
+}
+
+void arb_disable_wp(DDR_ARB id, DMA_WRITEPROT_SET set)
+{
+	//UINT32 lock;
+	union T_DMA_PROTECT_INTSTS_REG sts_reg = {0};
+	//T_DMA_PROTECT_INTCTRL_REG intctrl_reg = {0};
+	union T_DMA_PROTECT_CTRL_REG wp_ctrl;
+
+	if (id > DDR_ARB_1) {
+                printf("invalid arb ch %d\r\n", id);
+                return;
+        }
+
+        if (set > WPSET_5) {
+                printf("invalid protect ch %d\r\n", set);
+                return;
+        }
+
+	//lock = ddr_arb_platform_spin_lock();
+
+	// disable wp
+        wp_ctrl.Reg = prot_get_reg(id, DMA_PROTECT_CTRL_REG_OFS);
+        wp_ctrl.Reg &= ~(1<<set);
+        prot_set_reg(id, DMA_PROTECT_CTRL_REG_OFS, wp_ctrl.Reg);
+
+        /*// disable ch inten
+        intctrl_reg.reg = arb_get_reg(id, DMA_PROTECT_INTCTRL_REG_OFS);
+        intctrl_reg.reg &= ~(0xf<<(set * 4));
+        arb_set_reg(id, DMA_PROTECT_INTCTRL_REG_OFS, intctrl_reg.reg);*/
+
+        // ensure int sts is cleared
+        sts_reg.Reg = 0xf<<(set * 4);
+        arb_set_reg(id, DMA_PROTECT_INTSTS_REG_OFS, sts_reg.Reg);
+
+	//ddr_arb_platform_spin_unlock(lock);
+}
 
 #else
 
@@ -236,6 +466,21 @@ void arb_disable_wp(DDR_ARB id, DMA_WRITEPROT_SET set)
 #define PROT2_GETREG(ofs)               INREG32(IOADDR_DDR_ARB2_REG_BASE+0x4300+(ofs))
 
 #define REG_LOG                         0
+
+static void debug_dump_addr(UINT64 addr, UINT32 size)
+{
+	UINT32 i;
+	UINT64 j;
+
+	for (j = addr; j < (addr + size); j += 0x10) {
+		printf("0x%lx:", j);
+		for (i = 0; i < 4; i++) {
+			printf("%08x", readl(j + 4 * i));
+			printf("  ");
+		}
+		printf("\r\n");
+	}
+}
 
 
 #if 0
@@ -576,7 +821,11 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 
 	if (strncmp(argv[1], "mem_prot_in_1", 13) == 0) {
 		DMA_WRITEPROT_ATTR  protect_attr = {0};
+#if defined(CONFIG_TARGET_NS02301)
+		u32                 start_addr[6];
+#else
 		u64                 start_addr[6];
+#endif
 		BOOL                bResult;
 		UINT32              uiSet;
 		UINT32              i;
@@ -620,6 +869,14 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		protect_attr.level = DMA_WPLEL_UNWRITE;
 		protect_attr.size = TEST_SIZE;
 		protect_attr.starting_addr = start_addr[0];
+#elif defined(CONFIG_TARGET_NS02301)
+		protect_attr.mask.CPU_NS = TRUE;
+//		protect_attr.mask.CPU = TRUE;
+		protect_attr.level = DMA_WPLEL_UNWRITE;
+		protect_attr.protect_mode = 0;
+		protect_attr.protect_rgn_attr[0].en = ENABLE;
+		protect_attr.protect_rgn_attr[0].size = TEST_SIZE;
+		protect_attr.protect_rgn_attr[0].starting_addr = start_addr[0];
 #else
 		//printf("====================  mode%d, %s ===================\r\n", (int)protect_mode, is_out ? "out range" : "in range");
 		protect_attr.mask.CPU_NS = TRUE;
@@ -665,6 +922,18 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		arb_enable_wp(DDR_ARB_1, 4, &protect_attr);
 		protect_attr.starting_addr = (start_addr[5]);
 		arb_enable_wp(DDR_ARB_1, 5, &protect_attr);
+#elif defined(CONFIG_TARGET_NS02301)
+		arb_enable_wp(DDR_ARB_1, 0, &protect_attr);
+		protect_attr.protect_rgn_attr[0].starting_addr = (start_addr[1]);
+		arb_enable_wp(DDR_ARB_1, 1, &protect_attr);
+		protect_attr.protect_rgn_attr[0].starting_addr = (start_addr[2]);
+		arb_enable_wp(DDR_ARB_1, 2, &protect_attr);
+		protect_attr.protect_rgn_attr[0].starting_addr = (start_addr[3]);
+		arb_enable_wp(DDR_ARB_1, 3, &protect_attr);
+		protect_attr.protect_rgn_attr[0].starting_addr = (start_addr[4]);
+		arb_enable_wp(DDR_ARB_1, 4, &protect_attr);
+		protect_attr.protect_rgn_attr[0].starting_addr = (start_addr[5]);
+		arb_enable_wp(DDR_ARB_1, 5, &protect_attr);
 #else
 		arb_enable_wp(DDR_ARB_1, 0, &protect_attr);
 		protect_attr.protect_rgn_attr.starting_addr = (start_addr[1]);
@@ -709,6 +978,7 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		arb_disable_wp(DDR_ARB_1, 5);
 	} else if (strncmp(argv[1], "mem_prot_in_2", 13) == 0) {
 #ifdef CONFIG_TARGET_NS02302_A64
+#elif defined(CONFIG_TARGET_NS02301)
 #else
 		DMA_WRITEPROT_ATTR  protect_attr = {0};
 		u64                 start_addr[6];

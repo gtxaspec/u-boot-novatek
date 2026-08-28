@@ -725,7 +725,7 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 			if (p_disp_dev_param->SEL.SET_ENABLE.b_en && (!ide_is_opened())) {
 				ide_open();
 			}
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02302_A64
 			idec_set_swreset(IDE_ID_1, 1);
 			udelay(1000);
 			idec_set_swreset(IDE_ID_1, 0);
@@ -771,6 +771,8 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 			case DISPDEV_TYPE_CCIR656_16BIT:
 				ide_set_device(DISPLAY_DEVICE_CCIR656_16BIT);
 				break;
+#if 0
+
 			case DISPDEV_TYPE_EMBD_HDMI: {
 				PDISP_OBJ p_disp_obj;
 
@@ -783,6 +785,7 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 				}
 
 			} break;
+
 			case DISPDEV_TYPE_INF_HDMI_16BIT:{
 				PDISP_OBJ p_disp_obj;
 
@@ -794,7 +797,8 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 					p_disp_obj->phdmidev_control->set_config(HDMI_CONFIG_ID_SOURCE, HDMI_SOURCE_IDE);
 				}
 
-			} break;				
+			} break;
+#endif
 			case DISPDEV_TYPE_RGB_PARALL:
 				ide_set_device(DISPALY_DEVICE_PARALLEL);
 				break;

@@ -8,3 +8,5 @@ obj-y += rsa_mod_exp/
 obj-y += fsl/
 
 obj-$(CONFIG_TARGET_NS02201_A64) += /nvt/ns02201/
+obj-$(CONFIG_TARGET_NS02302_A64) += /nvt/ns02302/
+obj-$(CONFIG_TARGET_NS02301) += /nvt/ns02301/

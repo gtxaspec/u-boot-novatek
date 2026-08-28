@@ -3,7 +3,7 @@
     @file       crypto.c
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2019.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2023.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as

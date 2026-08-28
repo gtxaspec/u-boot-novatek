@@ -98,6 +98,30 @@ extern s32 local_store(u32 uiRowAddress);
 #define MACRO_B_EN                  0x2
 #define DBL_BIT_EN                  0x3
 
+static const UINT32   core_power_leakage[LEAKAGE_COUNT] = {
+	31,         //0.850(V)
+	31,         //0.850(V)
+	31,         //0.850(V)
+	31,         //0.850(V)
+
+	31,         //0.850(V)
+	31,         //0.850(V)
+	31,         //0.850(V)
+	31,         //0.850(V)
+
+	31,         //0.850(V)
+	31,         //0.850(V)
+	31,         //0.850(V)
+	31,         //0.850(V)
+
+	31,         //0.850(V)
+	31,         //0.850(V)
+
+	31,         //0.850(V)
+	31,         //0.850(V)
+	31,         //0.850(V)
+};
+
 static UINT32 otp_timing[RETRY_CNT] = {
 	TIMING_1ST,
 	TIMING_2ND,
@@ -133,18 +157,21 @@ void otp_init(void)
 	//Assert OTP RSTN
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
+#ifdef CONFIG_PWM_NVT
+	prepare_power_trim(PWM0_CORE_POWER);
+#endif
 }
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
 {
-	return local_store(rol | (col << 6) | (macro_AB<<11));
+	return local_store(rol | (col << 6) | (macro_AB << 11));
 }
 
 static s32 key_write_data(u32 addr, u32 data)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -187,7 +214,7 @@ static s32 key_write_data_timing(u32 addr, u32 data, u32 timing)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -524,6 +551,8 @@ s32 otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 	otp_key_manager(key_field_start_index + 2);
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 3);
 	otp_key_manager(key_field_start_index + 3);
+
+	set_key_destination(OTP_KEY_MANAGER_NONE, 0);
 	return E_OK;
 }
 
@@ -782,6 +811,12 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
+	case SECUREBOOT_CPU_LOWER_CLOCKING:
+		if ((sec2 & OTP_CPU_LOWER_CLOCKING) == OTP_CPU_LOWER_CLOCKING) {
+			result = TRUE;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -990,8 +1025,8 @@ BOOL extract_trim_valid(u32 code, u32 *pData)
      efuse get IC package version
 
      @return IC revision of specific package revision
-        - @b   NT98336_PKG      NT98336 package version
-        - @b   NT98633_PKG      NT98633 package version
+        - @b   NT98690_PKG      NT98690 package version
+        - @b   NT98692_PKG      NT98692 package version
         - @b   UNKNOWN_PKG_VER  Unknown IC package version(system must halt)
 */
 INT32 otp_get_pkg_version(void)
@@ -1000,7 +1035,7 @@ INT32 otp_get_pkg_version(void)
 //	u32     remap_data;
 	int     code;
 	BOOL    is_found;
-	u32		pkgUID;
+	u32     pkgUID;
 
 
 	code = otp_key_manager(OTP_PKGUID_FIELD);
@@ -1010,13 +1045,37 @@ INT32 otp_get_pkg_version(void)
 	} else {
 		is_found = extract_trim_valid(code, (u32 *)&trim);
 		printf("[UID] = 0x%08x\r\n", (int)trim);
-		if(trim == OTP_690_TRIM) {
+		if (trim == OTP_690_TRIM) {
 			pkgUID = NT98690_PKG;
-		} else if(trim == OTP_692_TRIM) {
+		} else if (trim == OTP_692_TRIM) {
 			pkgUID = NT98692_PKG;
 		} else {
 			pkgUID = UNKNOWN_PKG_VER;
 		}
 	}
 	return pkgUID;
+}
+
+/*
+    exteact trim data to PWM duty cycle
+
+    Parsing trim data and transfer to pwm duty cycle
+
+    @param [in] data    trim data
+    @param [in] freq    CPU freq
+    @return read half-word efuse data
+        - @b  UINT32: PWM dufy
+*/
+#define CORE_DEFAULT_DUTY 31
+
+u32 extract_trim_to_pwm_duty(PWM_POWER_SET power_set, UINT32 data)
+{
+	u32 duty = 0;
+
+	if (data < LEAKAGE_COUNT) {
+		duty = core_power_leakage[data];
+	} else {    //leakage >= 21 =>
+		duty = CORE_DEFAULT_DUTY;
+	}
+	return duty;
 }

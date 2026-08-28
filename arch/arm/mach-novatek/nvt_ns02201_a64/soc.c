@@ -24,6 +24,39 @@
 #include <linux/compiler.h>
 #include <ns16550.h>
 #include <dm.h>
+#include <asm/nvt-common/nvt_common.h>
+#include <command.h>
+
+#define RAM_SRC_SELECT_OFFSET 0x20
+
+static char nvt_ddr_remap_help_text[] =
+"\n"
+"nvt_ddr_remap 2 - DDR1 base address on 4G bits\n"
+"nvt_ddr_remap 3 - DDR1 base address on 8G bits\n"
+"nvt_ddr_remap 4 - DDR1 base address on 16G bits\n"
+"";
+
+static int do_nvt_ddr_remap(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	unsigned int reg;
+	unsigned int val;
+
+	if (argc < 2) {
+		return -1;
+	}
+	val = (unsigned int)simple_strtoul(argv[1], NULL, 16);
+
+	reg = readl(IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
+	reg |= 1 << (val + 3);
+	writel(reg, IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
+	return 0;
+}
+
+U_BOOT_CMD(
+	nvt_ddr_remap, 2, 1, do_nvt_ddr_remap,
+	"Represent DRAMx select",
+	nvt_ddr_remap_help_text
+);
 
 #ifdef CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT
 extern int nvt_ddr_slow_down(void);
@@ -91,10 +124,14 @@ U_BOOT_DEVICE(ns16550_com1) = {
 
 int serial_preinit(void)
 {
-#if (!(CONFIG_UART2_PINMUX_NONE && CONFIG_UART3_PINMUX_NONE && \
-	CONFIG_UART4_PINMUX_NONE && CONFIG_UART5_PINMUX_NONE && \
-	CONFIG_UART6_PINMUX_NONE && CONFIG_UART7_PINMUX_NONE && \
-	CONFIG_UART8_PINMUX_NONE && CONFIG_UART9_PINMUX_NONE))
+#if ( CONFIG_UART2_PINMUX_CHANNEL_1 || \
+	CONFIG_UART3_PINMUX_CHANNEL_1 || \
+	CONFIG_UART4_PINMUX_CHANNEL_1 || CONFIG_UART4_PINMUX_CHANNEL_2 || \
+	CONFIG_UART5_PINMUX_CHANNEL_1 || CONFIG_UART5_PINMUX_CHANNEL_2 || \
+	CONFIG_UART6_PINMUX_CHANNEL_1 || CONFIG_UART6_PINMUX_CHANNEL_2 || \
+	CONFIG_UART7_PINMUX_CHANNEL_1 || CONFIG_UART7_PINMUX_CHANNEL_2 || \
+	CONFIG_UART8_PINMUX_CHANNEL_1 || CONFIG_UART8_PINMUX_CHANNEL_2 || \
+	CONFIG_UART9_PINMUX_CHANNEL_1 || CONFIG_UART9_PINMUX_CHANNEL_2)
 	u32 value;
 #endif
 
@@ -365,3 +402,4 @@ u32 nvt_get_chip_ver(void)
 
 	return chip_ver;
 }
+

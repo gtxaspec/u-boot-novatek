@@ -846,12 +846,14 @@ union USB_DEVDMACTRLSTATUS_REG {
 };
 
 // 0x1D8:DMA Controller Status Register
-#if defined(CONFIG_TARGET_NS02201_A64)
-#define USB_PHYTOP_REG_OFS    0x400
-#elif defined(CONFIG_TARGET_NA51102_A64)
-#define USB_PHYTOP_REG_OFS    0x400
+#if defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+/* NA51103 */
+#define USB_PHYTOP_REG_OFS    0x1D8
+
 #else
+/* Others */
 #define USB_PHYTOP_REG_OFS    0x400
+
 #endif
 union USB_PHYTOP_REG {
 	uint32_t reg;
@@ -1164,19 +1166,30 @@ union USB_PHYCTRL52_REG {
 
 // Global register
 #if defined(CONFIG_TARGET_NS02201_A64)
+/* NS02201 */
 #define CG_U2_0_RST 0x94
 #define CG_U2_0_RST_BIT 25
 #define TOP_U2_0_SRAMSD 0x1004
 #define TOP_U2_0_SRAMSD_BIT 25
 #define CG_U2_0_EN 0x70
 #define CG_U2_0_EN_BIT 5
+
 #elif defined(CONFIG_TARGET_NA51102_A64)
+/* NA51102 */
 #define CG_U2_0_RST 0x94
 #define CG_U2_0_RST_BIT 25
 #define TOP_U2_0_SRAMSD 0x1000
 #define TOP_U2_0_SRAMSD_BIT 12
 #define CG_U2_0_EN 0x140
 #define CG_U2_0_EN_BIT 4
+
+#elif defined(CONFIG_TARGET_NS02301)
+/* NS02301 */
+#define CG_U2_0_RST 0x84
+#define CG_U2_0_RST_BIT 19
+#define TOP_U2_0_SRAMSD 0x1000
+#define TOP_U2_0_SRAMSD_BIT 26
+
 #else
 //TODO: other project follow the macro pattern
 #endif

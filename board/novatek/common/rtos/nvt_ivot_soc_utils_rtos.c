@@ -64,13 +64,21 @@ int nvt_on_rtos_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_mem,
 	case EMBTYPE_RTOS:
 		/* Boot compressed rtos or non-compressed rtos */
 		if (pBFC->uiFourCC == MAKEFOURCC('B', 'C', 'L', '1')) {
-			printf("RUNFW: Boot compressed rtos at 0x%08x with length %d bytes\r\n",
+			printf("RUNFW: Boot compressed rtos at 0x%08lx with length %d bytes\r\n",
 				   (ulong)p_mem->p_data, p_mem->len);
+
+			size_t Compsz = cpu_to_be32(pBFC->uiSizeComp);
+			// check Compsz before passing it to lzmaBuffToBuffDecompress and lz_uncompress as loop bound
+			if (Compsz > rtos_size) {
+				printf("Compsz > rtos_size \n");
+				return -1;
+			}
+
 			if ((cpu_to_be32(pBFC->uiAlgorithm) & 0xFF) == 11) {
 				/* lzma compressed image*/
 				printf("%sDecompressed lzma rtos%s \r\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
-				size_t Compsz = cpu_to_be32(pBFC->uiSizeComp);
 				size_t Uncompsz = cpu_to_be32(pBFC->uiSizeUnComp);
+
 				ret = lzmaBuffToBuffDecompress((unsigned char *)rtos_addr, &Uncompsz, (unsigned char *)(p_mem->p_data + sizeof(NVTPACK_BFC_HDR)), Compsz);
 				if (ret != 0) {
 					printf("Decompressed lzma fail\n");
@@ -80,7 +88,7 @@ int nvt_on_rtos_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_mem,
 				}
 			} else {
 				/* lz77 compressed image*/
-				lz_uncompress((unsigned char *)(p_mem->p_data + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, cpu_to_be32(pBFC->uiSizeComp));
+				lz_uncompress((unsigned char *)(p_mem->p_data + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, Compsz);
 				flush_dcache_range((ulong)rtos_addr,
 								   (ulong)(rtos_addr + rtos_size));
 			}
@@ -88,7 +96,7 @@ int nvt_on_rtos_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_mem,
 			dram_addr = nvt_memory_cfg[MEMTYPE_DRAM].addr;
 			dram_size = nvt_memory_cfg[MEMTYPE_DRAM].size;
 
-			printf("RUNFW: Copy rtos from 0x%08x to 0x%08x with length %d bytes\r\n",
+			printf("RUNFW: Copy rtos from 0x%lx to 0x%lx with length %d bytes\r\n",
 				   (ulong)p_mem->p_data, (ulong)rtos_addr, p_mem->len);
 			memcpy((void *)rtos_addr, (void *)p_mem->p_data, p_mem->len);
 			flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + p_mem->len));
@@ -230,19 +238,9 @@ int nvt_boot_rtos_bin_auto(void)
 	loff_t part_off = 0, part_size = 0;
 #endif
 
+	char rtos_name[8] = {0};
 #if defined(CONFIG_NVT_IVOT_DUAL_RTOS)
 	unsigned int boot_bank = nvt_decide_dual_rtos_idx();
-#else
-	unsigned int boot_bank = 0;
-#endif
-
-	unsigned int is_secure = 0;
-#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
-	is_secure = is_secure_enable();
-#endif
-
-
-	char rtos_name[8] = {0};
 	switch (boot_bank) {
 	case 0:
 		strcpy(rtos_name, "rtos");
@@ -254,6 +252,16 @@ int nvt_boot_rtos_bin_auto(void)
 		printf("%s no healthy rtos can be used. %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
 		while (1);
 	}
+#else
+	unsigned int boot_bank = 0;
+	strcpy(rtos_name, "rtos");
+#endif
+
+
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
+	unsigned int is_secure = 0;
+	is_secure = is_secure_enable();
+#endif
 
 	rtos_addr = nvt_memory_cfg[MEMTYPE_RTOS].addr;
 	rtos_size = nvt_memory_cfg[MEMTYPE_RTOS].size;
@@ -270,13 +278,13 @@ int nvt_boot_rtos_bin_auto(void)
 		// get rtos image size firstly
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
         || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))
-		sprintf(cmd, "nand read 0x%x %s 0x500", rtos_addr, rtos_name);
+		sprintf(cmd, "nand read 0x%lx %s 0x500", rtos_addr, rtos_name);
 #elif defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR))
 		get_part(rtos_name, &part_off, &part_size);
-		sprintf(cmd, "sf read 0x%x 0x%llx 0x500 ", rtos_addr, part_off);
+		sprintf(cmd, "sf read 0x%lx 0x%llx 0x500 ", rtos_addr, part_off);
 #elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
 		get_part(rtos_name, &part_off, &part_size);
-		sprintf(cmd, "mmc read 0x%x 0x%llx 4", rtos_addr, part_off / MMC_MAX_BLOCK_LEN);
+		sprintf(cmd, "mmc read 0x%lx 0x%llx 4", rtos_addr, part_off / MMC_MAX_BLOCK_LEN);
 #endif
 		printf("=>run cmd : %s\n", cmd);
 		run_command(cmd, 0);
@@ -288,16 +296,16 @@ int nvt_boot_rtos_bin_auto(void)
 			size_t firmware_size = cpu_to_be32(pbfc->uiSizeComp) + sizeof(NVTPACK_BFC_HDR);
 			tmp_addr = rtos_addr + rtos_size - firmware_size;
 			if ((firmware_size + cpu_to_be32(pbfc->uiSizeUnComp)) > rtos_size) {
-				printf("%s Attention!!! rtos starting address at 0x%08x with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08x %s\r\n",
+				printf("%s Attention!!! rtos starting address at 0x%lx with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08x %s\r\n",
 					   ANSI_COLOR_RED, rtos_addr, cpu_to_be32(pbfc->uiSizeUnComp), tmp_addr, ANSI_COLOR_RESET);
 				printf("%s It can't decompress %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
 				while (1);
 			}
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
             || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))
-			sprintf(cmd, "nand read 0x%x %s 0x%x ", tmp_addr, rtos_name, firmware_size);
+			sprintf(cmd, "nand read 0x%x %s 0x%lx ", tmp_addr, rtos_name, firmware_size);
 #elif defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR))
-			sprintf(cmd, "sf read 0x%x 0x%llx 0x%x ", tmp_addr, part_off, firmware_size);
+			sprintf(cmd, "sf read 0x%x 0x%llx 0x%lx ", tmp_addr, part_off, firmware_size);
 #elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
 			align_size = ALIGN_CEIL(firmware_size, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN;
 			sprintf(cmd, "mmc read 0x%x 0x%llx 0x%x", tmp_addr, part_off / MMC_MAX_BLOCK_LEN, align_size);
@@ -306,13 +314,21 @@ int nvt_boot_rtos_bin_auto(void)
 			run_command(cmd, 0);
 
 			debug("auto boot bfc UnCompsz:%d Compsz:%d Algorithm: %x \n", cpu_to_be32(pbfc->uiSizeUnComp), cpu_to_be32(pbfc->uiSizeComp), cpu_to_be32(pbfc->uiAlgorithm));
+
+			size_t Compsz = cpu_to_be32(pbfc->uiSizeComp);
+			// check Compsz before passing it to lzmaBuffToBuffDecompress and lz_uncompress as loop bound
+			if (Compsz > rtos_size) {
+				printf("Compsz > rtos_size \n");
+				return -1;
+			}
+
 			if ((cpu_to_be32(pbfc->uiAlgorithm) & 0xFF) == 11) {
 				/* lzma compressed image*/
-				size_t Compsz = cpu_to_be32(pbfc->uiSizeComp);
 				size_t Uncompsz = cpu_to_be32(pbfc->uiSizeUnComp);
 				printf("Decompressed lzma rtos\n");
 				flush_dcache_range((ulong)tmp_addr,
 								   (ulong)(tmp_addr + firmware_size));
+
 				ret = lzmaBuffToBuffDecompress((unsigned char *)rtos_addr, &Uncompsz, (unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), Compsz);
 				if (ret != 0) {
 					printf("Decompressed lzma fail\n");
@@ -320,7 +336,7 @@ int nvt_boot_rtos_bin_auto(void)
 				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + Uncompsz));
 			} else {
 				/* lz77 compressed image*/
-				lz_uncompress((unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, cpu_to_be32(pbfc->uiSizeComp));
+				lz_uncompress((unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, Compsz);
 				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + rtos_size));
 			}
 		} else {
@@ -329,6 +345,7 @@ int nvt_boot_rtos_bin_auto(void)
 			unsigned long size;
 			dram_addr = nvt_memory_cfg[MEMTYPE_DRAM].addr;
 			dram_size = nvt_memory_cfg[MEMTYPE_DRAM].size;
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
 			if (is_secure == 0) {
 				pbininfo = (BININFO *)(rtos_addr + BIN_INFO_OFFSET_RTOS);
 				partload = pbininfo->head.Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN;
@@ -338,6 +355,12 @@ int nvt_boot_rtos_bin_auto(void)
 				partload = info->Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN;
 				size = info->BinLength;
 			}
+#else
+			pbininfo = (BININFO *)(rtos_addr + BIN_INFO_OFFSET_RTOS);
+			partload = pbininfo->head.Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN;
+			size = pbininfo->head.BinLength;
+#endif
+
 			printf("Non-compressed rtos\n");
 
 			if (partload) {
@@ -347,13 +370,13 @@ int nvt_boot_rtos_bin_auto(void)
 				u32 preload_size = ALIGN_CEIL(FW_PART1_SIZE_OFFSET, _EMBMEM_BLK_SIZE_);
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
                 || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))
-				sprintf(cmd, "nand read 0x%x %s 0x%x ", rtos_addr, rtos_name, preload_size);
+				sprintf(cmd, "nand read 0x%lx %s 0x%x ", rtos_addr, rtos_name, preload_size);
 #elif defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR))
 				align_size = ALIGN_CEIL(preload_size, ARCH_DMA_MINALIGN);
-				sprintf(cmd, "sf read 0x%x 0x%llx 0x%x", rtos_addr, part_off, align_size);
+				sprintf(cmd, "sf read 0x%lx 0x%llx 0x%x", rtos_addr, part_off, align_size);
 #elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
 				align_size = ALIGN_CEIL(preload_size, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN;
-				sprintf(cmd, "mmc read 0x%x 0x%llx 0x%x", rtos_addr, part_off / MMC_MAX_BLOCK_LEN, align_size);
+				sprintf(cmd, "mmc read 0x%lx 0x%llx 0x%x", rtos_addr, part_off / MMC_MAX_BLOCK_LEN, align_size);
 #endif
 				run_command(cmd, 0);
 				//partial-load or partial-compressed-load
@@ -366,17 +389,17 @@ int nvt_boot_rtos_bin_auto(void)
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
                 || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))
 				align_size = part1_size;
-				sprintf(cmd, "nand read 0x%x %s 0x%x ", rtos_addr, rtos_name, align_size);
+				sprintf(cmd, "nand read 0x%lx %s 0x%x ", rtos_addr, rtos_name, align_size);
 				//update LdLoadSize
 				p_shminfo->boot.LdLoadSize = align_size;
 #elif defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR))
 				align_size = ALIGN_CEIL(part1_size, ARCH_DMA_MINALIGN);
-				sprintf(cmd, "sf read 0x%x 0x%llx 0x%x", rtos_addr, part_off, align_size);
+				sprintf(cmd, "sf read 0x%lx 0x%llx 0x%x", rtos_addr, part_off, align_size);
 				//update LdLoadSize
 				p_shminfo->boot.LdLoadSize = align_size;
 #elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
 				align_size = ALIGN_CEIL(part1_size, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN;
-				sprintf(cmd, "mmc read 0x%x 0x%llx 0x%x", rtos_addr, part_off / MMC_MAX_BLOCK_LEN, align_size);
+				sprintf(cmd, "mmc read 0x%lx 0x%llx 0x%x", rtos_addr, part_off / MMC_MAX_BLOCK_LEN, align_size);
 				//update LdLoadSize
 				p_shminfo->boot.LdLoadSize = align_size * MMC_MAX_BLOCK_LEN;
 #endif
@@ -385,11 +408,11 @@ int nvt_boot_rtos_bin_auto(void)
 				//full load
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
                 || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))
-				sprintf(cmd, "nand read 0x%x %s 0x%x ", rtos_addr, rtos_name, size);
+				sprintf(cmd, "nand read 0x%lx %s 0x%lx ", rtos_addr, rtos_name, size);
 #elif defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR))
-				sprintf(cmd, "sf read 0x%x 0x%llx 0x%x ", rtos_addr, part_off, size);
+				sprintf(cmd, "sf read 0x%lx 0x%llx 0x%lx ", rtos_addr, part_off, size);
 #elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
-				sprintf(cmd, "mmc read 0x%x 0x%llx 0x%x", rtos_addr, part_off / MMC_MAX_BLOCK_LEN, size / MMC_MAX_BLOCK_LEN);
+				sprintf(cmd, "mmc read 0x%lx 0x%llx 0x%lx", rtos_addr, part_off / MMC_MAX_BLOCK_LEN, size / MMC_MAX_BLOCK_LEN);
 #endif
 				//update LdLoadSize
 				p_shminfo->boot.LdLoadSize = size;
@@ -404,8 +427,7 @@ int nvt_boot_rtos_bin_auto(void)
 			flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + rtos_size));
 		}
 	}
-
-#ifdef CONFIG_NVT_IVOT_SECBOOT_SUPPORT
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
 	if (is_secure) {
 		/* Decrypt Date */
 		nvt_decrypt_aes_on_uboot(rtos_addr);
@@ -422,7 +444,7 @@ int nvt_boot_rtos_bin_auto(void)
 
 	/* dram partition rtos address should be the same with headinfo address */
 	if (rtos_addr != pbininfo->head.CodeEntry) {
-		printf("dram partition rtos addr (%08X) != headinfo(%08X)\r\n"
+		printf("dram partition rtos addr (%08lX) != headinfo(%08X)\r\n"
 			   , rtos_addr
 			   , pbininfo->head.CodeEntry);
 		return -1;
@@ -431,21 +453,50 @@ int nvt_boot_rtos_bin_auto(void)
 	/* To check if code size is larger than rtos_addr + rtos_size (Not image size) */
 	codesize = nvt_get_32bits_data((ulong)(&pCodeInfo[RTOS_CODEINFO_SUB_ZI_LIMIT]), true) - rtos_addr;
 	if (codesize > rtos_size) {
-		printf("uBoot uiCodeSize(%08X) > dram partition rtos size(%08X)\r\n"
+		printf("uBoot uiCodeSize(%08X) > dram partition rtos size(%08lX)\r\n"
 			   , codesize
 			   , rtos_size);
 		return -1;
 	}
 
 #if defined(CONFIG_NVT_IVOT_DUAL_RTOS)
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) && defined(CONFIG_ENCRYPT_RTOS)
 	if (is_secure == 0) {
 		nvt_update_dual_rtos_info(pbininfo, boot_bank);
 	} else {
 		printf("Dual rtos on secure boot is not yet supported!!\n");
 	}
+#else
+	nvt_update_dual_rtos_info(pbininfo, boot_bank);
+#endif
 #endif
 
-	printf("rtos starting.... 0x%08x\n", rtos_addr);
+	if (rtos_disable_anchor) {
+		/**
+		 * 567 fastboot has 2 fdt (fdt and fdtfast)
+		 * if rtos_disable_anchor on, we clean fdtfast /fastboot/enable
+		 * for disable fast-sensor, fast-ipp, fast-encode on rtos,
+		 * just a pure rtos to bring up linux-kernel
+		 */
+		unsigned char *fdt = (unsigned char *)(uintptr_t)pbininfo->head.Resv1[HEADINFO_RESV_IDX_FDT_ADDR];
+		if (fdt_check_header(fdt) != 0) {
+			printf("fdt has been corrupted.\r\n");
+			return -1;
+		}
+		unsigned char *fdtfast = fdt + ALIGN_CEIL(fdt_totalsize(fdt), 64);
+		if (fdt_check_header(fdtfast) != 0) {
+			printf("fdtfast is not existing.\r\n");
+		} else {
+			int nodeoffset = fdt_path_offset(fdtfast, "/fastboot");
+			if (fdt_getprop((const void*)fdtfast, nodeoffset, "enable", NULL)) {
+				fdt_setprop_u32(fdtfast, nodeoffset, "enable", 0);
+				flush_dcache_range((ulong)fdtfast, (ulong)(fdtfast + fdt_totalsize(fdtfast)));
+				printf("\033[0;33mforce /fastboot/enable = 0\033[0m\r\n");
+			}
+		}
+	}
+
+	printf("rtos starting.... 0x%lx\n", rtos_addr);
 	{
 		typedef void (*BRANCH_CB)(void);
 		BRANCH_CB p_func = (BRANCH_CB)rtos_addr;

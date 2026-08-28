@@ -34,4 +34,6 @@ config SOC_XILINX_VERSAL
 
 source "drivers/soc/ti/Kconfig"
 
+source "drivers/soc/novatek/Kconfig"
+
 endmenu

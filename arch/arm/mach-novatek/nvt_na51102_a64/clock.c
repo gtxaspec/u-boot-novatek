@@ -29,6 +29,7 @@
 #define DMA_CLOCK_RATE_RATIO1_OFS       (0x4000 + 0x4C0 + 0x24)
 #define DMA_CLOCK_RATE_RATIO2_OFS       (0x4000 + 0x4C0 + 0x28)
 
+#define PLL_CPU_NO						16								//No. of CPU's PLL = 8
 #define PLL_CLKSEL_CPU                  (0)
 #define PLL_CLKSEL_CPU_80               (0x00 << PLL_CLKSEL_CPU)        //< Select CPU clock 80MHz
 #define PLL_CLKSEL_CPU_ARMPLL           (0x01 << PLL_CLKSEL_CPU)        //< Select CPU clock ARMPLL (for CPU)
@@ -396,7 +397,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		case 480:
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 			if ((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_480) {
-				printf("Already 480MHz(48MHz@FPGA)\n");
+				printf("Already 480MHz)\n");
 				break;
 			} else {
 				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
@@ -406,7 +407,16 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x34, (IOADDR_STBC_CG_REG_BASE + 0xB0));
 				while (!(readl(IOADDR_STBC_CG_REG_BASE + 0xB0) & (1 << 3)));
 				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
-				printf("Set CPU clk 480MHz(48MHz@FPGA)\n");
+				printf("Set CPU clk 480MHz\n");
+
+				uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+				if((uiReg & (1<<PLL_CPU_NO))==(1<<PLL_CPU_NO)) {
+					printf("PLL16 = Enabled => Disable it\n");
+					uiReg &= ~(1<<PLL_CPU_NO);
+					writel(uiReg, IOADDR_STBC_CG_REG_BASE); // B0
+					uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+					printf("PLL16 = 0x%08x \n", uiReg);
+				}
 			}
 			break;
 #ifdef CONFIG_NVT_FPGA_EMULATION
@@ -448,6 +458,26 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			break;
 #else
 		case 1000:
+			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
+				uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+				if((uiReg & (1<<PLL_CPU_NO))!=(1<<PLL_CPU_NO)) {
+					printf("PLL%d = Disabled => Enable it\n", PLL_CPU_NO);
+					uiReg |= (1<<PLL_CPU_NO);
+					writel(uiReg, IOADDR_STBC_CG_REG_BASE); // B0
+					uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+					//Polling PLL16
+					while (!(readl(IOADDR_STBC_CG_REG_BASE + 0x04) & (1 << PLL_CPU_NO)));
+					printf("PLL%d enable done= 0x%08x 0x%08x\n", PLL_CPU_NO, readl(IOADDR_STBC_CG_REG_BASE + 0x00), readl(IOADDR_STBC_CG_REG_BASE + 0x04));
+				}
+				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+				uiReg &= ~PLL_CLKSEL_CPUMASK;
+				uiReg |= PLL_CLKSEL_CPU_ARMPLL;
+				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+				writel(0x34, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+				while (!(readl(IOADDR_STBC_CG_REG_BASE + 0xB0) & (1 << 3)));
+				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+			}
 			//CPU 1000 MHz -> CPU-MPLL-125Mhz = 0x14D555
 			writel(0x85, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x53, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
@@ -455,6 +485,26 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			printf("Set CPU clk 1000MHz\n");
 			break;
 		case 1200:
+			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
+				uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+				if((uiReg & (1<<PLL_CPU_NO))!=(1<<PLL_CPU_NO)) {
+					printf("PLL%d = Disabled => Enable it\n", PLL_CPU_NO);
+					uiReg |= (1<<PLL_CPU_NO);
+					writel(uiReg, IOADDR_STBC_CG_REG_BASE); // B0
+					uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+					//Polling PLL16
+					while (!(readl(IOADDR_STBC_CG_REG_BASE + 0x04) & (1 << PLL_CPU_NO)));
+					printf("PLL%d enable done= 0x%08x 0x%08x\n", PLL_CPU_NO, readl(IOADDR_STBC_CG_REG_BASE + 0x00), readl(IOADDR_STBC_CG_REG_BASE + 0x04));
+				}
+				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+				uiReg &= ~PLL_CLKSEL_CPUMASK;
+				uiReg |= PLL_CLKSEL_CPU_ARMPLL;
+				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+				writel(0x34, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+				while (!(readl(IOADDR_STBC_CG_REG_BASE + 0xB0) & (1 << 3)));
+				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+			}
 			//CPU 1200 MHz -> CPU-MPLL-150Mhz = 0x190000
 			writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x40, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
@@ -463,6 +513,26 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			break;
 
 		case 1400:
+			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
+				uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+				if((uiReg & (1<<PLL_CPU_NO))!=(1<<PLL_CPU_NO)) {
+					printf("PLL%d = Disabled => Enable it\n", PLL_CPU_NO);
+					uiReg |= (1<<PLL_CPU_NO);
+					writel(uiReg, IOADDR_STBC_CG_REG_BASE); // B0
+					uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+					//Polling PLL16
+					while (!(readl(IOADDR_STBC_CG_REG_BASE + 0x04) & (1 << PLL_CPU_NO)));
+					printf("PLL%d enable done= 0x%08x 0x%08x\n", PLL_CPU_NO, readl(IOADDR_STBC_CG_REG_BASE + 0x00), readl(IOADDR_STBC_CG_REG_BASE + 0x04));
+				}
+				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+				uiReg &= ~PLL_CLKSEL_CPUMASK;
+				uiReg |= PLL_CLKSEL_CPU_ARMPLL;
+				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+				writel(0x34, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+				while (!(readl(IOADDR_STBC_CG_REG_BASE + 0xB0) & (1 << 3)));
+				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+			}
 			//CPU 1400 MHz -> CPU-MPLL-150Mhz = 0x1D2AAA
 			writel(0xAA, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x4A, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
@@ -471,6 +541,26 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			break;
 		default:
 			printf("Not define this CPU Freq %d, use defualt value 1000!\n", value);
+			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
+				uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+				if((uiReg & (1<<PLL_CPU_NO))!=(1<<PLL_CPU_NO)) {
+					printf("PLL%d = Disabled => Enable it\n", PLL_CPU_NO);
+					uiReg |= (1<<PLL_CPU_NO);
+					writel(uiReg, IOADDR_STBC_CG_REG_BASE); // B0
+					uiReg = readl(IOADDR_STBC_CG_REG_BASE);
+					//Polling PLL16
+					while (!(readl(IOADDR_STBC_CG_REG_BASE + 0x04) & (1 << PLL_CPU_NO)));
+					printf("PLL%d enable done= 0x%08x 0x%08x\n", PLL_CPU_NO, readl(IOADDR_STBC_CG_REG_BASE + 0x00), readl(IOADDR_STBC_CG_REG_BASE + 0x04));
+				}
+				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+				uiReg &= ~PLL_CLKSEL_CPUMASK;
+				uiReg |= PLL_CLKSEL_CPU_ARMPLL;
+				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+				writel(0x34, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+				while (!(readl(IOADDR_STBC_CG_REG_BASE + 0xB0) & (1 << 3)));
+				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
+			}
 			//CPU 1000 MHz -> CPU-MPLL-125Mhz = 0x14D555
 			writel(0x00, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
 			writel(0x40, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1

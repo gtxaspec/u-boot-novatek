@@ -1135,6 +1135,7 @@ dtb-$(CONFIG_TARGET_NA51102_A64) += nvt-na51102-evb-a64.dtb
 dtb-$(CONFIG_TARGET_NS02201_A64) += nvt-ns02201-evb-a64.dtb
 dtb-$(CONFIG_TARGET_NS02302_A64) += nvt-ns02302-evb-a64.dtb
 dtb-$(CONFIG_TARGET_NA51102) += nvt-na51102-evb.dtb
+dtb-$(CONFIG_TARGET_NA51089) += nvt-na51089-evb.dtb
 dtb-$(CONFIG_TARGET_NS02201) += nvt-ns02201-evb.dtb
 dtb-$(CONFIG_TARGET_NS02301) += nvt-ns02301-evb.dtb
 

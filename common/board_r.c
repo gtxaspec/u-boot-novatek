@@ -77,6 +77,9 @@
 #ifdef CONFIG_EFI_SETUP_EARLY
 #include <efi_loader.h>
 #endif
+#if defined(CONFIG_NOVATEK_SIF)
+#include <sif_api.h>
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -406,6 +409,15 @@ static int initr_nand(void)
 }
 #endif
 
+#if defined(CONFIG_NOVATEK_SIF)
+static int initr_sif(void)
+{
+	puts("SIF:  ");
+	sif_init();
+	return 0;
+}
+#endif
+
 #if defined(CONFIG_CMD_ONENAND)
 /* go init the NAND */
 static int initr_onenand(void)
@@ -698,6 +710,9 @@ static init_fnc_t init_sequence_r[] = {
 #if defined(CONFIG_PPC) || defined(CONFIG_M68K) || defined(CONFIG_X86)
 	/* initialize higher level parts of CPU like time base and timers */
 	cpu_init_r,
+#endif
+#ifdef CONFIG_NOVATEK_SIF
+	initr_sif,
 #endif
 #ifdef CONFIG_CMD_NAND
 	initr_nand,

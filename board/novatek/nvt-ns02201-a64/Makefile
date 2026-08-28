@@ -9,3 +9,4 @@ ccflags-y += -D_BUILD_DATE_=$(BUILD_DATE)
 
 obj-y := ns02201evb.o ns02201_hw_init.o
 obj-y += nvt_headinfo.o
+obj-y += nvt_pcie/

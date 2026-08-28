@@ -102,12 +102,16 @@ static UINT32 otp_timing[RETRY_CNT] = {
 	TIMING_3RD,
 };
 
+#define NOVATEK_GPIO_SAMPLE         0
 //##############################################################################
 //# poweron_efuse need porting by customer                                     #
 //##############################################################################
 void poweron_efuse(void)
 {
-	//SETREG32(IOADDR_GPIO_REG_BASE + 0x44, (0x1 << 12));
+	//For example => take PGPIO24 as Power control => 1 POWERON
+#if (NOVATEK_GPIO_SAMPLE == 1)
+	SETREG32(IOADDR_GPIO_REG_BASE + 0x68, (0x1 << 24));
+#endif
 	udelay(500 * 1000); //depend on customer
 }
 
@@ -116,7 +120,10 @@ void poweron_efuse(void)
 //##############################################################################
 void powerdown_efuse(void)
 {
-	//SETREG32(IOADDR_GPIO_REG_BASE + 0x64, (0x1 << 12));
+	//For example => take PGPIO24 as Power control => 0 POWERDOWN
+#if (NOVATEK_GPIO_SAMPLE == 1)
+	SETREG32(IOADDR_GPIO_REG_BASE + 0x98, (0x1 << 24));
+#endif
 	udelay(800 * 1000);
 }
 
@@ -129,13 +136,21 @@ void otp_init(void)
 	uiReg = INREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS);
 	DBG_DUMP("otp_timing_reg= 0x%x\r\n", (int)uiReg);
 	//Assert OTP RSTN
+
+	//For example => take PGPIO24 as Power control
+	SETREG32(IOADDR_TOP_REG_BASE + 0xA8, (1 << 24));
+
+	//PGPIO24 configure as output
+#if (NOVATEK_GPIO_SAMPLE == 1)
+	SETREG32(IOADDR_GPIO_REG_BASE + 0x38, (1 << 24));
+#endif
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
 }
 
 static s32 key_program_bit(u32 rol, u32 col)
 {
-	return local_store(rol | (col << 6) | (DBL_BIT_EN<<11));
+	return local_store(rol | (col << 6) | (DBL_BIT_EN << 11));
 }
 
 static s32 key_write_data(u32 addr, u32 data)
@@ -699,24 +714,6 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
-	case SECUREBOOT_DSP1_DISABLE:
-		if ((sec & OTP_DSP1_DISABLE) == OTP_DSP1_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_DSP2_DISABLE:
-		if ((sec & OTP_DSP2_DISABLE) == OTP_DSP2_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_GPU_DISABLE:
-		if ((sec & OTP_GPU_DISABLE) == OTP_GPU_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
 	default:
 		break;
 	}
@@ -828,6 +825,8 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");
+		result = FALSE;
+		break;
 	default:
 		result = FALSE;
 		break;

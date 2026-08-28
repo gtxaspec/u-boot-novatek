@@ -13,6 +13,7 @@
 
 
 #include <common.h>
+#include <cli.h>
 #include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
@@ -294,7 +295,7 @@ static void power_init(void)
 	sprintf(path,"/top/sgpio_0_26");
 	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
 	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for sgpio_0_26, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -305,7 +306,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);
@@ -315,7 +316,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);
@@ -327,7 +328,7 @@ static void power_init(void)
 	sprintf(path,"/top/pgpio_0_19");
 	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
 	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for pgpio_0_19, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -354,7 +355,7 @@ static void power_init(void)
 	sprintf(path,"/top/cgpio_0_10");
 	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
 	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "power_config", NULL);
-	if (cell < 0) {
+	if (cell == NULL) {
 		printf("%s: Not Existed power_config for cgpio_0_10, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
@@ -365,7 +366,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);
@@ -375,7 +376,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				while (1);
+				cli_loop();
 			}
 
 			pad_set_power(&pad_power);

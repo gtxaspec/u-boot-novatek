@@ -4,7 +4,7 @@
     @file       nvt-otp.c
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2018.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2023.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as
@@ -72,10 +72,10 @@
 #define CLRREG32(x, y)          OUTW((x), INW(x) & ~(y))
 
 //Assert OTP RSTN
-#define OTP_RSTN_ENABLE()       CKG_CLRREG32((UINT32)0x9C, (UINT32)(1<<3));
+#define OTP_RSTN_ENABLE()       CKG_CLRREG32((UINT32)0x94, (UINT32)(1<<28));
 
 //De-assert OTP RSTN
-#define OTP_RSTN_DISABLE()      CKG_SETREG32((UINT32)0x9C, (UINT32)(1<<3));
+#define OTP_RSTN_DISABLE()      CKG_SETREG32((UINT32)0x94, (UINT32)(1<<28));
 
 
 #define TZPC_NV_CNT()           if(IOADDR_TZPC_REG_BASE) \
@@ -88,11 +88,11 @@
 extern s32 local_load(u32 uiRowAddress);
 extern s32 local_store(u32 uiRowAddress);
 
-#define OTP_120_TIMING              0x8F2620
+#define OTP_120_TIMING              0xFF6050
 #define RETRY_CNT                   3
-#define TIMING_1ST                  0x8F3620
-#define TIMING_2ND                  0x8F4620
-#define TIMING_3RD                  0x8F5620
+#define TIMING_1ST                  0xFF7050
+#define TIMING_2ND                  0xFF8050
+#define TIMING_3RD                  0xFF9050
 
 #define MACRO_A_EN                  0x1
 #define MACRO_B_EN                  0x2
@@ -137,14 +137,14 @@ void otp_init(void)
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
 {
-	return local_store(rol | (col << 6) | (macro_AB<<11));
+	return local_store(rol | (col << 5) | (macro_AB << 11));
 }
 
 static s32 key_write_data(u32 addr, u32 data)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -187,7 +187,7 @@ static s32 key_write_data_timing(u32 addr, u32 data, u32 timing)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -524,6 +524,8 @@ s32 otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 	otp_key_manager(key_field_start_index + 2);
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 3);
 	otp_key_manager(key_field_start_index + 3);
+
+	set_key_destination(OTP_KEY_MANAGER_NONE, 0);
 	return E_OK;
 }
 
@@ -660,6 +662,13 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
+	case SECUREBOOT_SIGN_ECDSA:
+		if ((sec & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = TRUE;
+		}
+		break;
+
+
 	case SECUREBOOT_SIGN_RSA_CHK:
 		if ((sec & OTP_SIGNATURE_RSA_CHK_EN) == OTP_SIGNATURE_RSA_CHK_EN) {
 			result = TRUE;
@@ -731,45 +740,30 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = TRUE;
 		}
 		break;
-
-	case SECUREBOOT_HDMI_AVAILABLE:
-		if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_1ST_AVAILABLE) {
-			result = TRUE;
-		} else if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_2ND_AVAILABLE) {
-			result = TRUE;
-		} else if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_1ST_DISABLE) {
-			result = FALSE;
-		} else if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_2ND_DISABLE) {
-			result = FALSE;
-		} else {
-			result = FALSE;
-		}
-		break;
-
-	case SECUREBOOT_DSP1_DISABLE:
-		if ((sec & OTP_DSP1_DISABLE) == OTP_DSP1_DISABLE) {
+	
+	case SECUREBOOT_CPU_OVER_CLOCKING:
+		if ((sec2 & OTP_CPU_OVER_CLOCKING) != OTP_CPU_OVER_CLOCKING) {
 			result = TRUE;
 		}
 		break;
 
-	case SECUREBOOT_DSP2_DISABLE:
-		if ((sec & OTP_DSP2_DISABLE) == OTP_DSP2_DISABLE) {
+	case SECUREBOOT_CONV_OVER_CLOCKING:
+		if ((sec2 & OTP_CONV_OVER_CLOCKING) != OTP_CONV_OVER_CLOCKING) {
 			result = TRUE;
 		}
 		break;
 
-	case SECUREBOOT_GPU_DISABLE:
-		if ((sec & OTP_GPU_DISABLE) == OTP_GPU_DISABLE) {
+	case SECUREBOOT_DDR_OVER_CLOCKING:
+		if ((sec2 & OTP_DDR_OVER_CLOCKING) != OTP_DDR_OVER_CLOCKING) {
 			result = TRUE;
 		}
 		break;
 
-	case SECUREBOOT_MCU_DISABLE:
-		if ((sec2 & OTP_MCU_DISABLE) == OTP_MCU_DISABLE) {
+	case SECUREBOOT_VENC_OVER_CLOCKING:
+		if ((sec2 & OTP_VENC_OVER_CLOCKING) != OTP_VENC_OVER_CLOCKING) {
 			result = TRUE;
 		}
 		break;
-
 	default:
 		break;
 	}
@@ -790,7 +784,7 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 */
 BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 {
-	u32  sec;
+	u32  	sec;
 	BOOL    result = FALSE;
 	sec = KEY_MANAGER_READ_PARAM();
 
@@ -821,6 +815,15 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		} else {
 			result = TRUE;
 			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+		}
+		break;
+
+	case SECUREBOOT_SIGN_ECDSA:
+		if ((sec & OTP_SIGNATURE_ECDSA) != 0x0) {
+			DBG_ERR("Signature use ECDSA bit already set ...");
+		} else {
+			result = TRUE;
+			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_ECDSA);
 		}
 		break;
 
@@ -879,6 +882,7 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		result = TRUE;
 		break;
 
+#if (0)
 	case SECUREBOOT_DSP1_DISABLE:
 		KEY_MANAGER_WRITE_PARAM(OTP_DSP1_DISABLE);
 		result = TRUE;
@@ -898,10 +902,12 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		KEY_MANAGER_WRITE_2ND_PARAM(OTP_MCU_DISABLE);
 		result = TRUE;
 		break;
-
+#endif
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");
+		result = FALSE;
+		break;
 	default:
 		result = FALSE;
 		break;
@@ -988,7 +994,7 @@ INT32 otp_get_pkg_version(void)
 //	u32     remap_data;
 	int     code;
 	BOOL    is_found;
-	u32		pkgUID;
+	u32     pkgUID;
 
 
 	code = otp_key_manager(OTP_PKGUID_FIELD);
@@ -998,10 +1004,14 @@ INT32 otp_get_pkg_version(void)
 	} else {
 		is_found = extract_trim_valid(code, (u32 *)&trim);
 		printf("[UID] = 0x%08x\r\n", (int)trim);
-		if(trim == OTP_690_TRIM) {
-			pkgUID = NT98690_PKG;
-		} else if(trim == OTP_692_TRIM) {
-			pkgUID = NT98692_PKG;
+		if (trim == OTP_8538_TRIM) {
+			pkgUID = NT98538_PKG;
+		} else if (trim == OTP_6538_TRIM) {
+			pkgUID = NT96538_PKG;
+		} else if (trim == OTP_8539_TRIM) {
+			pkgUID = NT98539_PKG;
+		} else if (trim == OTP_6539_TRIM) {
+			pkgUID = NT96539_PKG;
 		} else {
 			pkgUID = UNKNOWN_PKG_VER;
 		}

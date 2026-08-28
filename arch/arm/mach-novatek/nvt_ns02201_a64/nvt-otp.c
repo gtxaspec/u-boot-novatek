@@ -99,27 +99,24 @@ extern s32 local_store(u32 uiRowAddress);
 #define DBL_BIT_EN                  0x3
 
 static const UINT32   core_power_leakage[LEAKAGE_COUNT] = {
-	31,			//0.850(V)
-	31,			//0.850(V)
-	31,			//0.850(V)
-	31,			//0.850(V)
+	31,			//0.85
 
-	31,			//0.850(V)
-	31,			//0.850(V)
-	31,			//0.850(V)
-	31,			//0.850(V)
+	46,			//0.83
+	38,			//0.84
+	31,			//0.85
+	23,			//0.86
+	15,			//0.87
+	8,			//0.88
+	0,			//0.89
 
-	31,			//0.850(V)
-	31,			//0.850(V)
-	31,			//0.850(V)
-	31,			//0.850(V)
+	8,			//0.88
 
-	31,			//0.850(V)
-	31,			//0.850(V)
-
-	31,			//0.850(V)
-	31,			//0.850(V)
-	31,			//0.850(V)
+	31,			//0.85
+	31,			//0.85
+	31,			//0.85
+	31,			//0.85
+	31,			//0.85
+	31,			//0.85
 };
 
 static UINT32 otp_timing[RETRY_CNT] = {
@@ -158,20 +155,20 @@ void otp_init(void)
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
 #ifdef CONFIG_PWM_NVT
-    prepare_power_trim(PWM0_CORE_POWER);
+	prepare_power_trim(PWM0_CORE_POWER);
 #endif
 }
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
 {
-	return local_store(rol | (col << 6) | (macro_AB<<11));
+	return local_store(rol | (col << 6) | (macro_AB << 11));
 }
 
 static s32 key_write_data(u32 addr, u32 data)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -214,7 +211,7 @@ static s32 key_write_data_timing(u32 addr, u32 data, u32 timing)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -543,14 +540,25 @@ s32 otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 		DBG_ERR("Unknow key set[%d] => should be 0~4\r\n", (int)key_set_index);
 		return EFUSE_OPS_ERR;
 	}
+	//Return value dont care
+	//Coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 0);
+	//Coverity[check_return]
 	otp_key_manager(key_field_start_index);
+	//Coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 1);
+	//Coverity[check_return]
 	otp_key_manager(key_field_start_index + 1);
+	//Coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 2);
+	//Coverity[check_return]
 	otp_key_manager(key_field_start_index + 2);
+	//Coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 3);
+	//Coverity[check_return]
 	otp_key_manager(key_field_start_index + 3);
+	//Coverity[check_return]
+	set_key_destination(OTP_KEY_MANAGER_NONE, 0);
 	return E_OK;
 }
 
@@ -796,7 +804,7 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = TRUE;
 		}
 		break;
-	
+
 	case SECUREBOOT_VDEC_OVER_CLOCKING:
 		if ((sec2 & OTP_VDEC_OVER_CLOCKING_AVL) == OTP_VDEC_OVER_CLOCKING_AVL) {
 			result = TRUE;
@@ -805,6 +813,12 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 
 	case SECUREBOOT_CPU_OVER_CLOCKING:
 		if ((sec2 & OTP_CPU_OVER_CLOCKING) == OTP_CPU_OVER_CLOCKING) {
+			result = TRUE;
+		}
+		break;
+
+	case SECUREBOOT_CPU_LOWER_CLOCKING:
+		if ((sec2 & OTP_CPU_LOWER_CLOCKING) == OTP_CPU_LOWER_CLOCKING) {
 			result = TRUE;
 		}
 		break;
@@ -941,6 +955,8 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");
+		result = FALSE;
+		break;
 	default:
 		result = FALSE;
 		break;
@@ -1017,17 +1033,17 @@ BOOL extract_trim_valid(u32 code, u32 *pData)
      efuse get IC package version
 
      @return IC revision of specific package revision
-        - @b   NT98336_PKG      NT98336 package version
-        - @b   NT98633_PKG      NT98633 package version
+        - @b   NT98690_PKG      NT98690 package version
+        - @b   NT98692_PKG      NT98692 package version
         - @b   UNKNOWN_PKG_VER  Unknown IC package version(system must halt)
 */
 INT32 otp_get_pkg_version(void)
 {
-	u32     trim;
+	u32     trim = 0;
 //	u32     remap_data;
 	int     code;
 	BOOL    is_found;
-	u32		pkgUID;
+	u32     pkgUID;
 
 
 	code = otp_key_manager(OTP_PKGUID_FIELD);
@@ -1037,9 +1053,9 @@ INT32 otp_get_pkg_version(void)
 	} else {
 		is_found = extract_trim_valid(code, (u32 *)&trim);
 		printf("[UID] = 0x%08x\r\n", (int)trim);
-		if(trim == OTP_690_TRIM) {
+		if (trim == OTP_690_TRIM) {
 			pkgUID = NT98690_PKG;
-		} else if(trim == OTP_692_TRIM) {
+		} else if (trim == OTP_692_TRIM) {
 			pkgUID = NT98692_PKG;
 		} else {
 			pkgUID = UNKNOWN_PKG_VER;
@@ -1053,8 +1069,8 @@ INT32 otp_get_pkg_version(void)
 
     Parsing trim data and transfer to pwm duty cycle
 
-    @param [in] data	trim data
-	@param [in] freq	CPU freq
+    @param [in] data    trim data
+    @param [in] freq    CPU freq
     @return read half-word efuse data
         - @b  UINT32: PWM dufy
 */
@@ -1066,7 +1082,7 @@ u32 extract_trim_to_pwm_duty(PWM_POWER_SET power_set, UINT32 data)
 
 	if (data < LEAKAGE_COUNT) {
 		duty = core_power_leakage[data];
-	} else {	//leakage >= 21 =>
+	} else {    //leakage >= 21 =>
 		duty = CORE_DEFAULT_DUTY;
 	}
 	return duty;

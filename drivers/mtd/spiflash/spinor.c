@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.06"
+#define NOR_VERSION "1.0.12"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;
@@ -47,6 +47,13 @@ const struct spi_flash_params spi_flash_params_table[] = {
 	{"GD25LQ32",       0xc86016, 0x0,       64 * 1024,    64,       0, SECT_4K},
 	{"GD25Q127C",      0xc84018, 0x0,       64 * 1024,   256, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE2 | SPI_FLASH_BUSWIDTH_QUAD_TYPE1_CMD31},
 	{"GD25Q256C",      0xc84019, 0x0,       64 * 1024,   512, RD_EXTN, 0},
+	{"GD55T01GE",      0xc8461B, 0x0,       64 * 1024,  2048, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE2 | SPI_FLASH_BUSWIDTH_QUAD_TYPE1_CMD31 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
+	{"GD25X512ME",     0xc8481A, 0x0,       64 * 1024,  1024,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
+	{"GD55X01GE",      0xc8481B, 0x0,       64 * 1024,  2048,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
+	{"GD55X02GE",      0xc8481C, 0x0,       64 * 1024,  4096,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
+	{"GD25LX256E",     0xc86819, 0x0,       64 * 1024,   512,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
+	{"GD25LX512ME",    0xc8681A, 0x0,       64 * 1024,  1024,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
+	{"GD55LX01GE",     0xc8681B, 0x0,       64 * 1024,  2048,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
 	{"MX25L2006E",     0xc22012, 0x0,       64 * 1024,     4,       0, 0},
 	{"MX25L4005",      0xc22013, 0x0,       64 * 1024,     8,       0, 0},
 	{"MX25L8005",      0xc22014, 0x0,       64 * 1024,    16,       0, 0},
@@ -57,7 +64,7 @@ const struct spi_flash_params spi_flash_params_table[] = {
 	{"MX25L25645G",    0xc22019, 0x0,       64 * 1024,   512, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
 	{"MX25L51235F",    0xc2201a, 0x0,       64 * 1024,  1024, RD_FULL, SECT_4K | SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
 	{"MX25L12855E",    0xc22618, 0x0,       64 * 1024,   256, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
-	{"MX66L1G45G",     0xc2201b, 0x0,       64 * 1024,  2048, RD_FULL, SECT_4K | SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
+	{"MX66L1G45G",     0xc2201b, 0x0,       64 * 1024,  2048, RD_FULL, SECT_4K | SPI_FLASH_BUSWIDTH_QUAD_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 6},
 	{"S25FL008A",      0x010213, 0x0,       64 * 1024,    16,       0, 0},
 	{"S25FL016A",      0x010214, 0x0,       64 * 1024,    32,       0, 0},
 	{"S25FL032A",      0x010215, 0x0,       64 * 1024,    64,       0, 0},
@@ -174,6 +181,188 @@ u32 nvt_get_flash_erasesize(void)
 		return 0;
 }
 
+static int mx25l25645g_protect(struct drv_nand_dev_info *info, uint64_t len)
+{
+	int ret;
+	unsigned char status_reg;
+	unsigned char config_reg;
+	unsigned char bp3_0 = 0;
+	unsigned char tb = 1;
+
+	switch (len) {
+	case 0x00000:
+		bp3_0 = 0;
+		break;
+	case 0x10000:
+		bp3_0 = 1;
+		break;
+	case 0x20000:
+		bp3_0 = 2;
+		break;
+	case 0x40000:
+		bp3_0 = 3;
+		break;
+	case 0x80000:
+		bp3_0 = 4;
+		break;
+	case 0x100000:
+		bp3_0 = 5;
+		break;
+	case 0x200000:
+		bp3_0 = 6;
+		break;
+	case 0x400000:
+		bp3_0 = 7;
+		break;
+	case 0x800000:
+		bp3_0 = 8;
+		break;
+	case 0x1000000:
+		bp3_0 = 9;
+		break;
+	case 0x2000000:
+		bp3_0 = 10;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg); 
+	if (ret)
+		return ret;
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDCR, &config_reg); 
+	if (ret)
+		return ret;
+
+	status_reg &= ~(0xf<<2);
+	status_reg |= (bp3_0)<<2;
+	config_reg |= (tb)<<3;
+	ret = spi_nor_set_status_half_word(info, status_reg<<8|config_reg);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int en25qx256a_protect(struct drv_nand_dev_info *info, uint64_t len)
+{
+	unsigned char status_reg;
+	unsigned char bp3_0 = 0;
+	unsigned char tb = 1;
+	int ret;
+	switch (len) {
+	case 0x00000:
+		bp3_0 = 0;
+		break;
+	case 0x10000:
+		bp3_0 = 1;
+		break;
+	case 0x20000:
+		bp3_0 = 2;
+		break;
+	case 0x40000:
+		bp3_0 = 3;
+		break;
+	case 0x80000:
+		bp3_0 = 4;
+		break;
+	case 0x100000:
+		bp3_0 = 5;
+		break;
+	case 0x200000:
+		bp3_0 = 6;
+		break;
+	case 0x400000:
+		bp3_0 = 7;
+		break;
+	case 0x800000:
+		bp3_0 = 8;
+		break;
+	case 0x1000000:
+		bp3_0 = 9;
+		break;
+	case 0x2000000:
+		bp3_0 = 10;
+		break;
+	default:
+		return -EINVAL;
+	}
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg); 
+	if (ret)
+		return ret;
+
+	status_reg &= ~((1<<6)|(0xf<<2));
+	status_reg |= (tb<<6 | bp3_0<<2);
+	ret = spinor_write_status(info,  NAND_SPI_NOR_STS_WRSR_1, status_reg);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int  p25q40uj_c8h_protect(struct drv_nand_dev_info *info, uint64_t len)
+{
+	unsigned char status_reg;
+	unsigned char status2_reg;
+	unsigned char bp4_0 = 0;
+	unsigned char cmp = 0;
+	int ret;
+	switch (len) {
+	case 0x00000:
+		bp4_0 = 0;
+		break;
+	case 0x10000:
+		bp4_0 = 9;
+		break;
+	case 0x20000:
+		bp4_0 = 10;
+		break;
+	case 0x40000:
+		bp4_0 = 11;
+		break;
+	case 0x80000:
+		bp4_0 = 15;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg); 
+	if (ret)
+		return ret;
+
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_2, &status2_reg); 
+	if (ret)
+		return ret;
+
+	status_reg &= ~(0x1f<<2);
+	status_reg |= (bp4_0<<2);
+	status2_reg &= ~(0x1<<6);
+	status2_reg |= (cmp<<6);
+
+	ret = spi_nor_set_status_half_word(info, status_reg<<8|status2_reg);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+typedef struct nor_protect_id {
+	char        *name;
+	uint32_t    rdid;
+	int 	    (*_nor_protect) (struct drv_nand_dev_info *info, uint64_t len);
+} NOR_PROTECT_ID;
+
+static NOR_PROTECT_ID nor_protect_id_list[] = {
+	// flash name / RDID  /protect_func
+	{ "mx25l25645g", 0x1920c2, mx25l25645g_protect},
+	{ "en25qx256a", 0x19711c, en25qx256a_protect},
+	{ "p25q40uj_c8h", 0x136085, p25q40uj_c8h_protect},
+};
+
+#define NUM_OF_NOR_PROTECT_ID (sizeof(nor_protect_id_list) / sizeof(NOR_PROTECT_ID))
+
+
 static void nvt_parse_frequency(u32 *freq)
 {
 	/* Enable it after dts parsing ready*/
@@ -210,6 +399,42 @@ static void nvt_parse_parameter(u32 *trace_stdtable)
 		info->flash_info->chip_sel = 0;
 
 	printf("nor chip_sel = <%d>\n", info->flash_info->chip_sel);
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "auto-tuning", NULL);
+	if (cell > 0) {
+		info->autok_param = __be32_to_cpu(cell[0]);
+		printf("auto-tuning = 0x%x \n", info->autok_param);
+	} else {
+		info->autok_param = 0;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "tuning-addr", NULL);
+	if (cell > 0) {
+		info->autok_addr = __be32_to_cpu(cell[0]);
+		printf("auto-tuning pattern address = 0x%x \n", info->autok_addr);
+	} else {
+		info->autok_addr = 0;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "indly", NULL);
+	if (cell > 0) {
+		info->indly = __be32_to_cpu(cell[0]);
+		printf("set indly = %d \n", info->indly);
+	} else {
+		info->indly = 0;
+	}
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "dtr-mode", NULL);
+	if (cell > 0)
+		info->flash_info->dtr_en = __be32_to_cpu(cell[0]);
+	else
+		info->flash_info->dtr_en = 0;
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "dqs", NULL);
+	if (cell > 0 && (info->chip_id == CHIP_NS02301 || info->chip_id == CHIP_NS02302))
+		info->flash_info->dqs_en = __be32_to_cpu(cell[0]);
+	else
+		info->flash_info->dqs_en = 0;
 }
 
 #ifdef CONFIG_SPI_FLASH_MTD
@@ -582,6 +807,34 @@ static int nvt_spinor_read_id(struct drv_nand_dev_info *info, uint32_t *id)
 	}
 }
 
+static int nvt_spinor_flash_lock(struct spi_nor *flash, loff_t ofs, uint64_t len)
+{
+	u32 val = 0, i;
+	int ret;
+
+	/* send readid command in sw mode */
+	ret = nvt_spinor_read_id(info, (uint32_t *)&val);
+	if (ret < 0)
+		return ret;
+	val = val & 0x00ffffff;
+
+	for (i = 0; i < NUM_OF_NOR_PROTECT_ID; i++) {
+		if (nor_protect_id_list[i].rdid == val) {
+			ret = nor_protect_id_list->_nor_protect(info, len);
+			break;
+		}
+	}
+
+	if (i == NUM_OF_NOR_PROTECT_ID)
+		return -EINVAL;
+	return ret;
+}
+
+static int nvt_spinor_flash_unlock(struct spi_nor *flash, loff_t ofs, uint64_t len)
+{
+	return nvt_spinor_flash_lock(flash, 0, 0);
+}
+
 static int nvt_spinor_validate_params(struct spi_flash *flash, u8 *idcode)
 {
 	const struct spi_flash_params *params;
@@ -647,6 +900,8 @@ static int nvt_spinor_validate_params(struct spi_flash *flash, u8 *idcode)
 	flash->read = nvt_spinor_read_ops;
 	flash->status = nvt_spinor_status_ops;
 	flash->wstatus = nvt_spinor_write_status;
+	flash->flash_lock = nvt_spinor_flash_lock;
+	flash->flash_unlock = nvt_spinor_flash_unlock;
 
 	/*
 	 * The Spansion S25FL032P and S25FL064P have 256b pages, yet use the
@@ -676,10 +931,33 @@ static int nvt_spinor_validate_params(struct spi_flash *flash, u8 *idcode)
 			info->flash_info->nor_read_mode = SPI_NOR_QUAD_READ;
 		else
 			info->flash_info->nor_read_mode = SPI_NOR_DUAL_READ;
+	} else if (params->flags & SPI_FLASH_BUSWIDTH_OCTAL_TYPE1) {
+		if (NVT_OCTAL_IO_SUPPORT) {
+			info->flash_info->nor_read_mode = SPI_NOR_OCTAL_READ;
+			info->flash_info->nor_write_mode = SPI_NOR_OCTAL_WRITE;
+		} else {
+			printf("%s: engine not support Octal io, force single mode \r\n", __func__);
+			info->flash_info->nor_read_mode = SPI_NOR_NORMAL_READ;
+			info->flash_info->nor_write_mode = SPI_NOR_SINGLE_WRITE;
+		}
 	} else {
 		/* Go for default supported read cmd */
 		flash->read_opcode = CMD_READ_ARRAY_FAST;
 		info->flash_info->nor_read_mode = SPI_NOR_NORMAL_READ;
+	}
+
+	/* set dtr mode (optional) */
+	if (info->flash_info->dtr_en && (params->flags & SPI_FLASH_BUSWIDTH_DTR_READ)) {
+		if (info->flash_info->nor_read_mode < SPI_NOR_QUAD_READ) {
+			printf("%s: %d-bit IO no support DTR mode, force SDR mode \r\n", __func__, (1<<info->flash_info->nor_read_mode));
+			info->flash_info->dtr_read = NANDCTRL_SDR_TYPE;
+		} else {
+			info->flash_info->dtr_read = NANDCTRL_DTR_TYPE;
+			info->flash_info->dtr_dummy = params->dtr_dummy;
+			debug("%s: support DTR IO read, dummy clk: %d \r\n", __func__, params->dtr_dummy);
+		}
+	} else {
+		info->flash_info->dtr_read = NANDCTRL_SDR_TYPE;
 	}
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
@@ -692,13 +970,16 @@ static int nvt_spinor_validate_params(struct spi_flash *flash, u8 *idcode)
 	if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ)
 		info->flash_info->nor_read_mode = SPI_NOR_DUAL_READ;
 
+	if (info->flash_info->nor_read_mode == SPI_NOR_OCTAL_READ)
+		info->flash_info->nor_read_mode = SPI_NOR_NORMAL_READ;
+
 	if ((cmd == CMD_READ_QUAD_OUTPUT_FAST) || \
 		(cmd == CMD_READ_QUAD_IO_FAST))
 		flash->read_opcode = CMD_READ_DUAL_IO_FAST;
 
 	flash->program_opcode = CMD_PAGE_PROGRAM;
 
-	info->flash_info->nor_quad_support = DISABLE;
+	info->flash_info->nor_write_mode = SPI_NOR_SINGLE_WRITE;
 #endif
 
 	/* Read read_dummy: dummy byte is determined based on the
@@ -797,7 +1078,8 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 		printf("%s: chip id 0x%x not support \n",__func__, chid);
 		return -1;
 	}
-	NAND_DBG_GLOBAL("dbg CHID: 0x%x\r\n", chid);
+	info->chip_id = chid;
+	log_debug("%s CHID: 0x%x\r\n", __func__, chid);
 
 	/* Config NAND module clock */
 	do {
@@ -817,8 +1099,8 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 		printf("%s: spi flash pinmux 0x%x\r\n", __func__, fdt_pinmux);
 	} while (0);
 
-	NAND_DBG_GLOBAL("dbg nand base addr: 0x%lx\r\n", CONFIG_SYS_NAND_BASE);
-	NAND_DBG_GLOBAL("dbg cg base addr: 0x%lx\r\n", IOADDR_CG_REG_BASE);
+	log_debug("dbg nand base addr: 0x%lx\r\n", (ulong)CONFIG_SYS_NAND_BASE);
+	log_debug("dbg cg base addr: 0x%lx\r\n", (ulong)IOADDR_CG_REG_BASE);
 
 	/* Config NAND module clock */
 	reg = INW(IOADDR_CG_REG_BASE + 0x74);
@@ -827,14 +1109,14 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 	} else {
 		reg |= (1 << 10);
 	}
-	NAND_DBG_GLOBAL("dbg clken: 0x%x\r\n", reg);
+	log_debug("dbg clken: 0x%x\r\n", reg);
 	OUTW(IOADDR_CG_REG_BASE + 0x74, reg);
 
 	/* Config NAND module RSTN */
 	if (chid == CHIP_NS02301) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x84);
 		reg |= (1);
-		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
+		log_debug("dbg rstn: 0x%x\r\n", reg);
 		OUTW(IOADDR_CG_REG_BASE + 0x84, reg);
 	} else {
 		reg = INW(IOADDR_CG_REG_BASE + 0x94);
@@ -843,7 +1125,7 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 		} else {
 			reg |= (1 << 10);
 		}
-		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
+		log_debug("dbg rstn: 0x%x\r\n", reg);
 		OUTW(IOADDR_CG_REG_BASE + 0x94, reg);
 	}
 
@@ -865,7 +1147,7 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 			reg |= 0x4;
 		}
 		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+		log_debug("dbg pinmux: 0x%x\r\n", reg);
 
 		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
 		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
@@ -884,6 +1166,11 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 			reg |= 0x4;
 		} else if ((fdt_pinmux&0x3) == 0x2) {   // PIN_NAND_CFG_NAND_2, Octal mode
 			reg |= 0x8;
+			if (reg&0x10000) {
+				printf("%s warn: Conflict with SDIO3 (0x04: 0x%x)\r\n", __func__, reg);
+				//printf("force disable SDIO3 mux  \r\n");
+				//reg &= ~0x10000;
+			}
 		} else {
 			printf("%s: nand fdt_pinmux 0x%x not support\r\n", __func__, fdt_pinmux);
 		}
@@ -891,13 +1178,14 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 			reg |= 0x40;
 		}
 		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+		log_debug("dbg pinmux: 0x%x\r\n", reg);
 
 		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
 		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
 			reg &= ~(0x0000140F);              // 4-bit
 		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
 			reg &= ~(0x000015FF);              // 8-bit + DQS
+			reg |= 0x800;                      // reset pin
 		}
 		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
 			reg &= ~(0x200);                   // CS1
@@ -911,7 +1199,7 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 		reg |= flash_pinmux;
 
 		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+		log_debug("dbg pinmux: 0x%x\r\n", reg);
 
 		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
 		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
@@ -936,7 +1224,7 @@ static int nvt_spinor_reset(struct drv_nand_dev_info *info)
 #endif
 
 	clk_div = NVT_FLASH_SOURCE_CLK/freq - 1;
-	NAND_DBG_GLOBAL("dbg freq %d, div=0x%x \n", freq, clk_div);
+	log_debug("dbg freq %d, div=0x%x \n", freq, clk_div);
 	if (chid == CHIP_NA51090 || chid == CHIP_NA51102 || \
 		chid == CHIP_NA51103 || chid == CHIP_NS02201) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x48);
@@ -1045,6 +1333,7 @@ static int nvt_check_rdcr(struct drv_nand_dev_info *info)
 	/*Set correct dummy cycle configuration*/
 	if (((info->rdcr_status & 0xC0) == 0xC0) && (info->ops_freq < 120000000)) {
 		u8 rdsr_status;
+
 		ret =  spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &rdsr_status);
 		if (ret < 0) {
 			return ret;
@@ -1099,6 +1388,11 @@ static int nvt_spinor_probe_slave(struct spi_flash *flash)
 	print_buffer(0, idcode, 1, sizeof(idcode), 0);
 #endif
 
+	if ((idcode[0] | idcode[1]<<8 | idcode[2]<<16) == GD_GD55X01GE) {
+		printf("GD55X01GE: Set tSHSL = 0xF0 \n");
+		nand_host_settiming2(info, 0xF051);
+	}
+
 	if ((idcode[0] | idcode[1]<<8 | idcode[2]<<16) == ESMT_EN25QH64A) {
 		u8 status;
 
@@ -1138,10 +1432,11 @@ static int nvt_spinor_probe_slave(struct spi_flash *flash)
 			debug("SF: Fail to set QEB for %02x\n", idcode[0]);
 			return -1;
 		} else {
-			if (flash->program_opcode == CMD_QUAD_PAGE_PROGRAM)
-				info->flash_info->nor_quad_support = ENABLE;
-			else
-				info->flash_info->nor_quad_support = DISABLE;
+			if (flash->program_opcode == CMD_QUAD_PAGE_PROGRAM) {
+				info->flash_info->nor_write_mode = SPI_NOR_QUAD_WRITE;
+			} else {
+				info->flash_info->nor_write_mode = SPI_NOR_SINGLE_WRITE;
+			}
 		}
 	}
 
@@ -1198,14 +1493,39 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 	}
 
 	info->data_buff = malloc(info->flash_info->page_size + CACHE_LINE_SIZE);
+	if (((unsigned long)(info->data_buff)) % CACHE_LINE_SIZE) {
+		info->data_buff = (uint8_t *)((((unsigned long)info->data_buff + CACHE_LINE_SIZE - 1)) & 0xFFFFFFC0);
+	}
 
 #ifdef CONFIG_SPI_FLASH_MTD
 	spi_flash_mtd_register(flash);
 #endif
 
-	printf("nvt spinor %d-bit mode @ %d Hz\n", \
-		info->flash_info->nor_quad_support ? 4 : 1, \
-		info->ops_freq);
+	if (info->autok_param) {
+		if (nand_host_dll_auto_tuning(info, NANDCTRL_SPI_NOR_TYPE) != E_OK) {
+			printf("nand auto tuning fail\n");
+		} else {
+			printf("nand auto tuning finish\n");
+		}
+	}
+
+	if (info->indly) {
+		union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
+
+		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+		phy_dly2.Bit.INDLY_SEL = info->indly;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
+		nand_dll_reset();
+	}
+
+	printf("nvt spinor %d Hz\n", info->ops_freq);
+	printf("IO mode: %d-bit write / %d-bit read \n", \
+		(1<<info->flash_info->nor_write_mode), \
+		(1<<info->flash_info->nor_read_mode));
+	printf("DTR mode: %d, Dummy clk: %d, DQS mode: %d \n", \
+		(info->flash_info->dtr_read), \
+		(info->flash_info->dtr_dummy), \
+		(info->flash_info->dqs_en));
 
 	return flash;
 }

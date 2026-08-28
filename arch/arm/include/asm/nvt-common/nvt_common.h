@@ -69,7 +69,7 @@ enum {
 	MEMTYPE_RTOS_S1,
 	MEMTYPE_RTOS_S2,
 	MEMTYPE_LOGO_FB,
-	MEMTYPE_LOGO2_FB,	
+	MEMTYPE_LOGO2_FB,
 	MEMTYPE_SIZE,
 };
 
@@ -220,8 +220,8 @@ int nvt_fdt_embpart_lookup(char *part_node_name, unsigned short *embtype);
 int nvt_getfdt_emb(ulong fdt_addr, EMB_PARTITION *pemb);
 int nvt_getfdt_rootfs_mtd_num(ulong fdt_addr, unsigned int *mtd_num, uint32_t *ro_attr);
 int nvt_dts_config_parsing(void);
-int nvt_sparse_image_update(u32 addr, u64 off, u32 size, u32 part_size);
-int nvt_sparse_image_readback(u32 addr, u64 off, u32 size, u32 part_size);
+int nvt_sparse_image_update(u64 addr, u64 off, u64 size, u64 part_size);
+int nvt_sparse_image_readback(u64 addr, u64 off, u64 size, u64 part_size);
 
 extern int nvt_ivot_hw_init(void);
 extern int nvt_ivot_hw_init_early(void);
@@ -246,7 +246,7 @@ uint32_t nand_get_block_size(void);
 uint32_t nand_total_blocks(void);
 
 /*** DDR Util ***/
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64))
 void nvt_ddr_scan(u32 type);
 #else
 void nvt_ddr_scan(void);
@@ -262,8 +262,10 @@ extern void nvt_update_dual_rtos_info(void *p_bininfo, int boot_bank);
 
 #ifdef CONFIG_NVT_IVOT_SECBOOT_SUPPORT
 int nvt_decrypt_aes_on_uboot(unsigned long addr);
+int nvt_chk_signature_on_uboot(ulong addr, unsigned int size);
 #elif defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
 int nvt_decrypt_aes(unsigned long addr);
+int nvt_chk_signature(ulong addr, unsigned int size);
 #endif
 
 #endif /* __ARCH_COMMON_NVT_COMMON_H__ */

@@ -21,6 +21,7 @@ obj-$(CONFIG_NVT_IVOT_OPTEE_SUPPORT) += nvt_utils_cmd/nvt_ivot_optee_utils.o
 obj-$(CONFIG_NVT_IVOT_CRYPTO_CMD) += nvt_utils_cmd/nvt_ivot_crypto_cmd.o
 obj-$(CONFIG_NVT_IVOT_HASH_CMD) += nvt_utils_cmd/nvt_ivot_hash_cmd.o
 obj-$(CONFIG_NVT_IVOT_RSA_CMD) += nvt_utils_cmd/nvt_ivot_rsa_cmd.o
+obj-$(CONFIG_NVT_IVOT_ECDSA_CMD) += nvt_utils_cmd/nvt_ivot_ecdsa_cmd.o
 obj-$(CONFIG_NVT_IVOT_EFUSE_CMD) += nvt_utils_cmd/nvt_ivot_otp_cmd.o
 obj-$(CONFIG_NVT_IVOT_TZPC_SUPPORT) += nvt_utils_cmd/tzpc/nvt_ivot_tzpc_utils.o	nvt_utils_cmd/tzpc/nvt_ivot_protected.o
 obj-$(CONFIG_VIDEO_LOGO) += nvt_utils_cmd/nvt_logo/cmd_bootlogo.o

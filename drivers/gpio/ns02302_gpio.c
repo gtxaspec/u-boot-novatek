@@ -14,27 +14,29 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 
+#define GPIO_VERSION "1.0.00"
+
 struct nvt_gpio_bank {
 	phys_addr_t base;
 };
 
-#define GPIO_GETREG(ofs)	INW(IOADDR_GPIO_REG_BASE+(ofs))
+#define GPIO_GETREG(ofs)	    INW(IOADDR_GPIO_REG_BASE+(ofs))
 #define GPIO_SETREG(ofs, value)	OUTW(IOADDR_GPIO_REG_BASE +(ofs),(value))
 
 #define NVT_GPIO_STG_DATA_0		(0)
-#define NVT_GPIO_STG_DIR_0		(0x30)
-#define NVT_GPIO_STG_SET_0		(0x60)
-#define NVT_GPIO_STG_CLR_0		(0x90)
+#define NVT_GPIO_STG_DIR_0		(0x20)
+#define NVT_GPIO_STG_SET_0		(0x40)
+#define NVT_GPIO_STG_CLR_0		(0x60)
 
 static int gpio_validation(unsigned pin)
 {
-	if ((pin < C_GPIO(0)) || (pin > C_GPIO(25) && pin < P_GPIO(0)) || \
-	(pin > P_GPIO(46) && pin < D_GPIO(0)) || \
-	(pin > D_GPIO(14) && pin < L_GPIO(0)) || \
-	(pin > L_GPIO(30) && pin < S_GPIO(0)) || \
-	(pin > S_GPIO(31) && pin < DSI_GPIO(0)) || \
-	(pin > DSI_GPIO(13) && pin < A_GPIO(0)) || \
-	 (pin > A_GPIO(3))) {
+	if ((pin < C_GPIO(0)) || (pin > C_GPIO(23) && pin < P_GPIO(0)) || \
+	(pin > P_GPIO(24) && pin < S_GPIO(0)) || \
+	(pin > S_GPIO(15) && pin < L_GPIO(0)) || \
+	(pin > L_GPIO(24) && pin < D_GPIO(0)) || \
+	(pin > D_GPIO(14) && pin < HSI_GPIO(0)) || \
+	(pin > HSI_GPIO(23) && pin < A_GPIO(0)) || \
+	 (pin > A_GPIO(2))) {
 		printf("The gpio number is out of range\n");
 		return E_NOSPT;
 	} else
@@ -149,6 +151,7 @@ static const struct dm_gpio_ops gpio_nvt_ops = {
 
 static int nvt_gpio_probe(struct udevice *dev)
 {
+	printf("GPIO version: %s\n", GPIO_VERSION);
 	return 0;
 }
 
@@ -156,7 +159,7 @@ static int nvt_gpio_ofdata_to_platdata(struct udevice *dev)
 {
 	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 
-	uc_priv->gpio_count = 288;
+	uc_priv->gpio_count = 224;
 	uc_priv->bank_name = "nvt-gpio";
 
 	return 0;

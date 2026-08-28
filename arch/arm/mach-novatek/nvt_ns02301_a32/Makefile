@@ -10,5 +10,4 @@ obj-y	+= soc.o
 obj-y	+= clock.o
 obj-y	+= crypto.o
 obj-y	+= nvt-otp.o
-obj-y   += timer.o
 obj-$(CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT)	+= ddr_slow_down.o

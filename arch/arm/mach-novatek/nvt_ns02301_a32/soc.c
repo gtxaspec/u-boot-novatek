@@ -4,7 +4,7 @@
     @file       soc.c
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2019.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2023.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as
@@ -15,10 +15,8 @@
 #include <common.h>
 #include <asm/armv7.h>
 #include <asm/io.h>
-//#include <asm/arch/soc.h>
 #include <asm/arch/clock.h>
 #include <asm/nvt-common/nvt_ivot_optee.h>
-//#include <asm/arch/gpio.h>
 #include <asm/arch/ns02301_regs.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
@@ -93,10 +91,14 @@ U_BOOT_DEVICE(ns16550_com1) = {
 
 int serial_preinit(void)
 {
-#if (!CONFIG_UART2_PINMUX_NONE || !CONFIG_UART3_PINMUX_NONE || \
-	!CONFIG_UART4_PINMUX_NONE || !CONFIG_UART5_PINMUX_NONE || \
-	!CONFIG_UART6_PINMUX_NONE || !CONFIG_UART7_PINMUX_NONE || \
-	!CONFIG_UART8_PINMUX_NONE || !CONFIG_UART9_PINMUX_NONE)
+#if ( CONFIG_UART2_PINMUX_CHANNEL_1 || \
+	CONFIG_UART3_PINMUX_CHANNEL_1 || \
+	CONFIG_UART4_PINMUX_CHANNEL_1 || CONFIG_UART4_PINMUX_CHANNEL_2 || \
+	CONFIG_UART5_PINMUX_CHANNEL_1 || CONFIG_UART5_PINMUX_CHANNEL_2 || \
+	CONFIG_UART6_PINMUX_CHANNEL_1 || CONFIG_UART6_PINMUX_CHANNEL_2 || \
+	CONFIG_UART7_PINMUX_CHANNEL_1 || CONFIG_UART7_PINMUX_CHANNEL_2 || \
+	CONFIG_UART8_PINMUX_CHANNEL_1 || CONFIG_UART8_PINMUX_CHANNEL_2 || \
+	CONFIG_UART9_PINMUX_CHANNEL_1 || CONFIG_UART9_PINMUX_CHANNEL_2)
 	u32 value;
 #endif
 
@@ -277,30 +279,30 @@ int serial_preinit(void)
 
 static void enable_ca7_smp(void)
 {
-        u32 val;
+	u32 val;
 
-        /* Read MIDR */
-        asm volatile ("mrc p15, 0, %0, c0, c0, 0\n\t" : "=r"(val));
-        val = (val >> 4);
-        val &= 0xf;
+	/* Read MIDR */
+	asm volatile ("mrc p15, 0, %0, c0, c0, 0\n\t" : "=r"(val));
+	val = (val >> 4);
+	val &= 0xf;
 
-        /* Only set the SMP for Cortex A7 */
-        if (val == 0x7) {
-                /* Read auxiliary control register */
-                asm volatile ("mrc p15, 0, %0, c1, c0, 1\n\t" : "=r"(val));
+	/* Only set the SMP for Cortex A7 */
+	if (val == 0x7) {
+			/* Read auxiliary control register */
+			asm volatile ("mrc p15, 0, %0, c1, c0, 1\n\t" : "=r"(val));
 
-                if (val & (1 << 6))
-                        return;
+			if (val & (1 << 6))
+					return;
 
-                /* Enable SMP */
-                val |= (1 << 6);
+			/* Enable SMP */
+			val |= (1 << 6);
 
-                /* Write auxiliary control register */
-                asm volatile ("mcr p15, 0, %0, c1, c0, 1\n\t" : : "r"(val));
+			/* Write auxiliary control register */
+			asm volatile ("mcr p15, 0, %0, c1, c0, 1\n\t" : : "r"(val));
 
-                DSB;
-                ISB;
-        }
+			DSB;
+			ISB;
+	}
 }
 
 void enable_caches(void)
@@ -416,44 +418,10 @@ void v7_outer_cache_disable(void)
 
 void cpu_cache_initialization(void)
 {
-    unsigned int actlr;
-    unsigned long aux_val = 0;
-    unsigned long prefetch_ctrl_val = 0;
-
-#ifdef CONFIG_SYS_L2_PL310
-    #ifdef CONFIG_NVT_IVOT_OPTEE_SUPPORT
-    nvt_ivot_actlr_smp_cfg(1);
-    nvt_ivot_l2_aux_ctrl_cfg(0x72400000);
-    aux_val = readl(L2_REG1_AUX_CTRL);
-    #else
-    asm volatile ("mrc p15, 0, %0, c1, c0, 1" : "=r" (actlr));
-    // ACTLR.SMP = 1
-    actlr &= ~0x40;
-    asm volatile ("mcr p15, 0, %0, c1, c0, 1" : : "r" (actlr));
-    printf("ACTLR: 0x%08x\n", actlr);
-    actlr |= 0x40;
-    asm volatile ("mcr p15, 0, %0, c1, c0, 1" : : "r" (actlr));
-    printf("ACTLR: 0x%08x\n", actlr);
-    aux_val = readl(L2_REG1_AUX_CTRL);
-    aux_val &= 0x000fffff;
-    aux_val |= 0x72400000;
-    writel(aux_val, L2_REG1_AUX_CTRL);
-    aux_val = readl(L2_REG1_AUX_CTRL);
-    writel(0x70800000, L2_REG1_PREFETCH_CTRL);
-    #endif
-#endif
-
     printf("Disable MMU\n");
     DISABLE_MMU();
     printf("Clear MMU\n");
     CLEAR_MMU();
-
-#if !defined(CONFIG_SYS_L2CACHE_OFF) && defined(CONFIG_SYS_PL310_BASE)
-    prefetch_ctrl_val = readl(L2_REG1_PREFETCH_CTRL);
-    printf("Uboot L2 cache aux val: 0x%08lx\n", aux_val);
-    printf("Uboot L2 cache prefetch ctrl val: 0x%08lx\n", prefetch_ctrl_val);
-    printf("Uboot L2 cache ctrl val: 0x%08lx\n", L2_REG1_CONTROL);
-#endif
     printf("Done\n");
 }
 
@@ -477,14 +445,14 @@ u32 nvt_get_chip_ver(void)
 	unsigned int chip_ver;
 
 	chip_ver = TOP_GETROMVER();
-    if(chip_ver == TOP_ROMVER_A) {
-        return CHIPVER_A;
-    } else if(chip_ver == TOP_ROMVER_B) {
-        return CHIPVER_B;
-    } else {
+	if(chip_ver == TOP_ROMVER_A) {
+		return CHIPVER_A;
+	} else if(chip_ver == TOP_ROMVER_B) {
+		return CHIPVER_B;
+	} else {
 		printf("force to Ver B\n");
-        return CHIPVER_B;
-    }
+		return CHIPVER_B;
+	}
 
 	return chip_ver;
 }

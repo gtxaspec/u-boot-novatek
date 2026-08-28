@@ -526,6 +526,16 @@ config NS02302_GPIO
           Supported devices:
           - NS02302 Series
 
+config NS02301_GPIO
+        bool "Novatek GPIO driver"
+        depends on DM_GPIO && (TARGET_NS02301 || TARGET_NS02301_A64)
+        select GPIO_EXTRA_HEADER
+        default n
+        help
+          Support GPIO controllers on Novatek Video Platform family of SoCs.
+          Supported devices:
+          - NS02301 Series
+
 config NX_GPIO
 	bool "Nexell GPIO driver"
 	depends on DM_GPIO

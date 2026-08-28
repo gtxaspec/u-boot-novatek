@@ -46,7 +46,7 @@
 #include <linux/libfdt.h>
 #include <linux/delay.h>
 
-#define ETHVERSION "1.0.0.3"
+#define ETHVERSION "1.0.0.7"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
@@ -879,6 +879,7 @@ static int eqos_start(struct udevice *dev)
 	 */
 	pbl = tqs + 1;
 	if (pbl > 32)
+		// coverity[assigned_value]
 		pbl = 32;
 
 	clrsetbits_le32(&eqos->dma_regs->ch0_tx_control,
@@ -1132,7 +1133,7 @@ static int eqos_recv(struct udevice *dev, int flags, uchar **packetp)
 static int eqos_probe_resources_core(struct udevice *dev)
 {
 	struct eqos_priv *eqos = dev_get_priv(dev);
-	int ret;
+	int ret = 0;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -1176,7 +1177,7 @@ static int eqos_probe_resources_core(struct udevice *dev)
 	}
 	debug("%s: rx_dma_buf=%p, size:%d\n", __func__, eqos->rx_dma_buf, EQOS_RX_BUFFER_SIZE);
 
-    if((ulong)eqos->tx_dma_buf > REG32_MASK ){
+    if((ulong)eqos->rx_dma_buf > REG32_MASK ){
         pr_err("<---------fail Rx Buffer alloc over 32 bit -------------> %p \r\n", eqos->rx_dma_buf);
         goto err_free_rx_dma_buf;
     }
@@ -1255,7 +1256,7 @@ typedef enum {
 	PIN_ETH_CFG_ETH2_RGMII_1    = 0x001000,       ///< RGMII2 (L_GPIO[3..16])  @L_GPIO3[]|L_GPIO4[]|L_GPIO5[]|L_GPIO6[]|L_GPIO7[]|L_GPIO8[]|L_GPIO9[]|L_GPIO10[]|L_GPIO11[]|L_GPIO12[]|L_GPIO13[]|L_GPIO14[]|L_GPIO15[]|L_GPIO16[]
 	PIN_ETH_CFG_ETH2_RGMII_2    = 0x002000,       ///< RGMII2 (S_GPIO[0..13])  @S_GPIO0[]|S_GPIO1[]|S_GPIO2[]|S_GPIO3[]|S_GPIO4[]|S_GPIO5[]|S_GPIO6[]|S_GPIO7[]|S_GPIO8[]|S_GPIO9[]|S_GPIO10[]|S_GPIO111[]|S_GPIO12[]|S_GPIO13[]
 	PIN_ETH_CFG_ETH2_RMII_1     = 0x010000,       ///< RMII2  (L_GPIO[3..5],L_GPIO[9..12],L_GPIO[15..16])   @L_GPIO3[]|L_GPIO4[]|L_GPIO5[]|L_GPIO9[]|L_GPIO10[]|L_GPIO11[]|L_GPIO12[]|L_GPIO15[]|L_GPIO16[]
-	PIN_ETH_CFG_ETH2_RMII_2     = 0x010000,       ///< RMII2  (S_GPIO[0..2],S_GPIO[6..9],S_GPIO[12..13])   @S_GPIO0[]|S_GPIO1[]|S_GPIO2[]|S_GPIO6[]|S_GPIO7[]|S_GPIO8[]|S_GPIO9[]|S_GPIO12[]|S_GPIO13[]
+	PIN_ETH_CFG_ETH2_RMII_2     = 0x020000,       ///< RMII2  (S_GPIO[0..2],S_GPIO[6..9],S_GPIO[12..13])   @S_GPIO0[]|S_GPIO1[]|S_GPIO2[]|S_GPIO6[]|S_GPIO7[]|S_GPIO8[]|S_GPIO9[]|S_GPIO12[]|S_GPIO13[]
 	PIN_ETH_CFG_ETH2_EXTPHYCLK  = 0x100000,       ///< ETH2_EXT_PHY_CLK(L_GPIO[17]) @L_GPIO17[]
 	PIN_ETH_CFG_ETH2_PTP        = 0x200000,       ///< ETH2_PTP(P_GPIO[24])  @P_GPIO24[]
 
@@ -2103,6 +2104,11 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	}
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
+	if (!cell) {
+		printf("%s: pinmux not found\n", __func__);
+		return -1;
+	}
+
 	if (len == 0) {
 		printf("%s(%d) len = 0\n", __func__, __LINE__);
 		return -1;
@@ -2118,11 +2124,21 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	}
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
+	if (!cell) {
+		printf("%s: sp-clk not found\n", __func__);
+		return -1;
+	}
+
 	if (len != 0) {
 		phy_clk = __be32_to_cpu(cell[0]);
 	}
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "ref-clk-out", &len);
+	if (!cell) {
+		printf("%s: ref-clk-out not found\n", __func__);
+		return -1;
+	}
+
 	if (len != 0) {
 		ref_clk_out = __be32_to_cpu(cell[0]);
 	}
@@ -2146,9 +2162,9 @@ static int eth_parse_phy_intf(unsigned long base_addr)
         pin_num = 2;
 	} else {
 		printf("%s: pinmux detect emb phy 0x%x\r\n", __func__, phy_intf);
-        printf("%s: don't have sup embd. return \r\n",__func__);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_MII;
-        return -1;
+		printf("%s: don't have sup embd. return \r\n",__func__);
+	//	ETH_PHY_INTF = PHY_INTERFACE_MODE_MII;
+		return -1;
 	}
 
     if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_ext_phy){
@@ -2236,7 +2252,7 @@ static int eqos_initialize(struct udevice *dev, unsigned long base_addr)
 	eqos->mii->read = eqos_mdio_read;
 	eqos->mii->write = eqos_mdio_write;
 	eqos->mii->priv = eqos;
-	strcpy(eqos->mii->name, dev->name);
+	strncpy(eqos->mii->name, dev->name, sizeof(eqos->mii->name) - 1);
 
 	ret = mdio_register(eqos->mii);
 	if (ret < 0) {

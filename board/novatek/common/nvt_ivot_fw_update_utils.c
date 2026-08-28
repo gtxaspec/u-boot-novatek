@@ -43,7 +43,8 @@ EMB_PARTITION_FDT_TRANSLATE_TABLE emb_part_fdt_map[EMBTYPE_TOTAL_SIZE] = {
 	{"partition_mbr", EMBTYPE_MBR},
 	{"partition_loader", EMBTYPE_LOADER},
 	{"partition_fdt", EMBTYPE_FDT},
-	{"partition_fdt.app", EMBTYPE_FDT},
+	{"partition_fdt.app", EMBTYPE_FDT},  // fastboot application.bin (fdt format)
+	{"partition_fdt.fast", EMBTYPE_FDT}, // fastboot nvt-fastboot.bin (fdt format)
 	{"partition_teeos", EMBTYPE_TEEOS},
 	{"partition_uboot", EMBTYPE_UBOOT},
 	{"partition_uenv", EMBTYPE_UENV},
@@ -88,33 +89,33 @@ int nvt_chk_mtd_fdt_is_null(void)
 		}
 	}
 
+	if(id == EMB_PARTITION_INFO_COUNT){
+		nvt_dbg(ERR, "Failed to find fdt partition.\r\n");
+		return -1;
+	}
+
 	void *tmp_model_ptr = memalign(ARCH_DMA_MINALIGN, pEmb[id].PartitionSize);
-	#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT)
-		#if defined(CONFIG_NVT_SPI_NOR_NAND)
-			sprintf(command, "sf read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
-		#else
-			sprintf(command, "nand read %x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
-		#endif
-	#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT)
-		sprintf(command, "mmc read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
-	#else
-		#if defined(NVT_LINUX_RAMDISK_SUPPORT)
-			#if defined(CONFIG_NVT_SPI_NAND)
-				sprintf(command, "nand read %x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+	if ( tmp_model_ptr == NULL)
+	{
+		nvt_dbg(ERR, "Failed allocate tmp_model_ptr.\r\n");
+		return -1;
+	}
 
-			#elif defined(CONFIG_NVT_SPI_NOR)
-				sprintf(command, "sf read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+	switch(pEmb[id].FlashType) {
+		case FLASHTYPE_NOR:
+			sprintf(command, "sf read 0x%lx 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+			break;
+		case FLASHTYPE_NAND:
+			sprintf(command, "nand read %lx 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+			break;
+		case FLASHTYPE_EMMC:
+			sprintf(command, "mmc read 0x%lx 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
+			break;
+		default:
+			printf("%s %s:flash type %d is not support %s\r\n", ANSI_COLOR_RED, __func__, pEmb[id].FlashType, ANSI_COLOR_RESET);
+			ret = -1;
+	}
 
-			#elif defined(CONFIG_NVT_IVOT_EMMC)
-				sprintf(command, "mmc read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
-			#else
-				printf("nvt_chk_mtd_fdt_is_null, no flash or emmc for ramdisk boot\n");
-			#endif
-		#else
-			sprintf(command, "sf read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
-
-		#endif
-	#endif
 	nvt_dbg(IND, "%s: cmd:%s\n",__func__, command);
 	ret = run_command(command, 0);
 	if (ret < 0)
@@ -147,10 +148,10 @@ int nvt_fw_load_tbin(void)
 	else {
 		ret = fs_read(get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), (ulong)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, 0, 0, &size);
 		if (size <= 0 || ret < 0) {
-			nvt_dbg(ERR, "Read %s at 0x%x failed ret=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
+			nvt_dbg(ERR, "Read %s at 0x%lx failed ret=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
 			return ERR_NVT_UPDATE_READ_FAILED;
 		} else {
-			nvt_dbg(IND, "Read %s at 0x%x successfully, size=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
+			nvt_dbg(IND, "Read %s at 0x%lx successfully, size=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
 		}
 	}
 
@@ -336,7 +337,7 @@ int get_part_and_flash_type(const char *partname, loff_t *off, loff_t *maxsize, 
 			*flash_type = FLASHTYPE_NAND;
 			break;
 		default:
-			printf("%s %s:flash type %d is not NOR or NAND %s\r\n", ANSI_COLOR_RED, __func__, flash_type, ANSI_COLOR_RESET);
+			printf("%s %s:flash type %d is not NOR or NAND %s\r\n", ANSI_COLOR_RED, __func__, *flash_type, ANSI_COLOR_RESET);
 			return -1;
 			break;
 	}
@@ -368,6 +369,10 @@ char *get_nvt_bin_name(NVT_BIN_NAME_TYPE type)
 	}
 
 	nodep = fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "BIN_NAME", &len);
+	// check before calling strcpy
+	if (nodep == NULL) {
+		return NULL;
+	}
 
 	if (nvt_bin_name == NULL) {
 		nvt_bin_name = calloc(sizeof(char),15);
@@ -478,6 +483,10 @@ int nvt_flash_mark_bad(void)
 	#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT)
 	int i = 0, ret = 0;
 	struct mtd_info *mtd = get_nand_dev_by_index(nand_curr_device);
+	if (!mtd) {
+		printf("cannot get nand device");
+		return -1;
+	}
 
 	for (i = 0; i < 100; i++) {
 		if (nvt_flash_ecc_err_pages[i] != 0) {
@@ -526,7 +535,9 @@ int nvt_enum_fdt_props(ulong fdt_addr, char *part_node_name, void *pdata,
 		}
 
 		/* get node path to decide if this loop is end */
-		fdt_get_path((const void*)fdt_addr, nodeoffset, path, sizeof(path));
+		if (fdt_get_path((const void*)fdt_addr, nodeoffset, path, sizeof(path)) < 0) {
+			return -1;
+		}
 		if (strncmp(realpath_part_node_name, path, strlen(realpath_part_node_name)) != 0) {
 			if (part_num > EMB_PARTITION_INFO_COUNT) {
 				printf("%s Your partition table total number is more than %d %s\r\n", ANSI_COLOR_RED, EMB_PARTITION_INFO_COUNT, ANSI_COLOR_RESET);
@@ -633,11 +644,14 @@ getfdt_again:
 	}
 
 	val = fdt_getprop((const void*)fdt_addr, nodeoffset, "reg", NULL);
-	if (!val)
-	    printf("fdt_getprop fail\n");
+	if (!val) {
+		printf("fdt_getprop fail\n");
+		return -1;
+	}
+
 	addr = be64_to_cpu(val[0]);
 	size = be64_to_cpu(val[1]);
-	debug("addr = 0x%x, size = 0x%x\n", addr, size);
+	debug("addr = 0x%llx, size = 0x%llx\n", addr, size);
 	ret = nvt_fdt_embpart_lookup(part_node_name, &pemb[part_id].EmbType);
 	if (ret < 0) {
 		pemb[part_id].PartitionOffset = addr;
@@ -679,7 +693,7 @@ static int nvt_check_filename(char *part_node_name)
 
 	len = strlen(part_node_name);
 	if(len > 255) {
-		printf("file name len %d error\n", len);
+		printf("file name len %lu error\n", len);
 		return ret;
 	}
 	while (!isspace(part_node_name[i]) && len && i < len) {
@@ -821,19 +835,42 @@ int nvt_getfdt_rootfs_mtd_num(ulong fdt_addr, unsigned int *mtd_num, uint32_t *r
 /*** NAND Util ***/
 uint32_t nand_get_page_size(void)
 {
+	uint32_t size = 0;
 	struct mtd_info *mtd = get_nand_dev_by_index(nand_curr_device);
-	return mtd->writesize;
+
+	if(mtd == NULL) {
+		printf("%s:%d got NULL mtd_info\n", __FILE__, __LINE__);
+	} else {
+		size = mtd->writesize;
+	}
+
+	return size;
 }
 
 uint32_t nand_get_block_size(void)
 {
+	uint32_t size = 0;
 	struct mtd_info *mtd = get_nand_dev_by_index(nand_curr_device);
-	return mtd->erasesize;
+
+	if(mtd == NULL) {
+		printf("%s:%d got NULL mtd_info\n", __FILE__, __LINE__);
+	} else {
+		size = mtd->erasesize;
+	}
+
+	return size;
 }
 
 uint32_t nand_total_blocks(void)
 {
+	uint32_t blocks = 0;
 	struct mtd_info *mtd = get_nand_dev_by_index(nand_curr_device);
-	printf("NAND : total blocks number: %d\n", (uint32_t)(mtd->size >> mtd->erasesize_shift));
-	return (uint32_t)(mtd->size >> mtd->erasesize_shift);
+	if(mtd == NULL) {
+		printf("%s:%d got NULL mtd_info\n", __FILE__, __LINE__);
+	} else {
+		printf("NAND : total blocks number: %d\n", (uint32_t)(mtd->size >> mtd->erasesize_shift));
+		blocks = (uint32_t)(mtd->size >> mtd->erasesize_shift);
+	}
+
+	return blocks;
 }

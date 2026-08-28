@@ -199,14 +199,17 @@ typedef enum {
 } KDRV_VDDO_DISPLAYER;
 
 typedef enum {
-	VDDO_DISPBUFFORMAT_RGB565 = 0,             ///< Buffer uses format RGB 565.
-	VDDO_DISPBUFFORMAT_ARGB1555 = 1,             ///< Buffer uses format ARGB 1555.
-	VDDO_DISPBUFFORMAT_ARGB8888 = 3,             ///< Buffer uses format ARGB 8888.
-	VDDO_DISPBUFFORMAT_PAL8 = 7,                 ///< Buffer uses format 8bit palette.
-	VDDO_DISPBUFFORMAT_YUV422PACK = 8,           ///< Buffer uses format YUV422.
-	VDDO_DISPBUFFORMAT_YUV420PACK = 9,           ///< Buffer uses format YUV420.
-	VDDO_DISPBUFFORMAT_ARGB8565 = 10,             ///< Buffer uses format ARGB 8565.
-	VDDO_DISPBUFFORMAT_ARGB4444 = 11,             ///< Buffer uses format ARGB 4444.
+	VDDO_DISPBUFFORMAT_PAL8 = 3,                 ///< Buffer uses format 8bit palette.
+
+	VDDO_DISPBUFFORMAT_ARGB8565 = 8,             ///< Buffer uses format ARGB 8565.
+
+	VDDO_DISPBUFFORMAT_YUV422PACK = 9,           ///< Buffer uses format YUV422.
+	VDDO_DISPBUFFORMAT_YUV420PACK = 10,           ///< Buffer uses format YUV420.
+
+	VDDO_DISPBUFFORMAT_ARGB8888 = 11,             ///< Buffer uses format ARGB 8888.
+
+	VDDO_DISPBUFFORMAT_ARGB4444 = 12,             ///< Buffer uses format ARGB 4444.
+	VDDO_DISPBUFFORMAT_ARGB1555 = 13,             ///< Buffer uses format ARGB 1555.
 
 	ENUM_DUMMY4WORD(KDRV_VDDO_DISPBUFFORMAT)
 } KDRV_VDDO_DISPBUFFORMAT;
@@ -547,19 +550,10 @@ typedef struct {
 		struct { // VDDO_DISPDEV_OUTPUT_DRAM
 			IDEDATA_TYPE      y_addr;                  ///< Output Y address
 			IDEDATA_TYPE      uv_addr;                 ///< Output UV address
-			UINT32      input_width;             ///< Output width
-			UINT32      input_height;            ///< Output height
 			UINT32      output_width;            ///< Output width
 			UINT32      output_height;           ///< Output height
 			UINT32      output_line_ofs;         ///< Output line offset(unit:byte)
-			UINT32      fmt;                     ///< output format (0:420/1:422/2:YCC420)
-			UINT32      sel;                     ///<   output select path.
-			UINT32      en;                      ///<   enable
-			UINT32      crop_x;              	 ///< crop x
-			UINT32      crop_y;             	 ///< crop y
-			UINT32      crop_width;              ///< crop width
-			UINT32      crop_height;             ///< crop height
-			UINT32      crop_en;                  ////< crop_enable
+			BOOL        is_yuv422;               ///< output format (0:420/1:422)
 		} KDRV_VDDO_OUTPUT_DRAM_PAR;
 
 
@@ -707,13 +701,9 @@ typedef struct {
 
 		struct { // VDDO_DISPLAYER_COLORKEY
 			KDRV_VDDO_DISPCKOP            colorkey_op;           ///< color key operation
-			BOOL                          key_en;            ///< color key Enable/Disable
 			UINT32                        key_y;          ///< color key color Y
 			UINT32                        key_cb;         ///< color key color Cb
 			UINT32                        key_cr;         ///< color key color Cr
-			UINT32                        key_h_y;          ///< color key color Y
-			UINT32                        key_h_cb;         ///< color key color Cb
-			UINT32                        key_h_cr;         ///< color key color Cr
 			KDRV_VDDO_DISPLAYER           layer;
 		} KDRV_VDDO_COLORKEY;
 

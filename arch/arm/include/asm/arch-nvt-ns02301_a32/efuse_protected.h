@@ -82,7 +82,7 @@ typedef enum {
 #define KEY_MANAGER_CONTROL_ADDRESS             (IOADDR_EFUSE_REG_BASE + 0x20)
 #define KEY_MANAGER_STATUS_ADDRESS              (IOADDR_EFUSE_REG_BASE + 0x30)
 #define KEY_MANAGER_KEY_ENGINE_RIGHT_ADDRESS    (IOADDR_EFUSE_REG_BASE + 0x40)
-#define KEY_MANAGER_KEY_ENGINE_RIGHT2_ADDRESS   (IOADDR_EFUSE_REG_BASE + 0x44)
+
 
 #define EFUSE_TRIM_DATA_SATA1_PRI                       0x0
 #define EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI      0x1
@@ -131,6 +131,7 @@ typedef enum {
 	SECUREBOOT_SIGN_RSA,                ///< Quary if Signature methed is RSA or not(AES)
 	SECUREBOOT_SIGN_RSA_CHK,            ///< Quary if Signature hash checksum RSA key correct or not
 	SECUREBOOT_JTAG_DISABLE_EN,         ///< Quary if JTAG is disable or not(TRUE : disable)
+	SECUREBOOT_SIGN_ECDSA,              ///< Quary if Signature methed is ECDSA (once RSA ECDSA enable at the same time=> ECDSA priority high)
 
 	SECUREBOOT_1ST_KEY_SET_PROGRAMMED,  ///< Quary if 1st key set programmed or not
 	SECUREBOOT_2ND_KEY_SET_PROGRAMMED,  ///< Quary if 2nd key set programmed or not
@@ -145,15 +146,13 @@ typedef enum {
 	SECUREBOOT_4TH_KEY_SET_READ_LOCK,                                       ///< Quary if 4th key read lock already or not
 	SECUREBOOT_5TH_KEY_SET_READ_LOCK,                                       ///< Quary if 5th key read lock already or not
 	SECUREBOOT_READ_LOCK_KEY_SET_END = SECUREBOOT_5TH_KEY_SET_READ_LOCK,
-
+#if (0)
 	SECUREBOOT_DSP1_DISABLE,
 	SECUREBOOT_DSP2_DISABLE,
 	SECUREBOOT_GPU_DISABLE,
 	SECUREBOOT_MCU_DISABLE,
+#endif
 	SECUREBOOT_STATUS_NUM,
-
-	SECUREBOOT_VDEC_OVER_CLOCKING,      ///< Quary if VDEC can over clocking or not
-	SECUREBOOT_CPU_OVER_CLOCKING,       ///< Quary if CPU can over clocking or not
 
 	SECUREBOOT_HDMI_AVAILABLE,          ///< Quary if HDMI is disabled
 } SECUREBOOT_STATUS;
@@ -173,16 +172,20 @@ typedef enum {
 #define EFUSE_SECURITY_ERR                  -1006          // efuse under security mode => can not read back
 #define EFUSE_PARAM_ERR                     -1007          // efuse param error
 #define EFUSE_CONTENT_ERR                   -1008          // efuse operation error
-#define EFUSE_POWER_ON_OFF_CALLBACK_ERR		-1009			// efuse program power callback not define
+#define EFUSE_POWER_ON_OFF_CALLBACK_ERR     -1009           // efuse program power callback not define
+
 
 #define OTP_HW_SECURE_EN                    (1 << 0)
 #define OTP_FW_SECURE_EN                    (1 << 5)
 #define OTP_DATA_ENCRYPT_EN                 (1 << 7)
 #define OTP_SIGNATURE_RSA                   (1 << 1)
 #define OTP_SIGNATURE_RSA_CHK_EN            (1 << 3)
+#define OTP_SIGNATURE_ECDSA_CHKSUM_EN       OTP_SIGNATURE_RSA_CHK_EN
 #define OTP_JTAG_DISABLE_EN                 (1 << 2)
-#define EFUSE_HDMI_USAGE_BIT            	11
-#define EFUSE_HDMI_USAGE_BIT_MASK       	(0x7<<11)
+#if (0)
+#define EFUSE_HDMI_USAGE_BIT                11
+#define EFUSE_HDMI_USAGE_BIT_MASK           (0x7<<11)
+#endif
 
 #define OTP_1ST_KEY_PROGRAMMED_BIT          27
 #define OTP_2ND_KEY_PROGRAMMED_BIT          28
@@ -190,19 +193,19 @@ typedef enum {
 #define OTP_4TH_KEY_PROGRAMMED_BIT          30
 #define OTP_5TH_KEY_PROGRAMMED_BIT          31
 
+#define OTP_SIGNATURE_ECDSA_BIT             17
+
+#if (0)
 #define OTP_DSP1_DISABLE_BIT                17
 #define OTP_DSP2_DISABLE_BIT                9
 #define OTP_GPU_DISABLE_BIT                 16
-
-//2nd identify
 #define OTP_MCU_DISABLE_BIT                 0
-#define OTP_CPU_OVER_CLOCKING_BIT       	18
-#define OTP_VDEC_OVER_CLOCKING_BIT      	19
-
-#define HDMI_1ST_AVAILABLE              	(0)
-#define HDMI_1ST_DISABLE                	(0x1<<EFUSE_HDMI_USAGE_BIT)
-#define HDMI_2ND_AVAILABLE              	(0x3<<EFUSE_HDMI_USAGE_BIT)
-#define HDMI_2ND_DISABLE                	(0x7<<EFUSE_HDMI_USAGE_BIT)
+#define HDMI_1ST_AVAILABLE                  (0)
+#define HDMI_1ST_DISABLE                    (0x1<<EFUSE_HDMI_USAGE_BIT)
+#define HDMI_2ND_AVAILABLE                  (0x3<<EFUSE_HDMI_USAGE_BIT)
+#define HDMI_2ND_DISABLE                    (0x7<<EFUSE_HDMI_USAGE_BIT)
+#endif
+#define OTP_SIGNATURE_ECDSA                 (1 << OTP_SIGNATURE_ECDSA_BIT)
 
 #define OTP_1ST_KEY_PROGRAMMED              (1 << OTP_1ST_KEY_PROGRAMMED_BIT)
 #define OTP_2ND_KEY_PROGRAMMED              (1 << OTP_2ND_KEY_PROGRAMMED_BIT)
@@ -210,13 +213,12 @@ typedef enum {
 #define OTP_4TH_KEY_PROGRAMMED              (1 << OTP_4TH_KEY_PROGRAMMED_BIT)
 #define OTP_5TH_KEY_PROGRAMMED              (1 << OTP_5TH_KEY_PROGRAMMED_BIT)
 
+#if (0)
 #define OTP_DSP1_DISABLE                    (1 << OTP_DSP1_DISABLE_BIT)
 #define OTP_DSP2_DISABLE                    (1 << OTP_DSP2_DISABLE_BIT)
 #define OTP_GPU_DISABLE                     (1 << OTP_GPU_DISABLE_BIT)
 #define OTP_MCU_DISABLE                     (1 << OTP_MCU_DISABLE_BIT)
-#define OTP_CPU_OVER_CLOCKING           	(1 << OTP_CPU_OVER_CLOCKING_BIT)
-#define OTP_VDEC_OVER_CLOCKING_AVL      	(1 << OTP_VDEC_OVER_CLOCKING_BIT)
-
+#endif
 
 #define OTP_1ST_KEY_READ_LOCK_BIT           22
 #define OTP_2ND_KEY_READ_LOCK_BIT           23
@@ -240,7 +242,9 @@ typedef enum {
 #define is_secure_enable()                  quary_secure_boot(SECUREBOOT_SECURE_EN)
 #define is_data_area_encrypted()            quary_secure_boot(SECUREBOOT_DATA_AREA_ENCRYPT)
 #define is_signature_rsa()                  quary_secure_boot(SECUREBOOT_SIGN_RSA)
+#define is_signature_ecdsa()                quary_secure_boot(SECUREBOOT_SIGN_ECDSA)
 #define is_signature_rsa_chsum_enable()     quary_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
+#define is_signature_chsum_enable()         quary_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
 #define is_signature_aes()                  !quary_secure_boot(SECUREBOOT_SIGN_RSA)
 #define is_JTAG_DISABLE_en()                quary_secure_boot(SECUREBOOT_JTAG_DISABLE_EN)
 
@@ -256,18 +260,19 @@ typedef enum {
 #define is_3rd_key_read_lock()              quary_secure_boot(SECUREBOOT_3RD_KEY_SET_READ_LOCK)
 #define is_4th_key_read_lock()              quary_secure_boot(SECUREBOOT_4TH_KEY_SET_READ_LOCK)
 #define is_5th_key_read_lock()              quary_secure_boot(SECUREBOOT_5TH_KEY_SET_READ_LOCK)
+
+#if (0)
 #define is_hdmi_available()                 quary_secure_boot(SECUREBOOT_HDMI_AVAILABLE)
 #define is_DSP1_available()                 !quary_secure_boot(SECUREBOOT_DSP1_DISABLE)
 #define is_DSP2_available()                 !quary_secure_boot(SECUREBOOT_DSP2_DISABLE)
 #define is_GPU_available()                  !quary_secure_boot(SECUREBOOT_GPU_DISABLE)
 #define is_MCU_available()                  !quary_secure_boot(SECUREBOOT_MCU_DISABLE)
-
-#define is_hdmi_disable()                 	!quary_secure_boot(SECUREBOOT_HDMI_AVAILABLE)
+#define is_hdmi_disable()                   !quary_secure_boot(SECUREBOOT_HDMI_AVAILABLE)
 #define is_DSP1_disable()                   quary_secure_boot(SECUREBOOT_DSP1_DISABLE)
 #define is_DSP2_disable()                   quary_secure_boot(SECUREBOOT_DSP2_DISABLE)
 #define is_GPU_disable()                    quary_secure_boot(SECUREBOOT_GPU_DISABLE)
 #define is_MCU_disable()                    quary_secure_boot(SECUREBOOT_MCU_DISABLE)
-
+#endif
 
 extern s32  otp_set_key_read_lock(EFUSE_OTP_KEY_SET_FIELD key_set_index);
 extern s32  otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index);
@@ -297,11 +302,15 @@ extern void otp_init(void);
 #define efuse_jtag_dis()                enable_secure_boot(SECUREBOOT_JTAG_DISABLE_EN)
 #define efuse_data_area_encrypt_en()    enable_secure_boot(SECUREBOOT_DATA_AREA_ENCRYPT)
 #define efuse_signature_rsa_en()        enable_secure_boot(SECUREBOOT_SIGN_RSA)
+#define efuse_signature_ecdsa_en()      enable_secure_boot(SECUREBOOT_SIGN_ECDSA)
 #define efuse_signature_rsa_chksum_en() enable_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
+#define efuse_signature_chksum_en()     enable_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
 
+#if (0)
 #define efuse_DSP1_dis()                enable_secure_boot(SECUREBOOT_DSP1_DISABLE)
 #define efuse_DSP2_dis()                enable_secure_boot(SECUREBOOT_DSP2_DISABLE)
-#define efuse_GPU_dis()                	enable_secure_boot(SECUREBOOT_GPU_DISABLE)
-#define efuse_MCU_dis()                	enable_secure_boot(SECUREBOOT_MCU_DISABLE)
+#define efuse_GPU_dis()                 enable_secure_boot(SECUREBOOT_GPU_DISABLE)
+#define efuse_MCU_dis()                 enable_secure_boot(SECUREBOOT_MCU_DISABLE)
+#endif
 #endif /* __ARCH_EFUSE_PROTECTED_H */
 

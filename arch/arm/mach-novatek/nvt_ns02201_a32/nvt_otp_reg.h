@@ -5,8 +5,8 @@
 #include <asm/nvt-common/rcw_macro.h>
 
 
-#define EFUSE_LOT_ID1		0xa
-#define EFUSE_LOT_ID2		0xb
+#define EFUSE_LOT_ID1       0xa
+#define EFUSE_LOT_ID2       0xb
 
 REGDEF_BEGIN(EFUSE_LOT_ID1_REG)
 REGDEF_BIT(lot_id_no_1_5_0, 6)

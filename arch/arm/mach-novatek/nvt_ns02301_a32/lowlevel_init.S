@@ -72,7 +72,7 @@ ENTRY(local_load)
     STMFD   r13!, {r4-r8, r14}
     MOV	  r4, r0
 
-    MOVW  r2, #0xF024
+    MOVW  r2, #0xF066
 
     @ ==========================================================================
     @ Check if address < 4 (only allow read address 0~3)
@@ -82,7 +82,7 @@ ENTRY(local_load)
 #	MOV   r8, #8	                	@param != this No. break
     MOV   r8, #0		                @param > 31. break(all address can be read)
 
-    MOV   r5, #0x3F
+    MOV   r5, #0x1F
     AND   r5, r4, r5
     CMP   r8, r5
 
@@ -148,18 +148,18 @@ ENDPROC(local_load)
 ENTRY(local_store)
     STMFD   r13!, {r4-r8, r14}		@ Only allow program efuse once if column address >= 16
     MOV	  r4, r0
-    MOVW  r2, #0xF024
+    MOVW  r2, #0xF066
 
     MOV   r0, #-33					@r0 = E_PAR
 
     MOV   r8, #0                    @addr
 
-    MOV   r5, #0x3F
+    MOV   r5, #0x1F
     AND   r5, r4, r5
     CMP   r8, r5
 	BGT   END_PROG_STORE
     @ ==========================================================================
-    @ now r0 = 0xF0240000
+    @ now r0 = 0xF0660000
     @ ==========================================================================
     MOV   r0, r2, lsl#16
 

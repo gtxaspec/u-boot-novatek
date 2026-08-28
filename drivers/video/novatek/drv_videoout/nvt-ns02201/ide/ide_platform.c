@@ -135,6 +135,8 @@ unsigned int ide_pa_en[LCD_ID_1+3]={0,0,0};
 #define PLL_CLKSEL_R13_OFFSET       416
 #define PLL_CLKSEL_R14_OFFSET       448
 #define PLL_CLKSEL_R15_OFFSET       480
+#define PLL_CLKSEL_RLITE_OFFSET       6272
+
 
 #define PLL_CLKSEL_LCD_CLKSRC_OFFSET		20
 #define PLL_CLKSEL_LCD2_CLKSRC_OFFSET		24
@@ -150,7 +152,7 @@ typedef enum {
 	LCD_CLK =37,		    ///< IDE clock
 	LCD1_CLK = LCD_CLK,
 	LCD2_CLK,		    ///< IDE2 clock
-	LCD_LITE_CLK,		    ///< IDE2 clock
+	LCD_LITE_CLK = LCD_CLK+14,		    ///< IDE lite clock
 	ENUM_DUMMY4WORD(CG_EN)
 } CG_EN;
 
@@ -163,12 +165,15 @@ typedef enum {
 typedef enum {
 	PLL_CLKSEL_LCD_CLKSRC = 	PLL_CLKSEL_R5_OFFSET + 20,	//< Clock Select Module ID: IDE clock source
 	PLL_CLKSEL_LCD2_CLKSRC =	PLL_CLKSEL_R5_OFFSET + 24,	//< Clock Select Module ID: IDE2 clock source
+	PLL_CLKSEL_LCD_LITE_CLKSRC =	PLL_CLKSEL_R5_OFFSET + 0,	//< Clock Select Module ID: IDE lite clock source
 
 	//Display Clock Divider bit definition
 	PLL_CLKSEL_LCD_CLKDIV = 	PLL_CLKSEL_R15_OFFSET + 0,	//< Clock Select Module ID: IDE clock divider
 	PLL_CLKSEL_LCD_OUTIF_CLKDIV = PLL_CLKSEL_R15_OFFSET + 8, //< Clock Select Module ID: IDE Output Interface clock divider
 	PLL_CLKSEL_LCD2_CLKDIV =	PLL_CLKSEL_R15_OFFSET + 16, //< Clock Select Module ID: IDE2 clock divider
 	PLL_CLKSEL_LCD2_OUTIF_CLKDIV = PLL_CLKSEL_R15_OFFSET + 24, //< Clock Select Module ID: IDE2 Output Interface clock divider
+	PLL_CLKSEL_LCD_LITE_CLKDIV =	PLL_CLKSEL_RLITE_OFFSET + 0, //< Clock Select Module ID: IDE lite clock divider
+	PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV = PLL_CLKSEL_RLITE_OFFSET + 8, //< Clock Select Module ID: IDE lite Output Interface clock divider	
 
 	PLL_CLKSEL_MAX_ITEM,									// magic number for pll checking usage.
 	ENUM_DUMMY4WORD(PLL_CLKSEL)
@@ -220,13 +225,25 @@ typedef enum {
 #define PLL_CLKSEL_LCD2_CLKSRC_PLL9  (0x03 << (PLL_CLKSEL_LCD2_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE2 clock source as PLL10 (for IDE2)
 #define PLL_CLKSEL_LCD2_CLKSRC_PLL10  (0x04 << (PLL_CLKSEL_LCD2_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE2 clock source as PLL17 (for DSI)
 
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_480    (0x00 << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE LITE clock source as 480 MHz
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_PLL8   (0x01 << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE LITE clock source as PLL9 (for IDE)
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_192    (0x02 << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE LITE clock source as 192MHz
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_PLL9   (0x03 << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE LITE clock source as PLL10 (for IDE lite)
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_PLL10  (0x04 << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE LITE clock source as PLL17 (for DSI)
+
+
 #define PLL_CLKSEL_LCD_CLKSRC_MASK      (0x0F << (PLL_CLKSEL_LCD_CLKSRC - PLL_CLKSEL_R5_OFFSET))
 #define PLL_CLKSEL_LCD2_CLKSRC_MASK     (0x0F << (PLL_CLKSEL_LCD2_CLKSRC - PLL_CLKSEL_R5_OFFSET))
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_MASK   (0x0F << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))
+
 /*r15*/
 #define PLL_CLKSEL_LCD_CLKDIV_MASK        (0xFF << (PLL_CLKSEL_LCD_CLKDIV - PLL_CLKSEL_R15_OFFSET))
 #define PLL_CLKSEL_LCD_OUTIF_CLKDIV_MASK  (0xFF << (PLL_CLKSEL_LCD_OUTIF_CLKDIV - PLL_CLKSEL_R15_OFFSET))
 #define PLL_CLKSEL_LCD2_CLKDIV_MASK       (0xFF << (PLL_CLKSEL_LCD2_CLKDIV - PLL_CLKSEL_R15_OFFSET))
 #define PLL_CLKSEL_LCD2_OUTIF_CLKDIV_MASK (0xFF << (PLL_CLKSEL_LCD2_OUTIF_CLKDIV - PLL_CLKSEL_R15_OFFSET))
+#define PLL_CLKSEL_LCD_LITE_CLKDIV_MASK       (0xFF << (PLL_CLKSEL_LCD_LITE_CLKDIV - PLL_CLKSEL_RLITE_OFFSET))
+#define PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV_MASK (0xFF << (PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV - PLL_CLKSEL_RLITE_OFFSET))
+
 
 
 /*
@@ -291,6 +308,8 @@ UINT32 pll_get_clock_mask(UINT32 ui_num)
 		return PLL_CLKSEL_LCD_CLKSRC_MASK;
 	case PLL_CLKSEL_LCD2_CLKSRC:
 		return PLL_CLKSEL_LCD2_CLKSRC_MASK;
+	case PLL_CLKSEL_LCD_LITE_CLKSRC:
+		return PLL_CLKSEL_LCD_LITE_CLKSRC_MASK;		
 
 	/*R15*/
 	case PLL_CLKSEL_LCD_CLKDIV:
@@ -301,6 +320,11 @@ UINT32 pll_get_clock_mask(UINT32 ui_num)
 		return PLL_CLKSEL_LCD2_CLKDIV_MASK;
 	case PLL_CLKSEL_LCD2_OUTIF_CLKDIV:
 		return PLL_CLKSEL_LCD2_OUTIF_CLKDIV_MASK;
+
+	case PLL_CLKSEL_LCD_LITE_CLKDIV:
+		return PLL_CLKSEL_LCD_LITE_CLKDIV_MASK;
+	case PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV:
+		return PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV_MASK;		
 
 	default:
 		DBG_ERR("Non-supported Clk Mask ID! (0x%x)\r\n", (UINT)ui_num);
@@ -523,6 +547,67 @@ void pll_set_clock_rate(PLL_CLKSEL clk_sel, UINT32 ui_value)
 
 
 
+ER pll_set_driver_pll_ide(PLL_ID id, UINT32 ui_setting)
+{
+
+	BOOL b_en;
+	unsigned long flags = 0;
+	T_PLL_PLL2_CR0_REG reg0 = {0};
+	T_PLL_PLL2_CR1_REG reg1 = {0};
+	T_PLL_PLL2_CR2_REG reg2 = {0};
+
+	const UINT32 pll690_address[] = {PLL690_PLL2_CR0_REG_OFS, PLL690_PLL3_CR0_REG_OFS, PLL690_PLL4_CR0_REG_OFS, PLL690_PLL5_CR0_REG_OFS,  PLL690_PLL6_CR0_REG_OFS,
+									 PLL690_PLL7_CR0_REG_OFS, PLL690_PLL8_CR0_REG_OFS, PLL690_PLL9_CR0_REG_OFS, PLL690_PLL10_CR0_REG_OFS,  PLL690_PLL11_CR0_REG_OFS,
+									 PLL690_PLL12_CR0_REG_OFS, PLL690_PLL13_CR0_REG_OFS, PLL690_PLL14_CR0_REG_OFS, PLL690_PLL15_CR0_REG_OFS,  PLL690_PLL16_CR0_REG_OFS,
+									 PLL690_PLL17_CR0_REG_OFS, PLL690_PLL18_CR0_REG_OFS, PLL690_PLL19_CR0_REG_OFS, PLL690_PLL20_CR0_REG_OFS,  PLL690_PLL21_CR0_REG_OFS,
+									 PLL690_PLL22_CR0_REG_OFS, PLL690_PLL23_CR0_REG_OFS, PLL690_PLL24_CR0_REG_OFS
+									};
+
+
+	if (!(
+		(id == PLL_ID_8) || 
+		(id == PLL_ID_9) || 
+		(id == PLL_ID_10))
+		) {
+		DBG_ERR("not ide pll: PLL%d\r\n", id);
+		return E_SYS;
+	}
+
+	ui_setting /= 1000000;
+	ui_setting *= 131072;
+	ui_setting /= 12;
+
+	//DBG_ERR("PLL%d. ui_setting 0x%x\r\n", id, ui_setting);
+
+	if (ui_setting > 0xFFFFFF) {
+		DBG_ERR("PLL%d. ui_setting out of range: 0x%x\r\n", id, ui_setting);
+		return E_SYS;
+	}	
+
+	reg0.bit.PLL_RATIO0 = ui_setting & 0xFF;
+	reg1.bit.PLL_RATIO1 = (ui_setting >> 8) & 0xFF;
+	reg2.bit.PLL_RATIO2 = (ui_setting >> 16) & 0xFF;
+
+
+	//race condition protect. enter critical section
+	
+
+	if(id == PLL_ID_0){
+		PLL_SETREG(PLL690_PLL0_CR0_REG_OFS, reg0.reg);
+		PLL_SETREG(PLL690_PLL0_CR0_REG_OFS + 0x04, reg1.reg);
+		PLL_SETREG(PLL690_PLL0_CR0_REG_OFS + 0x08, reg2.reg);	
+	} else {
+		PLL_SETREG(pll690_address[id - PLL_ID_2], reg0.reg);
+		PLL_SETREG(pll690_address[id - PLL_ID_2] + 0x04, reg1.reg);
+		PLL_SETREG(pll690_address[id - PLL_ID_2] + 0x08, reg2.reg);
+	}
+
+
+	//race condition protect. leave critical section
+	
+
+	return E_OK;
+}
 
 
 /**
@@ -585,6 +670,22 @@ ER pll_set_clock_freq(PLL_CLKFREQ clock_id, UINT32 ui_freq)
 		}
 		break;
 
+	case LCD_LITE_CLK_FREQ: {
+			clock_source = pll_get_clock_rate(PLL_CLKSEL_LCD_LITE_CLKSRC);
+			if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_480) {
+				source_clock = pll_get_pll_freq(PLL_ID_1);
+			} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL9) {
+				source_clock = pll_get_pll_freq(PLL_ID_9);
+			} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL8) {
+				source_clock = pll_get_pll_freq(PLL_ID_8);
+			} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL10) {
+				source_clock = pll_get_pll_freq(PLL_ID_10);
+			} else {
+				return E_PAR;
+			}
+		}
+		break;		
+
 	case LCDOUTIFCLK_FREQ: {
 			clock_source = pll_get_clock_rate(PLL_CLKSEL_LCD_CLKSRC);
 			if (clock_source == PLL_CLKSEL_LCD_CLKSRC_480) {
@@ -620,13 +721,53 @@ ER pll_set_clock_freq(PLL_CLKFREQ clock_id, UINT32 ui_freq)
 			}
 		}
 		break;
+
+	case LCD_LITE_OUTIFCLK_FREQ: {
+			clock_source = pll_get_clock_rate(PLL_CLKSEL_LCD_LITE_CLKSRC);
+			if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_480) {
+				source_clock = pll_get_pll_freq(PLL_ID_1);
+			} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL9) {
+				source_clock = pll_get_pll_freq(PLL_ID_9);
+			} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL8) {
+				source_clock = pll_get_pll_freq(PLL_ID_8);
+			} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL10) {
+				source_clock = pll_get_pll_freq(PLL_ID_10);
+			}
+
+			else {
+				return E_PAR;
+			}
+		}
+		break;		
+		
 	default:
 		return E_PAR;
 	}
 
+	if(source_clock % ui_freq){
+		clock_source = pll_get_clock_rate(PLL_CLKSEL_LCD_LITE_CLKSRC);
+		if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_480) {
+			pll_set_driver_pll_ide(PLL_ID_1,ui_freq*4);
+			source_clock = pll_get_pll_freq(PLL_ID_1);
+			DBG_WRN("Target (%d) Update pll(%d) freq to %dHz.\r\n", clock_id, PLL_ID_1, (UINT)(source_clock));
+		} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL9) {
+			pll_set_driver_pll_ide(PLL_ID_9,ui_freq*4);
+			source_clock = pll_get_pll_freq(PLL_ID_9);
+			DBG_WRN("Target (%d) Update pll(%d) freq to %dHz.\r\n", clock_id, PLL_ID_9, (UINT)(source_clock));
+		} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL8) {
+			pll_set_driver_pll_ide(PLL_ID_8,ui_freq*4);
+			source_clock = pll_get_pll_freq(PLL_ID_8);
+			DBG_WRN("Target (%d) Update pll(%d) freq to %dHz.\r\n", clock_id, PLL_ID_8, (UINT)(source_clock));
+		} else if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_PLL10) {
+			pll_set_driver_pll_ide(PLL_ID_10,ui_freq*4);
+			source_clock = pll_get_pll_freq(PLL_ID_10);
+			DBG_WRN("Target (%d) Update pll(%d) freq to %dHz.\r\n", clock_id, PLL_ID_10, (UINT)(source_clock));
+		}
+	}
 
 	// Calculate the clock divider value
 	divider = (source_clock + ui_freq - 1) / ui_freq;
+
 
 	// prevent error case
 	if (divider == 0) {
@@ -640,12 +781,18 @@ ER pll_set_clock_freq(PLL_CLKFREQ clock_id, UINT32 ui_freq)
 	case LCD2CLK_FREQ:
 		pll_set_clock_rate(PLL_CLKSEL_LCD2_CLKDIV, PLL_LCD2_CLKDIV(divider - 1));
 		break;
+	case LCD_LITE_CLK_FREQ:
+		pll_set_clock_rate(PLL_CLKSEL_LCD_LITE_CLKDIV, PLL_LCD_LITE_CLKDIV(divider - 1));
+		break;		
 	case LCDOUTIFCLK_FREQ:
 		pll_set_clock_rate(PLL_CLKSEL_LCD_OUTIF_CLKDIV, PLL_IDE_OUTIF_CLKDIV(divider - 1));
 		break;
 	case LCD2OUTIFCLK_FREQ:
 		pll_set_clock_rate(PLL_CLKSEL_LCD2_OUTIF_CLKDIV, PLL_IDE2_OUTIF_CLKDIV(divider - 1));
 		break;
+	case LCD_LITE_OUTIFCLK_FREQ:
+		pll_set_clock_rate(PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV, PLL_IDE_LITE_OUTIF_CLKDIV(divider - 1));
+		break;		
 	default :
 		return E_PAR;
 	}

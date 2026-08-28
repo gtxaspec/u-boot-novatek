@@ -15,6 +15,7 @@
 #include <asm/cache.h>
 #include <linux/delay.h>
 #include "nvt_ivot_mmc_a64.h"
+#include <cpu_func.h>
 
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
@@ -592,9 +593,9 @@ void sdiohost_setdatatimeout(struct mmc_nvt_host *host, u32 timeout)
 
 static int pad_setdrivingsink(u32 name, u32 paddriving)
 {
-	unsigned long padreg;
-	unsigned long dwoffset = 0x0, bitoffset = 0x0;
-	unsigned long driving = paddriving;
+	uintptr_t padreg;
+	uintptr_t dwoffset = 0x0, bitoffset = 0x0;
+	uintptr_t driving = paddriving;
 
 	bitoffset = name & 0x1F;
 	dwoffset = (name >> 5);
@@ -755,13 +756,13 @@ void sdiohost_setblksize(struct mmc_nvt_host *host)
     @return void
 */
 void sdiohost_setupdatatransferdma(struct mmc_nvt_host *host,
-								   unsigned long uidmaaddress, unsigned long uidatalength, BOOL bisread)
+								   uintptr_t uidmaaddress, uintptr_t uidatalength, BOOL bisread)
 {
 	union SDIO_DATA_CTRL_REG datactrlreg;
 	union SDIO_DATA_LENGTH_REG datalenreg;
 	union SDIO_FIFO_CONTROL_REG fifoctrlreg;
 	union SDIO_DMA_START_ADDR_REG dmaaddrreg;
-	unsigned long uibusclk;
+	uintptr_t uibusclk;
 
 	/* dummy read for patch */
 	sdiohost_delayd(host, 2);
@@ -793,16 +794,21 @@ void sdiohost_setupdatatransferdma(struct mmc_nvt_host *host,
 	sdiohost_setreg(host, SDIO_DATA_CTRL_REG_OFS, datactrlreg.reg);
 
 	dmaaddrreg.reg = 0;
-	dmaaddrreg.bit.DRAM_ADDR = (unsigned long)virt_to_phys((void *)uidmaaddress);
+#ifdef SDIO_32BIT
+	dmaaddrreg.bit.DRAM_ADDR = uidmaaddress;
+	sdiohost_setreg(host, SDIO_DMA_START_ADDR_REG_OFS, dmaaddrreg.reg);
+#else
+	dmaaddrreg.bit.DRAM_ADDR = (uintptr_t)virt_to_phys((void *)uidmaaddress);
 	sdiohost_setreg(host, SDIO_DMA_START_ADDR_REG_OFS, dmaaddrreg.reg);
 
 	if (uidmaaddress & DDR_MASK) {
-		unsigned long addr_shift = (uidmaaddress & DDR_MASK) >> 32;
+		uintptr_t addr_shift = (uidmaaddress & DDR_MASK) >> 32;
 
 		sdiohost_setreg(host, SDIO_DMA_DES_HIGH_START_ADDR_REG_OFS, addr_shift);
 	} else {
 		sdiohost_setreg(host, SDIO_DMA_DES_HIGH_START_ADDR_REG_OFS, 0);
 	}
+#endif
 
 	datalenreg.reg = 0;
 	datalenreg.bit.LENGTH = uidatalength;
@@ -921,7 +927,7 @@ ER sdiohost_writeblock(struct mmc_nvt_host *host, u8 *pbuf, u32 uilength)
 	uiremaincount   = uiwordcount % SDIO_HOST_DATA_FIFO_DEPTH;
 	pbufword        = (u32 *)pbuf;
 
-	if ((unsigned long)pbuf & 0x3) {
+	if ((uintptr_t)pbuf & 0x3) {
 		bwordalignment = FALSE;
 	} else {
 		bwordalignment = TRUE;
@@ -1027,7 +1033,7 @@ ER sdiohost_readblock(struct mmc_nvt_host *host, u8 *pbuf, u32 uilength)
 	uiremaincount   = uiwordcount % SDIO_HOST_DATA_FIFO_DEPTH;
 	pbufword        = (u32 *)pbuf;
 
-	if ((unsigned long)pbuf & 0x3) {
+	if ((uintptr_t)pbuf & (uintptr_t)0x3) {
 		bwordalignment = FALSE;
 	} else {
 		bwordalignment = TRUE;
@@ -1302,7 +1308,7 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 	if (((qstatus & MMCST_RSP_CRC_OK) || (qstatus & MMCST_CMD_SENT)) && !timeout) {
 		/* End of command phase */
 		if (data == NULL) {
-			end_command = (unsigned long) host->cmd;
+			end_command = (uintptr_t) host->cmd;
 		} else {
 			if ((host->bytes_left > 0) && (host->do_dma == 0)) {
 				/* if datasize < rw_threshold
@@ -1321,7 +1327,7 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 	}
 
 	if ((qstatus & MMCST_RSP_CRC_OK)) {
-		end_command = (unsigned long) host->cmd;
+		end_command = (uintptr_t) host->cmd;
 	}
 
 	if (data && !host->do_dma && !timeout) {
@@ -1502,7 +1508,7 @@ ER sdiohost_sendsdcmd(struct mmc_nvt_host *host, u32 cmdpart)
 
 static void mmc_nvt_prepare_data(struct mmc_nvt_host *host)
 {
-	unsigned long size;
+	uintptr_t size;
 
 	if (host->data == NULL) {
 		return;
@@ -1515,13 +1521,14 @@ static void mmc_nvt_prepare_data(struct mmc_nvt_host *host)
 	host->data_dir = ((host->data->flags & MMC_DATA_WRITE) ?
 					  SDIO_HOST_WRITE_DATA : SDIO_HOST_READ_DATA);
 
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NS02201))
-	if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((unsigned long)host->buffer % ARCH_DMA_MINALIGN) || (host->mmc_input_clk < 24000000)) {
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NS02201) \
+		|| defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302))
+	if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((uintptr_t)host->buffer % ARCH_DMA_MINALIGN) || (host->mmc_input_clk < 24000000)) {
 		if (host->mmc_input_clk < 24000000) {
 			debug("clk(%dHz) < 24MHz, force to PIO\n", host->mmc_input_clk);
 		}
 #else
-	if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((unsigned long)host->buffer % ARCH_DMA_MINALIGN)) {
+	if ((host->bytes_left % ARCH_DMA_MINALIGN) || ((uintptr_t)host->buffer % ARCH_DMA_MINALIGN)) {
 #endif
 		host->do_dma = 0;
 		host->buffer_bytes_left = host->bytes_left;
@@ -1529,7 +1536,8 @@ static void mmc_nvt_prepare_data(struct mmc_nvt_host *host)
 		host->do_dma = 1;
 	}
 
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NS02201))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NS02201) \
+		|| defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302))
 	if ((host->mmc_input_clk >= 50000000) && host->do_dma) {
 		if (host->data_dir == SDIO_HOST_WRITE_DATA) {
 			debug("over 50MHz and cmd write, blkfifoen = 0\n");
@@ -1544,15 +1552,15 @@ static void mmc_nvt_prepare_data(struct mmc_nvt_host *host)
 #endif
 
 	if (host->do_dma) {
-		size = (unsigned long)(host->buffer) + host->bytes_left;
+		size = (uintptr_t)(host->buffer) + host->bytes_left;
 
 		if (host->data_dir == SDIO_HOST_WRITE_DATA) {
-			flush_dcache_range(ALIGN_FLOOR((unsigned long)host->buffer, ARCH_DMA_MINALIGN), (unsigned long)roundup(size, ARCH_DMA_MINALIGN));
+			flush_dcache_range(ALIGN_FLOOR((uintptr_t)host->buffer, ARCH_DMA_MINALIGN), (uintptr_t)roundup(size, ARCH_DMA_MINALIGN));
 		} else {
-			invalidate_dcache_range(ALIGN_FLOOR((unsigned long)host->buffer, ARCH_DMA_MINALIGN), (unsigned long)roundup(size, ARCH_DMA_MINALIGN));
+			invalidate_dcache_range(ALIGN_FLOOR((uintptr_t)host->buffer, ARCH_DMA_MINALIGN), (uintptr_t)roundup(size, ARCH_DMA_MINALIGN));
 		}
 
-		sdiohost_setupdatatransferdma(host, (unsigned long)host->buffer, \
+		sdiohost_setupdatatransferdma(host, (uintptr_t)host->buffer, \
 									  host->bytes_left, host->data_dir);
 		/* zero this to ensure we take no PIO paths */
 		host->bytes_left = 0;
@@ -1682,7 +1690,7 @@ static int mmc_host_reset(struct mmc *dev)
 
 static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 {
-	unsigned long reg_value;
+	uintptr_t reg_value;
 
 	if (host->id == SDIO_HOST_ID_1) {
 #if defined(CONFIG_TARGET_NS02302_A64)
@@ -2351,10 +2359,10 @@ static int nvt_mmc_probe(struct udevice *dev)
 	struct nvt_mmc_plat *plat = dev_get_plat(dev);
 	struct mmc_nvt_host *host = dev_get_priv(dev);
 	struct mmc_config *cfg = &plat->cfg;
-	unsigned long base_addr;
+	uintptr_t base_addr;
 
 	host->base = (void *)dev_read_addr(dev);
-	base_addr = (unsigned long) host->base;
+	base_addr = (uintptr_t) host->base;
 	if (base_addr == (IOADDR_SDIO_REG_BASE)) {
 		host->id = SDIO_HOST_ID_1;
 		cfg->name = dev_name_0;
@@ -2393,14 +2401,12 @@ static int nvt_mmc_probe(struct udevice *dev)
 					| MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36 \
 					| MMC_VDD_165_195;
 
+	cfg->f_min = 312500;
 #ifdef CONFIG_NVT_FPGA_EMULATION
-	cfg->f_min = 312500;
-	cfg->f_max = 12000000;
+	cfg->f_max = 6000000;
 #else
-	cfg->f_min = 312500;
 	cfg->f_max = host->mmc_default_clk;
 #endif
-
 	cfg->b_max = (32 * 1024);
 	cfg->host_caps = MMC_MODE_4BIT | MMC_MODE_HS_52MHz | MMC_MODE_HS;
 

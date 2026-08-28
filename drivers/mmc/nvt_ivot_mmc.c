@@ -2009,6 +2009,25 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		udelay(10);
 		*(uint32_t*) 0xF0020074 |= 0x800;        // SDIO_CLKEN
 		udelay(10);
+#elif defined(CONFIG_TARGET_NS02301)
+		*(uint32_t*) 0xF0010004 &= ~0x10000;        // SDIO_EN
+		udelay(10);
+		*(uint32_t*) 0xF0010004 |= 0x10000;
+		udelay(10);
+		*(uint32_t*) 0xF00100A0 &= ~(0x3F << 13);// PGPIO13~18
+		udelay(10);
+		*(uint32_t*) 0xF0020084 &= ~(0x1 << 2); // SDIO_RSTN
+		udelay(10);
+		*(uint32_t*) 0xF0020084 |= (0x1 << 2);
+		udelay(10);
+		*(uint32_t*) 0xF0020020 &= ~0x30;         // SDIO_CLKSEL
+		udelay(10);
+		*(uint32_t*) 0xF002003C &= ~0x7FF;       // SDIO_CLKDIV
+		udelay(10);
+		*(uint32_t*) 0xF002003C |= 0x1F0;
+		udelay(10);
+		*(uint32_t*) 0xF0020074 |= 0x4;        	// SDIO_CLKEN
+		udelay(10);		
 #else
 		*(uint32_t*) 0xF0010004 |= 0x4000;
 		udelay(10);
@@ -2065,6 +2084,13 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 			*(uint32_t*) 0xF0030044 = 0x0;
 			udelay(10);
 		}
+#elif defined(CONFIG_TARGET_NS02301)
+		*(uint32_t*) 0xF0010004 &= ~0x40000;        // SDIO_EN
+		udelay(10);
+		*(uint32_t*) 0xF0010004 |= 0x40000;
+		udelay(10);
+		*(uint32_t*) 0xF00100A0 &= ~(0x3F << 19);// PGPIO19~24
+		udelay(10);
 #else
 		*(uint32_t*) 0xF0010004 |= 0x8000;
 		udelay(10);
@@ -2089,6 +2115,14 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		udelay(10);
 		*(uint32_t*) 0xF0020074 |= 0x8;
 	} else {
+#if defined(CONFIG_TARGET_NS02301)
+		*(uint32_t*) 0xF0010004 &= ~0x300000;        // SDIO3_EN
+		udelay(10);
+		*(uint32_t*) 0xF0010004 |= 0x300000;
+		udelay(10);
+		*(uint32_t*) 0xF00100A0 &= ~0xDFF;// PGPIO0~8 10~11
+		udelay(10);
+#else
 		*(uint32_t*) 0xF0010004 &= ~(0x80003000);
 		udelay(10);
 		if (host->enable_8bits) {
@@ -2101,6 +2135,7 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 			*(uint32_t*) 0xF00100A0 &= ~(0x30F);
 		}
 
+#endif
 		udelay(10);
 		*(uint32_t*) 0xF0020084 &= ~(0x4000);
 		udelay(10);

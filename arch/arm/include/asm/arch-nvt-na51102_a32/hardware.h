@@ -1,5 +1,5 @@
 /*
- *  include/asm/arch-nvt-na51xxx/hardware.h
+ *  include/asm/arch-nvt-xxxx/hardware.h
  *
  *  Author:	Howard Chang
  *  Created:	Jan 21, 2016
@@ -19,12 +19,13 @@ enum CHIP_ID {
 	CHIP_NA51102 = 0x5221,
 	CHIP_NA51103 = 0x8B20,
 	CHIP_NS02201 = 0xF221,
+	CHIP_NS02301 = 0x7021,
 	CHIP_NS02302 = 0x5A21
 };
 
 enum CHIP_VER {
 	CHIPVER_A,
-	CHIPVER_B
+	CHIPVER_C
 };
 
 extern u32 nvt_get_chip_id(void);

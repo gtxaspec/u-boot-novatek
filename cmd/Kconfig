@@ -948,6 +948,13 @@ config CMD_GPIO
 	help
 	  GPIO support.
 
+config CMD_SIF
+	bool "SIF - support send data via commands"
+	depends on NVT_IVOT_SOC
+	depends on NOVATEK_SIF
+	help
+          Control NOVATEK SIF channels, this allows send data via SIF channels.
+	
 config CMD_PWM
 	bool "pwm"
 	depends on DM_PWM

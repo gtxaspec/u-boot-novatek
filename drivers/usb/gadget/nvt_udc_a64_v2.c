@@ -18,9 +18,9 @@
 #include <asm/arch/efuse_protected.h>
 #include <usb/nvt_udc_v2.h>
 #include <asm/arch/IOAddress.h>
-//#include <asm/arch-nvt-na51102_a64/IOAddress.h>
 #include <asm/arch/hardware.h>
 #include <linux/delay.h>
+#include <cpu_func.h>
 
 #define CFG_NUM_ENDPOINTS       4
 #define CFG_EP0_MAX_PACKET_SIZE	64
@@ -28,7 +28,23 @@
 
 #define CFG_CMD_TIMEOUT (CONFIG_SYS_HZ >> 2) /* 250 ms */
 
-#define DRV_VERSION                     "1.00.04"
+//TODO: realchip setting
+#ifndef CONFIG_NVT_FPGA_EMULATION
+#define U2PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#define U2PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
+#define U3PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
+#define U3PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
+#define U3_U2PHY_SETREG(ofs,value)      writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#define U3_U2PHY_GETREG(ofs)            readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
+#endif
+#define MAP_PHY(ofs)                    ((ofs)>>2)
+#endif
+
+#define TRIM_RESINT_UPPER 0x14
+#define TRIM_RESINT_LOWER 0x1
+
+#define DRV_VERSION                     "1.00.06"
 
 struct nvt_udc_chip;
 
@@ -96,29 +112,12 @@ static void setbits_le64_nvt(uint32_t *addr, uint32_t set)
 	writel(tmpval, (volatile unsigned long *)(usbbase+phy_addr));
 }
 
-//TODO: realchip setting
-#ifndef CONFIG_NVT_FPGA_EMULATION
-#define U2PHY_SETREG(ofs,value) writel((value), (volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#define U2PHY_GETREG(ofs)       readl((volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
-#define U3PHY_SETREG(ofs,value) writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
-#define U3PHY_GETREG(ofs)       readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
-#define U3_U2PHY_SETREG(ofs,value) writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#define U3_U2PHY_GETREG(ofs)       readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#endif
-#endif
-
-#define TRIM_RESINT_UPPER 0x14
-#define TRIM_RESINT_LOWER 0x1
 static void nvtim_init_usbhc(void)
 {
-	unsigned long usbbase, usbphybase;
+	unsigned long usbbase;
 	unsigned long tmpval = 0;
-#if defined(CONFIG_TARGET_NA51102_A64)
-        unsigned long tmpval2 = 0;
-#endif
 
-	/* Toggle Reset*/
+	/* Toggle Reset */
 	tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+USB_CG_RST_OFS));
 	tmpval &= ~(USB_RST_BIT);
 	writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+USB_CG_RST_OFS));
@@ -130,26 +129,30 @@ static void nvtim_init_usbhc(void)
 	writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+USB_CG_RST_OFS));
 
 #if defined(CONFIG_TARGET_NA51102_A64)
-	/* reset u2 phy */
-	tmpval2 = readl((volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
-	if (tmpval2 & 0x80) {
-		//do nothing, since xhci has do the phy reset
-	} else {
-		// enable phy reset
-		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
-		tmpval &= ~(0x1<<7);
-		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+	{
+		unsigned long tmpval2 = 0;
 
-		udelay(10);
+		/* reset u2 phy */
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
+		if (tmpval2 & 0x80) {
+			//do nothing, since xhci has do the phy reset
+		} else {
+			// enable phy reset
+			tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+			tmpval &= ~(0x1<<7);
+			writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
 
-		//disable phy reset
-		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
-		tmpval |= (0x1<<7);
-		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+			udelay(10);
 
-		//mark the reset flag
-		tmpval2 |= 0x80;
-		writel(tmpval2, (volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
+			// disable phy reset
+			tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+			tmpval |= (0x1<<7);
+			writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+
+			// mark the reset flag
+			tmpval2 |= 0x80;
+			writel(tmpval2, (volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
+		}
 	}
 #endif
 
@@ -166,7 +169,7 @@ static void nvtim_init_usbhc(void)
 
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x100));
 
-	/* Clear DEVPHY_SUSPEND[5] */
+	/* Clear DEVPHY_SUSPEND[31] */
 	tmpval = readl((volatile unsigned long *)(usbbase+0x1C8));
 	tmpval &= ~(0x1<<31);
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x1C8));
@@ -211,6 +214,7 @@ static void nvtim_init_usbhc(void)
 	tmpval |= 0xFFFF;
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x3AC));
 
+#if defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NA51102_A64)
 	/* RESP MODE open */
 	tmpval = readl((volatile unsigned long *)(usbbase+0x404));
 	tmpval |= (0x1<<30);
@@ -220,27 +224,25 @@ static void nvtim_init_usbhc(void)
 	tmpval = readl((volatile unsigned long *)(usbbase+0x404));
 	tmpval &= ~(0x1<<16);
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x404));
+#endif
 
-	/* Configure PHY related settings below */
-	{
 #ifndef CONFIG_NVT_FPGA_EMULATION
+	/* Configure PHY related settings below */
 #if defined(CONFIG_TARGET_NS02201_A64)
-		//TODO: realchip setting
-		#if 1
+	{
 		u32 temp;
 		u32 trim;
 		int code;
 		bool is_found;
 
-		u8 u2_trim_swctrl=4, u2_trim_sqsel=4;
+		u8 u2_trim_swctrl=6, u2_trim_sqsel=4;
 		u32 u3_trim_rint_sel=8;
 
 		// get trim value of usb column
 		code = otp_key_manager(EFUSE_TRIM_DATA_USB3_1_USB2_DUAL_PHY_PRI);
 		if(code == -33) {
 			//!!!Please apply default value here!!!
-			printf("Read EFUSE_TRIM_DATA_USB3_1_USB2_DUAL_PHY_PRI error\r\n");
-			return -1;
+			printf("Read EFUSE_TRIM_DATA_USB3_1_USB2_DUAL_PHY_PRI error, use default value\r\n");
 		} else {
 			// check if usb trim value is valid
 			is_found = extract_trim_valid(code, (u32 *)&trim);
@@ -277,11 +279,12 @@ static void nvtim_init_usbhc(void)
 		U2PHY_SETREG(0x9, 0xB0);
                 U3_U2PHY_SETREG(0x12, 0x31);
                 U2PHY_SETREG(0x12, 0x31);
+		U3_U2PHY_SETREG(0x6, 0x1C);
+		U2PHY_SETREG(0x6, 0x1C);
 
 		//r45 cali
 		U3_U2PHY_SETREG(0x51, 0x20);
 		U3_U2PHY_SETREG(0x51, 0x00);
-		#endif
 
 		/*
 		   tmpval = readl((volatile unsigned long *)(usbbase+0x1D8));
@@ -290,7 +293,9 @@ static void nvtim_init_usbhc(void)
 		   tmpval |= (0x1 << 15);
 		   writel(tmpval, (volatile unsigned long *)(usbbase + 0x1D8));
 		   */
+	}
 #elif defined(CONFIG_TARGET_NA51102_A64)
+	{
 		u32 temp;
 		u32 trim;
 		int code;
@@ -300,12 +305,10 @@ static void nvtim_init_usbhc(void)
 		u32 u3_trim_resint=8;
 
 		// get trim value of usb column
-		//code = otp_key_manager(EFUSE_USB_SATA_TRIM_DATA);
-		code = -33;
+		code = otp_key_manager(EFUSE_USB_SATA_TRIM_DATA);
 		if(code == -33) {
 			//!!!Please apply default value here!!!
-			printf("Read USB trim error\r\n");
-			//return -1;
+			printf("Read USB trim error, use default value\r\n");
 		} else {
 			// check if usb trim value is valid
 			is_found = extract_trim_valid(code, (u32 *)&trim);
@@ -337,15 +340,45 @@ static void nvtim_init_usbhc(void)
 		U2PHY_SETREG(0x9, 0xB0);
 		U3_U2PHY_SETREG(0x12, 0x31);
 		U2PHY_SETREG(0x12, 0x31);
-		U3_U2PHY_SETREG(0x6, 0x1C);
-		U2PHY_SETREG(0x6, 0x1C);
 
 		//r45 cali
 		U3_U2PHY_SETREG(0x51, 0x20);
 		U3_U2PHY_SETREG(0x51, 0x00);
-#endif
-#endif
 	}
+#elif defined(CONFIG_TARGET_NS02301)
+	{
+		u8 u2_trim_swctrl = 4, u2_trim_sqsel = 4, u2_trim_resint = 8;
+
+		// TODO: Wait trim ready
+
+		// best setting
+		U2PHY_SETREG(MAP_PHY(0x14), 0xd3);   // Port0 VCHSEL = 11
+
+		// r45 cali lock
+		U2PHY_SETREG(MAP_PHY(0x144), 0x20);
+		mdelay(5);
+		U2PHY_SETREG(MAP_PHY(0x140), 0x30);
+
+		// tx swing
+		tmpval = U2PHY_GETREG(MAP_PHY(0x18));
+		tmpval &= ~(0x7 << 1);
+		tmpval |= (u2_trim_swctrl << 0x1);
+		U2PHY_SETREG(MAP_PHY(0x18), tmpval);
+
+		// squelch
+		tmpval = U2PHY_GETREG(MAP_PHY(0x14));
+		tmpval &= ~(0x7 << 0x2);
+		tmpval |= (u2_trim_sqsel << 0x2);
+		U2PHY_SETREG(MAP_PHY(0x14), tmpval);
+
+		// res
+		U2PHY_SETREG(MAP_PHY(0x148), 0x60 + u2_trim_resint);
+
+		// r45 cali unlock
+		U2PHY_SETREG(MAP_PHY(0x144), 0x00);
+	}
+#endif
+#endif // #ifndef CONFIG_NVT_FPGA_EMULATION
 }
 
 static inline int fifo_to_ep(struct nvt_udc_chip *chip, int id, int in)
@@ -359,7 +392,6 @@ static inline int ep_to_fifo(struct nvt_udc_chip *chip, int id)
 		return DMAFIFO_CX_NO;
 	else
 		return (id < 0) ? -1 : ((id - 1) & 0x07);
-
 }
 
 static inline int ep_reset(struct nvt_udc_chip *chip, uint8_t ep_addr)
@@ -500,7 +532,6 @@ static inline int nvt_udc_cxwait(struct nvt_udc_chip *chip, uint32_t mask)
 	if (ret)
 		printf("nvt_udc: cx/ep0 timeout value 0x%x mask 0x%x\n", readl(&regs->cxfifo), mask);
 
-
 	return ret;
 }
 
@@ -534,9 +565,9 @@ static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 
 	/* 3. DMA target setup */
 	if (ep->desc->bEndpointAddress & USB_DIR_IN)
-		flush_dcache_range((ulong)buf, (ulong)buf + roundup(len, ARCH_DMA_MINALIGN));
+		flush_dcache_range((uintptr_t)buf, (uintptr_t)buf + (uintptr_t)roundup(len, ARCH_DMA_MINALIGN));
 	else
-		invalidate_dcache_range((ulong)buf, (ulong)buf + roundup(len, ARCH_DMA_MINALIGN));
+		invalidate_dcache_range((uintptr_t)buf, (uintptr_t)buf + (uintptr_t)roundup(len, ARCH_DMA_MINALIGN));
 
 	writel(virt_to_phys(buf), &regs->dma_addr);
 
@@ -546,7 +577,6 @@ static int nvt_udc_dma(struct nvt_udc_ep *ep, struct nvt_udc_request *req)
 			nvt_udc_cxwait(chip, CXFIFO_CXFIFOE);
 			udelay(1);
 			writel(DMAFIFO_FIFO(DMAFIFO_CX_NO), &regs->dma_fifo);
-
 		} else {
 			/* Wait until epx fifo empty */
 			nvt_udc_cxwait(chip, CXFIFO_EXT_FIFOE(fifo));
@@ -763,7 +793,6 @@ static void nvt_udc_setup(struct nvt_udc_chip *chip)
 		default:
 			break;
 	}
-
 }
 
 /*
@@ -861,6 +890,7 @@ static int nvt_udc_ep_disable(struct usb_ep *_ep)
 	struct nvt_udc_ext_regs *regs = chip->ext_regs;
 	clrbits_le64_nvt(&regs->fifocfg, FIFOCFG_EXT(id, FIFOCFG_EXT_CFG_MASK));
 	clrbits_le64_nvt(&regs->fifomap, FIFOMAP(id, FIFOMAP_DIR_MASK));
+
 	return 0;
 }
 

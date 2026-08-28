@@ -44,7 +44,7 @@
 #define IOADDR_TIMER_REG_BASE       (IOADDR_GLOBAL_BASE+0x00040000)
 
 // WDT (Watch Dog Timer)
-#define IOADDR_WDT_REG_BASE         (IOADDR_GLOBAL_BASE+0x00050000)
+#define IOADDR_WDT_REG_BASE         (IOADDR_GLOBAL_BASE+0x00141000)
 
 // RTC & Power Button //SELO
 #define IOADDR_RTC_REG_BASE         (IOADDR_GLOBAL_BASE+0x00060000)
@@ -69,10 +69,10 @@
 //#define IOADDR_PMC_REG_BASE         (IOADDR_GLOBAL_BASE+0x000A0000)
 
 // TZPC
-//#define IOADDR_TZPC_REG_BASE        (IOADDR_GLOBAL_BASE+0x000C0000)
+#define IOADDR_TZPC_REG_BASE        (IOADDR_GLOBAL_BASE+0x00FF0000)
 
 // TRNG
-//#define IOADDR_TRNG_REG_BASE        (IOADDR_GLOBAL_BASE+0x00680000)
+#define IOADDR_TRNG_REG_BASE        (IOADDR_GLOBAL_BASE+0x00680000)
 
 // ---------------------------------------------
 // System category 1
@@ -251,7 +251,8 @@
 // ---------------------------------------------
 
 // USB
-#define IOADDR_USB_REG_BASE         (IOADDR_GLOBAL_BASE+0x00600000)
+#define IOADDR_USB_REG_BASE         (IOADDR_GLOBAL_BASE+0x0F600000)
+#define IOADDR_USBPHY_REG_BASE      (IOADDR_GLOBAL_BASE+0x00600000)
 
 // USB3
 #define IOADDR_USB3_REG_BASE        (IOADDR_GLOBAL_BASE+0x01700000)
@@ -282,6 +283,9 @@
 
 // Hash
 #define IOADDR_HASH_REG_BASE        (IOADDR_GLOBAL_BASE+0x00670000)
+
+// ECDSA
+#define IOADDR_ECDSA_REG_BASE       (IOADDR_GLOBAL_BASE+0x006C0000)
 // ---------------------------------------------
 // Misc category 1
 // ---------------------------------------------
@@ -432,6 +436,11 @@
 // USB
 #define IOADDR_USB528_REG_BASE      (IOADDR_GLOBAL_BASE+0x0F600000)
 
+// ---------------------------------------------
+// Pre-roll category 0
+// ---------------------------------------------
+// PRGPIO
+#define IOADDR_PRGPIO_REG_BASE      (IOADDR_GLOBAL_BASE+0x00170000)
 
 //@}
 

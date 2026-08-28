@@ -11,6 +11,7 @@
 */
 #include "nvt_flash_spi_int.h"
 #include "nvt_flash_spi_reg.h"
+#include <cpu_func.h>
 
 /*
 	Configure nand host transfer register
@@ -743,6 +744,40 @@ int nand_hostSetNandType(struct drv_nand_dev_info *info, NAND_TYPE_SEL uiNandTyp
 	return uRet;
 }
 
+/*
+    Set nand IO type (SDR/DTR)
+
+    @return
+        - @b E_NOSPT    Not support
+        - @b E_OK
+*/
+int nand_hostSetDTRType(DTR_TYPE_SEL uiDTRType)
+{
+	union T_NAND_MODULE0_REG RegMdule0 = {0};
+	int uRet = E_OK;
+
+	RegMdule0.Reg = NAND_GETREG(info, NAND_MODULE0_REG_OFS);
+	switch (uiDTRType) {
+	case NANDCTRL_SDR_TYPE:
+		RegMdule0.Bit.SPI_NOR_FLASH_OP_MODE = 0;
+		RegMdule0.Bit.SPI_WRITE_DDR_CLK = 0;
+		break;
+
+	case NANDCTRL_DTR_TYPE:
+		RegMdule0.Bit.SPI_NOR_FLASH_OP_MODE = 1;
+		RegMdule0.Bit.SPI_WRITE_DDR_CLK = 1;
+		break;
+
+	default:
+		return E_NOSPT;
+		break;
+	}
+
+	NAND_SETREG(info, NAND_MODULE0_REG_OFS, RegMdule0.Reg);
+
+	return uRet;
+}
+
 
 /*
 	Configure nand host row and column address cycle
@@ -1024,3 +1059,553 @@ void nand_host_axi_ch_disable(struct drv_nand_dev_info *info, BOOL uiEN)
 		while ((NAND_GETREG(info, NAND_AXI_REG0_OFS) & _FIFO_EN) != 0);
 	}
 }
+
+void nand_host_set_clkdiv(struct drv_nand_dev_info *info, u32 div)
+{
+	UINT32 reg;
+
+	if (info->chip_id == CHIP_NS02201) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x48);
+		reg &= ~(0x3F0000);
+		reg |= (div << 16);
+		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
+	} else if (info->chip_id == CHIP_NS02301 || \
+				info->chip_id == CHIP_NS02302) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x40);
+		reg &= ~(0x3F000);
+		reg |= (div << 12);
+		OUTW(IOADDR_CG_REG_BASE + 0x40, reg);
+	} else {
+		printf("%s: chip id[0x%x] not support \n", __func__, info->chip_id);
+	}
+}
+
+int nand_host_create_edge_detect_pattern(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType, u8 *wBuf)
+{
+	union T_NAND_DLL_PHASE_DLY_REG1 phy_dly;
+	UINT32 clk_div;
+	UINT32 pageSize = info->flash_info->page_size;
+	u32 pattern_addr;
+	int ret = E_OK;
+	u8 *rBuf;
+
+	if (nandType == NANDCTRL_SPI_NOR_TYPE) {
+		struct spi_flash *flash = malloc(sizeof(struct spi_flash));
+
+		if (info->autok_addr && \
+			((info->autok_addr & 0xFF) == 0) && \
+			(info->flash_info->device_size>info->autok_addr)) {
+			pattern_addr = info->autok_addr;
+		} else {
+			pattern_addr = (info->flash_info->device_size-0x1000); // default: last sector
+		}
+
+		NAND_AUTOK_MSG(info, "create tuning pattern addr: 0x%x\r\n", pattern_addr);
+
+		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
+			flash->erase_opcode = FLASH_CMD_SECTOR_ERASE_4BYTE;
+		} else {
+			flash->erase_opcode = FLASH_CMD_SECTOR_ERASE;
+		}
+		NAND_AUTOK_DBG(info, "Erase cmd: 0x%x\r\n", flash->erase_opcode);
+
+		// Write pattern to flash, switch to low speed mode
+		clk_div = 39;	// src480/div(39+1)=12MHz
+		nand_host_set_clkdiv(info, clk_div);
+		NAND_AUTOK_DBG(info, "create tuning pattern, switch to 12MHz\r\n");
+
+		// dll config
+		phy_dly.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS);
+		phy_dly.Bit.PHY_SAMPCLK_INV = 0;
+		phy_dly.Bit.PHY_SRC_CLK_SEL = 1;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, phy_dly.Reg);
+		nand_dll_reset();
+
+		// erase
+		spinor_erase_sector(info, flash, pattern_addr);	// start row_addr: todo
+
+		// write page
+		spinor_program_operation(info, pattern_addr, pageSize, wBuf);
+
+		// read back & verify pattern
+		rBuf = info->data_buff;
+		NAND_AUTOK_DBG(info, "rBuf: %p\r\n", rBuf);
+
+		flush_dcache_range((unsigned long)rBuf, (unsigned long)((unsigned long)rBuf + pageSize));
+
+		if (spinor_read_operation(info, pattern_addr, pageSize, rBuf)) {	// row addr = 0 (todo)
+			printf("read pattern fail\r\n");
+			ret = E_SYS;
+		} else {
+			if (memcmp((void *)wBuf, (void *)rBuf, pageSize) != 0) {
+				ret = E_PAR;
+			} else {
+				NAND_AUTOK_DBG(info, "create tuning pattern pass\r\n");
+			}
+		}
+
+		free(flash);
+
+	} else if (nandType == NANDCTRL_SPI_NAND_TYPE) {
+		if (info->autok_addr && \
+			((info->autok_addr & (pageSize-1)) == 0) && \
+			((info->flash_info->device_size*1024*1024) > info->autok_addr)) {
+			pattern_addr = info->autok_addr;
+		} else {
+			pattern_addr = (info->flash_info->device_size*8 - 1) * 64 * pageSize; // default: last block
+		}
+
+		NAND_AUTOK_MSG(info, "create tuning pattern addr: 0x%x\r\n", pattern_addr);
+
+		// Write pattern to flash, switch to low speed mode
+		clk_div = 39;
+		nand_host_set_clkdiv(info, clk_div);
+		NAND_AUTOK_DBG(info, "create tuning pattern, switch to 12MHz\r\n");
+
+		// dll config
+		phy_dly.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS);
+		phy_dly.Bit.PHY_SAMPCLK_INV = 0;
+		phy_dly.Bit.PHY_SRC_CLK_SEL = 1;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, phy_dly.Reg);
+		nand_dll_reset();
+
+		nand_cmd_erase_block(info, (pattern_addr/pageSize));
+		info->buf_count = pageSize;
+		nand_cmd_write_operation_single(info, wBuf, pattern_addr, 0);
+
+		// read back & verify pattern
+		rBuf = info->data_buff;
+		nand_cmd_read_operation(info, rBuf, pattern_addr, 1);
+		NAND_AUTOK_DBG(info, "rBuf: %p\r\n", rBuf);
+
+		if (memcmp((void *)wBuf, (void *)rBuf, pageSize) != 0) {
+			NAND_AUTOK_DBG(info, "create tuning pattern fail\r\n");
+			ret = E_PAR;
+		} else {
+			NAND_AUTOK_DBG(info, "create tuning pattern pass\r\n");
+		}
+
+	} else {
+		printf("flash type(%d) not support\r\n", nandType);
+		ret = E_ID;
+	}
+
+	// Reset to real speed
+	NAND_AUTOK_DBG(info, "reset to real speed %d Hz\r\n", info->ops_freq);
+	clk_div = NVT_FLASH_SOURCE_CLK/info->ops_freq - 1;
+	//clk_div = 192000000/info->ops_freq - 1;	// TODO: clksrc chk
+
+	nand_host_set_clkdiv(info, clk_div);
+
+	// dll reset
+	nand_phy_config(info);
+	nand_dll_reset();
+
+	return ret;
+}
+
+void nand_host_indly_scan(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType, u8 *wBuf)
+{
+	union T_NAND_DLL_PHASE_DLY_REG1 phy_dly;
+	union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
+	UINT32 pageSize, i;
+	UINT32 PsZoneLen, PsZoneStart, PsZoneEnd;
+	BOOL PsZoneStartFlg = 0, PsZoneEndFlg = 0, errFlg = 0;
+	u8 *rBuf;
+	u32 addr;
+
+	pageSize = info->flash_info->page_size;
+
+	if (nandType == NANDCTRL_SPI_NOR_TYPE) {
+		if (info->autok_addr && \
+			((info->autok_addr & 0xFF) == 0) && \
+			(info->flash_info->device_size>info->autok_addr)) {
+			addr = info->autok_addr;
+		} else {
+			addr = (info->flash_info->device_size-0x1000); // default: last sector
+		}
+	} else if (nandType == NANDCTRL_SPI_NAND_TYPE) {
+		if (info->autok_addr && \
+			((info->autok_addr & (pageSize-1)) == 0) && \
+			((info->flash_info->device_size*1024*1024) > info->autok_addr)) {
+			addr = info->autok_addr;
+		} else {
+			addr = (info->flash_info->device_size*8 - 1) * 64 * pageSize; // default: last block
+		}
+	} else {
+		printf("%s err: nandType[%d] not support\r\n", __func__, nandType);
+		return;
+	}
+
+	printf("autok tuning pattern addr: 0x%x\r\n", addr);
+
+	rBuf = info->data_buff;
+	NAND_AUTOK_DBG(info, "rBuf: %p\r\n", rBuf);
+
+	phy_dly.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS);
+	phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+
+	phy_dly.Bit.PHY_SAMPCLK_INV = 1;
+	phy_dly.Bit.PHY_SRC_CLK_SEL = 0;
+	phy_dly.Bit.PHY_PAD_CLK_SEL = 1;
+	phy_dly2.Bit.INDLY_SEL = 0x0;
+	NAND_AUTOK_MSG(info, "SAMPCLK_INV: 1, SRC_CLK: 0, PAD_CLK_SEL: 1\r\n");
+
+	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, phy_dly.Reg);
+	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
+	nand_dll_reset();
+
+	if (info->flash_info->dtr_read == NANDCTRL_DTR_TYPE) {
+		nand_hostSetDTRType(NANDCTRL_DTR_TYPE);
+	}
+
+	NAND_AUTOK_MSG(info, "[NAND] Pass Zone scan: \r\n");
+
+	// dump indly ruler
+	if (info->autok_param & NAND_AUTOK_DUMP_LOG) {
+		for (i = 0; i < NVT_INDLY_STEP; i++) {
+			if (i%10 == 0) {
+				NAND_AUTOK_MSG(info, "%1X", (i/10));
+			} else {
+				NAND_AUTOK_MSG(info, " ");
+			}
+		}
+		NAND_AUTOK_MSG(info, "\r\n");
+		for (i = 0; i < NVT_INDLY_STEP; i++) {
+			NAND_AUTOK_MSG(info, "%1d", (i%10));
+		}
+		NAND_AUTOK_MSG(info, " (ruler)\r\n");
+	}
+
+	for (i = 0; i < NVT_INDLY_STEP; i++) {
+		memset((void*)rBuf, 0x0, pageSize);	// clear rx buf
+
+		phy_dly2.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS);
+		phy_dly2.Bit.INDLY_SEL = i;
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
+		nand_dll_reset();
+
+		if (nandType == NANDCTRL_SPI_NOR_TYPE) {
+			flush_dcache_range((unsigned long)rBuf, (unsigned long)((unsigned long)rBuf + pageSize));
+			if (spinor_read_operation(info, addr, pageSize, rBuf)) {
+				printf("read pattern fail\r\n");
+				break;
+			}
+		} else if (nandType == NANDCTRL_SPI_NAND_TYPE) {
+			if (nand_cmd_read_operation(info, rBuf, addr, 1)) {
+				printf("read pattern fail\r\n");
+				break;
+			}
+		}
+
+		if (memcmp((void *)wBuf, (void *)rBuf, pageSize) != 0) {
+			NAND_AUTOK_MSG(info, "x");
+			if (PsZoneStartFlg & !PsZoneEndFlg) {
+				PsZoneEnd = i-1;
+				PsZoneEndFlg = 1;
+			}
+		} else {
+			NAND_AUTOK_MSG(info, "o");
+			if (!PsZoneStartFlg) {
+				PsZoneStart = i;
+				PsZoneStartFlg = 1;
+			}
+			if (PsZoneStartFlg && PsZoneEndFlg) {
+				errFlg = 1;
+			}
+			if (PsZoneStartFlg && i == (NVT_INDLY_STEP-1)) {
+				PsZoneEnd = i;
+				PsZoneEndFlg = 1;
+			}
+		}
+	}
+	NAND_AUTOK_MSG(info, " (result)\r\n");
+
+	if (errFlg) {
+		printf("WRN: find multiple pass zone\r\n");
+	}
+
+	if (!PsZoneStartFlg) {
+		printf("ERR: search pass zone fail\r\n");
+		nand_phy_config(info);
+		nand_dll_reset();
+	} else if ((PsZoneStart>NVT_INDLY_STEP) || (PsZoneEnd>NVT_INDLY_STEP)) {
+		printf("ERR: abnormal scan result, Start[%d] End[%d] \r\n", PsZoneStart, PsZoneEnd);
+		nand_phy_config(info);
+		nand_dll_reset();
+	} else {
+		PsZoneLen = PsZoneEnd - PsZoneStart;
+		printf("[NAND]   ===> PassZone: Start[%d] End[%d] len[%d]\r\n", PsZoneStart, PsZoneEnd, PsZoneLen);
+		if (PsZoneLen < 20) {
+			printf("WRN: PassZonelen[%d] too short \r\n", PsZoneLen);
+		}
+
+		if (info->indly) {
+			printf("[NAND]   ===> Dtsi indly check[%d]: ", info->indly);
+			if ((info->indly > (PsZoneStart+10)) && \
+				(info->indly < (PsZoneEnd-10)) && \
+				(PsZoneLen>20)) {
+				printf("(safe) \r\n");
+			} else if ((info->indly > PsZoneStart) && \
+						(info->indly < PsZoneEnd)) {
+				printf("(danger) \r\n");
+			} else {
+				printf("(out of range) \r\n");
+			}
+		}
+
+		// Apply scan result
+		if (info->autok_param & NAND_AUTOK_APPLY) {
+			info->indly = PsZoneStart+(PsZoneLen/2);
+			printf("[NAND]   ===> Apply autok best indly: %d \r\n", info->indly);
+		} else {
+			printf("phy dll: reset to driver default setting\r\n");
+			nand_phy_config(info);
+			nand_dll_reset();
+		}
+	}
+
+	if (info->flash_info->dtr_read == NANDCTRL_DTR_TYPE) {
+		// reset to SDR mode
+		nand_hostSetDTRType(NANDCTRL_SDR_TYPE);
+	}
+
+}
+
+int nand_host_1t_edge_detect(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType, u8 *rBuf)
+{
+	UINT32 timeOutCnt = 0, tmp, i, result, passZoneLen;
+	UINT32 pageSize = info->flash_info->page_size;
+	u32 addr;
+
+	if (nandType == NANDCTRL_SPI_NOR_TYPE) {
+		if (info->autok_addr && \
+			((info->autok_addr & 0xFF) == 0) && \
+			(info->flash_info->device_size>info->autok_addr)) {
+			addr = info->autok_addr;
+		} else {
+			addr = (info->flash_info->device_size-0x1000); // default: last sector
+		}
+	} else {
+		printf("NAND type: TODO \r\n");
+		return E_PAR;
+	}
+
+	if (info->ops_freq < 80000000) {
+		printf("err: auto tuning 1t detect freq(%d) need >= 80MHz \r\n", info->ops_freq);
+		return E_PAR;
+	}
+
+	// Step1: Auto 1T detect
+	if (info->flash_info->dqs_en) {  // Set CAL_12T_SEL = 1 (1/2T)
+		NAND_SETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS, \
+			NAND_GETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS) | 0x2);
+	}
+
+	// Set CAL_EN
+	NAND_SETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS, \
+			NAND_GETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS) | 0x1);
+
+	// dll reset
+	nand_dll_reset();
+
+	// Set clk pin is freerun
+	tmp = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS);
+	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, tmp | (1<<30));
+
+	while(timeOutCnt < 0x10000) {
+		if ((NAND_GETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS)&0x1) == 0x0)
+			break;
+		timeOutCnt++;
+	}
+
+	// Reset PHY_DLL_CLK_ON
+	tmp = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS) & ~(1<<30);
+	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, tmp);
+
+	if (timeOutCnt >= 0x10000) {
+		printf("scan 1t timeout");
+		return E_PAR;
+	}
+
+	tmp = NAND_GETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS);
+	// check scan result
+	if (((tmp &0x1) == 0) && (tmp&0x10)) {
+		printf("CAL scan done \r\n");
+
+		// clear CAL_END & CAL_ERR
+		if (tmp&0x20) {
+			printf("CAL ERR \r\n");
+		}
+		NAND_SETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS, tmp);
+
+		tmp = (tmp>>16)&0xFF;
+		printf("CAL result = %d , dqs = %d\r\n", tmp, info->flash_info->dqs_en);
+
+		// Set DATA_DLY_SEL
+		i = NAND_GETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS)&~(0xFF<<24);
+		NAND_SETREG(NULL, NAND_DAT_PHASE_DLY_DLL_REG_OFS, i|(tmp<<24));
+		nand_dll_reset();
+
+	} else {
+		printf("CAL scan fail\r\n");
+		return E_PAR;
+	}
+
+	// 2. Edge detect
+	if (info->flash_info->dqs_en) {
+		printf("Set DQS En\r\n");
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, \
+			NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS)|0x1<<21);
+	}
+
+	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, \
+			NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS)|0x2);
+	udelay(1);
+	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, \
+			NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS)&~0x2);
+
+	nand_dll_reset();
+
+	// read tuning pattern
+	flush_dcache_range((unsigned long)rBuf, (unsigned long)((unsigned long)rBuf + pageSize));
+	if (spinor_read_operation(info, addr, pageSize, rBuf)) {
+		printf("read pattern fail\r\n");
+	}
+
+	tmp = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG0_OFS);
+	printf("edge detect result: 0x%x \r\n", tmp);
+
+	if (info->flash_info->dtr_read) {
+		// DDR mode
+		result = (tmp&0xFFF) | ((tmp>>16)&0xFFF);
+
+		if (result) {
+			// 567 1T detect: check scan result
+			printf("DTR Result: 0x%x \r\n", result);
+			passZoneLen = 0;
+
+			if (info->flash_info->dqs_en) {
+				for (i = 0; i < 11; i++) {
+					if (result & (0x1<<i))
+						break;
+					passZoneLen++;
+				}
+				if (passZoneLen == 0) {
+					printf("Edge detect fail, passZoneLen = 0\r\n");
+					return E_SYS;
+				} else {
+					if (passZoneLen < 3) {
+						printf("WRN: passZoneLen too short, len = %d \r\n", passZoneLen);
+					}
+					info->bestPhase = (passZoneLen-1)/2;
+					printf("DQS PassZone: Phase 0 ~ %d \r\n", passZoneLen-1);
+					printf("BestPhase = %d \r\n", info->bestPhase);
+				}
+			} else { // internel clk
+				UINT32 passZoneStart = 0, eg1 = 0;
+
+				for (i = 10; i > 0; i--) {
+					if (passZoneStart == 0) {
+						if (!eg1 && ((result & (0x1<<i)) == 0)) {
+							continue;
+						} else if (eg1 == 0) {
+							eg1 = i;
+							continue;
+						} else {
+							if (result & (0x1<<i)) {
+								continue;
+							}
+						}
+						passZoneStart = i;
+						passZoneLen++;
+					} else {
+						if (result & (0x1<<i))
+							break;
+						passZoneLen++;
+					}
+				}
+				printf("CLK PassZone: Phase %d ~ %d , len = %d\r\n", (passZoneStart - passZoneLen+1), (passZoneStart), passZoneLen);
+				info->bestPhase = passZoneStart - (passZoneLen/2);
+				printf("BestPhase = %d \r\n", info->bestPhase);
+
+			}
+			// apply bestPhase
+			tmp = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS)&~0xF00;
+			NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, tmp|(info->bestPhase<<8));
+			nand_dll_reset();
+		} else {
+			printf("err: no detect edge \r\n");
+			return E_SYS;
+		}
+	} else {
+		printf("SDR mode: TBD\r\n");
+		return E_SYS;
+	}
+
+	// reset to internel clk
+	if (info->flash_info->dqs_en) {
+		NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, \
+			NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS)& ~(0x1<<21));
+	}
+	return E_OK;
+}
+
+int nand_host_dll_auto_tuning(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType)
+{
+	UINT32 param = info->autok_param;
+	UINT32 pageSize, bitMode;
+	u8 *wBuf;
+	int ret = E_OK;
+
+	printf("Start Auto tuning, param: 0x%x\r\n", param);
+
+	if (nandType == NANDCTRL_SPI_NAND_TYPE) {
+		pageSize = info->flash_info->page_size;
+		bitMode = (info->flash_info->spi_nand_status.bQuadProgram)?SPI_NOR_QUAD_READ:SPI_NOR_NORMAL_READ;
+	} else if (nandType == NANDCTRL_SPI_NOR_TYPE) {
+		pageSize = info->flash_info->page_size;
+		//bitMode = info->flash_info->nor_quad_support;
+		bitMode = info->flash_info->nor_read_mode;
+	} else {
+		printf("nandType %d not support\r\n", nandType);
+		return E_PAR;
+	}
+
+	wBuf = malloc(pageSize);
+	printf("Pattern size: 0x%x\r\n", pageSize);
+	NAND_AUTOK_DBG(info, "wBuf: %p\r\n", wBuf);
+	NAND_AUTOK_MSG(info, "bitMode: %d-bit \r\n", (1<<bitMode));
+
+	if (bitMode == SPI_NOR_OCTAL_READ) {
+		for(uint32_t i = 0; i < (pageSize/4);i++)
+			OUTW((wBuf+4*i), 0x00FF00FF);
+	} else if (bitMode == SPI_NOR_QUAD_READ) {
+		memset((void*)wBuf, 0x0F, pageSize);	// 4-bit mode
+	} else {
+		memset((void*)wBuf, 0x55, pageSize);	// 1-bit mode
+	}
+
+	if (param & NAND_AUTOK_PATTERN_EN) {
+		ret = nand_host_create_edge_detect_pattern(info, nandType, wBuf);
+		if (ret != E_OK) {
+			printf("create tuning pattern fail (%d)\r\n", ret);
+		}
+	}
+
+	if (param & NAND_AUTOK_MODE1) {
+		nand_host_indly_scan(info, nandType, wBuf);
+	//} else if (param & NAND_AUTOK_MODE2) {
+	//	nand_host_dll_edge_scan(info, nandType);
+	} else if ((param & NAND_AUTOK_MODE3) && (info->chip_id == CHIP_NS02301 || info->chip_id == CHIP_NS02302)) {
+		ret = nand_host_1t_edge_detect(info, nandType, wBuf);
+	} else {
+		printf("Auto tuning mode not support \r\n");
+		ret = E_PAR;
+	}
+
+	free(wBuf);
+
+	return ret;
+}
+

@@ -52,6 +52,7 @@ typedef enum {
 	DISPLAY_DEVICE_TOPPOLY          = 0x3,
 	DISPLAY_DEVICE_CCIR656          = 0x4,
 	DISPLAY_DEVICE_CCIR601          = 0x5,
+	DISPLAY_DEVICE_TV               = 0x6,
 	DISPLAY_DEVICE_HDMI_YUV420      = 0x6,
 	DISPLAY_DEVICE_HDMI_YUV444      = 0x7,
 	DISPLAY_DEVICE_HDMI_YUV422      = 0x8,
@@ -61,7 +62,7 @@ typedef enum {
 	DISPLAY_DEVICE_MI               = 0xC,
 	DISPLAY_DEVICE_MIPIDSI          = 0xD,
 	DISPLAY_DEVICE_RGB_16BIT        = 0xE,
-	//DISPLAY_DEVICE_OUTPUT_DRAM      = 0xF,
+	DISPLAY_DEVICE_OUTPUT_DRAM      = 0xF,
 
 	ENUM_DUMMY4WORD(IDE_DEVICE_TYPE)
 } IDE_DEVICE_TYPE;
@@ -414,15 +415,21 @@ typedef enum {
 */
 //@{
 typedef enum {
-	COLOR_RGB565           = 0,    // color format 1 bit
-	COLOR_ARGB1555          = 1,    // color format 2 bit
-	COLOR_RGB888            = 2,    // color format 4 bit
-	COLOR_ARGB8888          = 3,    // color format 8 bit
-	COLOR_8_BIT             = 7,    // color format YCBCR444
-	COLOR_YCC422P			= 8,	// color format YCBCR422Pack
-	COLOR_YCC420P			= 9,	// color format YCBCR420Pack
-	COLOR_ARGB8565          = 10,    // color format ARGB4565
-	COLOR_ARGB4444          = 11,    // color format ARGB8565
+	COLOR_1_BIT             = 0,    // color format 1 bit
+	COLOR_2_BIT             = 1,    // color format 2 bit
+	COLOR_4_BIT             = 2,    // color format 4 bit
+	COLOR_8_BIT             = 3,    // color format 8 bit
+	COLOR_YCBCR444          = 4,    // color format YCBCR444
+	COLOR_YCBCR422          = 5,    // color format YCBCR422
+	COLOR_YCBCR420          = 6,    // color format YCBCR420
+	COLOR_ARGB4565          = 7,    // color format ARGB4565
+	COLOR_ARGB8565          = 8,    // color format ARGB8565
+	COLOR_YCC422P           = 9,    // color format YCBCR422Pack
+	COLOR_YCC420P           = 10,   // color format YCBCR420Pack
+	COLOR_ARGB8888          = 11,   // color format ARGB8888
+	COLOR_ARGB4444          = 12,   // color format ARGB4444
+	COLOR_ARGB1555          = 13,   // color format ARGB1555
+
 	ENUM_DUMMY4WORD(IDE_COLOR_FORMAT)
 } IDE_COLOR_FORMAT;
 
@@ -694,10 +701,13 @@ typedef enum {
 //@{
 typedef enum {
 	LCD_ID_1=0,                          ///< LCD1 Controller
-	LCD_ID_2,                          ///< LCD2 controller
-	LCD_ID_3,                          /// < LCD lite
+	LCD_ID_2=1,                          ///< LCD2 controller
+	LCD_ID_3=2,                          /// < LCD lite
 	ENUM_DUMMY4WORD(IDE_ID)
 } IDE_ID;
+#define IDE_ID_1 LCD_ID_1
+#define IDE_ID_2 LCD_ID_2
+#define IDE_ID_3 LCD_ID_3
 
 typedef enum {
 	LCD_CH_0=0,
@@ -1018,7 +1028,7 @@ void idec_set_rgbd(IDE_ID id, BOOL b_en);
 void idec_set_through(IDE_ID id, BOOL b_en);
 void idec_set_ddr(IDE_ID id, BOOL b_en);
 void idec_set_hdmi_ddr(IDE_ID id, BOOL b_en);
-void idec_set_dram_out_format(IDE_ID id, UINT8 ui_fmt);
+void idec_set_dram_out_format(IDE_ID id, BOOL is_yuv422);
 void idec_set_dram_out(IDE_ID id, BOOL b_en);
 void idec_set_dram_out_uvswap(IDE_ID id, BOOL b_en);
 void idec_set_rgbd_swap(IDE_ID id, BOOL b_en);
@@ -1075,8 +1085,8 @@ void idec_set_hwcur_pal(IDE_ID id, UINT32 ui_entry, UINT8 ui_color_y, UINT8 ui_c
 void idec_get_hwcur_pal(IDE_ID id, UINT32 ui_entry, UINT8 *ui_color_y, UINT8 *ui_color_cb, UINT8 *ui_color_cr);
 void idec_set_hwcur_rw(IDE_ID id, BOOL b_sel);
 BOOL idec_get_hwcur_rw(IDE_ID id);
-void idec_set_hwcur_pos(IDE_ID id, UINT16 ui_x, UINT16 ui_y);
-void idec_get_hwcur_pos(IDE_ID id, UINT16 *ui_x, UINT16 *ui_y);
+void idec_set_hwcur_pos(IDE_ID id, UINT32 ui_x, UINT32 ui_y);
+void idec_get_hwcur_pos(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y);
 void idec_set_hwcur_font(IDE_ID id, UINT32 ui_entry, UINT32 ui_font);
 void idec_get_hwcur_font(IDE_ID id, UINT32 ui_entry, UINT32 *ui_font);
 void idec_set_hwcur_en(IDE_ID id, BOOL ui_en);
@@ -1207,10 +1217,10 @@ void idec_get_out_offset(IDE_ID id, INT32 *ui_y, INT32 *ui_cb, INT32 *ui_cr);
 void idec_set_out_limit(IDE_ID id, UINT8 ui_y_low, UINT8 ui_y_up, UINT8 ui_cb_low, UINT8 ui_cb_up, UINT8 ui_cr_low, UINT8 ui_cr_up);
 void idec_config_chx_csc(IDE_ID id,CH_ID ch_id);
 void idec_config_cursor_csc(IDE_ID id);
-void idec_set_csc_coef(IDE_ID id, CSC_ID cscid, UINT16 *ui_pcoef);
+void idec_set_csc_coef(IDE_ID id, CSC_ID cscid, UINT32 *ui_pcoef);
 
 // ICST
-void idec_set_icst_coef(IDE_ID id, UINT16 *ui_pcoef);
+void idec_set_icst_coef(IDE_ID id, UINT32 *ui_pcoef);
 void idec_get_icst_coef(IDE_ID id, INT32 *ui_pcoef);
 
 
@@ -1352,7 +1362,7 @@ void idec_set_video_colorkey(IDE_ID id, UINT8 ui_ck_y, UINT8 ui_ck_cb, UINT8 ui_
 void idec_set_video_colorkey_sel(IDE_ID id, IDE_VIDEO_COLORKEY_SEL b_sel);
 void idec_set_video_colorkey_op(IDE_ID id, IDE_VIDEO_COLORKEY_OP ui_ck_op);
 
-void idec_get_video_colorkey(IDE_ID id, CH_ID chid, UINT32 *ui_ck_low, UINT32 *ui_ck_high);
+void idec_get_video_colorkey(IDE_ID id, UINT8 *ui_ck_y, UINT8 *ui_ck_cb, UINT8 *ui_ck_cr);
 //void ide_getVideoBlendOp(IDE_ID id, IDE_VIDEO_BLEND_OP *uiOp);
 void idec_get_video_colorkey_sel(IDE_ID id, IDE_VIDEO_COLORKEY_SEL *b_sel);
 void idec_get_video_colorkey_op(IDE_ID id, IDE_VIDEO_COLORKEY_OP *ui_ck_op);
@@ -1519,8 +1529,8 @@ void idec_set_osd1_colorkey_en(IDE_ID id, BOOL b_en);
 void idec_get_osd1_colorkey_en(IDE_ID id, BOOL *b_en);
 void idec_set_osd1_colorkey_op(IDE_ID id, IDE_OSD_COLORKEY_OP ck_op);
 void idec_get_osd1_colorkey_op(IDE_ID id, IDE_OSD_COLORKEY_OP *ck_op);
-void idec_set_osd1_colorkey(IDE_ID id, UINT32 ui_key_low, UINT32 ui_key_high);
-void idec_get_osd1_colorkey(IDE_ID id, UINT32 *ui_key_low, UINT32 *ui_key_high);
+void idec_set_osd1_colorkey(IDE_ID id, UINT8 ui_key_r, UINT8 ui_key_g, UINT8 ui_key_b, UINT8 alpha);
+void idec_get_osd1_colorkey(IDE_ID id, UINT8 *ui_key_r, UINT8 *ui_key_g, UINT8 *ui_key_b, UINT8 *alpha);
 #if 0
 void idec_set_osd2_color_key_en(IDE_ID id, BOOL b_en);
 void idec_get_osd2_color_key_en(IDE_ID id, BOOL *b_en);
@@ -1730,8 +1740,8 @@ void idec_get_wb_yaddr(IDE_ID id, IDEDATA_TYPE *addr);
 void idec_get_wb_uvaddr(IDE_ID id, IDEDATA_TYPE *addr);
 void idec_get_wb_fmt(IDE_ID id, UINT8 *ui_fmt);
 void idec_set_wb_ctrl_2(IDE_ID id, UINT8 ui_bit6, UINT8 ui_bit7);
-void idec_set_ycc_qtable_0(IDE_ID id, UINT8 *ui_table);
-void idec_get_ycc_qtable_0(IDE_ID id, UINT8 *ui_table);
+void idec_set_ycc_qtable_0(IDE_ID id, UINT8 tableidx, UINT32 ui_table);
+void idec_get_ycc_qtable_0(IDE_ID id, UINT8 tableidx, UINT32 *ui_table);
 void idec_set_ycc_th_0(IDE_ID id, UINT8 *ui_th);
 void idec_get_ycc_th_0(IDE_ID id, UINT8 *ui_th);
 void idec_set_ygamma_idx(IDE_ID id, CH_ID chid, UINT8 *blk_idx);

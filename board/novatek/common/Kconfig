@@ -100,7 +100,7 @@ config NVT_IVOT_SECBOOT_SUPPORT
 	depends on !NVT_IVOT_OPTEE_SECBOOT_SUPPORT
 	depends on NVT_CRYPTO
 	depends on NVT_HASH
-	depends on NVT_RSA
+	depends on NVT_RSA || NVT_ECDSA
 	default n
 	  help
 	    To support secure boot flow without optee
@@ -203,6 +203,13 @@ config NVT_IVOT_RSA_CMD
 	depends on NVT_UTILS_CMD
 	help
 	  Novatek iVot RSA Engine Command support.
+
+config NVT_IVOT_ECDSA_CMD
+	bool "To support ecdsa engine command"
+	depends on NVT_IVOT_SOC && NVT_IVOT_OPTEE_SUPPORT=n
+	depends on NVT_UTILS_CMD
+	help
+	  Novatek iVot ECDSA Engine Command support.
 
 config NVT_IVOT_EFUSE_CMD
 	bool "To support efuse engine command"
