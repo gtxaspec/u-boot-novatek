@@ -77,8 +77,9 @@
 #define CG_SDIO2_RSTN_REG               (IOADDR_CG_REG_BASE + 0x84)
 #define CG_SDIO2_RSTN_MASK              BIT(3)
 
+// must remember this may influence spi
 #define CG_SDIO3_RSTN_REG               (IOADDR_CG_REG_BASE + 0x84)
-#define CG_SDIO3_RSTN_MASK              BIT(14)
+#define CG_SDIO3_RSTN_MASK              BIT(8)
 
 /* PINMUX */
 #define PIN_SDIO_CFG_SDIO_1             (0x1)

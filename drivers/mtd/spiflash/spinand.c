@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.17"
+#define NAND_VERSION "1.0.19"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {
@@ -816,6 +816,28 @@ int nvt_nand_board_nand_init(struct nand_chip *nand)
 	printf("nvt spinand %d-bit mode @ %d Hz\n", \
 		   info->flash_info->spi_nand_status.bQuadProgram ? 4 : 1, \
 		   info->ops_freq);
+
+	if (info->chip_id == CHIP_NA51103 && (info->flash_info->spi_nand_status.bQuadProgram == 0)) {
+		uint32_t reg = INW(IOADDR_TOP_REG_BASE + 0x4);
+
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, (reg & ~0x2));
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, (reg | 0x30));
+
+		reg = INW(IOADDR_GPIO_REG_BASE + 0x30);
+		OUTW(IOADDR_GPIO_REG_BASE + 0x30, (reg | 0x30));
+		//set C_GPIO[5..4] = b'11
+		OUTW(IOADDR_GPIO_REG_BASE + 0x60, 0x30);
+		printf("(331) single/dual mode: WP/HOLD force output high\n");
+	} else if (info->chip_id == CHIP_NA51103 && (info->flash_info->spi_nand_status.bQuadProgram == 1)) {
+		uint32_t reg = INW(IOADDR_TOP_REG_BASE + 0x4);
+
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, (reg | 0x2));
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, (reg & ~0x30));
+	}
 
 	return 0;
 }

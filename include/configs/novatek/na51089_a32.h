@@ -59,6 +59,14 @@
 #define CONFIG_ENCRYPT_OPTEE
 #endif
 
+#ifdef _ENCRYPT_ROOTFS_ON_
+        #ifdef  NVT_LINUX_RAMDISK_SUPPORT
+                #define CONFIG_ENCRYPT_ROOTFS
+        #else
+                #error need NVT_ROOTFS_TYPE_RAMDISK to enable CONFIG_ENCRYPT_ROOTFS
+        #endif
+#endif
+
 #if defined(_SIGNATUREMETHOD_ECDSA_)
 #define CONFIG_SIGNATUREMETHOD_ECDSA
 #elif defined(SIGNATUREMETHOD_RSA)

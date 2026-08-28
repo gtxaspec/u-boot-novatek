@@ -46,7 +46,7 @@
 #include <linux/libfdt.h>
 #include <linux/delay.h>
 
-#define ETHVERSION "1.0.0.0"
+#define ETHVERSION "1.0.0.1"
 
 #define SW_RESET_ADDRESS     (IOADDR_ETH_REG_BASE + 0x3800)
 #define SW_RESET_MASK        0x00000002
@@ -56,6 +56,20 @@
 #define SW_PLL_RESET_ADDRESS     (IOADDR_ETH_REG_BASE + 0x3800 + 0x84)
 #define SW_PLL_RESET_MASK        0x3FFFFFFF
 #define JTAG_EN_MASK		 0x100000
+#define PHYAD                0x1
+
+#define phy_set_mdio_addr(phyaddr) do { \
+	unsigned long v; \
+	v = readl((void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+	v |= (0x1 << 1); \
+	writel(v, (void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+	v = readl((void *)(IOADDR_ETH_REG_BASE + 0x381C));\
+	v |= (phyaddr << 0); \
+	writel(v, (void *)(IOADDR_ETH_REG_BASE + 0x381C));\
+	v = readl((void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+	v &= ~(0x1 << 1); \
+	writel(v, (void *)(IOADDR_ETH_REG_BASE + 0x3800));\
+} while(0)
 
 #define phy_sw_reset_enable() do { \
         unsigned long v; \
@@ -1298,6 +1312,7 @@ static void eqos_probe_hwinit(void)
 	phy_pll_sw_reset_disable();
 	mdelay(20);
 	eth_phy_poweron();
+	phy_set_mdio_addr(PHYAD);
 	phy_sw_reset_enable();
 	set_break_link_timer();
 

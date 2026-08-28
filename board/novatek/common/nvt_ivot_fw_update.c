@@ -797,8 +797,17 @@ static int nvt_chk_rootfs(ulong addr, unsigned int size, unsigned int pat_id)
 	}
 	else
 	{
+#ifdef CONFIG_ENCRYPT_ROOTFS
+		printf("%s rootfs is encryped , check by checksum\r\n",ANSI_COLOR_YELLOW);
+		if(MemCheck_CalcCheckSum16Bit(addr, size) !=0)
+		{
+			printf("rootfs checksum fail\n");
+			return -1;
+		}
+#else
 		printf("root-fs has no CKSM header\r\n");
 		return -1;
+#endif
 	}
 #endif /* CONFIG_NVT_BIN_CHKSUM_SUPPORT */
 	return 0;
@@ -1056,7 +1065,26 @@ static int nvt_on_partition_enum_update(unsigned int id, NVTPACK_MEM* p_mem, voi
 			break;
 		case EMBTYPE_ROOTFS:
 			printf("%s Update: rootfs%u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+#if  defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_ENCRYPT_ROOTFS)
+			if((is_secure == 1) && (pEmb[id].OrderIdx == 0)) {
+	#if defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+				if(nvt_chk_signature((ulong)p_mem->p_data, p_mem->len)) {
+					printf("check signature fail\n");
+					return -1;
+				}
+	#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+				if(nvt_chk_signature_on_uboot((ulong)p_mem->p_data, p_mem->len)) {
+					printf("check signature fail\n");
+					return -1;
+				}
+	#endif
+				ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
+			} else {
+				ret = nvt_update_fs_partition(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize, &pEmb[id]);
+			}
+#else
 			ret = nvt_update_fs_partition(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize, &pEmb[id]);
+#endif
 			break;
 		case EMBTYPE_ROOTFSL:
 			printf("%s Update: rootfs logical %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
@@ -1142,6 +1170,15 @@ static int nvt_on_partition_enum_mtd_readback(unsigned int id, NVTPACK_MEM* p_me
 	u64 PartitionOffset = pEmb[id].PartitionOffset;
 	u64 PartitionSize = pEmb[id].PartitionSize;
 
+	unsigned int is_secure = 0;
+#if (defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT))
+	NVT_SMC_EFUSE_DATA efuse_data = {0};
+	efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
+	is_secure = nvt_ivot_optee_efuse_operation(&efuse_data);
+#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+	is_secure = is_secure_enable();
+#endif
+
 	nvt_dbg(IND, "Read back check callback\n");
 	switch(pEmb[id].EmbType)
 	{
@@ -1181,7 +1218,15 @@ static int nvt_on_partition_enum_mtd_readback(unsigned int id, NVTPACK_MEM* p_me
 			break;
 		case EMBTYPE_ROOTFS:
 			printf("%s Read: rootfs%u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+#if  defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_ENCRYPT_ROOTFS)
+			if((is_secure == 1) && (pEmb[id].OrderIdx == 0)) {
+				ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
+			} else {
+				ret = nvt_read_fs_partition(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize, id, &pEmb[id]);
+			}
+#else
 			ret = nvt_read_fs_partition(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize, id, &pEmb[id]);
+#endif
 			break;
 		case EMBTYPE_ROOTFSL:
 			printf("%s Read: rootfsl%u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);

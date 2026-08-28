@@ -1780,6 +1780,18 @@ static int nvt_boot_rootfs_bin_auto(void)
 	loff_t part_off = 0, part_size = 0;
 	nvt_flash_type_t flash_type = FLASHTYPE_SIZE;
 
+#ifdef CONFIG_ENCRYPT_ROOTFS
+	unsigned int is_secure = 0;
+	#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
+	NVT_SMC_EFUSE_DATA efuse_data = {0};
+	efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
+
+	is_secure = nvt_ivot_optee_efuse_operation(&efuse_data);
+	#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+	is_secure = is_secure_enable();
+	#endif
+#endif
+
 	// get rootfs partition info from fdt
 	get_part_and_flash_type("rootfs0", &part_off, &part_size, &flash_type);
 	ramdisk_partition_addr = part_off;
@@ -1790,6 +1802,38 @@ static int nvt_boot_rootfs_bin_auto(void)
 		printf("nvt_ramdisk_addr alloc fail\n");
 		return -1;
 	}
+
+#ifdef CONFIG_ENCRYPT_ROOTFS
+	// read roofs header firstly
+	switch(flash_type) {
+		case FLASHTYPE_NOR:
+			align_size = ALIGN_CEIL(sizeof(image_header_t), ARCH_DMA_MINALIGN);
+			sprintf(cmd, "sf read 0x%lx 0x%llx 0x%x", nvt_ramdisk_addr, ramdisk_partition_addr, is_secure == 0 ? align_size : sizeof(HEADINFO));
+			run_command(cmd, 0);
+			break;
+		case FLASHTYPE_NAND:
+			sprintf(cmd, "nand read 0x%lx 0x%llx 0x%lx", nvt_ramdisk_addr, ramdisk_partition_addr, is_secure == 0 ? sizeof(image_header_t) : sizeof(HEADINFO));
+			run_command(cmd, 0);
+			break;
+		case FLASHTYPE_EMMC:
+			align_off = ALIGN_CEIL(ramdisk_partition_addr, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN;
+			sprintf(cmd, "mmc read 0x%lx 0x%llx 0x%x", nvt_ramdisk_addr, align_off, 2);
+			run_command(cmd, 0);
+			break;
+		default:
+			printf("%s %s:flash type %d is not support %s\r\n", ANSI_COLOR_RED, __func__, flash_type, ANSI_COLOR_RESET);
+			break;
+	}
+
+	if (is_secure == 0) {
+		hdr = (image_header_t *)nvt_ramdisk_addr;
+		nvt_ramdisk_size = image_get_data_size(hdr) + sizeof(image_header_t);
+	} else {
+		HEADINFO *encrypt_header = (HEADINFO *)nvt_ramdisk_addr;
+		nvt_ramdisk_size = encrypt_header->BinLength;
+	}
+
+#else
 
 	// read roofs header firstly
 	switch(flash_type) {
@@ -1814,6 +1858,8 @@ static int nvt_boot_rootfs_bin_auto(void)
 
 	hdr = (image_header_t *)nvt_ramdisk_addr;
 	nvt_ramdisk_size = image_get_data_size(hdr) + sizeof(image_header_t);
+#endif /* CONFIG_ENCRYPT_ROOTFS */
+
 	nvt_ramdisk_size = ALIGN_CEIL(nvt_ramdisk_size, 4096);
 	if (nvt_ramdisk_addr) {
 		free((void *)nvt_ramdisk_addr);
@@ -1859,6 +1905,38 @@ static int nvt_boot_rootfs_bin_auto(void)
 			printf("%s %s:flash type %d is not support %s\r\n", ANSI_COLOR_RED, __func__, flash_type, ANSI_COLOR_RESET);
 			break;
 	}
+
+#ifdef CONFIG_ENCRYPT_ROOTFS
+	if (is_secure != 0) {
+#ifdef CONFIG_NVT_IVOT_SECBOOT_SUPPORT
+#ifdef CONFIG_CHECK_SIGNATURE_BEFORE_BOOT
+		if(nvt_chk_signature_on_uboot((ulong)nvt_ramdisk_addr, nvt_ramdisk_size)) {
+			printf("check signature fail\n");
+			return -1;
+		}
+#endif /* CONFIG_CHECK_SIGNATURE_BEFORE_BOOT */
+
+		/* Decrypt Date */
+		ret = nvt_decrypt_aes_on_uboot(nvt_ramdisk_addr);
+#elif defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+#ifdef CONFIG_CHECK_SIGNATURE_BEFORE_BOOT
+		if(nvt_chk_signature((ulong)nvt_ramdisk_addr, nvt_ramdisk_size)) {
+			printf("check signature fail\n");
+			return -1;
+		}
+#endif /* CONFIG_CHECK_SIGNATURE_BEFORE_BOOT */
+
+		/* Decrypt Date */
+		ret = nvt_decrypt_aes((unsigned long)nvt_ramdisk_addr);
+#endif
+		if (ret < 0) {
+			nvt_dbg(ERR, "nvt_decrypt_aes fail ret %d\r\n", ret);
+			return -1;
+		}
+		nvt_dbg(ERR, "nvt_decrypt_aes PASS\r\n");
+	}
+	nvt_ramdisk_addr = nvt_ramdisk_addr + 64;
+#endif
 
 	/* To check whether the ramdisk format is nvt gzip format or not */
 	ret = nvt_ramdisk_img_ungzip_linux(nvt_ramdisk_addr,

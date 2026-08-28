@@ -807,6 +807,7 @@ static int dfu_bind_config(struct usb_configuration *c)
 	if (!f_dfu)
 		return -ENOMEM;
 	f_dfu->usb_function.name = "dfu";
+	f_dfu->usb_function.ss_descriptors = dfu_runtime_descs;
 	f_dfu->usb_function.hs_descriptors = dfu_runtime_descs;
 	f_dfu->usb_function.descriptors = dfu_runtime_descs;
 	f_dfu->usb_function.bind = dfu_bind;

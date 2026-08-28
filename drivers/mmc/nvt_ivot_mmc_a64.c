@@ -2049,6 +2049,9 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		}
 #endif
 
+#if defined (CONFIG_TARGET_NS02301)
+		printf("=================== emmc share cg_rest with spi ===================\n");
+#endif
 		/* RSTN */
 		reg_value = readl(CG_SDIO3_RSTN_REG);
 		reg_value &= ~(CG_SDIO3_RSTN_MASK);

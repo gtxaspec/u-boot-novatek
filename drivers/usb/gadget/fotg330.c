@@ -22,7 +22,7 @@
 
 #include <usb/fotg330.h>
 
-#define DRV_VERSION                     "1.00.17"
+#define DRV_VERSION                     "1.00.19"
 
 // result of setup packet
 #define CX_IDLE		0

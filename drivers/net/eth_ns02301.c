@@ -47,12 +47,26 @@
 #include <linux/delay.h>
 #include <asm/arch/efuse_protected.h>
 
-#define ETHVERSION "1.0.0.4"
+#define ETHVERSION "1.0.0.5"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
 #define PLLREGWR_MASK        0x00000008
 #define REG32_MASK          0x00000000FFFFFFFF
+#define PHYAD                0x1
+
+#define phy_set_mdio_addr(base_addr, phyaddr) do { \
+		unsigned long v; \
+		v = readl((void *)((base_addr) + 0x3800));\
+		v |= (0x1 << 1); \
+		writel(v, (void *)((base_addr) + 0x3800));\
+		v = readl((void *)((base_addr) + 0x381C));\
+		v |= (phyaddr << 0); \
+		writel(v, (void *)((base_addr) + 0x381C));\
+		v = readl((void *)((base_addr) + 0x3800));\
+		v &= ~(0x1 << 1); \
+		writel(v, (void *)((base_addr) + 0x3800));\
+	} while(0)
 
 #define phy_sw_reset_enable(base_addr) do { \
 		unsigned long v; \
@@ -1555,8 +1569,11 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		writel(reg, IOADDR_ETH_REG_BASE + 0x3004);
 
 		eth_phy_poweron(IOADDR_ETH_REG_BASE);
+		phy_set_mdio_addr(IOADDR_ETH_REG_BASE, PHYAD);
 		// phy setting
+#ifndef CONFIG_NVT_FPGA_EMULATION
 		set_eth_phy_trim(IOADDR_ETH_REG_BASE);
+#endif
 		phy_sw_reset_enable(IOADDR_ETH_REG_BASE);
 		set_break_link_timer(IOADDR_ETH_REG_BASE);
 		set_led_blinking(IOADDR_ETH_REG_BASE);

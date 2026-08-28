@@ -209,10 +209,13 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				return ret;
 			}
 #ifndef CONFIG_FLASH_ONLY_DUAL
-			uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX4;
-
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
-
+			if (info->flash_info->spi_nand_status.bQuadProgram) {
+				uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX4;
+				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+			} else {
+				uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX2;
+				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
+			}
 #else       //define as CONFIG_FLASH_ONLY_DUAL
 			uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX2;
 
@@ -408,9 +411,13 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				uiCmdCycle.Bit.CMD_CYC_3RD = SPINAND_FEATURE_STATUS;
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
-				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
-
-				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+				if (info->flash_info->spi_nand_status.bQuadProgram) {
+					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
+					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+				} else {
+					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
+					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
+				}
 #else	// define as CONFIG_FLASH_ONLY_DUAL
 				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
 
@@ -534,10 +541,13 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				uiCmdCycle.Bit.CMD_CYC_3RD = SPINAND_FEATURE_STATUS;
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
-				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
-
-				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
-
+				if (info->flash_info->spi_nand_status.bQuadProgram) {
+					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
+					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+				} else {
+					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
+					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
+				}
 #else	// define as CONFIG_FLASH_ONLY_DUAL
 				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
 
