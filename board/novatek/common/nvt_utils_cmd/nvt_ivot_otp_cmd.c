@@ -45,7 +45,7 @@
 #include <asm/arch/hardware.h>
 #endif
 
-#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51055)
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
 //This is encrypt / decrypt sample code
 #define SAMPLE_CODE_KEYMANAGER      0
 #define SAMPLE_CODE_CPUFILLKEY      1
@@ -2013,6 +2013,18 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 				printf("is found [%d][MIPI-TX-RX] = 0x%08x\r\n", is_found, (int)code);
 			}
 		}
+#elif defined(CONFIG_TARGET_NS02401_A64)
+		u32 	trim_field;
+		u32 	trim_value;
+		for(trim_field = 0; trim_field < 64; trim_field++) {
+			trim_value = otp_key_manager(EFUSE_ID_1, trim_field);
+			printf("addr[%02d]=[0x%08x]\r\n", trim_field, trim_value);
+		}		
+		printf("[0]addr[04]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 4));
+		printf("[0]addr[08]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 8));
+		printf("[0]addr[09]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 9));	
+		printf("[0]addr[10]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 10));
+		printf("[0]addr[11]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 11));		
 #endif
 	} else if (!strncmp(argv[1], "quary", 5)) {
 		printf("=>[quary]\r\n");

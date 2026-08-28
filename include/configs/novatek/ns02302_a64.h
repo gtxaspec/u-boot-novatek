@@ -1,6 +1,6 @@
 /* NVT board configuration */
 /* FLASH        FileSystem */
-#if defined(CONFIG_NVT_SPI_NAND) || defined(CONFIG_NVT_SPI_NONE)
+#if defined(CONFIG_NVT_SPI_NAND) || defined(CONFIG_NVT_SPI_NONE) || defined(CONFIG_NVT_SPI_NOR_NAND)
 #define CONFIG_SYS_MAX_NAND_DEVICE              1
 #define CONFIG_SYS_NAND_MAX_CHIPS               1
 #endif

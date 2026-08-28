@@ -448,7 +448,7 @@ static int nvt_emmc_init(void)
 	ret = run_command(command, 0);
 	return ret;
 }
-#elif defined(CONFIG_NVT_SPI_NOR)
+#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
 static int nvt_norflash_init(void)
 {
 	int ret = 0;
@@ -489,7 +489,7 @@ int misc_init_r(void)
 		cli_loop();
 		return 0;
 	}
-#elif defined(CONFIG_NVT_SPI_NOR)
+#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
 	ret = nvt_norflash_init();
 	if (ret < 0) {
 		printf("nvt_norflash_init fail\n");

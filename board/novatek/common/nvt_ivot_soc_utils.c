@@ -1260,8 +1260,6 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 #if defined(CONFIG_NVT_IVOT_EMMC)
 		sprintf(buf, "0x%llx@0(total),", mmc->capacity / MMC_MAX_BLOCK_LEN);
 		strcat(p_cmdline, buf);
-		sprintf(buf, "0x%llx@0(total),", mmc->capacity);
-		strcat(cmd_remain, buf);
 		strcat(cmd, cmd_remain);
 		cmd[strlen(cmd) - 1] = ' ';
 

@@ -10,7 +10,7 @@
 #include <asm/arch/efuse_protected.h>
 #include <linux/bitops.h>
 
-#define DRV_VERSION                     "1.00.03"
+#define DRV_VERSION                     "1.00.04"
 
 enum nvt_pcie_phy_id {
 	NVT_PHY_PCIE0 = 0,
@@ -179,6 +179,9 @@ static int pcie_phy_init(struct phy *phy)
 		// RX DCO coarse tune as TXDCC
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x85C, 0x3, 20, 2);	// RX_DCC_DCOCT
 
+		// RX DCO compute approach
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x124, 0x0, 16, 3);	// bypass_dco_phase0
+
 		if (core->is_phy_aggressive) {
 			// gen3/2/1 TXDCC/RXDCC/RXQEC calibration flow in POR
 			rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x1098, 0x1, 0, 1);	// cfg_cal_gen123_bootup
@@ -211,20 +214,23 @@ static int pcie_phy_init(struct phy *phy)
 			rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x908, 1, 4, 1);	// EN_RX_EOM
 			rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x928, 1, 4, 1);
 			rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0010, 0, 0, 1);
-
-			// RXDCC max counter
-			rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x948, 0x1FFFF, 0, 17);	// cfg_rxdcc_manual_cnt, cfg_rxdcc_manual_cnt_en
-
-			// TXDCC max counter
-			rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x944, 0xFFFF, 8, 16);	// num_dcc_max_reg, num_dcc_max_sw
-
-			// RXQEC max counter
-			rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x108, 0x7, 0, 3);	// cfg_rxqec_refn
 		}
+
+		// RXDCC max counter
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x948, 0x1FFFF, 0, 17);	// cfg_rxdcc_manual_cnt, cfg_rxdcc_manual_cnt_en
+
+		// TXDCC max counter
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x944, 0xFFFF, 8, 16);	// num_dcc_max_reg, num_dcc_max_sw
+
+		// RXQEC max counter
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x108, 0x7, 0, 3);	// cfg_rxqec_refn
 
 		//
 		// PCS block
 		//
+
+		// TX_EN_HIZIDLE=0 @ all mode for RA
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0B68, 0x00, 3, 1);	// tx_en_hizidle_sel
 
 		// TX EIOS align TX_ELECIDLE
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x874, 0x3, 0, 2);

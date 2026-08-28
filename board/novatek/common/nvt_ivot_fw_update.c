@@ -895,10 +895,10 @@ static int nvt_on_partition_enum_sanity(unsigned int id, NVTPACK_MEM* p_mem, voi
 		return -1;
 	}
 
-	unsigned int reserve_blocks = rounddown(PartitionSize - size, block_size) / block_size;
-	if(reserve_blocks < 5 && size > 0x100000)
+	unsigned int reserve_blocks = ALIGN_CEIL(PartitionSize - size, nand_get_block_size());
+	if(reserve_blocks < (5 * nand_get_block_size()) && size > 0x100000)
 	{
-		printf("%s [WARNING] Partition (%d) reserve size is too small, only %d blocks are reserved to cover bad blocks.%s\r\n", ANSI_COLOR_YELLOW, id, reserve_blocks, ANSI_COLOR_RESET);
+		printf("%s [WARNING] Partition (%d) reserve size is too small, only %d size are reserved to cover bad blocks.%s\r\n", ANSI_COLOR_YELLOW, id, reserve_blocks, ANSI_COLOR_RESET);
 	}
 #endif
 
