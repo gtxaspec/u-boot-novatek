@@ -57,9 +57,8 @@
 #define PIN_SDIO_CFG_SDIO2_2            0x20        ///< SDIO2_2 (P_GPIO[2..7])
 
 #define PIN_SDIO_CFG_SDIO3_1            0x100       ///< SDIO3 (C_GPIO[0..3] C_GPIO[10] C_GPIO[11])
-
-#define PIN_SDIO_CFG_SDIO3_BUS_WIDTH    0x1000       ///< SDIO3 bus width 8 bits (C_GPIO[0..7])
-#define PIN_SDIO_CFG_SDIO3_DS           0x2000       ///< SDIO3 data strobe      (C_GPIO[8])
+#define PIN_SDIO_CFG_SDIO3_BUS_WIDTH    0x200       ///< SDIO3 bus width 8 bits (C_GPIO[0..7])
+#define PIN_SDIO_CFG_SDIO3_DS           0x400       ///< SDIO3 data strobe      (C_GPIO[8])
 
 // compatible with na51090, na51103
 #define PIN_SDIO_CFG_1ST_PINMUX         PIN_SDIO_CFG_SDIO_1

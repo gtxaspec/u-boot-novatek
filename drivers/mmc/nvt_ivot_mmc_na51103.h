@@ -60,21 +60,21 @@
 #define PIN_SDIO_CFG_SDIO3_DS           (0x400)
 
 /* TOP */
-#define TOP_SDIO_EN_REG                  (IOADDR_TOP_REG_BASE + 0x04)
+#define TOP_SDIO_EN_REG                 (IOADDR_TOP_REG_BASE + 0x04)
 #define TOP_SDIO_EN_GPIO_REG            (IOADDR_TOP_REG_BASE + 0xA8)
 #define TOP_SDIO_EN_GPIO_MASK           BIT(20) | BIT(21)
 #define TOP_SDIO_EN_GPIO_2_REG          (IOADDR_TOP_REG_BASE + 0xB4)
 #define TOP_SDIO_EN_GPIO_2_MASK         BIT(6) | BIT(7) | BIT(8) | BIT(9)
-#define TOP_SDIO_EN_MASK                 BIT(4) | BIT(5)
-#define TOP_SDIO1_EN                     BIT(4)
-#define TOP_SDIO1_EN_GPIO_REG            (IOADDR_TOP_REG_BASE + 0xA8)
-#define TOP_SDIO1_EN_GPIO_MASK           BIT(14) | BIT(15) | BIT(17) | BIT(18) | BIT(19) | BIT(23)
 
-#define TOP_SDIO2_EN                     BIT(5)
-#define TOP_SDIO2_EN_GPIO_REG            (IOADDR_TOP_REG_BASE + 0xA8)
-#define TOP_SDIO2_EN_GPIO_MASK           BIT(20) | BIT(21)
-#define TOP_SDIO2_EN_GPIO_2_REG          (IOADDR_TOP_REG_BASE + 0xB4)
-#define TOP_SDIO2_EN_GPIO_2_MASK         BIT(6) | BIT(7) | BIT(8) | BIT(9)
+#define TOP_SDIO_EN_MASK                BIT(4)
+#define TOP_SDIO1_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xA8)
+#define TOP_SDIO1_EN_GPIO_MASK          BIT(14) | BIT(15) | BIT(17) | BIT(18) | BIT(19) | BIT(23)
+
+#define TOP_SDIO2_EN_MASK               BIT(5)
+#define TOP_SDIO2_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xA8)
+#define TOP_SDIO2_EN_GPIO_MASK          BIT(20) | BIT(21)
+#define TOP_SDIO2_EN_GPIO_2_REG         (IOADDR_TOP_REG_BASE + 0xB4)
+#define TOP_SDIO2_EN_GPIO_2_MASK        BIT(6) | BIT(7) | BIT(8) | BIT(9)
 
 /* PAD */
 #define PAD_PUPD0_REG_OFS               (0x00)

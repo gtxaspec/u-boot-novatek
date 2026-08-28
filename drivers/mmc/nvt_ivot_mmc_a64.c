@@ -1861,6 +1861,26 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 			udelay(10);
 		}
 
+#if defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51103)
+		if (host->pinmux_value & PIN_SDIO_CFG_SDIO_2) {
+			reg_value = readl(TOP_SDIO_EN_REG);
+			reg_value &= ~(TOP_SDIO2_EN_MASK);
+			reg_value |= (TOP_SDIO2_EN_MASK);
+			writel(reg_value, TOP_SDIO_EN_REG);
+			udelay(10);
+
+			reg_value = readl(TOP_SDIO2_EN_GPIO_REG);
+			reg_value &= ~(TOP_SDIO2_EN_GPIO_MASK);
+			writel(reg_value, TOP_SDIO2_EN_GPIO_REG);
+			udelay(10);
+
+			reg_value = readl(TOP_SDIO2_EN_GPIO_2_REG);
+			reg_value &= ~(TOP_SDIO2_EN_GPIO_2_MASK);
+			writel(reg_value, TOP_SDIO2_EN_GPIO_2_REG);
+			udelay(10);
+		}
+#endif
+
 		/* RSTN */
 		reg_value = readl(CG_SDIO_RSTN_REG);
 		reg_value &= ~(CG_SDIO_RSTN_MASK);

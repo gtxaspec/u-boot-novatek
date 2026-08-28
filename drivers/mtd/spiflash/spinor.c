@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.18"
+#define NOR_VERSION "1.0.19"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;
@@ -227,10 +227,10 @@ static int mx25l25645g_protect(struct drv_nand_dev_info *info, uint64_t len)
 		return -EINVAL;
 	}
 
-	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg); 
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg);
 	if (ret)
 		return ret;
-	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDCR, &config_reg); 
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDCR, &config_reg);
 	if (ret)
 		return ret;
 
@@ -287,7 +287,7 @@ static int en25qx256a_protect(struct drv_nand_dev_info *info, uint64_t len)
 	default:
 		return -EINVAL;
 	}
-	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg); 
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg);
 	if (ret)
 		return ret;
 
@@ -327,11 +327,11 @@ static int  p25q40uj_c8h_protect(struct drv_nand_dev_info *info, uint64_t len)
 		return -EINVAL;
 	}
 
-	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg); 
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_1, &status_reg);
 	if (ret)
 		return ret;
 
-	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_2, &status2_reg); 
+	ret = spinor_read_status(info, NAND_SPI_NOR_STS_RDSR_2, &status2_reg);
 	if (ret)
 		return ret;
 

@@ -45,24 +45,36 @@
 	if(NAND_DBG_GLOBAL_CFG) printf(fmt, ##args)
 
 #define SPINAND_BLOCK_SIZE          (128*1024)
-#define SPINAND_FIFO_SIZE           (128)		// 32-words per fifo buffer
 #define SPINAND_DUMMY_BYTE          (0x00)
 #define WORD_ALIGN_OFFSET           (4)
 #define ECC_CORRECTED               0xB0
-#define NVT_INDLY_STEP              128
 
-#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
-#define NVT_BCH_ECC_SUPPORT         (0)
-#else
-#define NVT_BCH_ECC_SUPPORT         (1)
-#endif
-
-
-#if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64) || \
-	 defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64))
-#define NVT_OCTAL_IO_SUPPORT		ENABLE
-#else
-#define NVT_OCTAL_IO_SUPPORT		DISABLE
+/*
+	NVT Flash controller platform parameters
+*/
+#if (defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51055_A64) || \
+	 defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51089_A64))
+	#define NVT_INDLY_STEP              (64)
+	#define SPINAND_FIFO_SIZE           (64)
+	#define NVT_BCH_ECC_SUPPORT         (0)
+	#define NVT_OCTAL_IO_SUPPORT		DISABLE
+#elif  (defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64) || \
+		defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64) || \
+		defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64))
+	#define NVT_INDLY_STEP              (128)
+	#define SPINAND_FIFO_SIZE           (128)
+	#define NVT_BCH_ECC_SUPPORT         (1)
+	#define NVT_OCTAL_IO_SUPPORT		ENABLE
+#elif  (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
+	#define NVT_INDLY_STEP              (128)
+	#define SPINAND_FIFO_SIZE           (128)
+	#define NVT_BCH_ECC_SUPPORT         (0)
+	#define NVT_OCTAL_IO_SUPPORT		DISABLE
+#else	// (NA51102, NS02201)
+	#define NVT_INDLY_STEP              (128)
+	#define SPINAND_FIFO_SIZE           (128)
+	#define NVT_BCH_ECC_SUPPORT         (1)
+	#define NVT_OCTAL_IO_SUPPORT		DISABLE
 #endif
 
 #define CONFIG_NAND_TYPE_ONFI       0

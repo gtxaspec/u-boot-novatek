@@ -753,7 +753,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 	/* Config NAND module CLKEN */
 	reg = INW(IOADDR_CG_REG_BASE + 0x74);
 	if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || \
-		(info->chip_id == CHIP_NS02401) || (info->chip_id == CHIP_NS02402)) {
+		(info->chip_id == CHIP_NS02401) || (info->chip_id == CHIP_NS02402) || \
+		(info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089)) {
 		reg |= (1);
 	} else {
 		reg |= (1 << 10);
@@ -762,7 +763,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 	OUTW(IOADDR_CG_REG_BASE + 0x74, reg);
 
 	/* Config NAND module RSTN */
-	if (info->chip_id == CHIP_NS02301) {
+	if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089 || \
+		(info->chip_id == CHIP_NS02301))) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x84);
 		reg |= (1);
 		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
@@ -860,6 +862,21 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 			reg &= ~(1 << 6);
 		}
 		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+	} else if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089)) {
+		if (fdt_pinmux & 0x1) {
+			flash_pinmux = (1 << 13);
+		}
+
+		reg |= flash_pinmux;
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		if (flash_pinmux & (1 << 13)) {
+			reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+			reg &= ~(0x0000050F);
+			OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+			NAND_DBG_GLOBAL("dbg cgpio: 0x%x\r\n", reg);
+		}
 	} else {
 		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
 			flash_pinmux |= (1 << 2);
@@ -889,6 +906,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		}
 	}
 	clk_div = NVT_FLASH_SOURCE_CLK / freq - 1;
+	NAND_DBG_GLOBAL("dbg clksrc %d \n", NVT_FLASH_SOURCE_CLK);
 	NAND_DBG_GLOBAL("dbg freq %d, div=0x%x \n", freq, clk_div);
 
 	if (info->chip_id == CHIP_NA51090 || info->chip_id == CHIP_NA51102 || \
@@ -897,7 +915,9 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		reg &= ~(0x3F0000);
 		reg |= (clk_div << 16);
 		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
-	} else if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302)  || (info->chip_id == CHIP_NS02402)) {
+	} else if ( (info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089) || \
+				(info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || \
+				(info->chip_id == CHIP_NS02402)) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x40);
 		NAND_DBG_GLOBAL("get reg: 0x%x \n", reg);
 		reg &= ~(0x3F000);
@@ -1002,6 +1022,13 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		}
 		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
 		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg1);
+	} else if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089)) {
+		reg = INW(IOADDR_PAD_REG_BASE + 0x40);
+
+		reg &= ~(0x3300FF);	// MC0-3, 8, 10
+		reg |= 0x110055;	// fixed driving = 0x1
+		OUTW(IOADDR_PAD_REG_BASE + 0x40, reg);
+		NAND_DBG_GLOBAL("dbg pad driving: 0x%x \n", reg);
 	} else {
 		/* Release SRAM */
 		printf("Release sram: skip (TODO)\r\n");
