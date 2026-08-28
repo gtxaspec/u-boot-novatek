@@ -343,7 +343,13 @@ int nvt_fdt_init(bool reload)
 				cli_loop();
 			}
 		}
-		memcpy(nvt_fdt_buffer, (void*)tmp_addr, fdt_real_size);
+
+		if (nvt_fdt_buffer != NULL) {
+			memcpy(nvt_fdt_buffer, (void*)tmp_addr, fdt_real_size);
+		} else {
+			printf("%s: nvt_fdt_buffer is NULL\n",__func__);
+			ret = -1;
+		}
 
 		free((void*)tmp_addr);
 		if (ret) {

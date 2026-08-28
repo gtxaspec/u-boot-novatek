@@ -1142,6 +1142,7 @@ dtb-$(CONFIG_TARGET_NS02201) += nvt-ns02201-evb.dtb
 dtb-$(CONFIG_TARGET_NS02201_A64) += nvt-ns02201-evb-a64.dtb
 dtb-$(CONFIG_TARGET_NS02301) += nvt-ns02301-evb.dtb
 dtb-$(CONFIG_TARGET_NS02302_A64) += nvt-ns02302-evb-a64.dtb
+dtb-$(CONFIG_TARGET_NS02401_A64) += nvt-ns02401-evb-a64.dtb
 dtb-$(CONFIG_TARGET_NS02401_V0_A64) += nvt-ns02401-v0-evb-a64.dtb
 
 targets += $(dtb-y)

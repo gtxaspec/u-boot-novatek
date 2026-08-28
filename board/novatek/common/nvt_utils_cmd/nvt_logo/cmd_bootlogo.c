@@ -16,7 +16,7 @@
 #include <asm/arch/gpio.h>
 #include <linux/libfdt.h>
 #include <linux/delay.h>
-#if defined(CONFIG_TARGET_NS02301)
+#if (CONFIG_TARGET_NS02301 || CONFIG_TARGET_NA51089)
 #include <cpu_func.h>
 #endif
 

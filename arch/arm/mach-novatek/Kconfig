@@ -146,6 +146,16 @@ config TARGET_NS02302_A64
 	help
 	  The Novatek NS02302 series are the ARM-based SoC with a quad core Cortex-A53
 
+config TARGET_NS02401_A64
+	bool "NovaTek NS02401 family A64 SoC"
+	select ARM64
+	select ARCH_MISC_INIT
+	select MISC_INIT_R
+	select NVT_IVOT_SOC
+	help
+	  The Novatek NS02401 series are the ARM-based SoC with a quad core Cortex-A76
+
+
 config TARGET_NS02401_V0_A64
 	bool "NovaTek NS02401 V0 family A64 SoC"
 	select ARM64
@@ -153,7 +163,7 @@ config TARGET_NS02401_V0_A64
 	select MISC_INIT_R
 	select NVT_IVOT_SOC
 	help
-	  The Novatek NS02401 series are the ARM-based SoC with a quad core Cortex-A53
+	  The Novatek NS02401 series are the ARM-based SoC with a quad core Cortex-A76
 
 endchoice
 
@@ -181,5 +191,6 @@ source "arch/arm/mach-novatek/nvt_ns02201_a32/Kconfig"
 source "arch/arm/mach-novatek/nvt_ns02201_a64/Kconfig"
 source "arch/arm/mach-novatek/nvt_ns02301_a32/Kconfig"
 source "arch/arm/mach-novatek/nvt_ns02302_a64/Kconfig"
+source "arch/arm/mach-novatek/nvt_ns02401_a64/Kconfig"
 source "arch/arm/mach-novatek/nvt_ns02401_v0_a64/Kconfig"
 endif

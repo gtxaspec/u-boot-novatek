@@ -15,6 +15,8 @@
 #include "nvt_ivot_mmc_ns02301.h"
 #elif (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64))
 #include "nvt_ivot_mmc_ns02302.h"
+#elif (defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64))
+#include "nvt_ivot_mmc_ns02401.h"
 #elif (defined(CONFIG_TARGET_NS02401_V0) || defined(CONFIG_TARGET_NS02401_V0_A64))
 #include "nvt_ivot_mmc_ns02401_v0.h"
 #endif
