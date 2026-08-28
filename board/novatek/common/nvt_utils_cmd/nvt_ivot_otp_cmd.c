@@ -1,0 +1,1495 @@
+/**
+    NVT utilities for command customization
+
+    @file       nvt_ivot_soc_utils.c
+    @ingroup
+    @note
+    Copyright   Novatek Microelectronics Corp. 2022.  All rights reserved.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License version 2 as
+    published by the Free Software Foundation.
+*/
+
+#include <cpu_func.h>
+#include <common.h>
+#include <image.h>
+#include <fs.h>
+#include <asm/io.h>
+//#include <nand.h>
+//#include <mmc.h>
+//#include <spi_flash.h>
+#include <command.h>
+//#include <lzma/LzmaTools.h>
+//#include <linux/libfdt.h>
+#include <asm/nvt-common/nvt_types.h>
+//#include <asm/nvt-common/modelext/emb_partition_info.h>
+//#include <asm/nvt-common/modelext/bin_info.h>
+#include <asm/nvt-common/nvt_common.h>
+#include <asm/nvt-common/shm_info.h>
+#include <asm/nvt-common/nvt_ivot_optee.h>
+#include <asm/arch/efuse_protected.h>
+#include <asm/nvt-common/nvt_ivot_efuse_smc.h>
+#include <asm/arch/crypto.h>
+#include <asm/arch/IOAddress.h>
+#include <compiler.h>
+//#include <u-boot/zlib.h>
+//#include <u-boot/crc.h>
+#include <stdlib.h>
+#include "nvt_ivot_otp_cmd.h"
+#include <asm/nvt-common/nvt_ivot_optee.h>
+#include <asm/nvt-common/nvt_ivot_aes_smc.h>
+#include <malloc.h>
+
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
+//This is encrypt / decrypt sample code
+#define SAMPLE_CODE_KEYMANAGER      0
+#define SAMPLE_CODE_CPUFILLKEY      1
+#define SAMPLE_CODE_TYPE            SAMPLE_CODE_KEYMANAGER
+
+#define SAMPLE_CODE_ENC_TYPE_EBC    0
+#define SAMPLE_CODE_ENC_TYPE_CBC    1
+#define SAMPLE_CODE_ENC_TYPE        SAMPLE_CODE_ENC_TYPE_EBC
+
+static UINT8  car_in[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
+static UINT8  iv_in[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
+
+#if(SAMPLE_CODE_TYPE == SAMPLE_CODE_CPUFILLKEY)
+static UINT8  cpu_key[16] = {0x04, 0x03, 0x02, 0x01, 0x08, 0x07, 0x06, 0x05, 0x12, 0x11, 0x10, 0x09, 0x16, 0x15, 0x14, 0x13};
+#endif
+
+int do_nvt_encrypt_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	int index_cnt;
+
+	UINT32 test_buf;
+	UINT32 test_buf2;
+
+	UINT32 test_buf_align;
+	UINT32 test_buf2_align;
+
+	u8  *output;
+	u8  *output2;
+
+#if(SAMPLE_CODE_TYPE == SAMPLE_CODE_KEYMANAGER)
+	u32      key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
+#endif
+	CRYPT_OP    crypt_op_param = {0};
+
+	test_buf = (UINT32)(unsigned long)malloc(16 + 64 * 4);
+	test_buf_align = (UINT32)((test_buf + 63) & 0xFFFFFFC0);
+
+	test_buf2 = test_buf_align + 100;
+	test_buf2_align = (UINT32)((test_buf2 + 63) & 0xFFFFFFC0);
+
+	output = (UINT8 *)(unsigned long)test_buf_align;
+	output2 = (UINT8 *)(unsigned long)test_buf2_align;
+
+#if(SAMPLE_CODE_TYPE == SAMPLE_CODE_KEYMANAGER)
+	if (strncmp(argv[1], "0", 1) == 0) {
+		key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "1", 1) == 0) {
+		key_set = EFUSE_OTP_2ND_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "2", 1) == 0) {
+		key_set = EFUSE_OTP_3RD_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "3", 1) == 0) {
+		key_set = EFUSE_OTP_4TH_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "4", 1) == 0) {
+		key_set = EFUSE_OTP_5TH_KEY_SET_FIELD;
+	} else {
+		return CMD_RET_USAGE;
+	}
+#endif
+
+#if (SAMPLE_CODE_ENC_TYPE == SAMPLE_CODE_ENC_TYPE_EBC)
+	crypt_op_param.op_mode = CRYPTO_EBC;
+#else
+	crypt_op_param.op_mode = CRYPTO_CBC;
+#endif
+	crypt_op_param.en_de_crypt = CRYPTO_ENCRYPT;
+	crypt_op_param.src_addr = (UINT32)(unsigned long)car_in;
+	crypt_op_param.dst_addr = (UINT32)(unsigned long)output;
+	crypt_op_param.length   = 16;
+	crypt_op_param.iv       = (UINT32)(unsigned long)iv_in;
+#if(SAMPLE_CODE_TYPE == SAMPLE_CODE_KEYMANAGER)
+	if (crypto_data_operation(key_set, crypt_op_param) != 0) {
+		printf("Encrypt operation fail [%d] set\r\n", (int)(key_set + 1));
+#else
+	if (crypto_data_operation_by_key(cpu_key, crypt_op_param) != 0) {
+		printf("Encrypt operation fail by cpu fill key\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", cpu_key[index_cnt]);
+		}
+#endif
+
+	} else {
+#if(SAMPLE_CODE_TYPE == SAMPLE_CODE_KEYMANAGER)
+		printf("Encrypt operation success [%d] set\r\n", (int)(key_set + 1));
+#endif
+		printf("Source =>\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", car_in[index_cnt]);
+		}
+		printf("\r\n");
+		printf("Destination =>\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", output[index_cnt]);
+		}
+		printf("\r\n");
+	}
+#if (SAMPLE_CODE_ENC_TYPE == SAMPLE_CODE_ENC_TYPE_EBC)
+	crypt_op_param.op_mode = CRYPTO_EBC;
+#else
+	crypt_op_param.op_mode = CRYPTO_CBC;
+#endif
+	crypt_op_param.en_de_crypt = CRYPTO_DECRYPT;
+	crypt_op_param.src_addr = (UINT32)(unsigned long)output;
+	crypt_op_param.dst_addr = (UINT32)(unsigned long)output2;
+	crypt_op_param.length   = 16;
+#if(SAMPLE_CODE_TYPE == SAMPLE_CODE_KEYMANAGER)
+	if (crypto_data_operation(key_set, crypt_op_param) != 0) {
+		printf("Decrypt operation fail [%d] set\r\n", (int)(key_set + 1));
+#else
+	if (crypto_data_operation_by_key(cpu_key, crypt_op_param) != 0) {
+		printf("Decrypt operation fail by cpu fill key\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", cpu_key[index_cnt]);
+		}
+#endif
+
+	} else {
+#if(SAMPLE_CODE_TYPE == SAMPLE_CODE_KEYMANAGER)
+		printf("Decrypt operation success [%d] set\r\n", (int)(key_set + 1));
+#endif
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", output2[index_cnt]);
+		}
+		printf("\r\n");
+	}
+
+
+	printf("do_nvt_encrypt_cmd sample code done\r\n");
+
+	if (test_buf) {
+		free((unsigned char *)(unsigned long)test_buf);
+	}
+
+	return 0;
+}
+U_BOOT_CMD(
+	nvt_encrypt,    2,  0,  do_nvt_encrypt_cmd,
+	"To encrypt via key manager sample",
+	"[keyset(0~4)]\n"
+);
+
+
+static UINT8 key_sample[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
+static UINT8 encrypt_sample[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
+static UINT8 key_sample0[16] = {0x04, 0x03, 0x02, 0x01, 0x08, 0x07, 0x06, 0x05, 0x12, 0x11, 0x10, 0x09, 0x16, 0x15, 0x14, 0x13};
+static UINT8 key_sample1[16] = {0x24, 0xaa, 0x0d, 0x9b, 0xf1, 0xae, 0x31, 0xb4, 0x28, 0x51, 0xe4, 0xc4, 0xd1, 0x71, 0x1d, 0x1e};
+static UINT8 key_sample2[16] = {0x95, 0x4d, 0x81, 0xc5, 0x5a, 0xcc, 0x2b, 0xe5, 0xdd, 0xc8, 0x74, 0xc3, 0x9f, 0xaf, 0xcf, 0x5c};
+static UINT8 key_sample3[16] = {0x04, 0x03, 0x02, 0x01, 0x08, 0x07, 0x06, 0x05, 0x12, 0x11, 0x10, 0x09, 0x16, 0x15, 0x14, 0x13};
+
+int do_nvt_write_key_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	s32         result;
+	int         index_cnt;
+	UINT32      test_buf;
+	UINT32      test_buf_align;
+
+
+	UINT32      test_buf2;
+	UINT32      test_buf2_align;
+
+	UINT8       pKey[16];
+
+	UINT8       *output;
+	UINT8       *output2;
+	u32         key_set = EFUSE_OTP_2ND_KEY_SET_FIELD;
+	CRYPT_OP    crypt_op_param;
+
+	if (strncmp(argv[1], "0", 1) == 0) {
+		key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
+		memcpy((void *)pKey, (void *)key_sample3, 16);
+	} else if (strncmp(argv[1], "1", 1) == 0) {
+		key_set = EFUSE_OTP_2ND_KEY_SET_FIELD;
+		memcpy((void *)pKey, (void *)key_sample1, 16);
+	} else if (strncmp(argv[1], "2", 1) == 0) {
+		key_set = EFUSE_OTP_3RD_KEY_SET_FIELD;
+		memcpy((void *)pKey, (void *)key_sample2, 16);
+	} else if (strncmp(argv[1], "3", 1) == 0) {
+		key_set = EFUSE_OTP_4TH_KEY_SET_FIELD;
+		memcpy((void *)pKey, (void *)key_sample3, 16);
+	} else if (strncmp(argv[1], "4", 1) == 0) {
+		key_set = EFUSE_OTP_5TH_KEY_SET_FIELD;
+		memcpy((void *)pKey, (void *)key_sample3, 16);
+	} else {
+		return CMD_RET_USAGE;
+	}
+	result = otp_write_key(key_set, pKey);
+
+	if (result < 0) {
+		printf("Write [%d] key operation fail [%d] \r\n", (int)(key_set), result);
+		return 0;
+	} else {
+		printf("Write [%d] key operation success\r\n", (int)(key_set));
+	}
+
+
+	test_buf = (ulong)malloc(16 + 64);
+	test_buf_align = (ulong)((test_buf + 63) & 0xFFFFFFC0);
+	output = (UINT8 *)(unsigned long)test_buf_align;
+
+	test_buf2 = (ulong)malloc(16 + 64);
+	test_buf2_align = (ulong)((test_buf2 + 63) & 0xFFFFFFC0);
+	output2 = (UINT8 *)(unsigned long)test_buf2_align;
+
+	memset((char *)(unsigned long)test_buf2_align, 0x0, 16);
+	memset((char *)(unsigned long)test_buf_align, 0x0, 16);
+
+	crypt_op_param.op_mode = CRYPTO_EBC;
+	crypt_op_param.en_de_crypt = CRYPTO_ENCRYPT;
+	crypt_op_param.src_addr = (ulong)encrypt_sample;
+	crypt_op_param.dst_addr = (ulong)output;   //<<<-------------(1)
+	crypt_op_param.length   = 16;
+
+	//Encrypt via key manager by using specific key set
+	if (crypto_data_operation(key_set, crypt_op_param) != 0) {
+		printf("Encrypt operation fail [%d] set\r\n", (int)(key_set));
+		free((void *)(unsigned long)test_buf);
+		free((void *)(unsigned long)test_buf2);
+		return 0;
+	} else {
+		printf("Encrypt operation success [%d] set\r\n", (int)(key_set));
+		printf("Source =>\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", pKey[index_cnt]);
+		}
+		printf("\r\n");
+		printf("Destination =>\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", output[index_cnt]);
+		}
+		printf("\r\n");
+	}
+
+	//Encrypt via fill key by using CPU
+	crypt_op_param.dst_addr = (UINT32)(unsigned long)output2;  ////<<<-------------(2)
+	crypto_data_operation_by_key(pKey, crypt_op_param);
+
+	printf("Verification via CPU fill key=>\r\n");
+	for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+		printf("%2x ", output2[index_cnt]);
+	}
+	printf("\r\n");
+
+
+	//(1) vs (2) result should the same
+	if (memcmp((void *)output2, (void *)output, 16) != 0) {
+		printf("write key fail [%d] set\r\n", (int)(key_set + 1));
+		printf("OTP operation\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", output[index_cnt]);
+		}
+
+		printf("\r\n");
+		printf("Fill key operation\r\n");
+		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
+			printf("%2x ", output2[index_cnt]);
+		}
+	} else {
+		printf("write key success [%d] set\r\n", (int)(key_set + 1));
+	}
+
+	free((void *)(unsigned long)test_buf);
+	free((void *)(unsigned long)test_buf2);
+	return 0;
+}
+U_BOOT_CMD(
+	nvt_write_key,  6,  0,  do_nvt_write_key_cmd,
+	"To write key via OTP sample",
+	"[Option] key set (0~4)=> 0 is dedicate for secure boot\n"
+	"[0] => 1st key set (0 is dedicate for secure boot)\n"
+	"[1] => 2nd key set\n"
+	"[2] => 3rd key set\n"
+	"[3] => 4th key set\n"
+	"[4] => 5th key set\n"
+);
+
+int do_nvt_read_lock_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	u32      key_set_read_lock = SECUREBOOT_1ST_KEY_SET_READ_LOCK;
+
+	if (strncmp(argv[1], "0", 1) == 0) {
+		key_set_read_lock = SECUREBOOT_1ST_KEY_SET_READ_LOCK;
+	} else if (strncmp(argv[1], "1", 1) == 0) {
+		key_set_read_lock = SECUREBOOT_2ND_KEY_SET_READ_LOCK;
+	} else if (strncmp(argv[1], "2", 1) == 0) {
+		key_set_read_lock = SECUREBOOT_3RD_KEY_SET_READ_LOCK;
+	} else if (strncmp(argv[1], "3", 1) == 0) {
+		key_set_read_lock = SECUREBOOT_4TH_KEY_SET_READ_LOCK;
+	} else if (strncmp(argv[1], "4", 1) == 0) {
+		key_set_read_lock = SECUREBOOT_5TH_KEY_SET_READ_LOCK;
+	} else {
+		return CMD_RET_USAGE;
+	}
+
+	enable_secure_boot(key_set_read_lock);
+	return 0;
+}
+U_BOOT_CMD(
+	nvt_read_lock,  6,  0,  do_nvt_read_lock_cmd,
+	"To let key set X un-readable",
+	"[Option] key set (0~4)=> 0 is dedicate for secure boot\n"
+	"[0] => 1st key set (0 is dedicate for secure boot)\n"
+	"[1] => 2nd key set\n"
+	"[2] => 3rd key set\n"
+	"[3] => 4th key set\n"
+	"[4] => 5th key set\n"
+);
+
+static UINT8 read_key_data[16];
+
+int do_nvt_read_key_set_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	u32      key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
+	unsigned int field_index = 0;
+	unsigned int key_value = 0;
+	unsigned int key_field_index = 0;
+	int i = 0;
+	int ret = 0;
+
+	if (strncmp(argv[1], "0", 1) == 0) {
+		key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "1", 1) == 0) {
+		key_set = EFUSE_OTP_2ND_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "2", 1) == 0) {
+		key_set = EFUSE_OTP_3RD_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "3", 1) == 0) {
+		key_set = EFUSE_OTP_4TH_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "4", 1) == 0) {
+		key_set = EFUSE_OTP_5TH_KEY_SET_FIELD;
+	} else {
+		return CMD_RET_USAGE;
+	}
+
+	switch (key_set) {
+	case EFUSE_OTP_1ST_KEY_SET_FIELD:
+		field_index = 16;
+		break;
+	case EFUSE_OTP_2ND_KEY_SET_FIELD:
+		field_index = 20;
+		break;
+	case EFUSE_OTP_3RD_KEY_SET_FIELD:
+		field_index = 24;
+		break;
+	case EFUSE_OTP_4TH_KEY_SET_FIELD:
+		field_index = 28;
+		break;
+	case EFUSE_OTP_5TH_KEY_SET_FIELD:
+		field_index = 12;
+		break;
+	default:
+		printf("key field error :%d\n", key_set);
+		return -1;
+	}
+	for (i = 0; i < 4; i++) {
+		key_field_index = field_index + i;
+		key_value = otp_key_manager(key_field_index);
+		printf("\033[0;33mkey[%2d][0x%08x]\033[0m\n", key_field_index, key_value);
+		read_key_data[i * 4] = (unsigned char)(key_value & 0x000000ff);
+		read_key_data[i * 4 + 1] = (unsigned char)((key_value & 0x0000ff00) >> 8);
+		read_key_data[i * 4 + 2] = (unsigned char)((key_value & 0x00ff0000) >> 16);
+		read_key_data[i * 4 + 3] = (unsigned char)((key_value & 0xff000000) >> 24);
+	}
+#if 1
+	printf("key value:%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\r\n",
+		   read_key_data[0], read_key_data[1], read_key_data[2], read_key_data[3],
+		   read_key_data[4], read_key_data[5], read_key_data[6], read_key_data[7],
+		   read_key_data[8], read_key_data[9], read_key_data[10], read_key_data[11],
+		   read_key_data[12], read_key_data[13], read_key_data[14], read_key_data[15]);
+#endif
+	return 0;
+}
+U_BOOT_CMD(
+	nvt_read_key_set,  6,  0,  do_nvt_read_key_set_cmd,
+	"To read key set X ",
+	"[Option] key set (0~4)\n"
+	"[0] => 1st key set\n"
+	"[1] => 2nd key set\n"
+	"[2] => 3rd key set\n"
+	"[3] => 4th key set\n"
+	"[4] => 5th key set\n"
+);
+
+int do_nvt_lock_key_set_engine_access_right_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	u32      key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
+	unsigned int field_index = 0;
+	unsigned int key_value = 0;
+	int i = 0;
+	int ret = 0;
+
+	if (strncmp(argv[1], "0", 1) == 0) {
+		key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "1", 1) == 0) {
+		key_set = EFUSE_OTP_2ND_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "2", 1) == 0) {
+		key_set = EFUSE_OTP_3RD_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "3", 1) == 0) {
+		key_set = EFUSE_OTP_4TH_KEY_SET_FIELD;
+	} else if (strncmp(argv[1], "4", 1) == 0) {
+		key_set = EFUSE_OTP_5TH_KEY_SET_FIELD;
+	} else {
+		return CMD_RET_USAGE;
+	}
+
+	if (otp_set_key_engine_access_right(key_set) >= 0) {
+		printf("=>Set key[%d]'s engine key manager access right success\r\n", key_set);
+	} else {
+		printf("=>Set key[%d]'s engine key manager access right fail\r\n", key_set);
+	}
+	return 0;
+}
+U_BOOT_CMD(
+	nvt_key_set_engine_right,  6,  0,  do_nvt_lock_key_set_engine_access_right_cmd,
+	"To read key set X ",
+	"[Option] key set (0~4)\n"
+	"[0] => 1st key set\n"
+	"[1] => 2nd key set\n"
+	"[2] => 3rd key set\n"
+	"[3] => 4th key set\n"
+	"[4] => 5th key set\n"
+);
+
+
+int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	if (!strncmp(argv[1], "secure_en", 9)) {
+		printf("=>[secure_en]\r\n");
+		efuse_secure_en();
+		printf("is_secure_enable()=%d\r\n", is_secure_enable());
+	} else if (!strncmp(argv[1], "data_encrypt", 12)) {
+		printf("=>[efuse_data_area_encrypt_en]\r\n");
+		efuse_data_area_encrypt_en();
+		printf("is_data_area_encrypted()=%d\r\n", is_data_area_encrypted());
+	} else if (!strncmp(argv[1], "rsa_en", 6)) {
+		printf("=>[efuse_signature_rsa_en]\r\n");
+		efuse_signature_rsa_en();
+		printf("is_signature_rsa()=%d\r\n", is_signature_rsa());
+	} else if (!strncmp(argv[1], "rsa_chk_en", 10)) {
+		printf("=>[efuse_signature_rsa_chksum_en]\r\n");
+		efuse_signature_rsa_chksum_en();
+		printf("is_signature_rsa_chsum_enable()=%d\r\n", is_signature_rsa_chsum_enable());
+	}  else if (!strncmp(argv[1], "jtag_disable", 12)) {
+		printf("=>[jtag_disable]\r\n");
+		efuse_jtag_dis();
+		printf("is_JTAG_DISABLE_en()=%d\r\n", is_JTAG_DISABLE_en());
+	} else if (!strncmp(argv[1], "uniqueue_id", 11)) {
+		UINT32 h, l;
+		printf("=>[uniqueue_id]=>");
+		if (efuse_get_unique_id(&l, &h) < 0) {
+			printf("unique ID[0x%08x][0x%08x] error\r\n", (int)h, (int)l);
+		} else {
+			printf("unique ID[0x%08x][0x%08x] success\r\n", (int)h, (int)l);
+		}
+	} else if (!strncmp(argv[1], "trim", 4)) {
+#if defined(CONFIG_TARGET_NA51090_A64)
+		u32     trim;
+		u32     remap_data;
+		int     code;
+		BOOL    is_found;
+		code = otp_key_manager(OTP_USB_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read usb trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			printf("[USB] = 0x%08x\r\n", (int)trim);
+		}
+
+		code = otp_key_manager(OTP_DRH_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read DRH trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			printf("[DRH] = 0x%08x\r\n", (int)trim);
+		}
+
+		code = otp_key_manager(OTP_DRV_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read DRV trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			printf("[DRV] = 0x%08x\r\n", (int)trim);
+		}
+
+		code = otp_key_manager(OTP_HDMI_SET1_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read HDMI trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_2_set_type_trim_valid(TRIM_HDMI_FIELD, code, (u32 *)&trim);
+			printf("[HDMI] = 0x%08x\r\n", (int)trim);
+		}
+
+		code = otp_key_manager(OTP_PCIe_SET2_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read PCIe trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_2_set_type_trim_valid(TRIM_PCIE_REFCLK, code, (u32 *)&trim);
+			printf("[PCIe] = 0x%08x\r\n", (int)trim);
+		}
+
+		code = otp_key_manager(OTP_THERMAL_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read thermal trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			printf("[Thermal] = 0x%08x\r\n", (int)trim);
+		}
+
+		code = otp_key_manager(OTP_CVBS_VGA_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read CVBS/VBA trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			printf("[CVBS/VGA] = 0x%08x\r\n", (int)trim);
+		}
+
+		code = otp_key_manager(OTP_CORE_POWER_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read CORE power trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			printf("[Core power trim] = 0x%08x\r\n", (int)trim);
+			remap_data = extract_trim_to_pwm_duty(PWM0_CORE_POWER, trim);
+			printf("remap_data %d\n", remap_data);
+		}
+#elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
+		u32     trim;
+		u32		value;
+		u32		addr;
+		int     code;
+		BOOL    is_found;
+		u32    	HDMI_H_resistor_1_4, HDMI_H_LANE_VL_1_4;
+		u32     HDMI_H_resistor_2_0, HDMI_H_LANE_VL_2_0;
+
+		u32     HDMI_V_resistor_1_4, HDMI_V_LANE_VL_1_4;
+		u32     HDMI_V_resistor_2_0, HDMI_V_LANE_VL_2_0;
+
+		u32     USB3_1_USB2_dual_phy_int_12K_resistor;          //0x2A
+		u32     USB3_1_USB2_dual_phy_TX_term;                   //0x2A
+		u32     USB3_1_USB2_dual_phy_RX_term;                   //0x2A
+
+		u32     USB2_single_phy_RINT_resistor;                  //0x39
+		u32     USB3_2_SATA2_Internal_12K_resistor;             //0x05
+		u32     USB3_2_SATA2_TX_TRIM, USB3_2_SATA2_RX_TRIM;     //0x05
+
+		u32     SATA1_Internal_12K_resistor;                    //0x00
+		u32     SATA1_TX_TRIM, SATA1_RX_TRIM;                   //0x00
+
+		u32     dsi_hs_output_data_swing;
+		u32     dsi_hs_output_clk_swing;
+
+		//DSI
+		addr = 0x3A;
+		code = otp_key_manager(EFUSE_TRIM_DSITXPLL_RG_LEVEL_LDO_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read DSI trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("DSI TX output swing(data/clk) Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)value);
+				//bit[3..0]
+				dsi_hs_output_data_swing = (trim & 0xF);
+				//bit[7..4]
+				dsi_hs_output_clk_swing = ((trim >> 4) & 0xF);
+
+				printf(" DSI output data swing Trim data success [0x%04x]\r\n", (int)dsi_hs_output_data_swing);
+				printf(" DSI output  clk swing Trim data success [0x%04x]\r\n", (int)dsi_hs_output_clk_swing);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][DSI resistor] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+		//USB2
+		addr = 0x39;
+		code = otp_key_manager(EFUSE_TRIM_USB_LDO_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read USB2 RINT trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				USB2_single_phy_RINT_resistor = (trim & 0x1F);
+
+				//USB2 single phy internal resistor 0x1 <= x <= 0x14
+				if (USB2_single_phy_RINT_resistor > 0x14) {
+					pr_info("USB2 single phy RINT Trim data error [0x%02x]=0x%04x > 0x14\r\n", (int)addr, (int)USB2_single_phy_RINT_resistor);
+				} else if (USB2_single_phy_RINT_resistor < 0x1) {
+					pr_info("USB2 single phy RINT Trim data error [0x%02x]=0x%04x < 0x1\r\n", (int)addr, (int)USB2_single_phy_RINT_resistor);
+				} else {
+					pr_info("USB2 single phy RINT trim 0x01 <= data[0x%04x] <= 0x14 success\r\n", (int)USB2_single_phy_RINT_resistor);
+				}				
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][USB2 resistor] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		//USB3
+		addr = 0x2A;
+		code = otp_key_manager(EFUSE_TRIM_DATA_USB3_1_USB2_DUAL_PHY_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read USB3_1_USB2 dual phy trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//12K resistor 1<= x <= 20(0x14)
+				printf("  USB3_1 Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)value);
+				printf("  12K_resistor[4..0] valid from 1(0x1) <-> 20(0x14)\r\n");
+				USB3_1_USB2_dual_phy_int_12K_resistor = trim & 0x1F;
+				USB3_1_USB2_dual_phy_TX_term = ((trim >> 5) & 0xF);
+				USB3_1_USB2_dual_phy_RX_term = ((trim >> 9) & 0xF);
+
+				if (USB3_1_USB2_dual_phy_int_12K_resistor > 0x14) {
+					printf("12K_resistor Trim data error addr[0x%02x] = 0x%04x > 20(0x14)\r\n", (int)addr, (int)USB3_1_USB2_dual_phy_int_12K_resistor);
+				} else if (USB3_1_USB2_dual_phy_int_12K_resistor < 0x1) {
+					printf("12K_resistor Trim data error addr[0x%02x] = 0x%04x < 1(0x1)\r\n", (int)addr, (int)USB3_1_USB2_dual_phy_int_12K_resistor);
+				} else {
+					printf("  *12K_resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)USB3_1_USB2_dual_phy_int_12K_resistor);
+				}
+
+				//TX term bit[8..5] 0x2 <= x <= 0xE
+				if (USB3_1_USB2_dual_phy_TX_term > 0xE) {
+					printf("USB(SATA) TX Trim data error addr[0x%02x] = 0x%04x > 0xE\r\n", (int)addr, (int)USB3_1_USB2_dual_phy_TX_term);					
+				} else if (USB3_1_USB2_dual_phy_TX_term < 0x2) {
+					printf("USB(SATA) TX Trim data error addr[0x%02x] = 0x%04x < 0x2\r\n", (int)addr, (int)USB3_1_USB2_dual_phy_TX_term);					
+				} else {
+					printf("  *USB(SATA) TX Trim data range success 0x2 <= [0x%04x] <= 0xE\r\n", (int)USB3_1_USB2_dual_phy_TX_term);
+				}
+				//RX term bit[12..9] 0x8 <= x <= 0xE
+				if (USB3_1_USB2_dual_phy_RX_term > 0xE) {
+					printf("USB(SATA) RX Trim data error addr[0x%02x] = 0x%04x > 0xE\r\n", (int)addr, (int)USB3_1_USB2_dual_phy_RX_term);					
+				} else if (USB3_1_USB2_dual_phy_RX_term < 0x8) {
+					printf("USB(SATA) RX Trim data error addr[0x%02x] = 0x%04x < 0x8\r\n", (int)addr, (int)USB3_1_USB2_dual_phy_RX_term);					
+				} else {
+					printf("  *USB(SATA) RX Trim data range success 0x8 <= [0x%04x] <= 0xE\r\n", (int)USB3_1_USB2_dual_phy_RX_term);
+				}	
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][USB3_1 USB2 dual phy] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		addr = 0x00;
+		code = otp_key_manager(EFUSE_TRIM_DATA_SATA1_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read SATA1 trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//12K resistor 1<= x <= 20(0x14)
+				printf("  SATA1 Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)value);
+				printf("  SATA1 12K_resistor[4..0] valid from 1(0x1) <-> 20(0x14)\r\n");
+				SATA1_Internal_12K_resistor = trim & 0x1F;
+				SATA1_TX_TRIM = ((trim >> 5) & 0xF);
+				SATA1_RX_TRIM = ((trim >> 9) & 0xF);
+
+				if (SATA1_Internal_12K_resistor > 0x14) {
+					printf("SATA1 12K_resistor Trim data error [0x%02x]=0x%04x > 20(0x14)\r\n", (int)addr, (int)SATA1_Internal_12K_resistor);
+				} else if (SATA1_Internal_12K_resistor < 0x1) {
+					printf("SATA1 12K_resistor Trim data error [0x%02x]=0x%04x < 1(0x1)\r\n", (int)addr, (int)SATA1_Internal_12K_resistor);
+				} else {
+					printf("  *SATA1 12K_resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)SATA1_Internal_12K_resistor);
+				}
+
+				//TX term bit[8..5] 0x2 <= x <= 0xE
+				if (SATA1_TX_TRIM > 0xE) {
+					printf("SATA1 TX Trim data error [0x%02x]=0x%04x > 0xE\r\n", (int)addr, (int)SATA1_TX_TRIM);
+				} else if (SATA1_TX_TRIM < 0x2) {
+					printf("SATA1 TX Trim data error [0x%02x]=0x%04x < 0x2\r\n", (int)addr, (int)SATA1_TX_TRIM);
+				} else {
+					printf("  *SATA1 TX Trim data range success 0x2 <= [0x%04x] <= 0xE\r\n", (int)SATA1_TX_TRIM);
+				}
+				//RX term bit[12..9] 0x8 <= x <= 0xE
+				if (SATA1_RX_TRIM > 0xE) {
+					printf("SATA1 RX Trim data error [0x%02x]=0x%04x > 0xE\r\n", (int)addr, (int)SATA1_RX_TRIM);
+				} else if (SATA1_RX_TRIM < 0x8) {
+					printf("SATA1 RX Trim data error [0x%02x]=0x%04x < 0x8\r\n", (int)addr, (int)SATA1_RX_TRIM);
+				} else {
+					printf("  *SATA1 RX Trim data range success 0x8 <= [0x%04x] <= 0xE\r\n", (int)SATA1_RX_TRIM);
+				}		
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][SATA1 trim] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		addr = 0x5;
+		code = otp_key_manager(EFUSE_TRIM_DATA_USB_SATA_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read USB3_2 & SATA2 trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//12K resistor 1<= x <= 20(0x14)
+				printf("  USB3_2(SATA2) Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)trim);
+				printf("  USB3_2(SATA2) 12K_resistor[4..0] valid from 1(0x1) <-> 20(0x14)\r\n");
+				USB3_2_SATA2_Internal_12K_resistor = trim & 0x1F;
+				USB3_2_SATA2_TX_TRIM = ((trim >> 5) & 0xF);
+				USB3_2_SATA2_RX_TRIM = ((trim >> 9) & 0xF);
+
+				if (USB3_2_SATA2_Internal_12K_resistor > 0x14) {
+					printf("12K_resistor Trim data error [0x%02x]=0x%04x > 20(0x14)\r\n", (int)addr, (int)USB3_2_SATA2_Internal_12K_resistor);					
+				} else if (USB3_2_SATA2_Internal_12K_resistor < 0x1) {
+					printf("12K_resistor Trim data error [0x%02x]=0x%04x < 1(0x1)\r\n", (int)addr, (int)USB3_2_SATA2_Internal_12K_resistor);					
+				} else {
+					printf("  *12K_resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)USB3_2_SATA2_Internal_12K_resistor);
+				}
+
+				//TX term bit[8..5] 0x2 <= x <= 0xE
+				if (USB3_2_SATA2_TX_TRIM > 0xE) {
+					printf("USB(SATA) TX Trim data error [0x%02x]=0x%04x > 0xE\r\n", (int)addr, (int)USB3_2_SATA2_TX_TRIM);
+				} else if (USB3_2_SATA2_TX_TRIM < 0x2) {
+					printf("USB(SATA) TX Trim data error [0x%02x]=0x%04x < 0x2\r\n", (int)addr, (int)USB3_2_SATA2_TX_TRIM);					
+				} else {
+					printf("  *USB(SATA) TX Trim data range success 0x2 <= [0x%04x] <= 0xE\r\n", (int)USB3_2_SATA2_TX_TRIM);
+				}
+				//RX term bit[12..9] 0x8 <= x <= 0xE
+				if (USB3_2_SATA2_RX_TRIM > 0xE) {
+					printf("USB(SATA) RX Trim data error [0x%02x]=0x%04x > 0xE\r\n", (int)addr, (int)USB3_2_SATA2_RX_TRIM);					
+				} else if (USB3_2_SATA2_RX_TRIM < 0x8) {
+					printf("USB(SATA) RX Trim data error [0x%02x]=0x%04x < 0x8\r\n", (int)addr, (int)USB3_2_SATA2_RX_TRIM);					
+				} else {
+					printf("  *USB(SATA) RX Trim data range success 0x8 <= [0x%04x] <= 0xE\r\n", (int)USB3_2_SATA2_RX_TRIM);
+				}		
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][USB3_2 & SATA2 trim] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		addr = EFUSE_TRIM_DATA_HDMI_H_PHY_RESISTOR_PRI;
+		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_H_PHY_RESISTOR_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read HDMI H PHY Resistor trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				HDMI_H_resistor_1_4 = trim & 0x1F;
+				//bit[9..5]
+				HDMI_H_resistor_2_0 = ((trim >> 5) & 0x1F);
+
+				if (HDMI_H_resistor_1_4 > 0x14) {
+					printf("(H)1.4 HDMI resistor Trim data error [0x%02x] = 0x%04x > 0x14\r\n", (int)addr, (int)HDMI_H_resistor_1_4);					
+				} else if (HDMI_H_resistor_1_4 < 0x1) {
+					printf("(H)1.4 HDMI resistor Trim data error [0x%02x]=0x%04x < 0x1\r\n", (int)addr, (int)HDMI_H_resistor_1_4);					
+				} else {
+					printf(" *(H)1.4 HDMI resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)HDMI_H_resistor_1_4);
+				}
+
+				if (HDMI_H_resistor_2_0 > 0x14) {
+					printf("(H)2.0 HDMI resistor Trim data error [0x%02x]=0x%04x > 0x14\r\n", (int)addr, (int)HDMI_H_resistor_2_0);					
+				} else if (HDMI_H_resistor_2_0 < 0x1) {
+					printf("(H)2.0 HDMI resistor Trim data error [0x%02x]=0x%04x < 0x1\r\n", (int)addr, (int)HDMI_H_resistor_2_0);					
+				} else {
+					printf(" *(H)2.0 HDMI resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)HDMI_H_resistor_2_0);
+				}				
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI H Resistor] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		addr = 0x1;		
+		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read HDMI H PHY 2.0 VLANE trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  (H)HDMI 2.0 VLane tunning Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)value);
+				//bit[11..0]
+				HDMI_H_LANE_VL_2_0 = value & 0xFFF;
+				printf("  *(H)2.0 HDMI VLane Trim data success [0x%04x](no limitation)\r\n", (int)HDMI_H_LANE_VL_2_0);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI H PHY 2.0 VLANE] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		addr = 0x2F;	
+		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_1_4_H_PHY_VL_TRIM_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read HDMI H PHY 1.4 VLANE trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  (H)HDMI 1.4 VLane tunning Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)value);
+				//bit[11..0]
+				HDMI_H_LANE_VL_1_4 = value & 0xFFF;
+				printf("  *(H)1.4 HDMI VLane Trim data success [0x%04x](no limitation)\r\n", (int)HDMI_H_LANE_VL_2_0);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI H PHY 1.4 VLANE] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+		//V
+		addr = 0x2E;
+		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_V_PHY_RESISTOR_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read HDMI V PHY Resistor trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				HDMI_V_resistor_1_4 = trim & 0x1F;
+				//bit[9..5]
+				HDMI_V_resistor_2_0 = ((trim >> 5) & 0x1F);
+
+				if (HDMI_V_resistor_1_4 > 0x14) {
+					printf("(V)1.4 HDMI resistor Trim data error [0x%02x] = 0x%04x > 0x14\r\n", (int)addr, (int)HDMI_V_resistor_1_4);					
+				} else if (HDMI_V_resistor_1_4 < 0x1) {
+					printf("(V)1.4 HDMI resistor Trim data error [0x%02x]=0x%04x < 0x1\r\n", (int)addr, (int)HDMI_V_resistor_1_4);					
+				} else {
+					printf(" *(V)1.4 HDMI resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)HDMI_V_resistor_1_4);
+				}
+
+				if (HDMI_V_resistor_2_0 > 0x14) {
+					printf("(V)2.0 HDMI resistor Trim data error [0x%02x]=0x%04x > 0x14\r\n", (int)addr, (int)HDMI_V_resistor_2_0);					
+				} else if (HDMI_V_resistor_2_0 < 0x1) {
+					printf("(V)2.0 HDMI resistor Trim data error [0x%02x]=0x%04x < 0x1\r\n", (int)addr, (int)HDMI_V_resistor_2_0);					
+				} else {
+					printf(" *(V)2.0 HDMI resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)HDMI_V_resistor_2_0);
+				}				
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI VH Resistor] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		addr = 0x2C;		
+		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_2_0_V_PHY_VL_TRIM_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read HDMI V PHY 2.0 VLANE trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  (V)HDMI 2.0 VLane tunning Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)value);
+				//bit[11..0]
+				HDMI_V_LANE_VL_2_0 = value & 0xFFF;
+				printf("  *(V)2.0 HDMI VLane Trim data success [0x%04x](no limitation)\r\n", (int)HDMI_V_LANE_VL_2_0);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI V PHY 2.0 VLANE] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		addr = 0x2D;	
+		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_1_4_V_PHY_VL_TRIM_PRI);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read HDMI V PHY 1.4 VLANE trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  (V)HDMI 1.4 VLane tunning Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)value);
+				//bit[11..0]
+				HDMI_H_LANE_VL_1_4 = value & 0xFFF;
+				printf("  *(V)1.4 HDMI VLane Trim data success [0x%04x](no limitation)\r\n", (int)HDMI_V_LANE_VL_2_0);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI V PHY 1.4 VLANE] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+#elif defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
+		u32     trim;
+		int     code;
+		BOOL    is_found;
+		u32     RTC_Trim_15_8, ANA_REG_3_0, ANA_REG_7_6;
+		u32     USB_SATA_Internal_12K_resistor;
+		u32     USB_SATA_TX_TRIM, USB_SATA_RX_TRIM;
+		u32     USB_PLL_LDO, USB_RX_LDO;
+		u32     HDMI_resistor_1_4, HDMI_LANE_VL_1_4;
+		u32     HDMI_resistor_2_0, HDMI_LANE_VL_2_0;
+		u32     THERMAL;
+		u32     I_Trim_2_5_G, R_Term_2_5_G;
+		u32     clock_lane_trim[4];
+		u32     data_lane_trim[8];
+		//RTC
+		code = otp_key_manager(EFUSE_RTC_TRIM_DATA);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read RTC trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//bit[7..0]
+				RTC_Trim_15_8 = (trim & 0xFF);
+				//bit[9..8]
+				ANA_REG_7_6   = ((trim >> 8) & 0x3);
+				//bit[13..10]
+				ANA_REG_3_0   = ((trim >> 10) & 0xF);
+				printf("is found [%d][%d][    ETH] = 0x%08x\r\n", is_found, EFUSE_RTC_TRIM_DATA, (int)trim);
+				printf("   *RTC_3_0 Trim [0x%04x]\r\n", (int)ANA_REG_3_0);
+				printf("   *RTC_7_6 Trim [0x%04x]\r\n", (int)ANA_REG_7_6);
+				printf("  *RTC_15_8 Trim [0x%04x]\r\n", (int)RTC_Trim_15_8);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][RTC] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		code = otp_key_manager(EFUSE_HDMI_RESISTOR_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_HDMI_RESISTOR_TRIM_DATA);
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//bit[4..0]
+				HDMI_resistor_1_4 = trim & 0x1F;
+				//bit[9..5]
+				HDMI_resistor_2_0 = ((trim >> 5) & 0x1F);
+				if (HDMI_resistor_1_4 > 0x14) {
+					printf("1.4 HDMI resistor Trim data error 0x%04x > 0x14\r\n", (int)HDMI_resistor_1_4);
+				} else if (HDMI_resistor_1_4 < 0x1) {
+					printf("1.4 HDMI resistor Trim data error 0x%04x < 0x1\r\n", (int)HDMI_resistor_1_4);
+				} else {
+					printf("  *1.4 HDMI resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)HDMI_resistor_1_4);
+				}
+				if (HDMI_resistor_2_0 > 0x14) {
+					printf("2.0 HDMI resistor Trim data error 0x%04x > 0x14\r\n", (int)HDMI_resistor_2_0);
+				} else if (HDMI_resistor_2_0 < 0x1) {
+					printf("2.0 HDMI resistor Trim data error 0x%04x < 0x1\r\n", (int)HDMI_resistor_2_0);
+				} else {
+					printf("  *2.0 HDMI resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)HDMI_resistor_2_0);
+				}
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI resistor] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+		code = otp_key_manager(EFUSE_HDMI_2_0_VLANE_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_HDMI_2_0_VLANE_TRIM_DATA);
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  HDMI 2.0 VLane tunning Trim = 0x%04x\r\n", (int)trim);
+				//bit[11..0]
+				HDMI_LANE_VL_2_0 = trim & 0xFFF;
+				printf("  *2.0 HDMI VLane Trim data range success 0x0 <= [0x%04x] <= 0xFFF\r\n", (int)HDMI_LANE_VL_2_0);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI 2.0 VLNE] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		code = otp_key_manager(EFUSE_HDMI_1_4_VLANE_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_HDMI_1_4_VLANE_TRIM_DATA);
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  HDMI 1.4 VLane tunning Trim = 0x%04x\r\n", (int)trim);
+				//bit[11..0]
+				HDMI_LANE_VL_1_4 = trim & 0xFFF;
+				printf("  *1.4 HDMI VLane Trim data range success 0x0 <= [0x%04x] <= 0xFFF\r\n", (int)HDMI_LANE_VL_1_4);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI 1.4 VLNE] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		code =  otp_key_manager(EFUSE_USB_SATA_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_USB_SATA_TRIM_DATA);
+		} else {
+			//12K resistor 1<= x <= 20(0x14)
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  USB(SATA) Trim data = 0x%04x\r\n", (int)trim);
+				USB_SATA_Internal_12K_resistor = trim & 0x1F;
+				USB_SATA_TX_TRIM = ((trim >> 5) & 0xF);
+				USB_SATA_RX_TRIM = ((trim >> 9) & 0xF);
+				if (USB_SATA_Internal_12K_resistor > 0x14) {
+					printf("12K_resistor Trim data error 0x%04x > 20(0x14)\r\n", (int)USB_SATA_Internal_12K_resistor);
+				} else if (USB_SATA_Internal_12K_resistor < 0x1) {
+					printf("12K_resistor Trim data error 0x%04x < 1(0x1)\r\n", (int)USB_SATA_Internal_12K_resistor);
+				} else {
+					printf("  *12K_resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)USB_SATA_Internal_12K_resistor);
+				}
+				//TX term bit[8..5] 0x2 <= x <= 0xE
+				if (USB_SATA_TX_TRIM > 0xE) {
+					printf("USB(SATA) TX Trim data error 0x%04x > 0xE\r\n", (int)USB_SATA_TX_TRIM);
+				} else if (USB_SATA_TX_TRIM < 0x2) {
+					printf("USB(SATA) TX Trim data error 0x%04x < 0x2\r\n", (int)USB_SATA_TX_TRIM);
+				} else {
+					printf("  *USB(SATA) TX Trim data range success 0x2 <= [0x%04x] <= 0xE\r\n", (int)USB_SATA_TX_TRIM);
+				}
+				//RX term bit[12..9] 0x8 <= x <= 0xE
+				if (USB_SATA_RX_TRIM > 0xE) {
+					printf("USB(SATA) RX Trim data error 0x%04x > 0xE\r\n", (int)USB_SATA_RX_TRIM);
+				} else if (USB_SATA_RX_TRIM < 0x8) {
+					printf("USB(SATA) RX Trim data error 0x%04x < 0x8\r\n", (int)USB_SATA_RX_TRIM);
+				} else {
+					printf("  *USB(SATA) RX Trim data 0x8 <= [0x%04x] <= 0xE\r\n", (int)USB_SATA_RX_TRIM);
+				}
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][USB trim] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		code =  otp_key_manager(EFUSE_USB_LDO_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_USB_LDO_TRIM_DATA);
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("  USB(RX/PLL LDO) Trim data = 0x%04x\r\n", (int)trim);
+				USB_PLL_LDO = (trim & 0x1);
+				USB_RX_LDO = ((trim >> 1) & 0x1);
+
+				//RX term bit[12..9] 0x8 <= x <= 0xE
+				printf("USB PLL LDO[%d]\r\n", (int)USB_PLL_LDO);
+				printf("USB  RX LDO[%d]\r\n", (int)USB_RX_LDO);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][ USB LDO] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+		code = otp_key_manager(EFUSE_THERMAL_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_THERMAL_TRIM_DATA);
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("Thermal Trim = 0x%04x => 58(0x3A) ~ 138(0x8A)\r\n", (int)trim);
+				THERMAL = (trim & 0xFF);
+				if (THERMAL > 138 || THERMAL < 58) {
+					printf(" Thermal Trim data range  error THERMAL > 138 or THERMAL < 58 ==> [%d]\r\n", (int)THERMAL);
+				} else {
+					printf(" Thermal Trim data range success 58 <= THERMAL [%d] <= 138\r\n", (int)THERMAL);
+				}
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][ Thermal] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		code = otp_key_manager(EFUSE_CSI_2_5G_I_TRIM_R_TERM_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_CSI_2_5G_I_TRIM_R_TERM_TRIM_DATA);
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("CSI 2.5G I TRIM R TERM Trim = 0x%04x\r\n", (int)trim);
+				//bit[5..0]
+				I_Trim_2_5_G = (trim & 0x3F);
+				//bit[9..6]
+				R_Term_2_5_G = ((trim >> 6) & 0xF);
+				printf(" CSI 2.5G I trim Trim data [%d]\r\n", (int)I_Trim_2_5_G);
+				printf(" CSI 2.5G R term Trim data [%d]\r\n", (int)R_Term_2_5_G);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][CSI2.5G I term R term] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+		code = otp_key_manager(EFUSE_CSI_1_5G_D1_D0_C3_C0_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_CSI_1_5G_D1_D0_C3_C0_TRIM_DATA);
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("CSI 1.5G clock lane 0~3 & data lane 0~3 Trim data = 0x%04x\r\n", (int)trim);
+				//bit[11..0]
+				clock_lane_trim[0] = (trim & 0x3);
+				clock_lane_trim[1] = ((trim >> 2) & 0x3);
+				clock_lane_trim[2] = ((trim >> 4) & 0x3);
+				clock_lane_trim[3] = ((trim >> 6) & 0x3);
+				data_lane_trim[0] = ((trim >> 8) & 0x3);
+				data_lane_trim[1] = ((trim >> 10) & 0x3);
+				printf(" CSI 1.5G clock lane 0 Trim data range success [%d]\r\n", (int)clock_lane_trim[0]);
+				printf(" CSI 1.5G clock lane 1 Trim data range success [%d]\r\n", (int)clock_lane_trim[1]);
+				printf(" CSI 1.5G clock lane 2 Trim data range success [%d]\r\n", (int)clock_lane_trim[2]);
+				printf(" CSI 1.5G clock lane 3 Trim data range success [%d]\r\n", (int)clock_lane_trim[3]);
+				printf(" CSI 1.5G  data lane 0 Trim data range success [%d]\r\n", (int)data_lane_trim[0]);
+				printf(" CSI 1.5G  data lane 1 Trim data range success [%d]\r\n", (int)data_lane_trim[1]);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][CSI1.5G I term R term] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+		code = otp_key_manager(EFUSE_CSI_1_5G_D7_D2_TRIM_DATA);
+		if (code == -33) {
+			printf("[%d] data = NULL\n", EFUSE_CSI_1_5G_D7_D2_TRIM_DATA);
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				printf("CSI 1.5G data lane 2~7 Trim = 0x%04x\r\n", (int)trim);
+				//bit[11..0]
+				data_lane_trim[2] = (trim & 0x3);
+				data_lane_trim[3] = ((trim >> 2) & 0x3);
+				data_lane_trim[4] = ((trim >> 4) & 0x3);
+				data_lane_trim[5] = ((trim >> 6) & 0x3);
+				data_lane_trim[6] = ((trim >> 8) & 0x3);
+				data_lane_trim[7] = ((trim >> 10) & 0x3);
+				printf(" CSI 1.5G data lane 2 Trim data range success [%d]\r\n", (int)data_lane_trim[2]);
+				printf(" CSI 1.5G data lane 3 Trim data range success [%d]\r\n", (int)data_lane_trim[3]);
+				printf(" CSI 1.5G data lane 4 Trim data range success [%d]\r\n", (int)data_lane_trim[4]);
+				printf(" CSI 1.5G data lane 5 Trim data range success [%d]\r\n", (int)data_lane_trim[5]);
+				printf(" CSI 1.5G data lane 6 Trim data range success [%d]\r\n", (int)data_lane_trim[6]);
+				printf(" CSI 1.5G data lane 7 Trim data range success [%d]\r\n", (int)data_lane_trim[7]);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][CSI1.5G    D7 D2 trim] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+#elif defined(CONFIG_TARGET_NA51103)
+		u32     trim;
+		u32     remap_data;
+		int     code;
+		int     code2;
+		BOOL    is_found;
+
+		u32     TX_TRIM_ROUT, TX_TRIM_DAC, TX_TRIM_SEL_RX, TX_TRIM_SEL_TX;
+		u32     CVBS_TRIM, VGA_TRIM;
+		u32     THERMAL;
+		u32     usb_internal_12K_resistor;
+		u32     HDMI_resistor;
+		u32     HDMI_LANE_VL;
+		u32     HDMI_LANE0;
+		u32     HDMI_LANE1;
+		u32     HDMI_LANE2;
+		u32     HDMI_CLK;
+
+		u32     DDR_RZQ, DDR_LDO;
+		u32     core_pwr_adj, core_pwr_lek;
+		u32     BIAS_VLDOSEL_PI, BIAS_RX_VLDO_SEL, BIAS_LDOSEL_PLL;
+		u32     BIAS_VREF_SEL, TX_ZTX_CTL;
+
+
+
+		//Ethernet
+		code = otp_key_manager(OTP_ETHERNET_TRIM_FIELD);
+		if (code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read ethernet trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				TX_TRIM_ROUT    = trim & 0x7;
+				TX_TRIM_DAC     = ((trim >> 3) & 0x1F);
+				TX_TRIM_SEL_RX  = ((trim >> 8) & 0x7);
+				TX_TRIM_SEL_TX  = ((trim >> 11) & 0x7);
+				printf("is found [%d][%d][    ETH] = 0x%08x\r\n", is_found, OTP_ETHERNET_TRIM_FIELD, (int)trim);
+				printf("  	=> TX_TRIM_ROUT[0x%04x]\r\n", (int)TX_TRIM_ROUT);
+				printf("  	=>  TX_TRIM_DAC[0x%04x]\r\n", (int)TX_TRIM_DAC);
+				printf("  	=> TX_TRIM_ROUT[0x%04x]\r\n", (int)TX_TRIM_SEL_RX);
+				printf("  	=> TX_TRIM_ROUT[0x%04x]\r\n", (int)TX_TRIM_SEL_TX);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][ETH] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		//SATA
+		code = otp_key_manager(OTP_SATA_TRIM_FIELD);
+		code2 = otp_key_manager(OTP_SATA_REMAIN_TRIM_FIELD);
+		if (code == -33 || code2 == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read SATA trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				BIAS_VLDOSEL_PI = trim & 0xF;
+				BIAS_RX_VLDO_SEL = ((trim >> 4) & 0xF);
+				BIAS_LDOSEL_PLL = ((trim >> 8) & 0xF);
+				BIAS_VREF_SEL   = ((code2 >> 8) & 0xF);
+				TX_ZTX_CTL      = ((code2 >> 12) & 0xF);
+
+				printf("is found [%d][%d](%d)[ SATA]= 0x%08x\r\n", is_found, OTP_SATA_TRIM_FIELD, OTP_SATA_REMAIN_TRIM_FIELD, (int)trim);
+				printf("  	=>  BIAS_VLDOSEL_PI[0x%04x]\r\n", (int)BIAS_VLDOSEL_PI);
+				printf("  	=> BIAS_RX_VLDO_SEL[0x%04x]\r\n", (int)BIAS_RX_VLDO_SEL);
+				printf("  	=>  BIAS_LDOSEL_PLL[0x%04x]\r\n", (int)BIAS_LDOSEL_PLL);
+				printf("  	=>    BIAS_VREF_SEL[0x%04x]\r\n", (int)BIAS_VREF_SEL);
+				printf("  	=>       TX_ZTX_CTL[0x%04x]\r\n", (int)TX_ZTX_CTL);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][SATA1] = 0x%08x\r\n", is_found, (int)code);
+				printf("is found [%d][SATA2] = 0x%08x\r\n", is_found, (int)code2);
+			}
+		}
+
+
+		code = otp_key_manager(OTP_THERMAL_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read thermal trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//bit[8..0]
+				THERMAL = trim & 0x1FF;
+				printf("is found [%d][%d][ THERMAL] = 0x%08x\r\n", is_found, OTP_THERMAL_TRIM_FIELD, (int)trim);
+				printf("  	=> THERMAL[0x%04x]\r\n", (int)THERMAL);
+			} else {
+				printf("is found [%d][THERMAL] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+
+		code = otp_key_manager(OTP_USB_SET1_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read USB trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_2_set_type_trim_valid(TRIM_USB_FIELD, code, (u32 *)&trim);
+			if (is_found) {
+				usb_internal_12K_resistor = trim;
+				printf("is found [%d][%d][USB] = 0x%04x\r\n", is_found, OTP_USB_SET1_TRIM_FIELD, (int)trim);
+				printf("  	=> 12K_resistor[0x%04x]\r\n", (int)usb_internal_12K_resistor);
+			} else {
+				printf("is found [%d][ USB] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		//ZQK & LDO
+		code = otp_key_manager(OTP_DDR_RZQ_SET1_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read DDR RZQ trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_2_set_type_trim_valid(TRIM_DDR_RZQ_FIELD, code, (u32 *)&trim);
+			if (is_found) {
+				DDR_RZQ = trim;
+				printf("is found [%d][%d][USB] = 0x%04x\r\n", is_found, OTP_DDR_RZQ_SET1_TRIM_FIELD, (int)trim);
+				printf("  	=> DDR_RZQ[0x%04x]\r\n", (int)DDR_RZQ);
+			} else {
+				printf("is found [%d][DDR_RZQ] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		code = otp_key_manager(OTP_DDR_LDO_SET2_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read DDR LDO trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_2_set_type_trim_valid(TRIM_DDR_LDO_FIELD, code, (u32 *)&trim);
+			if (is_found) {
+				DDR_LDO = trim >> 8;
+				printf("is found [%d][%d][USB] = 0x%04x\r\n", is_found, OTP_DDR_LDO_SET2_TRIM_FIELD, (int)trim);
+				printf("  	=> DDR_LDO[0x%04x]\r\n", (int)DDR_LDO);
+			} else {
+				printf("is found [%d][DDR_LDO] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		//Core power
+		code = otp_key_manager(OTP_CORE_POWER_ADJ_SET1_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read Core PWR adj trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_2_set_type_trim_valid(TRIM_CORE_PWR_ADJ_FIELD, code, (u32 *)&trim);
+			if (is_found) {
+				core_pwr_adj = (trim & 0xF);
+				printf("is found [%d][%d][CorePwr adj] = 0x%04x\r\n", is_found, TRIM_CORE_PWR_ADJ_FIELD, (int)trim);
+				printf("  	=> core_pwr_adj[0x%04x]\r\n", (int)core_pwr_adj);
+			} else {
+				printf("is found [%d][CorePwr adj] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		code = otp_key_manager(OTP_CORE_POWER_LEK_SET2_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read Core PWR lek trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_2_set_type_trim_valid(TRIM_CORE_PWR_LEK_FIELD, code, (u32 *)&trim);
+			if (is_found) {
+				core_pwr_lek = trim >> 8;
+				printf("is found [%d][%d][CorePwr lek] = 0x%04x\r\n", is_found, OTP_CORE_POWER_LEK_SET2_TRIM_FIELD, (int)trim);
+				printf("  	=> core_pwr_lek[0x%04x]\r\n", (int)core_pwr_lek);
+			} else {
+				printf("is found [%d][CorePwr lek] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+
+		code = otp_key_manager(OTP_HDMI_TRIM_FIELD);
+		code2 = otp_key_manager(OTP_HDMI_VALE_VL_REMAIN_TRIM_FIELD);
+		if (code == -33 || code2 == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read HDMI trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//bit[6..0]
+				HDMI_resistor = trim & 0x1F;
+				HDMI_LANE_VL = (trim >> 5) | (((code2 >> 9) & 0x7) << 9);
+				HDMI_LANE0  = (HDMI_LANE_VL & 0x7);
+				HDMI_LANE1  = ((HDMI_LANE_VL >> 3) & 0x7);
+				HDMI_LANE2  = ((HDMI_LANE_VL >> 6) & 0x7);
+				HDMI_CLK    = ((HDMI_LANE_VL >> 9) & 0x7);
+
+				printf("is found [%d][%d][HDMI]= 0x%08x->0x%08x\r\n", is_found, OTP_HDMI_TRIM_FIELD, (int)trim, (int)code2);
+				printf("  	=> HDMI_resistor[0x%04x]\r\n", (int)HDMI_resistor);
+				printf("  	=>  HDMI_LANE_VL[0x%04x]\r\n", (int)HDMI_LANE_VL);
+				printf("  	=>  HDMI_LANE0[0x%04x]\r\n", (int)HDMI_LANE0);
+				printf("  	=>  HDMI_LANE1[0x%04x]\r\n", (int)HDMI_LANE1);
+				printf("  	=>  HDMI_LANE2[0x%04x]\r\n", (int)HDMI_LANE2);
+				printf("  	=>    HDMI_CLK[0x%04x]\r\n", (int)HDMI_CLK);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][HDMI] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+
+		code = otp_key_manager(OTP_CVBS_VGA_TRIM_FIELD);
+		if (code == -33) {
+			printf("Read CVBS & VGA trim error\r\n");
+			return -1;
+		} else {
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if (is_found) {
+				//bit[6..0]
+				CVBS_TRIM = trim & 0x7F;
+				//bit[13..7] as VGA[6..0] bit[7] always = 1
+				VGA_TRIM = ((trim >> 7) | 0x80);
+				printf("is found [%d][%d][CVBSVGA] = 0x%08x\r\n", is_found, OTP_CVBS_VGA_TRIM_FIELD, (int)trim);
+				printf("  	=> CVBS_TRIM[0x%04x]\r\n", (int)CVBS_TRIM);
+				printf("  	=>  VGA_TRIM[0x%04x]\r\n", (int)VGA_TRIM);
+			} else {
+				printf("is found [%d][CVBS] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+#endif
+	} else if (!strncmp(argv[1], "quary", 5)) {
+		printf("=>[quary]\r\n");
+		printf("             is_secure_enable()=%d\r\n", is_secure_enable());
+		printf("       is_data_area_encrypted()=%d\r\n", is_data_area_encrypted());
+		printf("             is_signature_rsa()=%d\r\n", is_signature_rsa());
+		printf("is_signature_rsa_chsum_enable()=%d\r\n", is_signature_rsa_chsum_enable());
+		printf("           is_JTAG_DISABLE_en()=%d\r\n", is_JTAG_DISABLE_en());
+		printf("        is_1st_key_programmed()=%d\r\n", is_1st_key_programmed());
+		printf("        is_2nd_key_programmed()=%d\r\n", is_2nd_key_programmed());
+		printf("        is_3rd_key_programmed()=%d\r\n", is_3rd_key_programmed());
+		printf("        is_4th_key_programmed()=%d\r\n", is_4th_key_programmed());
+		printf("        is_5th_key_programmed()=%d\r\n", is_5th_key_programmed());
+		printf("         is_1st_key_read_lock()=%d\r\n", is_1st_key_read_lock());
+		printf("         is_2nd_key_read_lock()=%d\r\n", is_2nd_key_read_lock());
+		printf("         is_3rd_key_read_lock()=%d\r\n", is_3rd_key_read_lock());
+		printf("         is_4th_key_read_lock()=%d\r\n", is_4th_key_read_lock());
+		printf("         is_5th_key_read_lock()=%d\r\n", is_5th_key_read_lock());
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
+		printf("              is_hdmi_disable()=%d\r\n", is_hdmi_disable());
+		printf("              is_DSP1_disable()=%d\r\n", is_DSP1_disable());
+		printf("              is_DSP2_disable()=%d\r\n", is_DSP2_disable());
+		printf("               is_GPU_disable()=%d\r\n", is_GPU_disable());
+		printf("               is_MCU_disable()=%d\r\n", is_MCU_disable());
+#endif
+#ifdef CONFIG_NVT_PCIE_MAPPING
+		printf("             is_ep_secure_enable()=%d\r\n", is_ep_secure_enable());
+		printf("       is_ep_data_area_encrypted()=%d\r\n", is_ep_data_area_encrypted());
+		printf("             is_ep_signature_rsa()=%d\r\n", is_ep_signature_rsa());
+		printf("is_ep_signature_rsa_chsum_enable()=%d\r\n", is_ep_signature_rsa_chsum_enable());
+#endif
+	}
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
+	else if (!strncmp(argv[1], "DSP1_disable", 12)) {
+		printf("=>[DSP1_disable]\r\n");
+		efuse_DSP1_dis();
+		printf("is_DSP1_DISABLE_en()=%d\r\n", is_DSP1_disable());
+	} else if (!strncmp(argv[1], "DSP2_disable", 12)) {
+		printf("=>[DSP2_disable]\r\n");
+		efuse_DSP2_dis();
+		printf("is_DSP2_DISABLE_en()=%d\r\n", is_DSP2_disable());
+	} else if (!strncmp(argv[1], "GPU_disable", 11)) {
+		printf("=>[GPU_disable]\r\n");
+		efuse_GPU_dis();
+		printf("is_GPU_DISABLE_en()=%d\r\n", is_GPU_disable());
+	} else if (!strncmp(argv[1], "MCU_disable", 11)) {
+		printf("=>[MCU_disable]\r\n");
+		efuse_MCU_dis();
+		printf("is_MCU_DISABLE_en()=%d\r\n", is_MCU_disable());
+	}
+#endif
+	else {
+		return CMD_RET_USAGE;
+	}
+	return 0;
+}
+
+
+U_BOOT_CMD(
+	nvt_secure_en,  2,  0,  do_nvt_secure_en_cmd,
+	"secure enable related API",
+	"[Option] \n"
+	"              [secure_en]\n"
+	"              [data_encrypt]\n"
+	"              [rsa_en]\n"
+	"              [rsa_chk_en]\n"
+	"              [jtag_disable]\n"
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
+	"              [DSP1_disable]\n"
+	"              [DSP2_disable]\n"
+	"              [ GPU_disable]\n"
+	"              [ MCU_disable]\n"
+#endif
+	"              [quary]\n"
+	"              [uniqueue_id]\n"
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
+	"              [trim]\n"
+#endif
+);
+
+int do_nvt_jtag_dis_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	efuse_jtag_dis();
+	return 0;
+}
+
+U_BOOT_CMD(
+	nvt_jtag_disable,  1,  0,  do_nvt_jtag_dis_cmd,
+	"jtag disable",
+	"After jtag disable, JTAG will disable forever\n"
+);
+#endif
+

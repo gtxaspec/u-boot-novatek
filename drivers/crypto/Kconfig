@@ -1,0 +1,9 @@
+menu "Hardware crypto devices"
+
+source drivers/crypto/fsl/Kconfig
+
+if TARGET_NS02201 || TARGET_NS02201_A64
+source drivers/crypto/nvt/ns02201/Kconfig
+endif
+
+endmenu
