@@ -47,7 +47,7 @@
 #include <linux/delay.h>
 #include <asm/arch/efuse_protected.h>
 
-#define ETHVERSION "1.0.0.0"
+#define ETHVERSION "1.0.0.1"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
@@ -97,6 +97,14 @@
 #define set_led_default(base_addr) do { \
 		writel(0x3FF, (void *)((base_addr) + 0x300C));\
 	} while (0)
+
+#define set_best_setting_t22(base_addr) do { \
+        unsigned long v; \
+		v = readl((void *)((base_addr) + 0x3B74)); \
+        v &= ~(0x07); \
+        v |= (0x05); \
+		writel(v, (void *)((base_addr) + 0x3B74));\
+}while(0)
 
 /* Core registers */
 #define DEFAULT_MAC_ADDRESS {0x00, 0x80, 0x48, 0xBA, 0xD1, 0x30}
@@ -1575,6 +1583,7 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 #ifndef CONFIG_NVT_FPGA_EMULATION
 		set_eth_phy_trim(IOADDR_ETH_REG_BASE);
 #endif
+		set_best_setting_t22(IOADDR_ETH_REG_BASE);
 		phy_sw_reset_enable(IOADDR_ETH_REG_BASE);
 		set_break_link_timer(IOADDR_ETH_REG_BASE);
 		set_led_blinking(IOADDR_ETH_REG_BASE);
