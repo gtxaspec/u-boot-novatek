@@ -26,6 +26,12 @@
 #define CPU_CLOCK_RATE_RATIO0_OFS       0x47e0
 #define CPU_CLOCK_RATE_RATIO1_OFS       0x47e4
 #define CPU_CLOCK_RATE_RATIO2_OFS       0x47e8
+
+#define CPU_CLOCK_RATE_539A_RATIO0_OFS  0x46A0
+#define CPU_CLOCK_RATE_539A_RATIO1_OFS  0x46A4
+#define CPU_CLOCK_RATE_539A_RATIO2_OFS  0x46A8
+
+
 #define DMA_CLOCK_RATE_RATIO0_OFS       (0x4000 + 0x400 + 0x20)
 #define DMA_CLOCK_RATE_RATIO1_OFS       (0x4000 + 0x400 + 0x24)
 #define DMA_CLOCK_RATE_RATIO2_OFS       (0x4000 + 0x400 + 0x28)
@@ -110,6 +116,7 @@ void set_cpu_clk(unsigned long freq)
 unsigned long get_cpu_clk(void)
 {
 	unsigned int cpu_clk_sel = 0;
+	static u32 chip_id;
 #ifndef CONFIG_NVT_FPGA_EMULATION
 	unsigned int cpu_freq_ratio;
 	unsigned int cpu_freq_ratio0, cpu_freq_ratio1, cpu_freq_ratio2;
@@ -118,16 +125,26 @@ unsigned long get_cpu_clk(void)
 #endif
 	cpu_clk_sel = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS) & 0x3;
 
+	chip_id = nvt_get_chip_id();
 	if (cpu_clk_sel == 1) {
 #ifdef CONFIG_NVT_FPGA_EMULATION
 		return 24000;
 #else
-		cpu_freq_ratio0 = readl(IOADDR_STBC_CG_REG_BASE + \
-								CPU_CLOCK_RATE_RATIO0_OFS);
-		cpu_freq_ratio1 = readl(IOADDR_STBC_CG_REG_BASE + \
-								CPU_CLOCK_RATE_RATIO1_OFS);
-		cpu_freq_ratio2 = readl(IOADDR_STBC_CG_REG_BASE + \
-								CPU_CLOCK_RATE_RATIO2_OFS);
+		if(chip_id == CHIP_NS02402) {
+			cpu_freq_ratio0 = readl(IOADDR_STBC_CG_REG_BASE + \
+									CPU_CLOCK_RATE_539A_RATIO0_OFS);
+			cpu_freq_ratio1 = readl(IOADDR_STBC_CG_REG_BASE + \
+									CPU_CLOCK_RATE_539A_RATIO1_OFS);
+			cpu_freq_ratio2 = readl(IOADDR_STBC_CG_REG_BASE + \
+									CPU_CLOCK_RATE_539A_RATIO2_OFS);
+		} else {
+			cpu_freq_ratio0 = readl(IOADDR_STBC_CG_REG_BASE + \
+									CPU_CLOCK_RATE_RATIO0_OFS);
+			cpu_freq_ratio1 = readl(IOADDR_STBC_CG_REG_BASE + \
+									CPU_CLOCK_RATE_RATIO1_OFS);
+			cpu_freq_ratio2 = readl(IOADDR_STBC_CG_REG_BASE + \
+									CPU_CLOCK_RATE_RATIO2_OFS);
+		}
 		cpu_freq_ratio = cpu_freq_ratio0 | (cpu_freq_ratio1 << 8) | \
 						 (cpu_freq_ratio2 << 16);
 
@@ -278,7 +295,7 @@ int do_nvt_cpu_get_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const a
 	u64 time_1, time_2, temp, time_interval;
 	u32 freq;
 	u32 fpga = 0;
-
+	static u32 chip_id;
 	if (!strncmp(argv[1], "fpga", 4)) {
 		fpga = 1;
 	} else if (!strncmp(argv[1], "help", 4)) {
@@ -300,7 +317,12 @@ int do_nvt_cpu_get_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const a
 	}
 	freq = (time_interval) / (CALCULATE_CPU_FREQ_UNIT_US);
 	ca53_cycle_count_stop();
-	printf("CHIP[NS02302] =>");
+	chip_id = nvt_get_chip_id();
+	if(chip_id == CHIP_NS02402) {
+		printf("CHIP[NS02402] =>");
+	} else {
+		printf("CHIP[NS02302] =>");
+	}
 	printf("CPU Freq %d MHz\n", freq);
 
 	return 0;
@@ -326,6 +348,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 {
 	u32 value = simple_strtoul(argv[1], NULL, 10);
 	u32 uiReg;
+	static u32 chip_id;
 #ifdef CONFIG_NVT_FPGA_EMULATION
 #else
 	int code;
@@ -344,6 +367,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			}
 		}
 	}
+	chip_id = nvt_get_chip_id();
 #endif
 	switch (argc) {
 	case 2:
@@ -437,9 +461,15 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
 			}
 			//CPU 1000 MHz -> CPU-MPLL-125Mhz = 0x14D555
-			writel(0x55, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0xD5, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x14, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			if(chip_id == CHIP_NS02402) {
+				writel(0x55, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO0_OFS); // B0
+				writel(0xD5, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO1_OFS); // B1
+				writel(0x14, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO2_OFS); // B2
+			} else {
+				writel(0x55, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+				writel(0xD5, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+				writel(0x14, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			}
 			printf("Set CPU clk 1000MHz\n");
 			break;
 		case 1100:
@@ -464,9 +494,15 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
 			}
 			//CPU 1100 MHz -> CPU-MPLL-125Mhz = 0x16eaaa
-			writel(0xaa, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0xea, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x16, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			if(chip_id == CHIP_NS02402) {
+				writel(0xaa, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO0_OFS); // B0
+				writel(0xea, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO1_OFS); // B1
+				writel(0x16, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO2_OFS); // B2
+			} else {
+				writel(0xaa, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+				writel(0xea, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+				writel(0x16, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			}
 			printf("Set CPU clk 1100MHz\n");
 			break;
 		case 1200:
@@ -491,9 +527,15 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
 			}
 			//CPU 1200 MHz -> CPU-MPLL-125Mhz = 0x16eaaa
-			writel(0x00, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0x00, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x19, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			if(chip_id == CHIP_NS02402) {
+				writel(0x00, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO0_OFS); // B0
+				writel(0x00, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO1_OFS); // B1
+				writel(0x19, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO2_OFS); // B2
+			} else {
+				writel(0x00, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+				writel(0x00, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+				writel(0x19, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			}
 			printf("Set CPU clk 1200MHz\n");
 			break;
 		case 1300:
@@ -518,9 +560,15 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
 			}
 			//CPU 1300 MHz -> CPU-MPLL-162.5Mhz = 0x16eaaa
-			writel(0x55, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0x15, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x1b, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			if(chip_id == CHIP_NS02402) {
+				writel(0x55, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO0_OFS); // B0
+				writel(0x15, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO1_OFS); // B1
+				writel(0x1b, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO2_OFS); // B2
+			} else {
+				writel(0x55, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+				writel(0x15, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+				writel(0x1b, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			}
 			printf("Set CPU clk 1300MHz\n");
 			break;
 
@@ -547,9 +595,15 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
 			}
 			//CPU 1100 MHz -> CPU-MPLL-125Mhz = 0x16eaaa
-			writel(0xaa, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0xea, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
-			writel(0x16, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			if(chip_id == CHIP_NS02402) {
+				writel(0xaa, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO0_OFS); // B0
+				writel(0xea, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO1_OFS); // B1
+				writel(0x16, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_539A_RATIO2_OFS); // B2
+			} else {
+				writel(0xaa, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+				writel(0xea, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+				writel(0x16, IOADDR_STBC_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
+			}
 			printf("Set CPU clk 1100MHz\n");
 			break;
 		}
@@ -574,6 +628,7 @@ U_BOOT_CMD(
 #else
 	"nvt_cpu_freq 1000\n"
 	"nvt_cpu_freq 1100\n"
+	"nvt_cpu_freq 1300(if 539A)\n"
 #endif
 );
 
@@ -659,3 +714,26 @@ U_BOOT_CMD(
 	"get ddr freq/type\n",
 	"\n"
 );
+
+int prepare_power_trim(int mode)
+{
+    unsigned int	remap_data;
+    char cmd[50];
+	static u32 chip_id;
+
+	chip_id = nvt_get_chip_id();
+	if (chip_id != CHIP_NS02402) {
+		return 0;
+	}
+
+
+
+	//Fixed @ 0.95V
+	remap_data = 19;
+
+	printf("remap_data %d\n", remap_data);
+	sprintf(cmd, "power_ctl %d", remap_data);
+	run_command(cmd, 0);
+
+    return 0;
+}

@@ -816,6 +816,7 @@ CONFIG_FIRMWARE=y
 # CONFIG_CMD_PCA953X is not set
 # CONFIG_CMD_TCA642X is not set
 # CONFIG_VYBRID_GPIO is not set
+CONFIG_NA51102_GPIO=y
 
 #
 # Hardware Spinlock Support

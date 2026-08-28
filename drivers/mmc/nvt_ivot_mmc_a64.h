@@ -14,7 +14,7 @@
 #include "nvt_ivot_mmcplat.h"
 #include <linux/bitops.h>
 
-#define NVT_MMC_UBOOT_DRV_VERSION  "0.00.010"
+#define NVT_MMC_UBOOT_DRV_VERSION  "0.01.002"
 
 /************************
  *        Common        *
@@ -85,6 +85,10 @@ struct mmc_nvt_host {
 	unsigned ns_in_one_cycle;
 	int indly_sel;
 	int neg_sample_edge;
+	// 0: enable/disable 1: power_pin 2: power_state 3: delay_time 
+	u32 card_power[4];
+
+	u32 is1v8wifi;
 };
 
 /*

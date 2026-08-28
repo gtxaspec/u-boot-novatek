@@ -335,7 +335,8 @@ config PCIE_NVT
 	depends on ARCH_NOVATEK
 	select PCIE_DW_COMMON
 	select PCI_INIT_R
-	select PHY_NOVATEK_PCIE_V2
+	select PHY_NOVATEK_PCIE_V2 if TARGET_NS02201_A64
+	select PHY_NOVATEK_PCIE_V3 if TARGET_NS02401_A64
 	help
 	  Say Y here if you want to enable PCIe controller support on
 	  Novatek Soc.

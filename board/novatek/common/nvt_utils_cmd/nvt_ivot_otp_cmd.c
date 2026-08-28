@@ -45,7 +45,7 @@
 #include <asm/arch/hardware.h>
 #endif
 
-#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64) ||defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51055)
 //This is encrypt / decrypt sample code
 #define SAMPLE_CODE_KEYMANAGER      0
 #define SAMPLE_CODE_CPUFILLKEY      1
@@ -58,6 +58,11 @@
 static UINT8  car_in[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
 static UINT8  iv_in[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
 
+#if defined(CONFIG_TARGET_NS02401_A64)
+#define OTP_KEY_MANAGER(m)  otp_key_manager(EFUSE_ID_0, m)
+#else
+#define OTP_KEY_MANAGER(m)  otp_key_manager(m)
+#endif
 #if(SAMPLE_CODE_TYPE == SAMPLE_CODE_CPUFILLKEY)
 static UINT8  cpu_key[16] = {0x04, 0x03, 0x02, 0x01, 0x08, 0x07, 0x06, 0x05, 0x12, 0x11, 0x10, 0x09, 0x16, 0x15, 0x14, 0x13};
 #endif
@@ -206,17 +211,8 @@ int do_nvt_write_key_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 {
 	s32         result;
 	int         index_cnt;
-	//UINT32      test_buf;
-	//UINT32      test_buf_align;
-
-
-	//UINT32      test_buf2;
-	//UINT32      test_buf2_align;
-
 	UINT8       pKey[16];
 
-	//UINT8       *output;
-	//UINT8       *output2;
 	u32         key_set = EFUSE_OTP_2ND_KEY_SET_FIELD;
 	CRYPT_OP    crypt_op_param;
 
@@ -247,75 +243,6 @@ int do_nvt_write_key_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 	} else {
 		printf("Write [%d] key operation success\r\n", (int)(key_set));
 	}
-#if (0)
-	test_buf = (ulong)malloc(16 + 64);
-	test_buf_align = (ulong)((test_buf + 63) & 0xFFFFFFC0);
-	output = (UINT8 *)(unsigned long)test_buf_align;
-
-	test_buf2 = (ulong)malloc(16 + 64);
-	test_buf2_align = (ulong)((test_buf2 + 63) & 0xFFFFFFC0);
-	output2 = (UINT8 *)(unsigned long)test_buf2_align;
-
-	memset((char *)(unsigned long)test_buf2_align, 0x0, 16);
-	memset((char *)(unsigned long)test_buf_align, 0x0, 16);
-
-	crypt_op_param.op_mode = CRYPTO_EBC;
-	crypt_op_param.en_de_crypt = CRYPTO_ENCRYPT;
-	crypt_op_param.src_addr = (ulong)encrypt_sample;
-	crypt_op_param.dst_addr = (ulong)output;   //<<<-------------(1)
-	crypt_op_param.length   = 16;
-
-	//Encrypt via key manager by using specific key set
-	if (crypto_data_operation(key_set, crypt_op_param) != 0) {
-		printf("Encrypt operation fail [%d] set\r\n", (int)(key_set));
-		free((void *)(unsigned long)test_buf);
-		free((void *)(unsigned long)test_buf2);
-		return 0;
-	} else {
-		printf("Encrypt operation success [%d] set\r\n", (int)(key_set));
-		printf("Source =>\r\n");
-		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
-			printf("%2x ", pKey[index_cnt]);
-		}
-		printf("\r\n");
-		printf("Destination =>\r\n");
-		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
-			printf("%2x ", output[index_cnt]);
-		}
-		printf("\r\n");
-	}
-
-	//Encrypt via fill key by using CPU
-	crypt_op_param.dst_addr = (UINT32)(unsigned long)output2;  ////<<<-------------(2)
-	crypto_data_operation_by_key(pKey, crypt_op_param);
-
-	printf("Verification via CPU fill key=>\r\n");
-	for (index_cnt = 0; index_cnt < 16; index_cnt++) {
-		printf("%2x ", output2[index_cnt]);
-	}
-	printf("\r\n");
-
-
-	//(1) vs (2) result should the same
-	if (memcmp((void *)output2, (void *)output, 16) != 0) {
-		printf("write key fail [%d] set\r\n", (int)(key_set + 1));
-		printf("OTP operation\r\n");
-		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
-			printf("%2x ", output[index_cnt]);
-		}
-
-		printf("\r\n");
-		printf("Fill key operation\r\n");
-		for (index_cnt = 0; index_cnt < 16; index_cnt++) {
-			printf("%2x ", output2[index_cnt]);
-		}
-	} else {
-		printf("write key success [%d] set\r\n", (int)(key_set + 1));
-	}
-
-	free((void *)(unsigned long)test_buf);
-	free((void *)(unsigned long)test_buf2);
-#endif
 	return 0;
 }
 U_BOOT_CMD(
@@ -408,7 +335,7 @@ int do_nvt_read_key_set_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *con
 	}
 	for (i = 0; i < 4; i++) {
 		key_field_index = field_index + i;
-		key_value = otp_key_manager(key_field_index);
+		key_value = OTP_KEY_MANAGER(key_field_index);
 		printf("\033[0;33mkey[%2d][0x%08x]\033[0m\n", key_field_index, key_value);
 		read_key_data[i * 4] = (unsigned char)(key_value & 0x000000ff);
 		read_key_data[i * 4 + 1] = (unsigned char)((key_value & 0x0000ff00) >> 8);
@@ -536,7 +463,7 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 {
 #if defined(CONFIG_TARGET_NS02302_A64)
 	u32 chip_id = nvt_get_chip_id();
-#endif		
+#endif
 	if (!strncmp(argv[1], "secure_en", 9)) {
 		printf("=>[secure_en]\r\n");
 		efuse_secure_en();
@@ -550,33 +477,45 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		efuse_signature_rsa_en();
 		printf("is_signature_rsa()=%d\r\n", is_signature_rsa());
 	} else if (!strncmp(argv[1], "rsapss_en", 9)) {
-#if defined(CONFIG_TARGET_NS02302_A64)		
-		if(nvt_get_chip_id() != CHIP_NS02402) {
-			printf("=>[rsa_pss(pkcs2.1) not support]\r\n");	
+#if defined(CONFIG_TARGET_NS02302_A64)
+		if (nvt_get_chip_id() != CHIP_NS02402) {
+			printf("=>[rsa_pss(pkcs2.1) not support]\r\n");
 		} else {
 			printf("=>[rsa_pss(pkcs2.1) enable]\r\n");
 			efuse_signature_rsapss_en();
 			printf("is_signature_rsapss_enable()=%d\r\n", is_signature_rsapss());
 		}
-#endif		
+#elif defined(CONFIG_TARGET_NS02401_A64)
+		printf("=>[rsa_pss(pkcs2.1) enable]\r\n");
+		efuse_signature_rsapss_en();
+		printf("is_signature_rsapss_enable()=%d\r\n", is_signature_rsapss());
+#endif
 	}  else if (!strncmp(argv[1], "rsapkcs1p5_en", 13)) {
-#if defined(CONFIG_TARGET_NS02302_A64)	
-		if(nvt_get_chip_id() == CHIP_NS02402) {
+#if defined(CONFIG_TARGET_NS02302_A64)
+		if (nvt_get_chip_id() == CHIP_NS02402) {
 			printf("=>[rsa_pkcs1.5 enable]\r\n");
-			efuse_signature_rsapss_en();
-			printf("is_signature_rsa_chsum_enable()=%d\r\n", is_signature_rsapkcs1p5());
+			efuse_signature_rsapkcs1p5_en();
+			printf("is_signature_rsa_pkcs1.5_enable()=%d\r\n", is_signature_rsapkcs1p5());
 		}
-#endif	
+#elif defined(CONFIG_TARGET_NS02401_A64)
+		printf("=>[rsa_pkcs1.5 enable]\r\n");
+		efuse_signature_rsapkcs1p5_en();
+		printf("is_signature_rsa_pkcs1.5_enable()=%d\r\n", is_signature_rsapkcs1p5());
+#endif
 	}  else if (!strncmp(argv[1], "header_signature_en", 19)) {
-#if defined(CONFIG_TARGET_NS02302_A64)		
-		if(nvt_get_chip_id() == CHIP_NS02402) {
+#if defined(CONFIG_TARGET_NS02302_A64)
+		if (nvt_get_chip_id() == CHIP_NS02402) {
 			printf("=>[header signature enable]\r\n");
 			efuse_header_signature_en();
 			printf("is_header_signature_en()=%d\r\n", is_header_signature_en());
 		}
-#endif		
+#elif defined(CONFIG_TARGET_NS02401_A64)
+		printf("=>[header signature enable]\r\n");
+		efuse_header_signature_en();
+		printf("is_header_signature_en()=%d\r\n", is_header_signature_en());
+#endif
 	}  else if (!strncmp(argv[1], "ecdsa_en", 8)) {
-#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301)
+#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02401_A64)
 		printf("=>[efuse_signature_ecdsa_en]\r\n");
 		efuse_signature_ecdsa_en();
 		printf("is_signature_ecdsa()=%d\r\n", is_signature_ecdsa());
@@ -588,7 +527,7 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		efuse_signature_rsa_chksum_en();
 		printf("is_signature_rsa_chsum_enable()=%d\r\n", is_signature_rsa_chsum_enable());
 	}  else if (!strncmp(argv[1], "ecdsa_chksum_en", 15)) {
-#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301)
+#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02401_A64)
 		printf("=>[efuse_signature_ecdsa_chksum_en]\r\n");
 		efuse_signature_chksum_en();
 		printf("efuse_signature_ecdsa_chksum_en()=%d\r\n", is_signature_chsum_enable());
@@ -1877,19 +1816,19 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		BOOL    is_found;
 
 		u32     TX_TRIM_ROUT, TX_TRIM_DAC, TX_TRIM_SEL_RX, TX_TRIM_SEL_TX;
-		u32		REG_TX_TRIM_ROUT, REG_TX_TRIM_DAC, REG_TX_TRIM_SEL_RX, REG_TX_TRIM_SEL_TX;
-		u32  	USB_Int_12K_resistor;
-		u32  	USB_TX_TRIM, USB_RX_TRIM;
+		u32     REG_TX_TRIM_ROUT, REG_TX_TRIM_DAC, REG_TX_TRIM_SEL_RX, REG_TX_TRIM_SEL_TX;
+		u32     USB_Int_12K_resistor;
+		u32     USB_TX_TRIM, USB_RX_TRIM;
 
-		u32		reg_USB_Internal_12K_resistor;
-		u32		reg_USB_TX_TRIM/*, reg_USB_RX_TRIM*/;
+		u32     reg_USB_Internal_12K_resistor;
+		u32     reg_USB_TX_TRIM/*, reg_USB_RX_TRIM*/;
 
-		u32		MIPI_RX_Rterm_GRP1, MIPI_RX_Rterm_GRP2, MIPI_TX_iadj;
+		u32     MIPI_RX_Rterm_GRP1, MIPI_RX_Rterm_GRP2, MIPI_TX_iadj;
 
 		u32     RZQ_DATA, RZQ_SIGN;
-		u32		DDR_LDO;
-		u32		THERMAL;
-		u32		trim_A, trim_B;
+		u32     DDR_LDO;
+		u32     THERMAL;
+		u32     trim_A, trim_B;
 		//Ethernet
 		code = otp_key_manager(EFUSE_TRIM_DATA_ETHERNET_PRI);
 		if (code == -33) {
@@ -1922,13 +1861,13 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 					printf("  p[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_ROUT, (int)REG_TX_TRIM_ROUT);
 					printf("   TX_TRIM_DAC[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_DAC, (int)REG_TX_TRIM_DAC);
 					printf("TX_TRIM_SEL_RX[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_SEL_RX, (int)REG_TX_TRIM_SEL_RX);
-					printf("TX_TRIM_SEL_TX[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_SEL_TX, (int)REG_TX_TRIM_SEL_TX);										
+					printf("TX_TRIM_SEL_TX[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_SEL_TX, (int)REG_TX_TRIM_SEL_TX);
 					printf("Eth trim SUCCESS\r\n");
 				} else {
 					printf("  TX_TRIM_ROUT[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_ROUT, (int)REG_TX_TRIM_ROUT);
 					printf("   TX_TRIM_DAC[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_DAC, (int)REG_TX_TRIM_DAC);
 					printf("TX_TRIM_SEL_RX[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_SEL_RX, (int)REG_TX_TRIM_SEL_RX);
-					printf("TX_TRIM_SEL_TX[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_SEL_TX, (int)REG_TX_TRIM_SEL_TX);					
+					printf("TX_TRIM_SEL_TX[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_SEL_TX, (int)REG_TX_TRIM_SEL_TX);
 					printf("Eth trim Fail\r\n");
 				}
 			} else {
@@ -1946,37 +1885,37 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		} else {
 			is_found = extract_trim_valid(code, (u32 *)&trim);
 			if (is_found) {
-					USB_Int_12K_resistor = trim & 0x1F;
-					USB_TX_TRIM = ((trim >> 5) & 0xF);
-					USB_RX_TRIM = ((trim >> 9) & 0xF);
-					printf("12K_resistor Trim = 0x%04x\r\n", USB_Int_12K_resistor);
-					printf("      USB TX Trim = 0x%04x\r\n", (int)USB_TX_TRIM);
-					printf("      USB RX Trim = 0x%04x\r\n", (int)USB_RX_TRIM);
+				USB_Int_12K_resistor = trim & 0x1F;
+				USB_TX_TRIM = ((trim >> 5) & 0xF);
+				USB_RX_TRIM = ((trim >> 9) & 0xF);
+				printf("12K_resistor Trim = 0x%04x\r\n", USB_Int_12K_resistor);
+				printf("      USB TX Trim = 0x%04x\r\n", (int)USB_TX_TRIM);
+				printf("      USB RX Trim = 0x%04x\r\n", (int)USB_RX_TRIM);
 
-					reg_USB_Internal_12K_resistor = readl(IOADDR_USB3PHY_REG_BASE + 0x2680);
-					reg_USB_Internal_12K_resistor &= 0x1F;
-					reg_USB_TX_TRIM = readl(IOADDR_USB3PHY_REG_BASE + 0x2040);
-					reg_USB_TX_TRIM = ((reg_USB_TX_TRIM >> 4) & 0xF);
+				reg_USB_Internal_12K_resistor = readl(IOADDR_USB3PHY_REG_BASE + 0x2680);
+				reg_USB_Internal_12K_resistor &= 0x1F;
+				reg_USB_TX_TRIM = readl(IOADDR_USB3PHY_REG_BASE + 0x2040);
+				reg_USB_TX_TRIM = ((reg_USB_TX_TRIM >> 4) & 0xF);
 
-					if (USB_Int_12K_resistor == reg_USB_Internal_12K_resistor) {
-						printf("   u3_trim_rint_sel Trim [0x%04x] == Reg[0x%04x][O]\r\n", (int)USB_Int_12K_resistor, (int)reg_USB_Internal_12K_resistor);
-						printf("   usb trim success\r\n");
-					} else {
-						printf("   u3_trim_rint_sel Trim [0x%04x] != Reg[0x%04x][X]\r\n", (int)USB_Int_12K_resistor, (int)reg_USB_Internal_12K_resistor);
-						printf("   usb trim fail\r\n");
-					}
-					if (USB_TX_TRIM == reg_USB_TX_TRIM) {
-						printf("   USB_TX_TRIM Trim [0x%04x] == Reg[0x%04x][O]\r\n", (int)USB_TX_TRIM, (int)reg_USB_TX_TRIM);						
-						printf("   usb trim success\r\n");
-					} else {
-						printf("   USB_TX_TRIM Trim [0x%04x] != Reg[0x%04x][X]\r\n", (int)USB_TX_TRIM, (int)reg_USB_TX_TRIM);						
-						printf("   usb trim fail\r\n");
-					}
-
+				if (USB_Int_12K_resistor == reg_USB_Internal_12K_resistor) {
+					printf("   u3_trim_rint_sel Trim [0x%04x] == Reg[0x%04x][O]\r\n", (int)USB_Int_12K_resistor, (int)reg_USB_Internal_12K_resistor);
+					printf("   usb trim success\r\n");
 				} else {
-					//!!!Please apply default value here!!!
-					printf("is found [%d][USB] = 0x%08x\r\n", is_found, (int)code);
+					printf("   u3_trim_rint_sel Trim [0x%04x] != Reg[0x%04x][X]\r\n", (int)USB_Int_12K_resistor, (int)reg_USB_Internal_12K_resistor);
+					printf("   usb trim fail\r\n");
 				}
+				if (USB_TX_TRIM == reg_USB_TX_TRIM) {
+					printf("   USB_TX_TRIM Trim [0x%04x] == Reg[0x%04x][O]\r\n", (int)USB_TX_TRIM, (int)reg_USB_TX_TRIM);
+					printf("   usb trim success\r\n");
+				} else {
+					printf("   USB_TX_TRIM Trim [0x%04x] != Reg[0x%04x][X]\r\n", (int)USB_TX_TRIM, (int)reg_USB_TX_TRIM);
+					printf("   usb trim fail\r\n");
+				}
+
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][USB] = 0x%08x\r\n", is_found, (int)code);
+			}
 		}
 
 		//DDR
@@ -1988,18 +1927,18 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		} else {
 			is_found = extract_trim_valid(code, (u32 *)&trim);
 			if (is_found) {
-					//0x00~0x07 =>  0 -> 7
-					//0x11~0x17 => -7 ~ -1
-					RZQ_DATA = trim & 0xF;
-					RZQ_SIGN = (trim >> 4) & 0x01;
-					DDR_LDO = ((trim >> 5) & 0xF);
-					printf(" DDR RZQ Trim = 0x%04x\r\n", RZQ_DATA);
-					printf("RZQ_SIGN Trim = %d\r\n", (int)RZQ_SIGN);
-					printf(" DDR_LDO Trim = 0x%04x\r\n", (int)DDR_LDO);
-				} else {
-					//!!!Please apply default value here!!!
-					printf("is found [%d][DDR] = 0x%08x\r\n", is_found, (int)code);
-				}
+				//0x00~0x07 =>  0 -> 7
+				//0x11~0x17 => -7 ~ -1
+				RZQ_DATA = trim & 0xF;
+				RZQ_SIGN = (trim >> 4) & 0x01;
+				DDR_LDO = ((trim >> 5) & 0xF);
+				printf(" DDR RZQ Trim = 0x%04x\r\n", RZQ_DATA);
+				printf("RZQ_SIGN Trim = %d\r\n", (int)RZQ_SIGN);
+				printf(" DDR_LDO Trim = 0x%04x\r\n", (int)DDR_LDO);
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][DDR] = 0x%08x\r\n", is_found, (int)code);
+			}
 		}
 
 		//TRIMA
@@ -2061,9 +2000,9 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		} else {
 			is_found = extract_trim_valid(code, (u32 *)&trim);
 			if (is_found) {
-				MIPI_RX_Rterm_GRP1  = trim & 0xF;            	// bit[3..0] all available
-				MIPI_RX_Rterm_GRP2  = ((trim >> 4) & 0xF);  	// bit[7..4]
-				MIPI_TX_iadj  		= ((trim >> 8) & 0x7);     // bit[10..8]
+				MIPI_RX_Rterm_GRP1  = trim & 0xF;               // bit[3..0] all available
+				MIPI_RX_Rterm_GRP2  = ((trim >> 4) & 0xF);      // bit[7..4]
+				MIPI_TX_iadj        = ((trim >> 8) & 0x7);     // bit[10..8]
 				printf("  	=>	MIPI_RX_Rterm_GRP1[0x%04x]\r\n", (int)MIPI_RX_Rterm_GRP1);
 				printf("  	=>	MIPI_RX_Rterm_GRP2[0x%04x]\r\n", (int)MIPI_RX_Rterm_GRP2);
 				printf("  	=> 	MIPI_TX_iadj[0x%04x]\r\n", (int)MIPI_TX_iadj);
@@ -2078,13 +2017,17 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		printf("       is_data_area_encrypted()=%d\r\n", is_data_area_encrypted());
 		printf("             is_signature_rsa()=%d\r\n", is_signature_rsa());
 #if defined(CONFIG_TARGET_NS02302_A64)
-		if(chip_id == CHIP_NS02402) {
-			printf("          is_signature_rsapss()=%d\r\n", is_signature_rsapss());	
-			printf("      is_signature_rsapkcs1p5()=%d\r\n", is_signature_rsapkcs1p5());					
-			printf("       is_header_signature_en()=%d\r\n", is_header_signature_en());							
+		if (chip_id == CHIP_NS02402) {
+			printf("          is_signature_rsapss()=%d\r\n", is_signature_rsapss());
+			printf("      is_signature_rsapkcs1p5()=%d\r\n", is_signature_rsapkcs1p5());
+			printf("       is_header_signature_en()=%d\r\n", is_header_signature_en());
 		}
-#endif		
-#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301)
+#elif defined(CONFIG_TARGET_NS02401_A64)
+		printf("          is_signature_rsapss()=%d\r\n", is_signature_rsapss());
+		printf("      is_signature_rsapkcs1p5()=%d\r\n", is_signature_rsapkcs1p5());
+		printf("       is_header_signature_en()=%d\r\n", is_header_signature_en());
+#endif
+#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02401_A64)
 		printf("           is_signature_ecdsa()=%d\r\n", is_signature_ecdsa());
 #endif
 		printf("    is_signature_chsum_enable()=%d\r\n", is_signature_rsa_chsum_enable());
@@ -2146,14 +2089,14 @@ U_BOOT_CMD(
 	"              [secure_en]\n"
 	"              [data_encrypt]\n"
 	"              [rsa_en]\n"
-#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301)
-#if defined(CONFIG_TARGET_NS02302_A64)	
-	"              [rsapss_en](=>pkcs2.1, only@539A)\n"
-	"              [rsapkcs1p5_en](only@539A)\n"
-	"              [header_signature_en](only@539A)\n"
-#endif	
+#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02401_A64)
+#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64)
+	"              [rsapss_en](=>pkcs2.1)\n"
+	"              [rsapkcs1p5_en]\n"
+	"              [header_signature_en]\n"
+#endif
 	"              [ecdsa_en]\n"
-	"              [ecdsa_chksum_en]\n"	
+	"              [ecdsa_chksum_en]\n"
 #endif
 	"              [rsa_chk_en]\n"
 	"              [jtag_disable]\n"
@@ -2165,7 +2108,7 @@ U_BOOT_CMD(
 #endif
 	"              [quary]\n"
 	"              [uniqueue_id]\n"
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02401_A64))
 	"              [trim]\n"
 #endif
 );

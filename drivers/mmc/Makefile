@@ -80,9 +80,11 @@ obj-$(CONFIG_MMC_MTK)			+= mtk-sd.o
 obj-$(CONFIG_MMC_SDHCI_F_SDH30)		+= f_sdh30.o
 ifeq ($(CONFIG_ARM64),y)
 	obj-$(CONFIG_NVT_MMC)                   += nvt_ivot_mmc_a64.o
+	obj-$(CONFIG_NVT_MMC)					+= nvt_ivot_mmc_power_seq.o
 else
 	ifeq ($(call ifdef_any_of,CONFIG_TARGET_NS02301 CONFIG_TARGET_NA51103 CONFIG_TARGET_NA51089),)
 		obj-$(CONFIG_NVT_MMC)               += nvt_ivot_mmc_a64.o
+		obj-$(CONFIG_NVT_MMC)				+= nvt_ivot_mmc_power_seq.o
 	else
 		obj-$(CONFIG_NVT_MMC)               += nvt_ivot_mmc.o
 	endif

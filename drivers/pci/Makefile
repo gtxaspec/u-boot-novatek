@@ -52,3 +52,6 @@ obj-$(CONFIG_PCIE_OCTEON) += pcie_octeon.o
 obj-$(CONFIG_PCIE_DW_SIFIVE) += pcie_dw_sifive.o
 obj-$(CONFIG_PCIE_UNIPHIER) += pcie_uniphier.o
 obj-$(CONFIG_PCIE_NVT) += pcie_nvt.o
+ifeq ($(CONFIG_TARGET_NS02401_A64),y)
+obj-$(CONFIG_PCIE_NVT) += pcie_nvt_plat_ns02401.o
+endif

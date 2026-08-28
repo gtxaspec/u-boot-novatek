@@ -850,11 +850,28 @@ union USB_DEVDMACTRLSTATUS_REG {
 /* NA51103 */
 #define USB_PHYTOP_REG_OFS    0x1D8
 
+#elif defined(CONFIG_USB_HOST_NVTIVOT_525)
+/* NT98525 */
+#define USB_PHYTOP_REG_OFS    0x310
+
 #else
 /* Others */
 #define USB_PHYTOP_REG_OFS    0x400
 
 #endif
+
+#if defined(CONFIG_USB_HOST_NVTIVOT_525)
+union USB_PHYTOP_REG {
+        uint32_t reg;
+        struct {
+                unsigned int USB_VBUSI:1;
+                unsigned int USB_ID:1;
+                unsigned int Reserved0:14;
+                unsigned int AHBC_IDLE:1;
+                unsigned int Reserved1:15;
+        } bit;
+};
+#else
 union USB_PHYTOP_REG {
 	uint32_t reg;
 	struct {
@@ -866,6 +883,7 @@ union USB_PHYTOP_REG {
 		unsigned int Reserved2:4;
 	} bit;
 };
+#endif
 
 // 0x300 Device Virtual DMA CXF Parameter Setting 1 Register
 // 0x308 Device Virtual DMA FIFO0 Parameter Setting 1 Register
@@ -1174,6 +1192,25 @@ union USB_PHYCTRL52_REG {
 #define CG_U2_0_EN 0x70
 #define CG_U2_0_EN_BIT 5
 
+#elif defined(CONFIG_TARGET_NS02401_A64)
+/* NS02401 */
+#define CG_U2_0_RST 0x9C
+#define CG_U2_0_RST_BIT 0
+#define CG_U2_0_PHYRST 0x9C
+#define CG_U2_0_PHYRST_BIT 2
+#define TOP_U2_0_SRAMSD 0x1000
+#define TOP_U2_0_SRAMSD_BIT 22
+
+#define CG_U2_1_RST 0x9C
+#define CG_U2_1_RST_BIT 3
+#define CG_U2_1_PHYRST 0x9C
+#define CG_U2_1_PHYRST_BIT 5
+#define TOP_U2_1_SRAMSD 0x1004
+#define TOP_U2_1_SRAMSD_BIT 18
+
+#define NVT_ECHI_2ND_CTRL 1
+#define NVT_EHCI_APB_MSB 4
+
 #elif defined(CONFIG_TARGET_NA51102_A64)
 /* NA51102 */
 #define CG_U2_0_RST 0x94
@@ -1216,6 +1253,14 @@ union USB_PHYCTRL52_REG {
 #define CG_U2_1_EN_BIT 25
 
 #define NVT_ECHI_2ND_CTRL 1
+
+#elif defined(CONFIG_TARGET_NA51055)
+/* NA51055: 528/525 */
+#define CG_U2_0_RST 0x84
+#define CG_U2_0_RST_BIT 19
+#define TOP_U2_0_SRAMSD 0x1000
+#define TOP_U2_0_SRAMSD_BIT 19
+
 #else
 //TODO: other project follow the macro pattern
 #endif

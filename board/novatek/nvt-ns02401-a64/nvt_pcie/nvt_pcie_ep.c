@@ -20,19 +20,23 @@
 enum nvt_pcie_phy_id {
 	NVT_PHY_PCIE0 = 0,
 	NVT_PHY_PCIE1 = 1,
+	NVT_PHY_PCIE2 = 2,
+	NVT_PHY_PCIE3 = 3,
 	MAX_NUM_PHYS,
 };
 
 enum nvt_pcie_phy_mode {
-	NVT_PHY_ONE_x2 = 0,
-	NVT_PHY_TWO_x1 = 1,
+	NVT_PHY_ONE_x4 = 0,
+	NVT_PHY_TWO_x2 = 1,
+	NVT_PHY_FOUR_x1 = 2,
+	NVT_PHY_ONE_x2_TWO_x1 = 3,
 	MAX_NUM_PHY_MODE,
 };
 
-#define CC_RC_EP_BOOT_COMM_REG      	0x2F0110120
+#define CC_RC_EP_BOOT_COMM_REG      	0x4F0110120
 
-#define CLOCK_GEN_ENABLE_REG5		(IOADDR_CG_REG_BASE + 0x84)
-#define CLOCK_GEN_RESET_REG7		(IOADDR_CG_REG_BASE + 0xAC)
+#define CLOCK_GEN_ENABLE_REG3		(IOADDR_CG_REG_BASE + 0x7C)
+#define CLOCK_GEN_RESET_REG6		(IOADDR_CG_REG_BASE + 0xA8)
 
 static void pcie_set_inbound_region(int bar_id, u64 src_addr, u64 src_upper_addr, u64 target_addr, int region_id, int en)
 {
@@ -139,7 +143,12 @@ static int phy_drv_init(struct udevice **devp)
 	     bus;
 	     uclass_next_device_check(&bus)) {
 		printf("%s: uclass name %s\r\n", __func__, bus->name);
-		if (strncmp(bus->name, "phy@2,f0bd0000", strlen("phy@2,f0bd0000")) == 0) {
+		if (strncmp(bus->name, "phy@4,f03b0000", strlen("phy@4,f03b0000")) == 0) {
+			*devp = bus;
+			printf("%s: return ptr 0x%p\r\n", __func__, bus);
+			return 0;
+		}
+		if (strncmp(bus->name, "phy@4,f03c0000", strlen("phy@4,f03c0000")) == 0) {
 			*devp = bus;
 			printf("%s: return ptr 0x%p\r\n", __func__, bus);
 			return 0;
@@ -156,9 +165,10 @@ static int config_pcie_ep(void) {
 	u32 val;
 	UINT32 reg;
 	UINT32 bootstrap;
+	UINT32 lane_mode;
 	UINT32 preset;
 	u32 PCIE_VENDOR_ID = 0x1E09;	// novatek
-	u32 PCIE_DEV_ID = 0x0006;	// NT98690
+	u32 PCIE_DEV_ID = 0x0007;	// NT98635
 	u32 BAR0_SIZE = 5;		// 2^5 MB
 	enum nvt_pcie_phy_mode mode;
 	struct phy phy0 = {0};
@@ -168,14 +178,29 @@ static int config_pcie_ep(void) {
 	phy0.dev = dev;
 
 	bootstrap = readl(IOADDR_TOP_REG_BASE);
-	if (bootstrap & BOOT_SOURCE_PCIE_LANE_MSK) {
-		printf("%s: bootstrap: two x1\r\n", __func__);
-		mode = NVT_PHY_TWO_x1;
-		width = 1;
-	} else {
-		printf("%s: bootstrap: one x2\r\n", __func__);
-		mode = NVT_PHY_ONE_x2;
+	lane_mode = (bootstrap&BOOT_SOURCE_PCIE_LANE_MSK) >> BOOT_SOURCE_PCIE_LANE_SHF;
+	switch (lane_mode) {
+	case NVT_PHY_ONE_x4:
+		printf("%s: bootstrap: one x4\r\n", __func__);
+		mode = NVT_PHY_ONE_x4;
+		width = 4;
+		break;
+	case NVT_PHY_TWO_x2:
+		printf("%s: bootstrap: two x2\r\n", __func__);
+		mode = NVT_PHY_TWO_x2;
 		width = 2;
+		break;
+	case NVT_PHY_FOUR_x1:
+		printf("%s: bootstrap: four x2\r\n", __func__);
+		mode = NVT_PHY_FOUR_x1;
+		width = 1;
+		break;
+	case NVT_PHY_ONE_x2_TWO_x1:
+	default:
+		printf("%s: bootstrap: one x2 and two x1\r\n", __func__);
+		mode = NVT_PHY_ONE_x2_TWO_x1;
+		width = 2;
+		break;
 	}
 	generic_phy_configure(&phy0, &mode);
 
@@ -189,8 +214,8 @@ static int config_pcie_ep(void) {
 	writel(reg, IOADDR_TOP_REG_BASE + 0x60);
 
 	// enable PCIe clock
-	reg = readl(CLOCK_GEN_ENABLE_REG5);
-	writel(reg|(0x01 << 25), CLOCK_GEN_ENABLE_REG5);
+	reg = readl(CLOCK_GEN_ENABLE_REG3);
+	writel(reg|(0x01 << 24), CLOCK_GEN_ENABLE_REG3);
 
 	// Apply best setting before PORn
 	generic_phy_reset(&phy0);
@@ -198,8 +223,8 @@ static int config_pcie_ep(void) {
 	generic_phy_power_on(&phy0);
 
 	// release phy PORn
-	reg = readl(CLOCK_GEN_RESET_REG7);
-	writel(reg|(1<<13), CLOCK_GEN_RESET_REG7);
+	reg = readl(CLOCK_GEN_RESET_REG6);
+	writel(reg|(1<<20), CLOCK_GEN_RESET_REG6);
 
 	// 1. stop LTSSM
 	writel(0x30, PCIE_TOP_REG_BASE+0x304);
@@ -278,25 +303,42 @@ static int config_pcie_ep(void) {
 	reg |= 1<<22;		// auto solve broken lane: go to config if any lane receives TS1
 	writel(reg, PCIE_DBI_REG_BASE + 0x708);
 
-	if (bootstrap & BOOT_SOURCE_PCIE_LANE_MSK) {	// two x1 => PCIE1 should be change to x1
-		reg = readl(PCIE_DBI_REG_BASE + 0x710);	// PORT_LINK_CTRL_OFF
-		reg &= ~(0x3F<<16);
-		reg |= 1<<16;		// x1
-		writel(reg, PCIE_DBI_REG_BASE + 0x710);
-
+	switch (lane_mode) {
+	case NVT_PHY_ONE_x4:
 		reg = readl(PCIE_DBI_REG_BASE + 0x80C);	// GEN2_CTRL_OFF
 		reg &= ~(0x1F<<8);
-		reg |= 1<<8;		// NUM_OF_LANES = 1 lane
+		reg |= 4<<8;		// NUM_OF_LANES
 		writel(reg, PCIE_DBI_REG_BASE + 0x80C);
 
-		printf("x1\r\n");
-	} else {
-		// force detect
-		reg = readl(PCIE_DBI_REG_BASE + 0x274);
-		reg = 0x10003;
-		writel(reg, PCIE_DBI_REG_BASE + 0x274);
+		reg = readl(PCIE_DBI_REG_BASE + 0x710);	// PORT_LINK_CTRL_OFF
+		reg &= ~(0x3F<<16);
+		reg |= 0x7<<16;		// x4
+		writel(reg, PCIE_DBI_REG_BASE + 0x710);
+		break;
+	case NVT_PHY_TWO_x2:
+	case NVT_PHY_ONE_x2_TWO_x1:
+		reg = readl(PCIE_DBI_REG_BASE + 0x80C);	// GEN2_CTRL_OFF
+		reg &= ~(0x1F<<8);
+		reg |= 2<<8;		// NUM_OF_LANES
+		writel(reg, PCIE_DBI_REG_BASE + 0x80C);
 
-		printf("x2\r\n");
+		reg = readl(PCIE_DBI_REG_BASE + 0x710);	// PORT_LINK_CTRL_OFF
+		reg &= ~(0x3F<<16);
+		reg |= 0x3<<16;		// x2
+		writel(reg, PCIE_DBI_REG_BASE + 0x710);
+		break;
+	case NVT_PHY_FOUR_x1:
+	default:
+		reg = readl(PCIE_DBI_REG_BASE + 0x80C);	// GEN2_CTRL_OFF
+		reg &= ~(0x1F<<8);
+		reg |= 1<<8;		// NUM_OF_LANES
+		writel(reg, PCIE_DBI_REG_BASE + 0x80C);
+
+		reg = readl(PCIE_DBI_REG_BASE + 0x710);	// PORT_LINK_CTRL_OFF
+		reg &= ~(0x3F<<16);
+		reg |= 0x1<<16;		// x1
+		writel(reg, PCIE_DBI_REG_BASE + 0x710);
+		break;
 	}
 	printf("DBI 0x274 = 0x%x\r\n", readl(PCIE_DBI_REG_BASE + 0x274));
 

@@ -15,11 +15,16 @@
 #include <asm/cache.h>
 #include <linux/delay.h>
 #include "nvt_ivot_mmc_a64.h"
+#include "nvt_ivot_mmc_power_seq.h"
 #include <cpu_func.h>
 
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <linux/libfdt.h>
+
+#define EXT_CSD_FLUSH_CACHE			32
+#define EXT_CSD_CACHE_CTRL			33
+#define EXT_CSD_CACHE_SIZE			249
 
 static unsigned use_dma = 1;
 
@@ -62,10 +67,26 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 	int nodeoffset;
 	u32 *cell = NULL;
 	char path[20] = {0};
-	int i;
+	int i, lenp = 0;
 
 	sprintf(path,"mmc%d", host->id);
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "card_power_gpio", &lenp);
+
+	if (lenp >= 0) {
+		host->card_power[0] = TRUE;
+		host->card_power[1] = __be32_to_cpu(cell[0]);
+		host->card_power[2] = __be32_to_cpu(cell[1]);
+	}
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "force_power_cycle", &lenp);
+	if (lenp >= 0) {
+		if (__be32_to_cpu(cell[1]) > 0)
+			host->card_power[3] = __be32_to_cpu(cell[1]);
+		else
+			host->card_power[3] = 36;
+	}
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "max-frequency", NULL);
 	if (cell > 0) {
@@ -90,6 +111,14 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 		}
 	}
 
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "voltage-switch", NULL);
+	if (cell > 0 && (__be32_to_cpu(cell[0]) > 0)) {
+		cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "max-voltage", NULL);
+		if (__be32_to_cpu(cell[0]) < 3300) {
+			host->is1v8wifi = 1;
+		}
+	}
+
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "mmc-hs200-1_8v", NULL);
 	if (cell > 0) {
 		host->ext_caps |= MMC_MODE_HS200;
@@ -109,6 +138,62 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 		host->neg_sample_edge = -1;
 	}
 
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "bus-width", NULL);
+	if (cell > 0) {
+		if (__be32_to_cpu(cell[0]) == 8)
+			host->enable_8bits = 1;
+		else
+			host->enable_8bits = 0;
+	} else {
+		host->enable_8bits = 0;
+	}
+
+// used to trasfer common pinmux
+#if (defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51055))
+	u32 temp_pinmux_value = 0;
+	sprintf(path, "/top/sdio");
+	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
+	if (( cell > 0 )) {
+		host->pinmux_value = __be32_to_cpu(cell[0]);
+		if (host->pinmux_value > 0) {
+			temp_pinmux_value |= PIN_SDIO_CFG_SDIO_1;
+		}
+	}
+
+	sprintf(path, "/top/sdio2");
+	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
+	if (( cell > 0 )) {
+		host->pinmux_value = __be32_to_cpu(cell[0]);
+#if defined(CONFIG_TARGET_NA51055)
+		if (host->pinmux_value & PIN_SDIO_CFG_1ST_PINMUX) {
+			temp_pinmux_value |= PIN_SDIO_CFG_SDIO2_1;
+		}
+#else
+		if (host->pinmux_value & PIN_SDIO_CFG_1ST_PINMUX) {
+			temp_pinmux_value |= PIN_SDIO_CFG_SDIO2_1;
+		} else if (host->pinmux_value & PIN_SDIO_CFG_2ND_PINMUX) {
+			temp_pinmux_value |= PIN_SDIO_CFG_SDIO2_2;
+		}
+#endif  
+	}
+
+	sprintf(path, "/top/sdio3");
+	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
+	if (( cell > 0 )) {
+		host->pinmux_value = __be32_to_cpu(cell[0]);
+		if (host->pinmux_value & PIN_SDIO_CFG_4BITS) {
+			temp_pinmux_value |= PIN_SDIO_CFG_SDIO3_1;
+		} else if (host->pinmux_value & PIN_SDIO_CFG_8BITS) {
+			temp_pinmux_value |= PIN_SDIO_CFG_SDIO3_1;
+			temp_pinmux_value |= PIN_SDIO_CFG_SDIO3_BUS_WIDTH;
+		}  
+	}
+	host->pinmux_value = temp_pinmux_value;
+	SDIO_WARN("sdio pinmux(0x%x)\n", host->pinmux_value);
+#else
 	sprintf(path, "/top/sdio");
 
 	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
@@ -117,6 +202,7 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 		host->pinmux_value = __be32_to_cpu(cell[0]);
 		SDIO_WARN("sdio pinmux(0x%x)\n", host->pinmux_value);
 	}
+#endif
 }
 
 //=============================================================================================================
@@ -652,39 +738,30 @@ static int sdiohost_setpaddriving(struct mmc_nvt_host *host, SDIO_SPEED_MODE mod
 	UINT32 data_uidriving, cmd_uidriving, clk_uidriving;
 
 	if (mode == SDIO_MODE_DS) {
-		data_uidriving = host->pad_driving[SDIO_DS_MODE_DATA];
-		cmd_uidriving = host->pad_driving[SDIO_DS_MODE_CMD];
-		clk_uidriving = host->pad_driving[SDIO_DS_MODE_CLK];
+		data_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_DS_MODE_DATA], host->id);
+		cmd_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_DS_MODE_CMD], host->id);
+		clk_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_DS_MODE_CLK], host->id);
 	} else if (mode == SDIO_MODE_HS) {
-		data_uidriving = host->pad_driving[SDIO_HS_MODE_DATA];
-		cmd_uidriving = host->pad_driving[SDIO_HS_MODE_CMD];
-		clk_uidriving = host->pad_driving[SDIO_HS_MODE_CLK];
+		data_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_HS_MODE_DATA], host->id);
+		cmd_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_HS_MODE_CMD], host->id);
+		clk_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_HS_MODE_CLK], host->id);
 	} else if (mode == SDIO_MODE_SDR50) {
-		data_uidriving = host->pad_driving[SDIO_SDR50_MODE_DATA];
-		cmd_uidriving = host->pad_driving[SDIO_SDR50_MODE_CMD];
-		clk_uidriving = host->pad_driving[SDIO_SDR50_MODE_CLK];
+		data_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_SDR50_MODE_DATA], host->id);
+		cmd_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_SDR50_MODE_CMD], host->id);
+		clk_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_SDR50_MODE_CLK], host->id);
 	} else {
-		data_uidriving = host->pad_driving[SDIO_SDR104_MODE_DATA];
-		cmd_uidriving = host->pad_driving[SDIO_SDR104_MODE_CMD];
-		clk_uidriving = host->pad_driving[SDIO_SDR104_MODE_CLK];
+		data_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_SDR104_MODE_DATA], host->id);
+		cmd_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_SDR104_MODE_CMD], host->id);
+		clk_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_SDR104_MODE_CLK], host->id);
 	}
 
 	if (host->id == SDIO_HOST_ID_1) {
-#if defined(CONFIG_TARGET_NS02302_A64)
-		pad_setdrivingsink(PAD_DS_CGPIO13, cmd_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO14, data_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO15, data_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO16, data_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO17, data_uidriving);
-		return pad_setdrivingsink(PAD_DS_CGPIO12, clk_uidriving);
-#else
 		pad_setdrivingsink(PAD_DS_SDIO_CMD, cmd_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO_D0, data_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO_D1, data_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO_D2, data_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO_D3, data_uidriving);
 		return pad_setdrivingsink(PAD_DS_SDIO_CLK, clk_uidriving);
-#endif
 	}
 #if (SDIO_HOST_ID_COUNT > 1)
 	else if (host->id == SDIO_HOST_ID_2) {
@@ -696,21 +773,12 @@ static int sdiohost_setpaddriving(struct mmc_nvt_host *host, SDIO_SPEED_MODE mod
 			pad_setdrivingsink(PAD_DS_SDIO2_D7, data_uidriving);
 		}
 #endif
-#if defined(CONFIG_TARGET_NS02302_A64)
-		pad_setdrivingsink(PAD_DS_CGPIO19, cmd_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO20, data_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO21, data_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO22, data_uidriving);
-		pad_setdrivingsink(PAD_DS_CGPIO23, data_uidriving);
-		return pad_setdrivingsink(PAD_DS_CGPIO18, clk_uidriving);
-#else
 		pad_setdrivingsink(PAD_DS_SDIO2_CMD, cmd_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO2_D0, data_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO2_D1, data_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO2_D2, data_uidriving);
 		pad_setdrivingsink(PAD_DS_SDIO2_D3, data_uidriving);
 		return pad_setdrivingsink(PAD_DS_SDIO2_CLK, clk_uidriving);
-#endif
 	}
 #endif
 #if (SDIO_HOST_ID_COUNT > 2)
@@ -1775,112 +1843,6 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 	uintptr_t reg_value;
 
 	if (host->id == SDIO_HOST_ID_1) {
-#if defined(CONFIG_TARGET_NS02302_A64)
-		/*
-		*(uint32_t*) 0xF0010004 &= ~0x10;        // SDIO_EN
-		udelay(10);
-		*(uint32_t*) 0xF0010004 |= 0x10;
-		udelay(10);
-		*(uint32_t*) 0xF00100A0 &= ~(0x3F << 12);// PGPIO12~13, PGPIO15~18
-		udelay(10);
-		*/
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO_1) {
-			reg_value = readl(TOP_SDIO_EN_REG);
-			reg_value &= ~(TOP_SDIO_EN_MASK);
-			reg_value |= (TOP_SDIO_EN_MASK);
-			writel(reg_value, TOP_SDIO_EN_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO_EN_GPIO_REG);
-			reg_value &= ~(TOP_SDIO_EN_GPIO_MASK);
-			writel(reg_value, TOP_SDIO_EN_GPIO_REG);
-			udelay(10);
-		}
-
-		/*
-		*(uint32_t*) 0xF0020094 &= ~(0x1 << 2); // SDIO_RSTN
-		udelay(10);
-		*(uint32_t*) 0xF0020094 |= (0x1 << 2);
-		udelay(10);
-		*/
-		/* RSTN */
-		reg_value = readl(CG_SDIO_RSTN_REG);
-		reg_value &= ~(CG_SDIO_RSTN_MASK);
-		writel(reg_value, CG_SDIO_RSTN_REG);
-		udelay(10);
-		reg_value = readl(CG_SDIO_RSTN_REG);
-		reg_value |= (CG_SDIO_RSTN_MASK);
-		writel(reg_value, CG_SDIO_RSTN_REG);
-		udelay(10);
-
-		//*(uint32_t*) 0xF0020020 &= ~(0x3<<4);        // SDIO_CLKSEL
-		//udelay(10);
-		/* CLKSEL */
-		pll_set_sdioclock_src(host->id, _CLKSEL_192MHZ);
-
-		/*
-		*(uint32_t*) 0xF002003C &= ~0x7FF;       // SDIO_CLKDIV
-		udelay(10);
-		*(uint32_t*) 0xF002003C |= 0x0;
-		udelay(10);
-		*/
-		reg_value = readl(CG_SDIO_CLKDIV_REG);
-		reg_value &= ~(CG_SDIO_CLKDIV_MASK);
-		reg_value |= (0x1F0 << CG_SDIO_CLKDIV_SHIFT);
-		writel(reg_value, CG_SDIO_CLKDIV_REG);
-		udelay(10);
-
-		/*
-		*(uint32_t*) 0xF0020074 |= 0x4;      // SDIO_CLKEN
-		udelay(10);
-		*/
-		/* CLKEN */
-		reg_value = readl(CG_SDIO_CLKEN_REG);
-		reg_value |= (CG_SDIO_CLKEN_MASK);
-		writel(reg_value, CG_SDIO_CLKEN_REG);
-		udelay(10);
-
-		//temporary hardcode here
-		//*(uint32_t*) 0xF0420160 &= ~0x10000;         // axi channel disable
-		//udelay(10);
-		reg_value = readl(0xF0420160);
-		reg_value &= ~(0x10000);
-		udelay(10);
-#else
-		/* TOP */
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO_1) {
-			reg_value = readl(TOP_SDIO_EN_REG);
-			reg_value &= ~(TOP_SDIO_EN_MASK);
-			reg_value |= (TOP_SDIO_EN_MASK);
-			writel(reg_value, TOP_SDIO_EN_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO_EN_GPIO_REG);
-			reg_value &= ~(TOP_SDIO_EN_GPIO_MASK);
-			writel(reg_value, TOP_SDIO_EN_GPIO_REG);
-			udelay(10);
-		}
-
-#if defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51103)
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO_2) {
-			reg_value = readl(TOP_SDIO_EN_REG);
-			reg_value &= ~(TOP_SDIO2_EN_MASK);
-			reg_value |= (TOP_SDIO2_EN_MASK);
-			writel(reg_value, TOP_SDIO_EN_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO2_EN_GPIO_REG);
-			reg_value &= ~(TOP_SDIO2_EN_GPIO_MASK);
-			writel(reg_value, TOP_SDIO2_EN_GPIO_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO2_EN_GPIO_2_REG);
-			reg_value &= ~(TOP_SDIO2_EN_GPIO_2_MASK);
-			writel(reg_value, TOP_SDIO2_EN_GPIO_2_REG);
-			udelay(10);
-		}
-#endif
-
 		/* RSTN */
 		reg_value = readl(CG_SDIO_RSTN_REG);
 		reg_value &= ~(CG_SDIO_RSTN_MASK);
@@ -1906,113 +1868,9 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		reg_value |= (CG_SDIO_CLKEN_MASK);
 		writel(reg_value, CG_SDIO_CLKEN_REG);
 		udelay(10);
-#endif
 	}
 #if (SDIO_HOST_ID_COUNT > 1)
 	else if (host->id == SDIO_HOST_ID_2) {
-
-		// set gpio input
-		if (host->pinmux_value & 0x80) {
-			
-#if defined(CONFIG_TARGET_NS02302_A64)
-			/* Set as GPIO */
-			gpio_request(GPIO_SDIO2_CLK, "sdio2_clk");
-			gpio_request(GPIO_SDIO2_CMD, "sdio2_cmd");
-			gpio_request(GPIO_SDIO2_D0, "sdio2_d0");
-			gpio_request(GPIO_SDIO2_D1, "sdio2_d1");
-			gpio_request(GPIO_SDIO2_D2, "sdio2_d2");
-			gpio_request(GPIO_SDIO2_D3, "sdio2_d3");
-
-			reg_value = readl(TOP_SDIO2_EN_GPIO_REG);
-			reg_value |= (TOP_SDIO2_EN_GPIO_MASK);
-			writel(reg_value, TOP_SDIO2_EN_GPIO_REG);
-
-			/* Set PAD pull down */
-			reg_value = readl(PAD_PUPD_SDIO2_CLK_REG);
-			reg_value &= ~(PAD_PUPD_SDIO2_CLK_MASK);
-			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CLK_SHIFT);
-			writel(reg_value, PAD_PUPD_SDIO2_CLK_REG);
-
-			reg_value = readl(PAD_PUPD_SDIO2_CMD_REG);
-			reg_value &= ~(PAD_PUPD_SDIO2_CMD_MASK);
-			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CMD_SHIFT);
-			writel(reg_value, PAD_PUPD_SDIO2_CMD_REG);
-
-			reg_value = readl(PAD_PUPD_SDIO2_D0_REG);
-			reg_value &= ~(PAD_PUPD_SDIO2_D0_MASK);
-			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D0_SHIFT);
-			writel(reg_value, PAD_PUPD_SDIO2_D0_REG);
-
-			reg_value = readl(PAD_PUPD_SDIO2_D1_REG);
-			reg_value &= ~(PAD_PUPD_SDIO2_D1_MASK);
-			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D1_SHIFT);
-			writel(reg_value, PAD_PUPD_SDIO2_D1_REG);
-
-			reg_value = readl(PAD_PUPD_SDIO2_D2_REG);
-			reg_value &= ~(PAD_PUPD_SDIO2_D2_MASK);
-			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D2_SHIFT);
-			writel(reg_value, PAD_PUPD_SDIO2_D2_REG);
-
-			reg_value = readl(PAD_PUPD_SDIO2_D3_REG);
-			reg_value &= ~(PAD_PUPD_SDIO2_D3_MASK);
-			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D3_SHIFT);
-			writel(reg_value, PAD_PUPD_SDIO2_D3_REG);
-
-			/* Set GPIO input */
-			gpio_direction_input(GPIO_SDIO2_CLK);
-			gpio_direction_input(GPIO_SDIO2_CMD);
-			gpio_direction_input(GPIO_SDIO2_D0);
-			gpio_direction_input(GPIO_SDIO2_D1);
-			gpio_direction_input(GPIO_SDIO2_D2);
-			gpio_direction_input(GPIO_SDIO2_D3);
-#endif
-
-		}
-		/* TOP */
-		else if (host->pinmux_value & PIN_SDIO_CFG_SDIO2_1) {
-			reg_value = readl(TOP_SDIO2_EN_REG);
-			reg_value &= ~(TOP_SDIO2_EN_MASK);
-			reg_value |= (TOP_SDIO2_EN_MASK);
-			writel(reg_value, TOP_SDIO2_EN_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO2_EN_GPIO_REG);
-			reg_value &= ~(TOP_SDIO2_EN_GPIO_MASK);
-			writel(reg_value, TOP_SDIO2_EN_GPIO_REG);
-			udelay(10);
-		}
-#if defined(TOP_SDIO2_WIDTH_REG)
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO2_BUS_WIDTH) {
-			host->enable_8bits = 1;
-
-			reg_value = readl(TOP_SDIO2_WIDTH_REG);
-			reg_value &= ~(TOP_SDIO2_WIDTH_MASK);
-			reg_value |= (TOP_SDIO2_WIDTH_MASK);
-			writel(reg_value, TOP_SDIO2_WIDTH_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO2_WIDTH_GPIO_REG);
-			reg_value &= ~(TOP_SDIO2_WIDTH_GPIO_MASK);
-			writel(reg_value, TOP_SDIO2_WIDTH_GPIO_REG);
-			udelay(10);
-		}
-#endif
-
-#if defined(TOP_SDIO2_2_EN_REG)
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO2_2) {
-			reg_value = readl(TOP_SDIO2_2_EN_REG);
-			reg_value &= ~(TOP_SDIO2_2_EN_MASK);
-			reg_value |= (TOP_SDIO2_2_EN_MASK);
-			writel(reg_value, TOP_SDIO2_2_EN_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO2_2_EN_GPIO_REG);
-			reg_value &= ~(TOP_SDIO2_2_EN_GPIO_MASK);
-			writel(reg_value, TOP_SDIO2_2_EN_GPIO_REG);
-			udelay(10);
-		}
-#endif
-
 		/* RSTN */
 		reg_value = readl(CG_SDIO2_RSTN_REG);
 		reg_value &= ~(CG_SDIO2_RSTN_MASK);
@@ -2042,36 +1900,6 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 #endif
 #if (SDIO_HOST_ID_COUNT > 2)
 	else if (host->id == SDIO_HOST_ID_3) {
-		/* TOP */
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO3_1) {
-			reg_value = readl(TOP_SDIO3_EN_REG);
-			reg_value &= ~(TOP_SDIO3_EN_MASK);
-			reg_value |= (TOP_SDIO3_EN_MASK);
-			writel(reg_value, TOP_SDIO3_EN_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO3_EN_GPIO_REG);
-			reg_value &= ~(TOP_SDIO3_EN_GPIO_MASK);
-			writel(reg_value, TOP_SDIO3_EN_GPIO_REG);
-			udelay(10);
-		}
-#if defined(TOP_SDIO3_WIDTH_REG)
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO3_BUS_WIDTH) {
-			host->enable_8bits = 1;
-
-			reg_value = readl(TOP_SDIO3_WIDTH_REG);
-			reg_value &= ~(TOP_SDIO3_WIDTH_MASK);
-			reg_value |= (TOP_SDIO3_WIDTH_MASK);
-			writel(reg_value, TOP_SDIO3_WIDTH_REG);
-			udelay(10);
-
-			reg_value = readl(TOP_SDIO3_WIDTH_GPIO_REG);
-			reg_value &= ~(TOP_SDIO3_WIDTH_GPIO_MASK);
-			writel(reg_value, TOP_SDIO3_WIDTH_GPIO_REG);
-			udelay(10);
-		}
-#endif
-
 #if defined (CONFIG_TARGET_NS02301)
 		printf("=================== emmc share cg_rest with spi ===================\n");
 #endif
@@ -2102,6 +1930,8 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		udelay(10);
 	}
 #endif
+
+	sdiohost_power_cycle(host, host->card_power[3]);
 
 	sdiohost_enclkout(host, TRUE);
 
@@ -2666,145 +2496,52 @@ static int nvt_mmc_bind(struct udevice *dev)
 static int nvt_mmc_remove(struct udevice *dev)
 {
 	struct mmc_nvt_host *host = dev_get_priv(dev);
+	struct nvt_mmc_plat *plat = dev_get_plat(dev);
+	struct mmc *card = &plat->mmc;
+	u32 reg_val, cache_size = 0;
+	int err;
 
 	if (host->id == SDIO_HOST_ID_1) {
-#ifdef  CONFIG_SD_CARD1_POWER_PIN
-		u32 reg_val;
-
-		/* Set as GPIO */
-		gpio_request(CONFIG_SD_CARD1_POWER_PIN, "sdio_power");
-		gpio_request(GPIO_SDIO_CLK, "sdio_clk");
-		gpio_request(GPIO_SDIO_CMD, "sdio_cmd");
-		gpio_request(GPIO_SDIO_D0, "sdio_d0");
-		gpio_request(GPIO_SDIO_D1, "sdio_d1");
-		gpio_request(GPIO_SDIO_D2, "sdio_d2");
-		gpio_request(GPIO_SDIO_D3, "sdio_d3");
-
-		if (CONFIG_SD_CARD1_ON_STATE) {
-			gpio_direction_output(CONFIG_SD_CARD1_POWER_PIN, 0);
-		} else {
-			gpio_direction_output(CONFIG_SD_CARD1_POWER_PIN, 1);
-		}
-
-		reg_val = readl(TOP_SDIO_EN_GPIO_REG);
-		reg_val |= (TOP_SDIO_EN_GPIO_MASK);
-		writel(reg_val, TOP_SDIO_EN_GPIO_REG);
-
-		/* Set PAD pull down */
-		reg_val = readl(PAD_PUPD_SDIO_CLK_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_CLK_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_CLK_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_CLK_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_CMD_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_CMD_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_CMD_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_CMD_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D0_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D0_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D0_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D0_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D1_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D1_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D1_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D1_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D2_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D2_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D2_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D2_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO_D3_REG);
-		reg_val &= ~(PAD_PUPD_SDIO_D3_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO_D3_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO_D3_REG);
-
-		/* Set GPIO output low */
-		gpio_direction_output(GPIO_SDIO_CLK, 0);
-		gpio_direction_output(GPIO_SDIO_CMD, 0);
-		gpio_direction_output(GPIO_SDIO_D0, 0);
-		gpio_direction_output(GPIO_SDIO_D1, 0);
-		gpio_direction_output(GPIO_SDIO_D2, 0);
-		gpio_direction_output(GPIO_SDIO_D3, 0);
-
+		sdiohost_power_down(host);
 		/* Disable CLK */
 		reg_val = readl(CG_SDIO_CLKEN_REG);
 		reg_val &= ~(CG_SDIO_CLKEN_MASK);
 		writel(reg_val, CG_SDIO_CLKEN_REG);
-#endif
 	}
 #if (SDIO_HOST_ID_COUNT > 1)
 	else if (host->id == SDIO_HOST_ID_2) {
-#ifdef CONFIG_SD_CARD2_POWER_PIN
-		u32 reg_val;
-
-		/* Set as GPIO */
-		gpio_request(CONFIG_SD_CARD2_POWER_PIN, "sdio2_power");
-		gpio_request(GPIO_SDIO2_CLK, "sdio2_clk");
-		gpio_request(GPIO_SDIO2_CMD, "sdio2_cmd");
-		gpio_request(GPIO_SDIO2_D0, "sdio2_d0");
-		gpio_request(GPIO_SDIO2_D1, "sdio2_d1");
-		gpio_request(GPIO_SDIO2_D2, "sdio2_d2");
-		gpio_request(GPIO_SDIO2_D3, "sdio2_d3");
-
-		if (CONFIG_SD_CARD2_ON_STATE) {
-			gpio_direction_output(CONFIG_SD_CARD2_POWER_PIN, 0);
-		} else {
-			gpio_direction_output(CONFIG_SD_CARD2_POWER_PIN, 1);
-		}
-
-		reg_val = readl(TOP_SDIO2_EN_GPIO_REG);
-		reg_val |= (TOP_SDIO2_EN_GPIO_MASK);
-		writel(reg_val, TOP_SDIO2_EN_GPIO_REG);
-
-		/* Set PAD pull down */
-		reg_val = readl(PAD_PUPD_SDIO2_CLK_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_CLK_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CLK_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_CLK_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_CMD_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_CMD_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CMD_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_CMD_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D0_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D0_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D0_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D0_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D1_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D1_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D1_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D1_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D2_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D2_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D2_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D2_REG);
-
-		reg_val = readl(PAD_PUPD_SDIO2_D3_REG);
-		reg_val &= ~(PAD_PUPD_SDIO2_D3_MASK);
-		reg_val |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D3_SHIFT);
-		writel(reg_val, PAD_PUPD_SDIO2_D3_REG);
-
-		/* Set GPIO output low */
-		gpio_direction_output(GPIO_SDIO2_CLK, 0);
-		gpio_direction_output(GPIO_SDIO2_CMD, 0);
-		gpio_direction_output(GPIO_SDIO2_D0, 0);
-		gpio_direction_output(GPIO_SDIO2_D1, 0);
-		gpio_direction_output(GPIO_SDIO2_D2, 0);
-		gpio_direction_output(GPIO_SDIO2_D3, 0);
-
+		sdiohost_power_down(host);
 		/* Disable CLK */
 		reg_val = readl(CG_SDIO2_CLKEN_REG);
 		reg_val &= ~(CG_SDIO2_CLKEN_MASK);
 		writel(reg_val, CG_SDIO2_CLKEN_REG);
-#endif
 	}
 #endif
+	if (card!=NULL && IS_MMC(card)) {
+		if (card->ext_csd == NULL)
+			return 0;
+
+		// check cache is exist
+		cache_size = 
+			card->ext_csd[EXT_CSD_CACHE_SIZE + 0] << 0 |
+			card->ext_csd[EXT_CSD_CACHE_SIZE + 1] << 8 |
+			card->ext_csd[EXT_CSD_CACHE_SIZE + 2] << 16 |
+			card->ext_csd[EXT_CSD_CACHE_SIZE + 3] << 24;
+
+		if (cache_size) {
+			// enable cache
+			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_CACHE_CTRL, 1);
+			if (err)
+				return 0;
+
+			// flush cache
+			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_FLUSH_CACHE, 1);
+			if (err)
+				return 0;
+
+			printk("==================== flush cache ==================== \r\n");
+		}
+	}
 
 	return 0;
 }

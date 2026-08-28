@@ -559,6 +559,9 @@ int phy_init(void)
 #ifdef CONFIG_PHY_NCSI
 	phy_ncsi_init();
 #endif
+#ifdef CONFIG_PHY_MAXLINEAR
+	phy_maxlinear_init();
+#endif
 #ifdef CONFIG_PHY_XILINX_GMII2RGMII
 	phy_xilinx_gmii2rgmii_init();
 #endif

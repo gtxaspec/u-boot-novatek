@@ -4,21 +4,21 @@ if ARCH_NOVATEK
 
 		config NVT_PCIE_EP_VENDOR_ID
 				hex "NVT PCIE EP Vendor ID"
-				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V2
+				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V3
 				default 0x1E09
 				help
 				Overwrite your EP PCIE VID
 
 		config NVT_PCIE_EP_DEV_ID
 				hex "NVT PCIE EP Device ID"
-				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V2
-				default 0x0006
+				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V3
+				default 0x0007
 				help
 				Overwrite your EP PCIE PID
 
 		config NVT_PCIE_EP_BAR0_SIZE
 				int "NVT PCIE EP BAR0 size"
-				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V2
+				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V3
 				default 5
 				range 0 13
 				help
@@ -31,7 +31,7 @@ if ARCH_NOVATEK
 
 		config NVT_PCIE_EP_BAR2_EN
 				bool "NVT PCIE EP BAR2 enabled"
-				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V2
+				depends on NVT_PCIE_DAUGHTER_BRD && PHY_NOVATEK_PCIE_V3
 				default y
 				help
 				Enable/Disable EP PCIE BAR2

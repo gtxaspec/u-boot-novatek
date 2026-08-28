@@ -18,6 +18,12 @@
 #include <asm/nvt-common/rcw_macro.h>
 
 typedef enum {
+	PWM0_CORE_POWER     = 0x0,
+	PWM1_CPU_POWER,
+} PWM_POWER_SET;
+
+
+typedef enum {
 	NT98538_PKG     = 0,
 	NT96538_PKG,
 	NT98539_PKG,
@@ -295,6 +301,7 @@ extern BOOL extract_trim_valid(u32 code, u32 *pData);
 extern ER   efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H);
 extern void otp_init(void);
 
+extern int  prepare_power_trim(int mode);
 /**
     efuse_secure_en
 

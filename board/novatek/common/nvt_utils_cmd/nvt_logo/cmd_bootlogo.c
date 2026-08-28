@@ -16,7 +16,7 @@
 #include <asm/arch/gpio.h>
 #include <linux/libfdt.h>
 #include <linux/delay.h>
-#if (CONFIG_TARGET_NS02301 || CONFIG_TARGET_NA51089)
+#if (CONFIG_TARGET_NS02301 || CONFIG_TARGET_NA51089 || CONFIG_TARGET_NA51055)
 #include <cpu_func.h>
 #endif
 
@@ -30,7 +30,7 @@ extern void jpeg_getdim(unsigned int *width, unsigned int *height);
 UINT32 dma_getDramBaseAddr(DMA_ID id);
 UINT32 dma_getDramCapacity(DMA_ID id);
 
-#if defined(CONFIG_TARGET_NS02201_A64)
+#if CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
 #define NT98690_BOOT_LOGO_SKIP 0
 #else	
 #define	NT98690_BOOT_LOGO_SKIP 1
@@ -136,6 +136,16 @@ extern uint8_t *nvt_fdt_buffer;
 
 #define PLL6_OFFSET 0xF00244E0
 #define PLL9_OFFSET 0xF0024520
+
+#elif defined(CONFIG_TARGET_NS02401_A64)
+#define PLL_CLKSEL_IDE_CLKSRC_480   (0x00)    //< Select IDE clock source as 480 MHz
+#define PLL_CLKSEL_IDE_CLKSRC_PLL8  (0x01)    //< Select IDE clock source as PLL8 (for LCD1)
+#define PLL_CLKSEL_IDE_CLKSRC_PLL9  (0x03)    //< Select IDE clock source as PLL9 (for LCD2)
+#define PLL_CLKSEL_IDE_CLKSRC_PLL10 (0x04)    //< Select IDE clock source as PLL10 (for LCD Lite)
+
+#define PLL8_OFFSET 0x4F0020620
+#define PLL9_OFFSET 0x4F0020660
+#define PLL10_OFFSET 0x4F00206A0
 #endif
 
 
@@ -181,7 +191,7 @@ void _boot_dump_reg(UINT64 ofs, int cnt, char *log)
 void pll_set_ideclock_rate(int id, u32 value)
 {
 	REGVALUE reg_data;
-#if CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64
+#if CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64 || CONFIG_TARGET_NS02401_A64
 	UINT64 ui_reg_offset;
 #else
 	UINT32 ui_reg_offset;
@@ -216,12 +226,12 @@ void pll_set_ideclock_rate(int id, u32 value)
 		{
 			ui_reg_offset = PLL9_OFFSET;
 		}
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
 	}  else if (id == PLL_CLKSEL_IDE_CLKSRC_PLL10) {
 		ui_reg_offset = PLL10_OFFSET;
 #endif
 
-#if CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64
+#if CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
 	}  else if (id == PLL_CLKSEL_IDE_CLKSRC_PLL8) {
 		ui_reg_offset = PLL8_OFFSET;
 #endif
@@ -281,7 +291,7 @@ static int nvt_getfdt_logo_addr_size(ulong addr, ulong *fdt_addr, ulong *fdt_len
 	return 0;
 }
 
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
 static int nvt_getfdt_logo2_addr_size(ulong addr, ulong *fdt_addr, ulong *fdt_len)
 {
 	int len;
@@ -374,7 +384,7 @@ static int nvt_getfdt_logo_gpio(ulong addr, ulong *gpio_cs, ulong *gpio_clk, ulo
 	return 0;
 }
 
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
 static int nvt_getfdt_logo2_gpio(ulong addr, ulong *gpio_cs, ulong *gpio_clk, ulong *gpio_data)
 {
     int len;
@@ -430,13 +440,13 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	DISPCTRL_PARAM  emu_disp_ctrl;
 	DISPDEV_PARAM   emu_disp_dev;
 	DISPLAYER_PARAM emu_disp_lyr;
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
 	PDISP_OBJ       p_emu_disp_obj2;
 	DISPCTRL_PARAM  emu_disp_ctrl2;
 	DISPDEV_PARAM   emu_disp_dev2;
 	DISPLAYER_PARAM emu_disp_lyr2;
 #endif
-#if CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64
+#if CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
 	PDISP_OBJ       p_emu_disp_obj3;
 	DISPCTRL_PARAM  emu_disp_ctrl3;
 	DISPDEV_PARAM   emu_disp_dev3;
@@ -465,7 +475,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 #endif
 
 
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64	
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64
     if(argc >= 2)
 	{
 		char *p = argv[1];
@@ -526,7 +536,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	_W_LOG("do_bootlogo, layer = %d\r\n",layer);
 
 
-#if !CONFIG_TARGET_NS02302_A64
+#if (!CONFIG_TARGET_NS02302_A64 && !CONFIG_TARGET_NS02401_A64)
 	//TODO
 	_W_LOG("set tog reg go\r\n");
 	nvt_pinmux_probe();
@@ -554,7 +564,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		p_emu_disp_obj = disp_get_display_object(DISP_1);
 		p_emu_disp_obj->open();
 
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64 || CONFIG_TARGET_NS02301
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64 || CONFIG_TARGET_NS02301 || CONFIG_TARGET_NS02401_A64
 		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nvt-clk/clk_ide_src");
 		if (nodeoffset < 0) {
 			printf("no find node clk_ide_src\n");
@@ -660,7 +670,10 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = P_GPIO(25);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = P_GPIO(26);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = P_GPIO(27); 		
-
+#elif  CONFIG_TARGET_NS02401_A64
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = L_GPIO(22);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = L_GPIO(23);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = L_GPIO(24);
 #endif
 	}
 		p_emu_disp_obj->dev_ctrl(DISPDEV_SET_REG_IF, &emu_disp_dev);
@@ -708,7 +721,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 
 		/*hdmi2 init flow*/
 		
-#if ( CONFIG_DISP_VIDEO_HDMITX_IDE && (CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64))
+#if ( CONFIG_DISP_VIDEO_HDMITX_IDE && (CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 /*|| CONFIG_TARGET_NS02401_A64*/))
 		if(tohdmi == 1){
 			emu_disp_dev.SEL.HOOK_DEVICE_OBJECT.dev_id         = DISPDEV_ID_TVHDMI;
 			emu_disp_dev.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj   = dispdev_get_hdmi2_dev_obj();
@@ -921,6 +934,21 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 			_boot_dump_reg(0x2f0480000, 200, "HDMI1_reg");
 
 			_boot_dump_reg(0x2f0490000, 200, "HDMI2_reg");
+
+#elif CONFIG_TARGET_NS02401_A64
+			_boot_dump_reg(0x4f0400000, 200, "LCD1_reg");
+
+			//_boot_dump_reg(0x4f0420000, 200, "LCD3_reg");
+
+			_boot_dump_reg(0x4f0020000, 24, "CG_reg");
+
+			//_boot_dump_reg(0x4f0024680, 16, "CG_LCD3_pll_reg");
+
+			_boot_dump_reg(0x4f0010000, 16, "TOP_reg");
+
+			//_boot_dump_reg(0x4f0480000, 200, "HDMI1_reg");
+
+			//_boot_dump_reg(0x4f0490000, 200, "HDMI2_reg");
 
 #elif CONFIG_TARGET_NS02302_A64
 

@@ -311,11 +311,12 @@ void nvt_ddr_scan(void)
 	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
 
 	if (nvt_get_chip_id() == CHIP_NA51089) {
-		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
+		memcpy_toio((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
+        dcache_disable();
 	} else {
 		printf("Not support\n");
 	}

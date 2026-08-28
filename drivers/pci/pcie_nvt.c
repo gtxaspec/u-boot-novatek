@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Novatek, Inc
+ * Copyright (C) 2024 Novatek, Inc
  */
 
 #include <common.h>
@@ -23,8 +23,9 @@
 #include <asm/arch/IOAddress.h>
 
 #include "pcie_dw_common.h"
+#include "pcie_nvt.h"
 
-#define DRV_VERSION                     "1.00.04"
+#define DRV_VERSION                     "1.01.00"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -80,64 +81,6 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define PCIE_PHY_PORN_MSK		(1<<13)
 
-/* PCIE TOP registers */
-#define NVT_PCIE_TOP_CTRL0_OFS		0x300
-#define NVT_PCIE_TOP_RESET_MSK		GENMASK(2, 0)
-#define NVT_PCIE_TOP_PHY_APBRST_MSK	GENMASK(3, 3)
-
-#define NVT_PCIE_TOP_CTRL1_OFS				0x304
-#define NVT_PCIE_LINK_DOWN_RST_ACK_MSK			GENMASK(0, 0)
-#define NVT_PCIE_LINK_DOWN_RST_REQ_MSK			GENMASK(1, 1)
-#define NVT_PCIE_LINK_TRAIN_MSK				GENMASK(2, 2)
-#define NVT_PCIE_LINK_TRAIN_EN				(1)
-#define NVT_PCIE_LINK_TRAIN_DIS				(0)
-
-/* PCIE DBI registers */
-#define SD_CONTROL1_REG_OFS		0x274
-#define FORCE_DETECT_LANE_EN_MSK	GENMASK(16, 16)
-#define FORCE_DETECT_LANE_X2_MSK	GENMASK(1, 0)
-
-#define PORT_FORCE_OFF_OFS		0x708
-#define SUPPORT_PART_LANES_MSK		GENMASK(22, 22)
-
-#define PORT_LINK_CTRL_OFS		0x710
-#define HOT_RESET_MSK			GENMASK(3, 3)
-
-#define GEN3_RELATED_OFS		0x890
-#define GEN3_ZRXDC_NONCOMPL_MSK		GENMASK(0, 0)
-
-#define MISC_CONTROL_1_OFF		0x8BC
-#define DBI_RO_WR_EN_MSK		GENMASK(0, 0)
-
-#define GEN3_EQ_CONTROL_OFS		0x8a8
-#define GEN3_EQ_FOM_INC_INITIAL_MSK	GENMASK(24, 24)
-#define GEN3_EQ_FOM_INC_INITIAL_YES	(1)
-#define GEN3_EQ_FOM_INC_INITIAL_NO	(0)
-#define GEN3_EQ_PSET_REQ_VEC_MSK	GENMASK(23, 8)
-#define GEN3_EQ_PSET_REQ_VEC_NVT		(1<<PCIE_FIX_PRESET)
-#define GEN3_EQ_AUTO_PSET_REQ_VEC_NVT	(0x1f) // auto preset P0~P4
-
-#define BAR0_MASK_OFS			(0x100010)
-
-
-
-/**
- * struct pcie_nvt - Novatek DW PCIe controller state
- *
- * @pci: The common PCIe DW structure
- * @app_base: The base address of application register space
- */
-struct pcie_nvt {
-	/* Must be first member of the struct */
-	struct pcie_dw dw;
-	struct phy *p_phy;
-	void *top_base;
-	int link_gen;
-	u32 refclk_out;
-	u32 num_lanes;
-	u32 slot;
-};
-
 enum dw_pcie_device_mode {
 	DW_PCIE_UNKNOWN_TYPE,
 	DW_PCIE_EP_TYPE,
@@ -146,8 +89,6 @@ enum dw_pcie_device_mode {
 };
 
 static void pcie_enable_ltssm(struct pcie_nvt *pci);
-
-static int is_phy_init_done = 0;	// record if phy ever inited
 
 /**
  * pcie_dw_configure() - Configure link capabilities and speed
@@ -239,6 +180,7 @@ static int pcie_dw_pcie_link_up(struct pcie_nvt *pci, u32 cap_speed)
 	return 1;
 }
 
+#if !defined(CONFIG_TARGET_NS02401_A64)
 static int bootstrap_read(struct pcie_nvt *pci)
 {
 	u32 val;
@@ -343,12 +285,12 @@ static int pcie_power_on(struct pcie_nvt *pci)
 	writel(val, pci->top_base + NVT_PCIE_TOP_CTRL0_OFS);
 
 	// apply phy setting while PHY PORn
-	if (is_phy_init_done == 0) {
+	if (pci->is_phy_init_done == 0) {
 		generic_phy_reset(pci->p_phy);
 		generic_phy_init(pci->p_phy);
 		generic_phy_power_on(pci->p_phy);
 
-		is_phy_init_done = 1;
+		pci->is_phy_init_done = 1;
 	}
 
 	// release phy POR
@@ -398,6 +340,7 @@ static int pcie_power_on(struct pcie_nvt *pci)
 
 	return 0;
 }
+#endif
 
 static void pcie_enable_ltssm(struct pcie_nvt *pci)
 {
@@ -437,13 +380,23 @@ static int pcie_nvt_probe(struct udevice *dev)
 	int phy_mode;
 	int ret;
 
-	ret = bootstrap_read(pci);
+	if (pci == NULL) {
+		dev_err(dev, "NULL priv\n");
+		return -ENODEV;
+	}
+
+	if (pci->p_nvt_plat == NULL) {
+		dev_err(dev, "NULL nvt plat callbacks\n");
+		return -ENODEV;
+	}
+
+	ret = pci->p_nvt_plat->bootstrap_read(pci);
 	if (ret) {
 		dev_err(dev, "Bootstrap conflict with DTS\n");
 		return ret;
 	}
 
-	pcie_clk_setup(pci);
+	pci->p_nvt_plat->clk_setup(pci);
 
 	ret = generic_phy_get_by_name(dev,  "pcie-phy", &phy0);
 	if (ret) {
@@ -462,7 +415,7 @@ static int pcie_nvt_probe(struct udevice *dev)
 	pci->dw.dev = dev;
 
 
-	pcie_power_on(pci);
+	pci->p_nvt_plat->power_on(pci);
 
 	// link up
 	if (!pcie_dw_pcie_link_up(pci, pci->link_gen)) {
@@ -492,6 +445,14 @@ static int pcie_nvt_probe(struct udevice *dev)
 
 	return 0;
 }
+
+#if !defined(CONFIG_TARGET_NS02401_A64)
+static const struct nvt_pcie_plat nvt_plat_ns02201 = {
+	.bootstrap_read =	bootstrap_read,
+	.clk_setup =		pcie_clk_setup,
+	.power_on =		pcie_power_on,
+};
+#endif
 
 /**
  * pcie_nvt_of_to_plat() - Translate from DT to device state
@@ -575,6 +536,12 @@ static int pcie_nvt_of_to_plat(struct udevice *dev)
 	}
 	pcie->link_gen = link_gen;
 	printf("%s: max link gen %d\r\n", __func__, link_gen);
+
+#if defined(CONFIG_TARGET_NS02401_A64)
+	pcie->p_nvt_plat = &nvt_plat_ns02401;
+#else
+	pcie->p_nvt_plat = &nvt_plat_ns02201;
+#endif
 
 	return 0;
 }

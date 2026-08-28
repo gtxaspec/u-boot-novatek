@@ -248,6 +248,16 @@ config USB_EHCI_NVTIVOT
 	  Enables support for the on-chip EHCI controller on Novatek platform
 	  SoCs.
 
+if USB_EHCI_NVTIVOT
+config USB_HOST_NVTIVOT_525
+        bool "NT98525_PROJECT"
+        depends on (USB_EHCI_NVTIVOT) && (TARGET_NA51055)
+        help
+          NT98525/NT98520: Enable this config
+          NT98528: Disable this config
+
+endif #TARGET_NA51055
+
 endif # USB_EHCI_HCD
 
 config USB_OHCI_HCD

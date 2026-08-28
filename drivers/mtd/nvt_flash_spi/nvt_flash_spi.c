@@ -637,7 +637,7 @@ void nand_phy_config(struct drv_nand_dev_info *info)
 
 	phy_dly.Bit.PHY_SAMPCLK_INV = 1;
 
-	if (chip_id == CHIP_NA51055) {
+	if ((chip_id == CHIP_NA51055) || (chip_id == CHIP_NA51084)) {
 		if (info->ops_freq > 96000000) {
 			if (RegMdule0.Bit.SPI_FLASH_TYPE) {
 				phy_dly.Bit.PHY_SRC_CLK_SEL = 1;
@@ -669,13 +669,30 @@ void nand_phy_config(struct drv_nand_dev_info *info)
 		} else {	// ~ 120MHz
 			phy_dly2.Bit.INDLY_SEL = 0x1E;
 		}
-	} else if ((chip_id == CHIP_NS02301) || (chip_id == CHIP_NS02302) || (chip_id == CHIP_NS02402)) {
+	} else if ((chip_id == CHIP_NS02301) || (chip_id == CHIP_NS02302)) {
 		phy_dly2.Bit.INDLY_SEL = 0x0;
 
 		if (info->ops_freq <= 120000000) {
 			phy_dly2.Bit.OUTDLY_SEL = 6;
 		} else {
 			phy_dly2.Bit.OUTDLY_SEL = 0;
+		}
+	} else if (chip_id == CHIP_NS02402) {
+		/* When the frequency >= 120 MHz, indly needs to training. */
+		phy_dly2.Bit.INDLY_SEL = 0x0;
+
+		if (info->flash_info->dtr_en == 1) {
+			if (info->ops_freq >= 48000000) {
+				phy_dly2.Bit.OUTDLY_SEL = 0xF;
+			} else {
+				phy_dly2.Bit.OUTDLY_SEL = 0;
+			}
+		} else {
+			if (info->ops_freq >= 48000000) {
+				phy_dly2.Bit.OUTDLY_SEL = 0xA;
+			} else {
+				phy_dly2.Bit.OUTDLY_SEL = 0;
+			}
 		}
 	} else {
 		phy_dly.Bit.PHY_SRC_CLK_SEL = 0;
@@ -754,7 +771,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 	reg = INW(IOADDR_CG_REG_BASE + 0x74);
 	if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || \
 		(info->chip_id == CHIP_NS02401) || (info->chip_id == CHIP_NS02402) || \
-		(info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089)) {
+		(info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51084) || \
+		(info->chip_id == CHIP_NA51089)) {
 		reg |= (1);
 	} else {
 		reg |= (1 << 10);
@@ -763,8 +781,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 	OUTW(IOADDR_CG_REG_BASE + 0x74, reg);
 
 	/* Config NAND module RSTN */
-	if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089 || \
-		(info->chip_id == CHIP_NS02301))) {
+	if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51084) || \
+		(info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NA51089)) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x84);
 		reg |= (1);
 		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
@@ -862,7 +880,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 			reg &= ~(1 << 6);
 		}
 		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
-	} else if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089)) {
+	} else if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089) || \
+				(info->chip_id == CHIP_NA51084)) {
 		if (fdt_pinmux & 0x1) {
 			flash_pinmux = (1 << 13);
 		}
@@ -917,7 +936,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
 	} else if ( (info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089) || \
 				(info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || \
-				(info->chip_id == CHIP_NS02402)) {
+				(info->chip_id == CHIP_NS02402) || (info->chip_id == CHIP_NA51084)) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x40);
 		NAND_DBG_GLOBAL("get reg: 0x%x \n", reg);
 		reg &= ~(0x3F000);
@@ -1001,7 +1020,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 			reg |= 0x1205555; // CLK: 0x2, Data: 0x1, CS: 0x1
 		}
 		OUTW(IOADDR_PAD_REG_BASE + 0x24, reg);
-	} else if ((info->chip_id == CHIP_NS02302) || (info->chip_id == CHIP_NS02402)) {
+	} else if (info->chip_id == CHIP_NS02302) {
 		UINT32 reg1;
 
 		reg = INW(IOADDR_PAD_REG_BASE + 0x100);		// Data 0~7
@@ -1022,7 +1041,80 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		}
 		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
 		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg1);
-	} else if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089)) {
+	} else if (info->chip_id == CHIP_NS02402) {
+		UINT32 reg1;
+
+		reg = INW(IOADDR_PAD_REG_BASE + 0x100);		// Data 7~0
+		reg1 = INW(IOADDR_PAD_REG_BASE + 0x104);	// cs0, dqs, cs1, clk
+
+		if ((fdt_pinmux&0x3) == 0x2) {
+			reg &= ~(0xFFFFFFFF);	// 8-bit
+			reg1 &= ~(0x00000F00);	// dqs
+		} else {
+			reg &= ~(0x0000FFFF);	// 4-bit
+		}
+		if (fdt_pinmux & 0x4) {
+			reg1 &= ~(0x000000F0);	// cs1
+		}
+		reg1 &= ~(0x0000F00F);		// cs0, clk
+
+		if (freq >= 120000000) {
+			if (info->flash_info->dtr_en == 1) {
+				// clk = 4, data = 3, cs = 2, DTR mode
+				if ((fdt_pinmux&0x3) == 0x2) {
+					reg |= 0x33333333;	// 8-bit
+					reg1 |= 0x2304;		// cs0, dqs, na, clk
+				} else {
+					reg |= 0x00003333;	// 4-bit
+					reg1 |= 0x2004;		// cs0, na, na, clk
+				}
+				if (fdt_pinmux & 0x4) {
+					reg1 |= 0x0020;		// cs1
+				}
+			} else {
+				// clk = 4, data = 2, cs = 2, SDR mode
+				if ((fdt_pinmux&0x3) == 0x2) {
+					reg |= 0x22222222;	// 8-bit
+					reg1 |= 0x2204;		// cs0, dqs, na, clk
+				} else {
+					reg |= 0x00002222;	// 4-bit
+					reg1 |= 0x2004;		// cs0, na, na, clk
+				}
+				if (fdt_pinmux & 0x4) {
+					reg1 |= 0x0020;		// cs1
+				}
+			}
+		} else if (freq >= 48000000) {
+			// clk = 3, data = 2, cs = 2
+			if ((fdt_pinmux&0x3) == 0x2) {
+				reg |= 0x22222222;	// 8-bit
+				reg1 |= 0x2203;		// cs0, dqs, na, clk
+			} else {
+				reg |= 0x00002222;	// 4-bit
+				reg1 |= 0x2003;		// cs0, na, na, clk
+			}
+			if (fdt_pinmux & 0x4) {
+				reg1 |= 0x0020;		// cs1
+			}
+		} else {
+			// clk = 2, data = 1, cs = 1
+			if ((fdt_pinmux&0x3) == 0x2) {
+				reg |= 0x11111111;	// 8-bit
+				reg1 |= 0x1102;		// cs0, dqs, na, clk
+			} else {
+				reg |= 0x00001111;	// 4-bit
+				reg1 |= 0x1002;		// cs0, na, na, clk
+			}
+			if (fdt_pinmux & 0x4) {
+				reg1 |= 0x0010;		// cs1
+			}
+		}
+
+		NAND_DBG_GLOBAL("dbg pad driving: 0x100[0x%08x], 0x104[0x%08x] \n", reg, reg1);
+		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
+		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg1);
+	} else if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089) || \
+				(info->chip_id == CHIP_NA51084)) {
 		reg = INW(IOADDR_PAD_REG_BASE + 0x40);
 
 		reg &= ~(0x3300FF);	// MC0-3, 8, 10

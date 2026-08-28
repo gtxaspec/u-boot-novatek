@@ -284,18 +284,19 @@ void nvt_ddr_scan(void)
 	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
 
 	if (nvt_get_chip_id() == CHIP_NA51084) {
-		memcpy((void *)JUMP_ADDR, ddr_scan_528, sizeof(ddr_scan_528));
+		memcpy_toio((void *)JUMP_ADDR, ddr_scan_528, sizeof(ddr_scan_528));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan_528));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan_528), ARCH_DMA_MINALIGN));
 	} else {
-		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
+		memcpy_toio((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	}
+	dcache_disable();
 	printf("done\r\n");
 	printf("Jump into sram\n");
 	image_entry = (LDR_GENERIC_CB)(*((unsigned long*)JUMP_ADDR));

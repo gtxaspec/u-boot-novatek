@@ -50,6 +50,15 @@
 #include "nvt_ivot_pack.h"
 #include <malloc.h>
 
+#if ((defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)) || defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT))
+#if defined(CONFIG_TARGET_NS02401_A64)
+#define otp_key_manager_wrapper(m)  otp_key_manager(EFUSE_ID_0, m)
+#else
+#define otp_key_manager_wrapper(m)  otp_key_manager(m)
+#endif
+#endif
+
+
 #define UINT32_SWAP(data)           (((((u32)(data)) & 0x000000FF) << 24) | \
 									 ((((u32)(data)) & 0x0000FF00) << 8) | \
 									 ((((u32)(data)) & 0x00FF0000) >> 8) | \
@@ -59,6 +68,26 @@ extern HEADINFO gHeadInfo;
 int atoi(const char *str)
 {
 	return (int)simple_strtoul(str, '\0', 10);
+}
+
+int get_linux_major_version(void) {
+    image_header_t * hdr = (image_header_t *)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
+    char major_version[3];
+
+    const char *version_start = strstr(hdr->ih_name, "Linux-");
+    if (version_start == NULL) {
+        nvt_dbg(ERR, "%s fail\n", __func__);
+        return -1;
+    }
+
+    version_start += strlen("Linux-");
+
+    strncpy(major_version, version_start, 2);
+    major_version[2] = '\0';
+
+    int major = atoi(major_version);
+
+    return major;
 }
 
 #if ((defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)) || defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT))
@@ -195,11 +224,11 @@ static int nvt_chk_key_on_uboot(unsigned char *sha256)
 	key_value[1] = sha256[offset+4] | sha256[offset+5] << 8 | sha256[offset+6] << 16 | sha256[offset+7] << 24;
 	key_value[2] = sha256[offset+8] | sha256[offset+9] << 8 | sha256[offset+10] << 16 | sha256[offset+11] << 24;
 	key_value[3] = sha256[offset+12] | sha256[offset+13] << 8 | sha256[offset+14] << 16 | sha256[offset+15] << 24;
-	if(key_value[0] != otp_key_manager(field_index) || key_value[1] != otp_key_manager(field_index+1) || key_value[2] != otp_key_manager(field_index+2) || key_value[3] != otp_key_manager(field_index+3)){
+	if(key_value[0] != otp_key_manager_wrapper(field_index) || key_value[1] != otp_key_manager_wrapper(field_index+1) || key_value[2] != otp_key_manager_wrapper(field_index+2) || key_value[3] != otp_key_manager_wrapper(field_index+3)){
 		printf("key compare fail\n");
 		printf("efuse key: %x %x %x %x\n",
-				otp_key_manager(field_index), otp_key_manager(field_index+1),
-				otp_key_manager(field_index+2),otp_key_manager(field_index+3));
+				otp_key_manager_wrapper(field_index), otp_key_manager_wrapper(field_index+1),
+				otp_key_manager_wrapper(field_index+2),otp_key_manager_wrapper(field_index+3));
 		printf("compare key: %x %x %x %x\n",key_value[0],key_value[1],key_value[2],key_value[3]);
 		return -1;
 	}
@@ -210,11 +239,11 @@ static int nvt_chk_key_on_uboot(unsigned char *sha256)
 	key_value[1] = sha256[offset+4] | sha256[offset+5] << 8 | sha256[offset+6] << 16 | sha256[offset+7] << 24;
 	key_value[2] = sha256[offset+8] | sha256[offset+9] << 8 | sha256[offset+10] << 16 | sha256[offset+11] << 24;
 	key_value[3] = sha256[offset+12] | sha256[offset+13] << 8 | sha256[offset+14] << 16 | sha256[offset+15] << 24;
-	if(key_value[0] != otp_key_manager(field_index) || key_value[1] != otp_key_manager(field_index+1) || key_value[2] != otp_key_manager(field_index+2) || key_value[3] != otp_key_manager(field_index+3)){
+	if(key_value[0] != otp_key_manager_wrapper(field_index) || key_value[1] != otp_key_manager_wrapper(field_index+1) || key_value[2] != otp_key_manager_wrapper(field_index+2) || key_value[3] != otp_key_manager_wrapper(field_index+3)){
 		printf("key compare fail\n");
 		printf("efuse key: %x %x %x %x\n",
-				otp_key_manager(field_index), otp_key_manager(field_index+1),
-				otp_key_manager(field_index+2),otp_key_manager(field_index+3));
+				otp_key_manager_wrapper(field_index), otp_key_manager_wrapper(field_index+1),
+				otp_key_manager_wrapper(field_index+2),otp_key_manager_wrapper(field_index+3));
 		printf("compare key: %x %x %x %x\n",key_value[0],key_value[1],key_value[2],key_value[3]);
 		return -1;
 	}
@@ -779,6 +808,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 	int exist_linux = 0;
 	int ret = 0;
 	char cmd[512] = {0};
+	char cmd_remain[512] = {0};
 	char buf[40] = {0};
 
 #if defined(CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT)
@@ -856,7 +886,11 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 			sprintf(cmd, "mtdparts=spi_nand.0:");
 			break;
 		case FLASHTYPE_EMMC:
-			/* MMC device doesn't need mtdparts */
+#if defined(CONFIG_NVT_IVOT_EMMC)
+			sprintf(cmd, "mmcblk%d:", CONFIG_NVT_IVOT_EMMC);
+#else
+			/* no emmc support*/
+#endif
 			break;
 		default:
 			printf("%s %s:flash type %d is not support %s\r\n", ANSI_COLOR_RED, __func__, FlashType, ANSI_COLOR_RESET);
@@ -914,6 +948,17 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 		}
 
 		switch (p->EmbType) {
+			case EMBTYPE_LOADER:
+				if(FlashType == FLASHTYPE_EMMC) {
+					if (p_cmdline != NULL) {
+						sprintf(buf, "0x%llx@0x%llx(loader)ro,", PartitionSize, PartitionOffset);
+						/* loader does not need to be recorded in nvtemmcpart*/
+						strcat(cmd_remain, buf);
+					}
+				} else {
+					/* loader does not need to be recorded in mtdparts*/
+				}
+				break;
 			case EMBTYPE_FDT:
 			case EMBTYPE_FDTFAST:
 				if(FlashType == FLASHTYPE_EMMC) {
@@ -924,6 +969,8 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 							sprintf(buf, "0x%llx@0x%llx(fdt%d)ro,", PartitionSize, PartitionOffset, p->OrderIdx);
 						}
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
+
 					}
 				} else {
 					if (p->OrderIdx == 0) {
@@ -939,6 +986,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					if (p_cmdline != NULL) {
 						sprintf(buf, "0x%llx@0x%llx(atf)ro,", PartitionSize, PartitionOffset);
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					sprintf(buf, "0x%llx@0x%llx(atf),", PartitionSize, PartitionOffset);
@@ -950,6 +998,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					if (p_cmdline != NULL) {
 						sprintf(buf, "0x%llx@0x%llx(uboot)ro,", PartitionSize, PartitionOffset);
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					sprintf(buf, "0x%llx@0x%llx(uboot),", PartitionSize, PartitionOffset);
@@ -961,6 +1010,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					strcat(cmd, buf);
@@ -972,6 +1022,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					if (p_cmdline != NULL) {
 						sprintf(buf, "0x%llx@0x%llx(linux)ro,", PartitionSize, PartitionOffset);
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					sprintf(buf, "0x%llx@0x%llx(linux),", PartitionSize, PartitionOffset);
@@ -982,6 +1033,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				sprintf(buf, "0x%llx@0x%llx(ramfs),", PartitionSize, PartitionOffset);
 				if(FlashType == FLASHTYPE_EMMC) {
 					strcat(p_cmdline, buf);
+					strcat(cmd_remain, buf);
 				} else {
 					strcat(cmd, buf);
 				}
@@ -991,6 +1043,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						strcat(p_cmdline, buf);
+						strcat(cmd, buf);
 						/* Multiple rootfs partitions if OrderIdx > 0 */
 						ro_attr = p->OrderIdx;
 					}
@@ -1003,6 +1056,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						strcat(p_cmdline, buf);
+						strcat(cmd, buf);
 						/* Multiple rootfs partitions if OrderIdx > 0 */
 						ro_attr = p->OrderIdx;
 					}
@@ -1019,6 +1073,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 							sprintf(buf, "0x%llx@0x%llx(rtos%d)ro,", PartitionSize, PartitionOffset, p->OrderIdx);
 						}
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					if (p->OrderIdx == 0) {
@@ -1034,6 +1089,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						strcat(p_cmdline, buf);
+						strcat(cmd, buf);
 					}
 				} else {
 					strcat(cmd, buf);
@@ -1044,6 +1100,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					strcat(cmd, buf);
@@ -1054,6 +1111,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					if (p_cmdline != NULL) {
 						sprintf(buf, "0x%llx@0x%llx(ai)ro,", PartitionSize, PartitionOffset);
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					sprintf(buf, "0x%llx@0x%llx(ai),", PartitionSize, PartitionOffset);
@@ -1065,6 +1123,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					strcat(cmd, buf);
@@ -1075,6 +1134,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					strcat(cmd, buf);
@@ -1089,6 +1149,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 							sprintf(buf, "0x%llx@0x%llx(bank%d)ro,", PartitionSize, PartitionOffset, p->OrderIdx);
 						}
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					if (p->OrderIdx == 0) {
@@ -1104,6 +1165,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					if (p_cmdline != NULL) {
 						sprintf(buf, "0x%llx@0x%llx(mcu)ro,", PartitionSize, PartitionOffset);
 						strcat(p_cmdline, buf);
+						strcat(cmd_remain, buf);
 					}
 				} else {
 					sprintf(buf, "0x%llx@0x%llx(mcu),", PartitionSize, PartitionOffset);
@@ -1130,6 +1192,13 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 #if defined(CONFIG_NVT_IVOT_EMMC)
 		sprintf(buf, "0x%llx@0(total),", mmc->capacity / MMC_MAX_BLOCK_LEN);
 		strcat(p_cmdline, buf);
+		strcat(cmd, cmd_remain);
+		cmd[strlen(cmd) - 1] = ' ';
+
+		/* If linux major version is greater than 6, blkdevparts is required
+		 * cmd_remain is used to store partitions other than rootfs and app
+		 */
+		ret = env_set("blkdevparts", cmd);
 #endif
 		p_cmdline[strlen(p_cmdline) - 1] = ' ';
 
@@ -1847,8 +1916,15 @@ static int nvt_boot_rootfs_bin_auto(void)
 	}
 
 	if (is_secure == 0) {
-		hdr = (image_header_t *)nvt_ramdisk_addr;
-		nvt_ramdisk_size = image_get_data_size(hdr) + sizeof(image_header_t);
+		if (is_gzip_image(nvt_ramdisk_addr)) {
+			// fastboot ramdisk
+			NVTPACK_BFC_HDR *bfc = (NVTPACK_BFC_HDR *)nvt_ramdisk_addr;
+			nvt_ramdisk_size = UINT32_SWAP(bfc->uiSizeUnComp) + sizeof(NVTPACK_BFC_HDR);
+		} else {
+			// non fastboot ramdisk
+			hdr = (image_header_t *)nvt_ramdisk_addr;
+			nvt_ramdisk_size = image_get_data_size(hdr) + sizeof(image_header_t);
+		}
 	} else {
 		HEADINFO *encrypt_header = (HEADINFO *)nvt_ramdisk_addr;
 		nvt_ramdisk_size = encrypt_header->BinLength;
@@ -1877,8 +1953,15 @@ static int nvt_boot_rootfs_bin_auto(void)
 			break;
 	}
 
-	hdr = (image_header_t *)nvt_ramdisk_addr;
-	nvt_ramdisk_size = image_get_data_size(hdr) + sizeof(image_header_t);
+	if (is_gzip_image(nvt_ramdisk_addr)) {
+		// fastboot ramdisk
+		NVTPACK_BFC_HDR *bfc = (NVTPACK_BFC_HDR *)nvt_ramdisk_addr;
+		nvt_ramdisk_size = UINT32_SWAP(bfc->uiSizeUnComp) + sizeof(NVTPACK_BFC_HDR);
+	} else {
+		// non-fastboot ramdisk
+		hdr = (image_header_t *)nvt_ramdisk_addr;
+		nvt_ramdisk_size = image_get_data_size(hdr) + sizeof(image_header_t);
+	}
 #endif /* CONFIG_ENCRYPT_ROOTFS */
 
 	nvt_ramdisk_size = ALIGN_CEIL(nvt_ramdisk_size, 4096);
@@ -2037,6 +2120,27 @@ static int nvt_set_bootargs_by_dts(const void *fdt_addr)
 	return 0;
 }
 
+#if defined(CONFIG_NVT_IVOT_EMMC)
+int update_bootargs_for_blkdevparts() {
+	char temp_cmdline[512] = {0};
+	char buf[512] = {0};
+	int ret = 0;
+#ifdef CONFIG_USE_BOOTARGS
+	sprintf(temp_cmdline, "%s ", CONFIG_BOOTARGS);
+#endif
+	sprintf(buf, "blkdevparts=%s ", env_get("blkdevparts"));
+
+	if (strlcat(temp_cmdline, buf, sizeof(temp_cmdline)) >= sizeof(temp_cmdline)) {
+		printf("bootargs overflow after %s\n", __func__);
+        ret = -1;
+	}
+
+	env_set("bootargs", temp_cmdline);
+
+	return ret;
+}
+#endif
+
 int do_nvt_boot_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret = 0;
@@ -2045,15 +2149,7 @@ int do_nvt_boot_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	char buf[255] = {0};
 	unsigned int is_secure = 0;
 
-
-	if (nvt_set_bootargs_by_dts(nvt_fdt_buffer) < 0) {
-		return -1;
-	}
-
 	nvt_dbg(FUNC, "boot time: %lu(us)\n", get_nvt_timer0_cnt());
-	sprintf(buf, "%s ", env_get("bootargs"));
-	strcat(cmdline, buf);
-
 	/*
 	 * Loading linux kernel
 	 */
@@ -2067,6 +2163,23 @@ int do_nvt_boot_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	/* To do customized boot */
 	return 0;
 #endif /* CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT */
+
+#if defined(CONFIG_NVT_IVOT_EMMC)
+	if (get_linux_major_version() > 5){
+		ret = update_bootargs_for_blkdevparts();
+		if (ret < 0) {
+			printf("get_linux_major_version failed\n");
+			return ret;
+		}
+	}
+#endif
+
+	if (nvt_set_bootargs_by_dts(nvt_fdt_buffer) < 0) {
+		return -1;
+	}
+
+	sprintf(buf, "%s ", env_get("bootargs"));
+    strcat(cmdline, buf);
 
 	nvt_dbg(FUNC, "boot time: %lu(us)\n", get_nvt_timer0_cnt());
 	nvt_tm0_cnt_end = get_nvt_timer0_cnt();

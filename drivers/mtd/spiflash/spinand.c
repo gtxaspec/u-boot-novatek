@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.22"
+#define NAND_VERSION "1.0.26"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {
@@ -730,7 +730,8 @@ int nvt_nand_board_nand_init(struct nand_chip *nand)
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
 	if (((id & 0xFF) == NAND_MXIC) || ((id & 0xFF) == SPI_NAND_GD) || \
-		((id & 0xFF) == SPI_NAND_DOSILICON) || ((id & 0xFF) == SPI_NAND_XTX)) {
+		((id & 0xFF) == SPI_NAND_DOSILICON) || ((id & 0xFF) == SPI_NAND_XTX) || \
+		((id & 0xFF) == SPI_NAND_ETRON)) {
 		status |= SPINAND_CONFIG_QUADEN;
 	}
 #endif

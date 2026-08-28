@@ -9,6 +9,7 @@
 #define __NVT_IVOT_MMC_NS02201_H__
 
 #include <asm/arch/ns02201_regs.h>
+#include <asm/arch/gpio.h>
 #include <linux/bitops.h>
 
 /**************************
@@ -82,8 +83,6 @@
 #define PIN_SDIO_CFG_SDIO_1             (0x1)
 
 #define PIN_SDIO_CFG_SDIO2_1            (0x10)
-#define PIN_SDIO_CFG_SDIO2_BUS_WIDTH    (0x20)
-#define PIN_SDIO_CFG_SDIO2_DS           (0x40)
 
 #define PIN_SDIO_CFG_SDIO3_1            (0x100)
 #define PIN_SDIO_CFG_SDIO3_BUS_WIDTH    (0x200)
@@ -182,29 +181,37 @@
 #define GPIO_SDIO2_D2                   C_GPIO(23)
 #define GPIO_SDIO2_D3                   C_GPIO(24)
 
+#define GPIO_SDIO3_CLK                  C_GPIO(8)
+#define GPIO_SDIO3_CMD                  C_GPIO(10)
+#define GPIO_SDIO3_D0                   C_GPIO(0)
+#define GPIO_SDIO3_D1                   C_GPIO(1)
+#define GPIO_SDIO3_D2                   C_GPIO(2)
+#define GPIO_SDIO3_D3                   C_GPIO(3)
+#define GPIO_SDIO3_D4                   C_GPIO(4)
+#define GPIO_SDIO3_D5                   C_GPIO(5)
+#define GPIO_SDIO3_D6                   C_GPIO(6)
+#define GPIO_SDIO3_D7                   C_GPIO(7)
+
 /* PAD pull */
+#define PAD_PULLNONE                    (0x0)
 #define PAD_PULLDOWN                    (0x1)
+#define PAD_PULLUP                      (0x2)
 
 #define PAD_PUPD_SDIO_CLK_REG           (IOADDR_PAD_REG_BASE + 0x00)
 #define PAD_PUPD_SDIO_CLK_MASK          GENMASK(27, 26)
 #define PAD_PUPD_SDIO_CLK_SHIFT         (26)
-
 #define PAD_PUPD_SDIO_CMD_REG           (IOADDR_PAD_REG_BASE + 0x00)
 #define PAD_PUPD_SDIO_CMD_MASK          GENMASK(29, 28)
 #define PAD_PUPD_SDIO_CMD_SHIFT         (28)
-
 #define PAD_PUPD_SDIO_D0_REG            (IOADDR_PAD_REG_BASE + 0x00)
 #define PAD_PUPD_SDIO_D0_MASK           GENMASK(31, 30)
 #define PAD_PUPD_SDIO_D0_SHIFT          (30)
-
 #define PAD_PUPD_SDIO_D1_REG            (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO_D1_MASK           GENMASK(1, 0)
 #define PAD_PUPD_SDIO_D1_SHIFT          (0)
-
 #define PAD_PUPD_SDIO_D2_REG            (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO_D2_MASK           GENMASK(3, 2)
 #define PAD_PUPD_SDIO_D2_SHIFT          (2)
-
 #define PAD_PUPD_SDIO_D3_REG            (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO_D3_MASK           GENMASK(5, 4)
 #define PAD_PUPD_SDIO_D3_SHIFT          (4)
@@ -212,25 +219,61 @@
 #define PAD_PUPD_SDIO2_CLK_REG          (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO2_CLK_MASK         GENMASK(7, 6)
 #define PAD_PUPD_SDIO2_CLK_SHIFT        (6)
-
 #define PAD_PUPD_SDIO2_CMD_REG          (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO2_CMD_MASK         GENMASK(9, 8)
 #define PAD_PUPD_SDIO2_CMD_SHIFT        (8)
-
 #define PAD_PUPD_SDIO2_D0_REG           (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO2_D0_MASK          GENMASK(11, 10)
 #define PAD_PUPD_SDIO2_D0_SHIFT         (10)
-
 #define PAD_PUPD_SDIO2_D1_REG           (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO2_D1_MASK          GENMASK(13, 12)
 #define PAD_PUPD_SDIO2_D1_SHIFT         (12)
-
 #define PAD_PUPD_SDIO2_D2_REG           (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO2_D2_MASK          GENMASK(15, 14)
 #define PAD_PUPD_SDIO2_D2_SHIFT         (14)
-
 #define PAD_PUPD_SDIO2_D3_REG           (IOADDR_PAD_REG_BASE + 0x04)
 #define PAD_PUPD_SDIO2_D3_MASK          GENMASK(17, 16)
 #define PAD_PUPD_SDIO2_D3_SHIFT         (16)
+
+#define PAD_PUPD_SDIO3_CLK_REG          (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_CLK_MASK         GENMASK(17, 16)
+#define PAD_PUPD_SDIO3_CLK_SHIFT        (16)
+#define PAD_PUPD_SDIO3_CMD_REG          (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_CMD_MASK         GENMASK(21, 20)
+#define PAD_PUPD_SDIO3_CMD_SHIFT        (20)
+#define PAD_PUPD_SDIO3_D0_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D0_MASK          GENMASK(1, 0)
+#define PAD_PUPD_SDIO3_D0_SHIFT         (0)
+#define PAD_PUPD_SDIO3_D1_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D1_MASK          GENMASK(3, 2)
+#define PAD_PUPD_SDIO3_D1_SHIFT         (2)
+#define PAD_PUPD_SDIO3_D2_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D2_MASK          GENMASK(5, 4)
+#define PAD_PUPD_SDIO3_D2_SHIFT         (4)
+#define PAD_PUPD_SDIO3_D3_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D3_MASK          GENMASK(7, 6)
+#define PAD_PUPD_SDIO3_D3_SHIFT         (6)
+#define PAD_PUPD_SDIO3_D4_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D4_MASK          GENMASK(9, 8)
+#define PAD_PUPD_SDIO3_D4_SHIFT         (8)
+#define PAD_PUPD_SDIO3_D5_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D5_MASK          GENMASK(11, 10)
+#define PAD_PUPD_SDIO3_D5_SHIFT         (10)
+#define PAD_PUPD_SDIO3_D6_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D6_MASK          GENMASK(13, 12)
+#define PAD_PUPD_SDIO3_D6_SHIFT         (12)
+#define PAD_PUPD_SDIO3_D7_REG           (IOADDR_PAD_REG_BASE + 0x00)
+#define PAD_PUPD_SDIO3_D7_MASK          GENMASK(15, 14)
+#define PAD_PUPD_SDIO3_D7_SHIFT         (14)
+
+#define SDIO1_PAD_POWER_SUP
+#define SDIO1_PAD_POWER_REG             (IOADDR_PAD_REG_BASE + 0x200)
+#define SDIO1_PAD_POWER_MASK            GENMASK(1, 0)
+#define SDIO1_PAD_POWER_SHIFT           (1)
+
+#define SDIO2_PAD_POWER_SUP
+#define SDIO2_PAD_POWER_REG             (IOADDR_PAD_REG_BASE + 0x200)
+#define SDIO2_PAD_POWER_MASK            GENMASK(9, 8)
+#define SDIO2_PAD_POWER_SHIFT           (9)
 
 #endif

@@ -26,7 +26,7 @@
 #include <asm/arch/efuse_protected.h>
 #endif
 
-#define DRV_VERSION                     "1.00.13"
+#define DRV_VERSION                     "1.00.14"
 #ifdef CONFIG_DM_USB
 /* Declare global data pointer */
 DECLARE_GLOBAL_DATA_PTR;
@@ -753,7 +753,7 @@ static void nvt_phyinit(void)
 	// USB30 Best setting on NT98538
 	//======================================================
 	USB3PHY_SETREG(0x1BF, 0x40); //EOC RX_ICTRL's offset = 0
-	//USB3PHY_SETREG(0x12, 0x28);  //bit[5:4] : TX_AMP_CTL_LFPS[1:0]
+	USB3PHY_SETREG(0x12, 0x28);  //bit[5:4] : TX_AMP_CTL_LFPS[1:0]
 	USB3PHY_SETREG(0x14, 0x8A);  //Follow 336 for TX CTS
 	USB3PHY_SETREG(0x34, 0xFC);
 	USB3PHY_SETREG(0x114, 0x04); //PHY_PWR_MODE_CHG_RDY_RSP = 1.3ms

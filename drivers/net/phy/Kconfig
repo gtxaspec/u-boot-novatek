@@ -328,4 +328,19 @@ config PHY_NCSI
 	bool "NC-SI based PHY"
 	depends on DM_ETH
 
+config PHY_MAXLINEAR
+	bool "Maxlinear GPY211 PHY"
+	depends on DM_ETH
+
+if PHY_MAXLINEAR
+config PHY_RESET_DELAY
+	int "Extra delay after reset before MII register access"
+	default 10000
+	help
+	  Some PHYs need extra delay after reset before any MII register access
+	  is possible.  For such PHY, set this option to the usec delay
+	  required.
+endif # PHY_MAXLINEAR
+
+
 endif #PHYLIB

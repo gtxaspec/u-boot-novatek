@@ -100,6 +100,8 @@ typedef enum {
 	DISPCTRL_SRCCLK_IDE2_DEFAULT = DISPCTRL_SRCCLK_IDE2_PLL9,///< Default display source clock selection for realchip IDE2	
 	ENUM_DUMMY4WORD(DISPCTRL_SRCCLK)
 } DISPCTRL_SRCCLK;
+#define DISPCTRL_SRCCLK_PLL6 DISPCTRL_SRCCLK_PLL8
+#define DISPCTRL_SRCCLK_PLL4 DISPCTRL_SRCCLK_PLL2
 
 /**
     Display control operation ID definition

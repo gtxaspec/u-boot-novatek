@@ -110,33 +110,33 @@ static int do_nvt_switch_sec(struct cmd_tbl * cmdtp, int flag, int argc, char *c
 	nvt_dbg(IND, "Switch to secure uboot\n");
 	sprintf(cmd, "nand erase 0x%llx 0x%lx", uboot.addr, uboot.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, encrypted_uboot.addr , encrypted_uboot.size);
+	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, encrypted_uboot.addr , encrypted_uboot.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, uboot.addr, uboot.size);
+	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, uboot.addr, uboot.size);
 	run_command(cmd, 0);
 
 	nvt_dbg(IND, "Switch to secure ATF\n");
 	sprintf(cmd, "nand erase 0x%llx 0x%lx", atf.addr, atf.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, encrypted_atf.addr, encrypted_atf.size);
+	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, encrypted_atf.addr, encrypted_atf.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, atf.addr, atf.size);
+	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, atf.addr, atf.size);
 	run_command(cmd, 0);
 
 	nvt_dbg(IND, "Switch to secure DTS\n");
 	sprintf(cmd, "nand erase 0x%llx 0x%lx", dts.addr, dts.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, encrypted_dts.addr, encrypted_dts.size);
+	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, encrypted_dts.addr, encrypted_dts.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, dts.addr, dts.size);
+	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, dts.addr, dts.size);
 	run_command(cmd, 0);
 
 	nvt_dbg(IND, "Switch to secure Loader\n");
 	sprintf(cmd, "nand erase 0x%llx 0x%lx", loader.addr, loader.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, encrypted_loader.addr, encrypted_loader.size);
+	sprintf(cmd, "nand read 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, encrypted_loader.addr, encrypted_loader.size);
 	run_command(cmd, 0);
-	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", CONFIG_LINUX_SDRAM_BASE, loader.addr, loader.size);
+	sprintf(cmd, "nand write 0x%llx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_LINUXTMP].addr, loader.addr, loader.size);
 	run_command(cmd, 0);
 
 	/* Enable secure mode */

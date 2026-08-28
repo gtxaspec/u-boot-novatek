@@ -206,12 +206,25 @@
 #endif
 
 /* EMMC partition */
+#if defined(_NVT_ROOTFS_TYPE_RAMDISK_)
 #define DFU_ALT_INFO \
-			"rootfs ext4 2 1;" \
-			"rootfs1 fat 2 2;" \
-			"rootfs2 ext4 2 3;" \
-			"mbr1 mbr 2 4;" \
-			"rootfsl1 part 2 5"
+		"loader raw 0 0x10000 mmcpart 1;" \
+		"fdt part 2 1;" \
+		"uboot part 2 3;" \
+		"linux part 2 5;" \
+		"rootfs part 2 6;" \
+		"rootfs1 ext4 2 7;" \
+		"rootfs2 ext4 2 8"
+#else
+#define DFU_ALT_INFO \
+		"loader raw 0 0x10000 mmcpart 1;" \
+		"fdt part 2 1;" \
+		"uboot part 2 3;" \
+		"linux part 2 5;" \
+		"rootfs ext4 2 6;" \
+		"rootfs1 part 2 7;" \
+		"rootfs2 ext4 2 8"
+#endif
 #endif
 
 #if (defined(CONFIG_CMD_DFU) && defined(CONFIG_NVT_SPI_NAND))
@@ -219,14 +232,48 @@
 #define CONFIG_DFU_NAND_TRIMFFS 1
 
 /* NAND partition */
+
+#if defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
+/* For OPTEE */
 #define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
+			"fdt part 0 1;" \
+			"optee part 0 2;" \
+			"uboot part 0 3;" \
+			"linux part 0 5;" \
+			"rootfs partubi 0 6;" \
+			"rootfs1 partubi 0 7;" \
+			"rootfs2 part 0 8"
+
+#else
+#if defined(_NVT_ROOTFS_TYPE_NAND_SQUASH_)
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
 			"fdt part 0 1;" \
 			"uboot part 0 2;" \
-			"uenv part 0 3;" \
 			"linux part 0 4;" \
-			"rootfs0 partubi 0 5;" \
+			"rootfs partubi 0 5;" \
 			"rootfs1 partubi 0 6;" \
 			"app partubi 0 7"
+#elif defined(_NVT_ROOTFS_TYPE_NAND_SQUASH_NEW_)
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
+			"fdt part 0 1;" \
+			"uboot part 0 2;" \
+			"linux part 0 4;" \
+			"rootfs part 0 5;" \
+			"app partubi 0 6"
+#else
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x40000;" \
+			"fdt part 0 1;" \
+			"uboot part 0 2;" \
+			"linux part 0 4;" \
+			"rootfs part 0 5;" \
+			"rootfs1 partubi 0 6;" \
+			"app partubi 0 7"
+#endif
+#endif
 #endif
 
 #if (defined(CONFIG_CMD_DFU) && defined(CONFIG_NVT_SPI_NOR))
@@ -234,13 +281,33 @@
 
 /* NOR partition */
 #define DFU_ALT_INFO \
+			"loader raw 0x0 0x10000;" \
 			"fdt part 0 1;" \
 			"uboot part 0 2;" \
-			"uenv part 0 3;" \
 			"linux part 0 4;" \
 			"rootfs part 0 5;" \
 			"app part 0 6"
 
+#endif
+
+#if (defined(CONFIG_CMD_DFU) && defined(CONFIG_NVT_SPI_NOR_NAND))
+#define CONFIG_DFU_NAND 1
+#define CONFIG_DFU_NAND_TRIMFFS 1
+#define CONFIG_DFU_SF   1
+
+
+/* NOR partition */
+#define DFU_ALT_INFO \
+			"loader raw 0x0 0x10000;" \
+			"fdt part 0 1;" \
+			"uboot part 0 2"
+
+/* NAND partition */
+#define DFU_ALT_INFO_NAND \
+			"linux part 0 1;" \
+			"rootfs part 0 2;" \
+			"rootfs1 partubi 0 3;" \
+			"app partubi 0 4"
 #endif
 
 #if (defined(CONFIG_CMD_DFU) && defined(CONFIG_DFU_RAM))
@@ -252,6 +319,11 @@
 #ifdef CONFIG_CMD_DFU
 #define CONFIG_THOR_RESET_OFF
 #endif
+
+#define CONFIG_CMDLINE_TAG              1       /* enable passing of ATAGs */
+#define CONFIG_SETUP_MEMORY_TAGS            1
+#define CONFIG_INITRD_TAG               1
+#define CONFIG_REVISION_TAG             1
 
 #ifndef CONFIG_SYS_LOAD_ADDR
 	#define CONFIG_SYS_LOAD_ADDR (CONFIG_SYS_TEXT_BASE - 0x1900000)

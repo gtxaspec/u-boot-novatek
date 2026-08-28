@@ -27,7 +27,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 #define U2PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
 #define U2PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
+#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02401_A64)
 #define U3PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
 #define U3PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
 #define U3_U2PHY_SETREG(ofs,value)      writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
@@ -38,7 +38,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.09"
+#define DRV_VERSION                     "1.00.12"
 
 static REGVALUE usb_getreg(unsigned long usbbase, unsigned long offset)
 {
@@ -62,7 +62,7 @@ static void nvtim_set_gpio_power(int index)
 		//for two controller case
 		#if defined(NVT_ECHI_2ND_CTRL)
 #if defined(CONFIG_ARM64)
-		sprintf(path,"/usb20host@2,%lx",(IOADDR_USB2_REG_BASE & 0xFFFFFFFF));
+		sprintf(path,"/usb20host@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB2_REG_BASE & 0xFFFFFFFF));
 #else
 		sprintf(path,"/usb20host@%x",(IOADDR_USB2_REG_BASE & 0xFFFFFFFF));
 #endif
@@ -70,7 +70,7 @@ static void nvtim_set_gpio_power(int index)
 
 	} else {
 #if defined(CONFIG_ARM64)
-		sprintf(path,"/usb20host@2,%lx",(IOADDR_USB_REG_BASE & 0xFFFFFFFF));
+		sprintf(path,"/usb20host@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB_REG_BASE & 0xFFFFFFFF));
 #else
 		sprintf(path,"/usb20host@%x",(IOADDR_USB_REG_BASE & 0xFFFFFFFF));
 #endif
@@ -139,7 +139,7 @@ static void nvtim_init_usbhc(int index)
 
 	if (index) {
 		//for two controller case
-		#if defined(NVT_ECHI_2ND_CTRL)
+#if defined(NVT_ECHI_2ND_CTRL)
 		usbbase = IOADDR_USB2_REG_BASE;
 
 		printf("%s %d: controller 1\n", __FUNCTION__, __LINE__);
@@ -179,7 +179,7 @@ static void nvtim_init_usbhc(int index)
 		tmpval |= (0x1 << CG_U2_1_PHYRST_BIT);
 		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE + CG_U2_1_PHYRST));
 	#endif
-		#endif
+#endif
 	} else {
 		usbbase = IOADDR_USB_REG_BASE;
 
@@ -264,18 +264,29 @@ static void nvtim_init_usbhc(int index)
 	usb_setreg(usbbase, USB_GLOBALINTMASK_REG_OFS, usbgintmskreg.reg);
 
 	/* Clear DEVPHY_SUSPEND[5] */
-	union USB_DEVDMACTRL1_REG usbctrl1reg;
-	usbctrl1reg.reg = usb_getreg(usbbase, USB_DEVDMACTRL1_REG_OFS);
-	usbctrl1reg.bit.DEVPHY_SUSPEND = 0;
-	usb_setreg(usbbase, USB_DEVDMACTRL1_REG_OFS, usbctrl1reg.reg);
-
+	if (nvt_get_chip_id() == CHIP_NA51055) {
+		tmpval = readl((volatile unsigned long *)(usbbase+USB_DEVDMACTRL1_REG_OFS));
+		tmpval &= ~(0x1<<5);
+		writel(tmpval, (volatile unsigned long *)(usbbase+USB_DEVDMACTRL1_REG_OFS));
+	} else {
+		union USB_DEVDMACTRL1_REG usbctrl1reg;
+		usbctrl1reg.reg = usb_getreg(usbbase, USB_DEVDMACTRL1_REG_OFS);
+		usbctrl1reg.bit.DEVPHY_SUSPEND = 0;
+		usb_setreg(usbbase, USB_DEVDMACTRL1_REG_OFS, usbctrl1reg.reg);
+	}
 	/* Set USB ID & VBUSI */
 	union USB_PHYTOP_REG usbphytopreg;
-	usbphytopreg.reg = usb_getreg(usbbase, USB_PHYTOP_REG_OFS);
-	usbphytopreg.reg &= ~0xFF;
-	usbphytopreg.reg |= 0x22;
-	usbphytopreg.bit.USB_VBUSI = 1;
-	usbphytopreg.bit.USB_ID = 0;
+	if (nvt_get_chip_id() == CHIP_NA51055) {
+		usbphytopreg.reg = usb_getreg(usbbase, USB_PHYTOP_REG_OFS);
+		usbphytopreg.bit.USB_VBUSI = 1;
+                usbphytopreg.bit.USB_ID = 0;
+	} else {
+		usbphytopreg.reg = usb_getreg(usbbase, USB_PHYTOP_REG_OFS);
+		usbphytopreg.reg &= ~0xFF;
+		usbphytopreg.reg |= 0x22;
+		usbphytopreg.bit.USB_VBUSI = 1;
+		usbphytopreg.bit.USB_ID = 0;
+	}
 	usb_setreg(usbbase, USB_PHYTOP_REG_OFS, usbphytopreg.reg);
 
 	/* Clear FORCE_FS[9] and handle HALF_SPEED[1] */
@@ -304,11 +315,19 @@ static void nvtim_init_usbhc(int index)
 	usbphytopreg.bit.USB_VBUSI = 1;
 	usb_setreg(usbbase, USB_PHYTOP_REG_OFS, usbphytopreg.reg);
 
-	usbhcmiscreg.reg = usb_getreg(usbbase, USB_HCMISC_REG_OFS);
-	usbhcmiscreg.reg &= ~(0x3F << 16);
-	usbhcmiscreg.reg |=  (0x22 << 16);
-	usbhcmiscreg.bit.HostPhy_Suspend = 0;
-	usb_setreg(usbbase, USB_HCMISC_REG_OFS, usbhcmiscreg.reg);
+	if (nvt_get_chip_id() == CHIP_NA51055) {
+		usbhcmiscreg.reg = usb_getreg(usbbase, USB_HCMISC_REG_OFS);
+		tmpval &= ~(0x3F<<8);
+		tmpval |=  (0x22<<8);
+		usbhcmiscreg.bit.HostPhy_Suspend = 0;
+		usb_setreg(usbbase, USB_HCMISC_REG_OFS, usbhcmiscreg.reg);
+	} else {
+		usbhcmiscreg.reg = usb_getreg(usbbase, USB_HCMISC_REG_OFS);
+		usbhcmiscreg.reg &= ~(0x3F << 16);
+		usbhcmiscreg.reg |=  (0x22 << 16);
+		usbhcmiscreg.bit.HostPhy_Suspend = 0;
+		usb_setreg(usbbase, USB_HCMISC_REG_OFS, usbhcmiscreg.reg);
+	}
 
 	mdelay(25);
 
@@ -337,7 +356,7 @@ static void nvtim_init_usbhc(int index)
 	tmpval |= 0xFFFF;
 	writel(tmpval, (volatile unsigned long *)(usbbase+0x3AC));
 
-#if defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NA51102_A64)
+#if defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NA51102_A64)
 	/* RESP MODE open */
 	tmpval = readl((volatile unsigned long *)(usbbase+0x404));
 	tmpval |= (0x1<<30);
@@ -456,7 +475,7 @@ static void nvtim_init_usbhc(int index)
 		mdelay(5);
 		U3_U2PHY_SETREG(0x51, 0x00);
 	}
-#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NA51089)
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51055)
 	{
 		u8 u2_trim_swctrl = 4, u2_trim_sqsel = 4, u2_trim_resint = 8;
 
@@ -474,7 +493,7 @@ static void nvtim_init_usbhc(int index)
 				// check if usb trim value is valid
 				is_found = extract_trim_valid(code, (u32 *)&trim);
 				if (is_found) {
-					if (nvt_get_chip_id() == CHIP_NA51089) {
+					if ((nvt_get_chip_id() == CHIP_NA51089) || (nvt_get_chip_id() == CHIP_NA51055) || (nvt_get_chip_id() == CHIP_NA51084)) {
 						printf("%s: [trim_rawdata(0x%04x)] [trim(0x%04x)]\r\n", __func__, (int)trim, (int)(trim >> 6));
 						trim = (trim >> 6);
 					}
@@ -750,6 +769,14 @@ static int ehci_usb_probe(struct udevice *dev)
 	unsigned long base_addr = dev_read_addr(dev);
 	int index;
 
+#if defined(CONFIG_TARGET_NA51055)
+        #ifdef CONFIG_USB_HOST_NVTIVOT_525
+        /* 51055: NT98525*/
+        #else
+        /* 51055: NT98528*/
+        base_addr |= 0xF000000;
+        #endif
+#endif
 	printf("0x%lx ver %s\n", base_addr, DRV_VERSION);
 
 	if ((unsigned int)base_addr == (unsigned int)IOADDR_USB_REG_BASE)

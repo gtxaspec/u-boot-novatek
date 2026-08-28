@@ -1139,7 +1139,7 @@ CONFIG_PINCTRL_NS02302=y
 # CONFIG_DM_PWM is not set
 # CONFIG_PWM_IMX is not set
 # CONFIG_PWM_SANDBOX is not set
-# CONFIG_PWM_NVT is not set
+CONFIG_PWM_NVT=y
 # CONFIG_U_QE is not set
 # CONFIG_RAM is not set
 

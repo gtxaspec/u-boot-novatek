@@ -22,7 +22,7 @@
 
 #include <usb/fotg330.h>
 
-#define DRV_VERSION                     "1.00.19"
+#define DRV_VERSION                     "1.00.21"
 
 // result of setup packet
 #define CX_IDLE		0
@@ -883,7 +883,7 @@ static void nvt_phyinit(void)
 	// USB30 Best setting on NT98538
 	//======================================================
 	USB3PHY_SETREG(0x1BF, 0x40); //EOC RX_ICTRL's offset = 0
-	//USB3PHY_SETREG(0x12, 0x28);  //bit[5:4] : TX_AMP_CTL_LFPS[1:0]
+	USB3PHY_SETREG(0x12, 0x28);  //bit[5:4] : TX_AMP_CTL_LFPS[1:0]
 	USB3PHY_SETREG(0x14, 0x8A);  //Follow 336 for TX CTS
 	USB3PHY_SETREG(0x34, 0xFC);
 	USB3PHY_SETREG(0x114, 0x04); //PHY_PWR_MODE_CHG_RDY_RSP = 1.3ms
@@ -1071,7 +1071,7 @@ static void nvtim_init_usbhc(void)
 	//tmpval &= ~0x2;
 	tmpval &= ~(0x1 << 11); //unmask RXTERM_EN_MASK
 	tmpval |= (0x3 << 0); //VBUSVALID & dev mode
-	tmpval |= (0x1 << 3); //HS
+	//tmpval |= (0x1 << 3); //HS
 	tmpval &= ~((0x7 << 16) | (0x7 << 24) | (0x1 << 4)); //Clear U3 RESET CTRL & U2 RESET CTRL & ELASTICITY_BUF_MODE
 	tmpval |= ((0x4 << 16) | (0x4 << 24)); //U3 RESET CTRL(CTL1) + U2 RESET CTRL(CTL1) +
 	writel(tmpval, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE+0x10));

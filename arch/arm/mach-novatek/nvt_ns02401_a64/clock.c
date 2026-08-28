@@ -62,7 +62,7 @@
 #define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))
 #define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))
 
-#define CPU_LOWER_FREQ_MAX             	(1400000000)        //1.4GHz
+#define CPU_LOWER_FREQ_MAX              (1400000000)        //1.4GHz
 #define CPU_NORMAL_FREQ_MAX             (1500000000)        //1.5GHz
 #define CPU_OVER_CLKING_FREQ_MAX        (1600000000)        //1.6GHz
 
@@ -339,26 +339,26 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 {
 	u32 value = simple_strtoul(argv[1], NULL, 10);
 	u32 uiReg;
-#ifdef CONFIG_NVT_FPGA_EMULATION
+#if defined(CONFIG_NVT_FPGA_EMULATION) || defined(CONFIG_NVT_IVOT_QEMU_SIM)
 #else
 	int code;
 	code = otp_key_manager(4);
 	if (code == 0) {
 		printf("[InHs][CPU clk =@%dMHz]\n", value);
 	} else {
-		if(quary_secure_boot(SECUREBOOT_CPU_LOWER_CLOCKING) == TRUE) {
+		if (quary_secure_boot(SECUREBOOT_CPU_LOWER_CLOCKING) == TRUE) {
 			if (value > CPU_LOWER_FREQ_MAX) {
 				value = CPU_LOWER_FREQ_MAX;
 			}
 		} else {
-			if(quary_secure_boot(SECUREBOOT_CPU_OVER_CLOCKING) == TRUE) {
+			if (quary_secure_boot(SECUREBOOT_CPU_OVER_CLOCKING) == TRUE) {
 				if (value > CPU_OVER_CLKING_FREQ_MAX) {
 					value = CPU_OVER_CLKING_FREQ_MAX;
 				}
 			} else {
 				if (value > CPU_NORMAL_FREQ_MAX) {
 					value = CPU_NORMAL_FREQ_MAX;
-					printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX/1000000));
+					printf("force CPU clk @%dMHz\n", (CPU_NORMAL_FREQ_MAX / 1000000));
 				}
 			}
 		}
@@ -380,7 +380,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x34, (IOADDR_CG_REG_BASE + 0xB0));
 				while (!(readl(IOADDR_CG_REG_BASE + 0xB0) & (1 << 3)));
 				writel(0x28, (IOADDR_CG_REG_BASE + 0xB0));
-#ifdef CONFIG_NVT_FPGA_EMULATION
+#if defined(CONFIG_NVT_FPGA_EMULATION) || defined(CONFIG_NVT_IVOT_QEMU_SIM)
 				printf("Set CPU clk 480MHz(48MHz@FPGA)\n");
 #else
 				printf("Set CPU clk 480MHz\n");
@@ -395,7 +395,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 #endif
 			}
 			break;
-#ifdef CONFIG_NVT_FPGA_EMULATION
+#if defined(CONFIG_NVT_FPGA_EMULATION) || defined(CONFIG_NVT_IVOT_QEMU_SIM)
 		case 80:
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 			if ((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_80) {
@@ -714,7 +714,7 @@ U_BOOT_CMD(
 int do_nvt_apb_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 uiReg;
-	u32	uiReg2;
+	u32 uiReg2;
 	u32 value = simple_strtoul(argv[1], NULL, 10);
 
 	switch (argc) {
@@ -724,11 +724,11 @@ int do_nvt_apb_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		switch (value) {
 		case 150:
 			uiReg2 = readl(IOADDR_CG_REG_BASE + 0x0);
-			if((uiReg2 | (1<<4)) != (1<<4)) {
-				uiReg2 |= (1<<4);
+			if ((uiReg2 | (1 << 4)) != (1 << 4)) {
+				uiReg2 |= (1 << 4);
 				printf("PLL4 = Disabled => Enable it\n");
 				writel(uiReg2, IOADDR_CG_REG_BASE + 0x0);
-				while((readl(IOADDR_CG_REG_BASE + 0x4) & (1<<4)) != (1<<4)){};
+				while ((readl(IOADDR_CG_REG_BASE + 0x4) & (1 << 4)) != (1 << 4)) {};
 			}
 			uiReg |= PLL_CLKSEL_APB150;
 			writel(uiReg, IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
@@ -812,24 +812,24 @@ U_BOOT_CMD(
 
 int prepare_power_trim(int mode)
 {
-    BOOL      is_found;
-    int       code;
-    unsigned int    power_trim = 0, cpu_over = 0, remap_data;
-    char cmd[50];
-#if (1)
+//    BOOL      is_found;
+    //int       code;
+//    unsigned int    power_trim = 0, cpu_over = 0, remap_data;
+//    char cmd[50];
+#if (0)
 	// get core_power_adjust trim
-    code = otp_key_manager(0x7);
-    if (code == -33) {
-        printf("Read core power trim error\r\n");
+	code = otp_key_manager(0x7);
+	if (code == -33) {
+		printf("Read core power trim error\r\n");
 		return -1;
-    } else {
-        is_found = extract_trim_valid(code, (u32 *)&power_trim);
+	} else {
+		is_found = extract_trim_valid(code, (u32 *)&power_trim);
 		power_trim = ((power_trim >> 8) & 0x7);
 
-		if(is_found) {
+		if (is_found) {
 			printf("Read core power trim = 0x%08x\r\n", power_trim);
 		}
-    }
+	}
 
 	// get CPU over value
 	if (quary_secure_boot(SECUREBOOT_CPU_OVER_CLOCKING) == TRUE) {
@@ -838,8 +838,9 @@ int prepare_power_trim(int mode)
 	}
 
 	// compose the power setting
-	if (power_trim == 0)
+	if (power_trim == 0) {
 		power_trim |= (cpu_over << 3);
+	}
 
 	remap_data = extract_trim_to_pwm_duty(PWM0_CORE_POWER, power_trim);
 	printf("remap_data %d\n", remap_data);
@@ -848,6 +849,7 @@ int prepare_power_trim(int mode)
 	run_command(cmd, 0);
 #else
 	//Fixed @ 0.93V
+	/*
 	code = otp_key_manager(7);
 	power_trim = 0;
 	printf("packageUID = 0x%08x\n", code);
@@ -859,8 +861,9 @@ int prepare_power_trim(int mode)
 	printf("remap_data %d\n", remap_data);
 	sprintf(cmd, "power_ctl %d", remap_data);
 	run_command(cmd, 0);
+	*/
 #endif
-    return 0;
+	return 0;
 }
 
 int do_nvt_pwr_ctrl(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])

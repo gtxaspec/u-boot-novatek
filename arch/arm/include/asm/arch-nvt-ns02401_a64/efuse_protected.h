@@ -117,6 +117,14 @@ typedef enum {
 #define KEY_MANAGER_KEY_ENGINE_RIGHT_ADDRESS    (IOADDR_EFUSE_REG_BASE + 0x40)
 #define KEY_MANAGER_KEY_ENGINE_RIGHT2_ADDRESS   (IOADDR_EFUSE_REG_BASE + 0x44)
 
+#define KEY_MANAGER2_TIMING_CONFIG_ADDRESS      (IOADDR_EFUSE2_REG_BASE + 0x10)
+#define KEY_MANAGER2_DESTINATION_ADDRESS        (IOADDR_EFUSE2_REG_BASE + 0x14)
+#define KEY_MANAGER2_CONTROL_ADDRESS            (IOADDR_EFUSE2_REG_BASE + 0x20)
+#define KEY_MANAGER2_STATUS_ADDRESS             (IOADDR_EFUSE2_REG_BASE + 0x30)
+#define KEY_MANAGER2_KEY_ENGINE_RIGHT_ADDRESS   (IOADDR_EFUSE2_REG_BASE + 0x40)
+#define KEY_MANAGER2_KEY_ENGINE_RIGHT2_ADDRESS  (IOADDR_EFUSE2_REG_BASE + 0x44)
+
+
 #define EFUSE_TRIM_DATA_SATA1_PRI                       0x0
 #define EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI      0x1
 #define EFUSE_TRIM_DATA_DDR_DRIVING_PRI                 0x2
@@ -164,6 +172,7 @@ typedef enum {
 	SECUREBOOT_SIGN_RSA,                ///< Quary if Signature methed is RSA or not(AES)
 	SECUREBOOT_SIGN_RSA_CHK,            ///< Quary if Signature hash checksum RSA key correct or not
 	SECUREBOOT_JTAG_DISABLE_EN,         ///< Quary if JTAG is disable or not(TRUE : disable)
+	SECUREBOOT_SIGN_ECDSA,              ///< Quary if Signature methed is ECDSA (once RSA ECDSA enable at the same time=> ECDSA priority high)
 
 	SECUREBOOT_1ST_KEY_SET_PROGRAMMED,  ///< Quary if 1st key set programmed or not
 	SECUREBOOT_2ND_KEY_SET_PROGRAMMED,  ///< Quary if 2nd key set programmed or not
@@ -190,8 +199,23 @@ typedef enum {
 
 	SECUREBOOT_CPU_LOWER_CLOCKING,      ///< Quary if CPU MUST lower clocking or not
 	SECUREBOOT_HDMI_AVAILABLE,          ///< Quary if HDMI is disabled
+
+	SECUREBOOT_SIGN_RSA_PSS,            ///RSAPKCS2.1
+	SECUREBOOT_SIGN_RSA_PKCS1P5,        ///RSAPKCS1.5
+	SECUREBOOT_HEADER_SIGNATURE,
 } SECUREBOOT_STATUS;
 
+
+/*
+    @name eFuse enum - base address
+*/
+//@{
+typedef enum {
+	EFUSE_ID_0 = 0,     ///< efuse ID 0
+	EFUSE_ID_1 = 1,     ///< efuse ID 1
+	ENUM_DUMMY4WORD(EFUSE_ENGINE)
+} EFUSE_ENGINE;
+//@}
 #ifndef TRUE
 #define TRUE                                1
 #endif
@@ -215,6 +239,8 @@ typedef enum {
 #define OTP_SIGNATURE_RSA                   (1 << 1)
 #define OTP_SIGNATURE_RSA_CHK_EN            (1 << 3)
 #define OTP_JTAG_DISABLE_EN                 (1 << 2)
+
+
 #define EFUSE_HDMI_USAGE_BIT                11
 #define EFUSE_HDMI_USAGE_BIT_MASK           (0x7<<11)
 
@@ -229,11 +255,12 @@ typedef enum {
 #define OTP_GPU_DISABLE_BIT                 16
 
 //2nd identify
-#define OTP_MCU_DISABLE_BIT                 0
-#define OTP_CPU_OVER_CLOCKING_BIT           18
-#define OTP_VDEC_OVER_CLOCKING_BIT          19
 
-#define OTP_CPU_LOWER_CLOCKING_BIT          16
+#define OTP_SIGNATURE_RSAPKCS1P5_BIT        16
+#define OTP_HEADER_SIGNATURE_BIT        	17
+#define OTP_SIGNATURE_RSA_OTHERS_BIT        19
+#define OTP_SIGNATURE_ECDSA_BIT             20
+//#define OTP_CPU_LOWER_CLOCKING_BIT          16
 
 
 #define HDMI_1ST_AVAILABLE                  (0)
@@ -247,13 +274,18 @@ typedef enum {
 #define OTP_4TH_KEY_PROGRAMMED              (1 << OTP_4TH_KEY_PROGRAMMED_BIT)
 #define OTP_5TH_KEY_PROGRAMMED              (1 << OTP_5TH_KEY_PROGRAMMED_BIT)
 
-#define OTP_DSP1_DISABLE                    (1 << OTP_DSP1_DISABLE_BIT)
-#define OTP_DSP2_DISABLE                    (1 << OTP_DSP2_DISABLE_BIT)
 #define OTP_GPU_DISABLE                     (1 << OTP_GPU_DISABLE_BIT)
-#define OTP_MCU_DISABLE                     (1 << OTP_MCU_DISABLE_BIT)
+/*
 #define OTP_CPU_OVER_CLOCKING               (1 << OTP_CPU_OVER_CLOCKING_BIT)
 #define OTP_VDEC_OVER_CLOCKING_AVL          (1 << OTP_VDEC_OVER_CLOCKING_BIT)
 #define OTP_CPU_LOWER_CLOCKING              (1 << OTP_CPU_LOWER_CLOCKING_BIT)
+*/
+
+//2nd => addr[9]
+#define OTP_SIGNATURE_RSAPKCS1P5            (1 << OTP_SIGNATURE_RSAPKCS1P5_BIT) //bit[16]
+#define OTP_HEADER_SIGNATURE_EN         	(1 << OTP_HEADER_SIGNATURE_BIT)     //bit[17]
+#define OTP_SIGNATURE_RSA_OTHERS            (1 << OTP_SIGNATURE_RSA_OTHERS_BIT) //bit[19]
+#define OTP_SIGNATURE_ECDSA                 (1 << OTP_SIGNATURE_ECDSA_BIT)      //bit[20]
 
 #define OTP_1ST_KEY_READ_LOCK_BIT           22
 #define OTP_2ND_KEY_READ_LOCK_BIT           23
@@ -276,10 +308,24 @@ typedef enum {
 
 #define is_secure_enable()                  quary_secure_boot(SECUREBOOT_SECURE_EN)
 #define is_data_area_encrypted()            quary_secure_boot(SECUREBOOT_DATA_AREA_ENCRYPT)
+
 #define is_signature_rsa()                  quary_secure_boot(SECUREBOOT_SIGN_RSA)
+#define is_signature_rsapss()               quary_secure_boot(SECUREBOOT_SIGN_RSA_PSS)
 #define is_signature_rsa_chsum_enable()     quary_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
+#define is_signature_rsapkcs1p5()           quary_secure_boot(SECUREBOOT_SIGN_RSA_PKCS1P5)
+
 #define is_signature_aes()                  !quary_secure_boot(SECUREBOOT_SIGN_RSA)
 #define is_JTAG_DISABLE_en()                quary_secure_boot(SECUREBOOT_JTAG_DISABLE_EN)
+
+
+
+
+#define is_signature_ecdsa()                quary_secure_boot(SECUREBOOT_SIGN_ECDSA)
+#define is_signature_chsum_enable()         quary_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
+#define is_header_signature_en()            quary_secure_boot(SECUREBOOT_HEADER_SIGNATURE)
+
+
+
 
 #define is_1st_key_programmed()             quary_secure_boot(SECUREBOOT_1ST_KEY_SET_PROGRAMMED)
 #define is_2nd_key_programmed()             quary_secure_boot(SECUREBOOT_2ND_KEY_SET_PROGRAMMED)
@@ -305,14 +351,13 @@ typedef enum {
 #define is_GPU_disable()                    quary_secure_boot(SECUREBOOT_GPU_DISABLE)
 #define is_MCU_disable()                    quary_secure_boot(SECUREBOOT_MCU_DISABLE)
 
-
 extern s32  otp_set_key_read_lock(EFUSE_OTP_KEY_SET_FIELD key_set_index);
 extern s32  otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index);
 extern s32  otp_set_key_engine_access_right(EFUSE_OTP_KEY_SET_FIELD key_set_index);
 extern s32  otp_write_key(EFUSE_OTP_KEY_SET_FIELD key_set_index, UINT8 *uc_key);
 extern BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status);
 extern BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status);
-extern u32  otp_key_manager(u32 rowAddress);
+extern u32  otp_key_manager(EFUSE_ENGINE id, u32 rowAddress);
 extern BOOL extract_trim_valid(u32 code, u32 *pData);
 
 extern ER   efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H);
@@ -326,7 +371,7 @@ extern INT32 otp_get_pkg_version(void);
 
     Enable secure boot
 */
-#define efuse_secure_en()               enable_secure_boot(SECUREBOOT_SECURE_EN)
+#define efuse_secure_en()               	enable_secure_boot(SECUREBOOT_SECURE_EN)
 /**
     efuse_jtag_dis
 
@@ -334,13 +379,27 @@ extern INT32 otp_get_pkg_version(void);
 
     @Note: Can not re enable once disabled
 */
-#define efuse_jtag_dis()                enable_secure_boot(SECUREBOOT_JTAG_DISABLE_EN)
-#define efuse_data_area_encrypt_en()    enable_secure_boot(SECUREBOOT_DATA_AREA_ENCRYPT)
-#define efuse_signature_rsa_en()        enable_secure_boot(SECUREBOOT_SIGN_RSA)
-#define efuse_signature_rsa_chksum_en() enable_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
+#define efuse_jtag_dis()                	enable_secure_boot(SECUREBOOT_JTAG_DISABLE_EN)
+#define efuse_data_area_encrypt_en()    	enable_secure_boot(SECUREBOOT_DATA_AREA_ENCRYPT)
+#define efuse_signature_rsa_en()        	enable_secure_boot(SECUREBOOT_SIGN_RSA)
+#define efuse_signature_rsa_chksum_en() 	enable_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
 
-#define efuse_DSP1_dis()                enable_secure_boot(SECUREBOOT_DSP1_DISABLE)
-#define efuse_DSP2_dis()                enable_secure_boot(SECUREBOOT_DSP2_DISABLE)
-#define efuse_GPU_dis()                 enable_secure_boot(SECUREBOOT_GPU_DISABLE)
-#define efuse_MCU_dis()                 enable_secure_boot(SECUREBOOT_MCU_DISABLE)
+#define efuse_header_signature_en()     	enable_secure_boot(SECUREBOOT_HEADER_SIGNATURE)
+#define efuse_signature_rsapss_en()     	enable_secure_boot(SECUREBOOT_SIGN_RSA_PSS)
+#define efuse_signature_rsapkcs1p5_en() 	enable_secure_boot(SECUREBOOT_SIGN_RSA_PKCS1P5)
+
+/**
+    otp_signature_ecdsa_en
+
+    ROM treat loader by use ECDSA as loader's signature
+*/
+#define efuse_signature_ecdsa_en()          enable_secure_boot(SECUREBOOT_SIGN_ECDSA)
+
+/**
+    otp_signature_ecdsa_chksum_en
+
+    Once use ECDSA as signature, enable ECDSA public checksum(use SHA256) enable
+*/
+#define efuse_signature_chksum_en()         enable_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
+
 #endif /* __ARCH_EFUSE_PROTECTED_H */

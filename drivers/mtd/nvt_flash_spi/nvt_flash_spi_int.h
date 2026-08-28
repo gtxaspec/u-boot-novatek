@@ -53,6 +53,7 @@
 	NVT Flash controller platform parameters
 */
 #if (defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51055_A64) || \
+	 defined(CONFIG_TARGET_NA51084) || defined(CONFIG_TARGET_NA51084_A64) || \
 	 defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51089_A64))
 	#define NVT_INDLY_STEP              (64)
 	#define SPINAND_FIFO_SIZE           (64)
@@ -602,6 +603,7 @@ struct drv_nand_dev_info {
 #define SPI_NAND_MICRON                 0x2C
 #define SPI_NAND_DOSILICON              0xE5
 #define SPI_NAND_XTX                    0x0B
+#define SPI_NAND_ETRON                  0xD5
 
 
 //Commands for Winbond's serial flash

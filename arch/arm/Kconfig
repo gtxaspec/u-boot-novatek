@@ -343,6 +343,8 @@ config SYS_CACHE_SHIFT_7
 
 config SYS_CACHELINE_SIZE
 	int
+	default 32 if TARGET_NA51055
+	default 32 if TARGET_NA51089
 	default 128 if SYS_CACHE_SHIFT_7
 	default 64 if SYS_CACHE_SHIFT_6
 	default 32 if SYS_CACHE_SHIFT_5

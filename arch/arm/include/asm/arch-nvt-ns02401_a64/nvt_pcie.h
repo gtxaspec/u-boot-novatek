@@ -1,12 +1,13 @@
 #ifndef _ARCH_PCIE_H
 #define _ARCH_PCIE_H
 
-#define PCIE_TOP_REG_BASE				0x2f0b40000
-#define PCIE_DBI_REG_BASE				0x2f2000000
+#define PCIE_TOP_REG_BASE				0x4f0310000
+#define PCIE_DBI_REG_BASE				0x4f2000000
 
-#define BOOT_SOURCE_PCIE_MODE_MSK			(1<<15)	// 0: RC, 1: EP
-#define BOOT_SOURCE_PCIE_LANE_MSK			(1<<16)	// 0: one x2, 1: two x1
-#define BOOT_SOURCE_REFCLK_MSK				(1<<17)	// 0: PLL24, 1: REFCLK pad
+#define BOOT_SOURCE_PCIE_MODE_MSK			(1<<13)	// 0: RC, 1: EP
+#define BOOT_SOURCE_PCIE_LANE_SHF			(14)
+#define BOOT_SOURCE_PCIE_LANE_MSK			(3<<14)	// 0: one x4, 1: two x2, 2: four x1, 3: one x2 + two x1
+#define BOOT_SOURCE_REFCLK_MSK				(1<<16)	// 0: PLL24, 1: REFCLK pad
 
 
 //#define	PCIE_SLV_oATU0_BASE			0xFF0000000 //RC oATU memory, (map to register)

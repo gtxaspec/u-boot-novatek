@@ -84,121 +84,64 @@ lowlevel_in_el2:
 
 ENDPROC(lowlevel_init)
 
-#if 1
 ENTRY(local_load)
-    dmb     sy
-    mov     x1, #0xf0240000
-    movk    x1, #0x2, lsl #32
-    //x1 = 0x2F0240000
-    str     wzr, [x1]                       //0x2F0240000=0x0
-    dmb     sy
+    str     wzr, [x1]
+    add     x2, x1, #0x30
+    str     w0, [x1,#4]
+    ldr     w0, [x1,#48]
+    str     w0, [x1,#48]
 
-    add     x1, x1, #0x30                   //x1=0x2F0240030
-    stur    w0, [x1, #-44]                  //0x2F0240004 = rowaddress
-
-    ldr     w0, [x1]
-    dmb     sy
-    dmb     sy
-    str     w0, [x1]                        //->Read 0x30 write back 0x30
-
-    dmb     sy
-    mov     x2, #0x20                       // #32
     mov     w0, #0x1                        // #1
-    movk    x2, #0xf024, lsl #16
-    movk    x2, #0x2, lsl #32
-    str     w0, [x2]                        //0x2F0240020 = 0x1
+    str     w0, [x1,#32]                    //0x20 = 1
 
-    //x1 = 0x2F0240030
-    //x2 = 0x2F0240020
 POLL_SET_EN_STS_R:
-    ldr     w0, [x1]
-    dmb     sy
-    tbz     w0, #0, POLL_SET_EN_STS_R       //polling until 0x30 bit[0] = 1
-
     ldr     w0, [x2]
-    dmb     sy
+    tbz     w0, #0, POLL_SET_EN_STS_R       //polling 0x30 bit[0] = 1
+
+    ldr     w0, [x1,#32]
     orr     w0, w0, #0x10
-    dmb     sy
-    str     w0, [x2]                        //0x2F0660020=0x11
+    str     w0, [x1,#32]                    //0x20 = 0x11
 
 POLL_STATUS_R:
-    ldr     w0, [x1]
-    dmb     sy
-    tbz     w0, #1, POLL_STATUS_R           //polling until 0x30 bit[1] = 1
+    ldr     w0, [x2]
+    tbz     w0, #1, POLL_STATUS_R           //polling 0x30 bit[1] = 1
 
-    mov     x0, #0x8                        // #8
-    movk    x0, #0xf024, lsl #16
-    movk    x0, #0x2, lsl #32
-    ldr     w0, [x0]                        //w0 = 0x2F0660008
-    dmb     sy
-    dmb     sy
-    str     wzr, [x2]                       //0x20 = 0
+    ldr     w0, [x1,#8]
+    str     wzr, [x1,#32]
 
-POLL_STATUS_R_EN:
-    ldr     w2, [x1]
-    dmb     sy
-    tbnz    w2, #0, POLL_STATUS_R_EN        //polling 0x30 until bit[0] = 0
-
-    ldr     w2, [x1]
-    dmb     sy
-    dmb     sy
-    str     w2, [x1]                        //read 0x30 and write back
+ POLL_STATUS_R_EN:
+    ldr     w3, [x2]
+    tbnz    w3, #0, POLL_STATUS_R_EN
+    ldr     w2, [x1,#48]
+    str     w2, [x1,#48]
     ret
 ENDPROC(local_load)
 
 ENTRY(local_store)
-    dmb     sy
-    mov     x1, #0xf0240000                 // #4033216512
-    mov     w2, #0x4                        // w2 = #4
-    movk    x1, #0x2, lsl #32
+    mov     w2, #0x4                        // #4
     str     w2, [x1]
-    dmb     sy                              //0x2F0660000 = 0x4
-
-    str     w0, [x1, #4]                    // w0 = address
-    mov     x0, #0x30                       // #48
-    movk    x0, #0xf024, lsl #16
-    movk    x0, #0x2, lsl #32
-    ldr     w1, [x0]                        //ldr 0x2F0240030
-    dmb     sy
-    dmb     sy
-    str     w1, [x0]                        //str 0x2F0660030
-    dmb     sy
-    mov     x1, #0x20                       // #32
+    str     w0, [x1,#4]
+    add     x0, x1, #0x30
+    ldr     w2, [x1,#48]
+    str     w2, [x1,#48]
     mov     w2, #0x1                        // #1
-    movk    x1, #0xf024, lsl #16
-    movk    x1, #0x2, lsl #32
-    str     w2, [x1]                        //
-
- POLL_SET_EN_STS_P:
+    str     w2, [x1,#32]
+POLL_SET_EN_STS_P:
     ldr     w2, [x0]
-    dmb     sy
     tbz     w2, #0, POLL_SET_EN_STS_P
-    ldr     w2, [x1]
-    dmb     sy
+    ldr     w2, [x1,#32]
     orr     w2, w2, #0x10
-    dmb     sy
-    str     w2, [x1]
-
- POLL_STATUS_P:
+    str     w2, [x1,#32]
+POLL_STATUS_P:
     ldr     w2, [x0]
-    dmb     sy
     tbz     w2, #1, POLL_STATUS_P
-    dmb     sy
-#if (0)
-    str     wzr, [x1]
+    str     wzr, [x1,#32]
 
 POLL_STATUS_P_EN:
-    ldr     w1, [x0]
-    dmb     sy
-    tbnz    w1, #0, POLL_STATUS_P_EN
-#endif
-
-    ldr     w1, [x0]
-    dmb     sy
-    dmb     sy
-    str     w1, [x0]
-    mov     x0, #0x0                        // #0
+    ldr     w2, [x0]
+    tbnz    w2, #0, POLL_STATUS_P_EN
+    ldr     w0, [x1,#48]
+    str     w0, [x1,#48]
+    mov     w0, #0x0                        // #0
     ret
 ENDPROC(local_store)
-
-#endif

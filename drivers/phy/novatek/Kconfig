@@ -9,3 +9,10 @@ config PHY_NOVATEK_PCIE_V2
         help
           Enable this to support the Novatek PCIe PHY.
 
+config PHY_NOVATEK_PCIE_V3
+        bool "Novatek PCIe PHY (V3) driver"
+        depends on TARGET_NS02401_A64 && (PCI || NVT_PCIE_DAUGHTER_BRD)
+	select PHY
+        default n
+        help
+          Enable this to support the Novatek PCIe PHY.

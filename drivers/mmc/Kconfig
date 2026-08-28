@@ -866,7 +866,7 @@ config NVT_MMC_CHANNEL_SDIO3
 
 config NVT_IVOT_EMMC
 	int "Novatek MMC emmc bus number"
-	depends on NVT_MMC_CHANNEL_SDIO3
+	depends on NVT_MMC_CHANNEL_SDIO3 || NVT_MMC_CHANNEL_SDIO2
 	default 1
 	help
 	  This select channel of Novatek EMMC ID.
@@ -876,17 +876,6 @@ config NVT_IVOT_EMMC_NS02201
 	depends on (NVT_MMC_CHANNEL_SDIO3 && TARGET_NS02201_A64)
 	help
 	  This select channel of Novatek EMMC.
-
-config NVT_IVOT_EMMC_BOOT_PART
-	int "Novatek EMMC boot partition"
-	depends on NVT_IVOT_EMMC >= 0
-	default 1
-	help
-	  This select partition of EMMC boot
-	  0 : disable boot partition
-	  1 : set boot0 partition
-	  2 : set boot1 partition
-	  7 : set user partition.
 
 endif
 

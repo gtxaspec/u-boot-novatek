@@ -137,6 +137,10 @@ void otp_init(void)
 	//Assert OTP RSTN
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
+#ifdef CONFIG_PWM_NVT
+	prepare_power_trim(PWM0_CORE_POWER);
+#endif
+
 }
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)

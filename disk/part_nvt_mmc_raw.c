@@ -87,8 +87,8 @@ static int nvt_mmc_raw_part_get_info(struct blk_desc *dev_desc, int part_num,
 		return -1;
 
 	info->blksz = dev_desc->blksz;
-	strcpy((char *)info->type, "NVT_MMC_RAW");
-	if (env_get("nvtemmcpart")) {
+	strncpy((char *)info->type, "U-Boot", strlen("U-Boot"));
+	if (env_get("nvtemmcpart") != NULL) {
 
 		if (nvt_mmc_raw_emmc_part_parsing(info->name, &info->start, &info->size, part_num) < 0)
 			return -1;

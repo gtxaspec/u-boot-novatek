@@ -10,6 +10,7 @@
 #include <dm.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/arch/IOAddress.h>
+#include <asm/arch/hardware.h>
 #include <clk.h>
 
 int do_nvt_pwm_set_pinmux(int pwm_id);

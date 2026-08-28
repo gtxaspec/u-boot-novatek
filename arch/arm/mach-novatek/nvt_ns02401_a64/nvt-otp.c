@@ -71,11 +71,16 @@
 #define SETREG32(x, y)          OUTW((x), INW(x) | (y))
 #define CLRREG32(x, y)          OUTW((x), INW(x) & ~(y))
 
+#if (0)
 //Assert OTP RSTN
-#define OTP_RSTN_ENABLE()       CKG_CLRREG32((UINT32)0x9C, (UINT32)(1<<3));
+#define OTP_RSTN_ENABLE()       CKG_CLRREG32((UINT32)0x94, (UINT32)(UINT32)((1<<24)|(1<<30)));
 
 //De-assert OTP RSTN
-#define OTP_RSTN_DISABLE()      CKG_SETREG32((UINT32)0x9C, (UINT32)(1<<3));
+#define OTP_RSTN_DISABLE()      CKG_SETREG32((UINT32)0x94, (UINT32)(UINT32)((1<<24)|(1<<30)));
+#else
+#define OTP_RSTN_ENABLE()
+#define OTP_RSTN_DISABLE()
+#endif
 
 
 #define TZPC_NV_CNT()           if(IOADDR_TZPC_REG_BASE) \
@@ -85,8 +90,8 @@
 	OUTREG32(KEY_MANAGER_KEY_ENGINE_RIGHT_ADDRESS, m);\
 	OTP_RSTN_ENABLE()
 
-extern s32 local_load(u32 uiRowAddress);
-extern s32 local_store(u32 uiRowAddress);
+extern s32 local_load(u32 uiRowAddress, uintptr_t base_address);
+extern s32 local_store(u32 uiRowAddress, uintptr_t base_address);
 
 #define OTP_120_TIMING              0x8F2620
 #define RETRY_CNT                   3
@@ -99,24 +104,24 @@ extern s32 local_store(u32 uiRowAddress);
 #define DBL_BIT_EN                  0x3
 
 static const UINT32   core_power_leakage[LEAKAGE_COUNT] = {
-	31,			//0.85
+	31,         //0.85
 
-	46,			//0.83
-	38,			//0.84
-	31,			//0.85
-	23,			//0.86
-	15,			//0.87
-	8,			//0.88
-	0,			//0.89
+	46,         //0.83
+	38,         //0.84
+	31,         //0.85
+	23,         //0.86
+	15,         //0.87
+	8,          //0.88
+	0,          //0.89
 
-	8,			//0.88
+	8,          //0.88
 
-	31,			//0.85
-	31,			//0.85
-	31,			//0.85
-	31,			//0.85
-	31,			//0.85
-	31,			//0.85
+	31,         //0.85
+	31,         //0.85
+	31,         //0.85
+	31,         //0.85
+	31,         //0.85
+	31,         //0.85
 };
 
 static UINT32 otp_timing[RETRY_CNT] = {
@@ -131,11 +136,13 @@ static UINT32 otp_timing[RETRY_CNT] = {
 void poweron_efuse(void)
 {
 	//SETREG32(IOADDR_GPIO_REG_BASE + 0x44, (0x1 << 12));
-	udelay(500 * 1000); //depend on customer
+	//depend on customer
+	//Need evaluation timing via scope
+	udelay(500 * 1000);
 }
 
 //##############################################################################
-//# powerdown_efuse need porting by customer                                       #
+//# powerdown_efuse need porting by customer                                   #
 //##############################################################################
 void powerdown_efuse(void)
 {
@@ -143,14 +150,23 @@ void powerdown_efuse(void)
 	udelay(800 * 1000);
 }
 
+/*
+    OTP init
+
+    OTP initial
+
+    @return void
+*/
 void otp_init(void)
 {
-	UINT32  uiReg;
+	UINT32  uiReg, uiReg2;
 
-	DBG_DUMP("otp_init[1.00.003]\r\n");
+	DBG_DUMP("otp_init[1.00.001]\r\n");
 	OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, OTP_120_TIMING);
+	OUTREG32(KEY_MANAGER2_TIMING_CONFIG_ADDRESS, OTP_120_TIMING);
 	uiReg = INREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS);
-	DBG_DUMP("otp_timing_reg= 0x%x\r\n", (int)uiReg);
+	uiReg2 = INREG32(KEY_MANAGER2_TIMING_CONFIG_ADDRESS);
+	DBG_DUMP("otp_timing_reg= 0x%x 0x%x\r\n", (int)uiReg, (int)uiReg2);
 	//Assert OTP RSTN
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
@@ -159,12 +175,16 @@ void otp_init(void)
 #endif
 }
 
-static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
+static s32 key_program_bit(EFUSE_ENGINE id, u32 rol, u32 col, u32 macro_AB)
 {
-	return local_store(rol | (col << 6) | (macro_AB << 11));
+	if (id == EFUSE_ID_0) {
+		return local_store(rol | (col << 6) | (macro_AB << 11), IOADDR_EFUSE_REG_BASE);
+	} else {
+		return local_store(rol | (col << 6) | (macro_AB << 11), IOADDR_EFUSE2_REG_BASE);
+	}
 }
 
-static s32 key_write_data(u32 addr, u32 data)
+static s32 key_write_data(EFUSE_ENGINE id, u32 addr, u32 data)
 {
 	u32 ui_bits;
 	u32 ui_data;
@@ -183,7 +203,7 @@ static s32 key_write_data(u32 addr, u32 data)
 	while (ui_data) {
 		ui_bits = __builtin_ctz(ui_data);
 		ui_data &= ~(1 << ui_bits);
-		if (key_program_bit(addr, ui_bits, MACRO_A_EN) != E_OK) {
+		if (key_program_bit(id, addr, ui_bits, MACRO_A_EN) != E_OK) {
 			DBG_ERR("%s,eFuse program addr[%02x] bit[%2d] fail\r\n", __func__, (u32)addr, (int)ui_bits);
 			return EFUSE_OPS_ERR;
 		} else {
@@ -194,20 +214,27 @@ static s32 key_write_data(u32 addr, u32 data)
 	while (ui_data_macro_B) {
 		ui_bits = __builtin_ctz(ui_data_macro_B);
 		ui_data_macro_B &= ~(1 << ui_bits);
-		if (key_program_bit(addr, ui_bits, MACRO_B_EN) != E_OK) {
+		if (key_program_bit(id, addr, ui_bits, MACRO_B_EN) != E_OK) {
 			DBG_ERR("%s,eFuse program addr[%02x] bit[%2d] fail\r\n", __func__, (u32)addr, (int)ui_bits);
 			return EFUSE_OPS_ERR;
 		} else {
 			udelay(10);
 		}
 	}
-	CLRREG32(KEY_MANAGER_CONTROL_ADDRESS, 0x1);
-	while ((INREG32(KEY_MANAGER_STATUS_ADDRESS) & 0x1) == 0x1) {};
-	OTP_RSTN_ENABLE();
+
+	if (id == EFUSE_ID_0) {
+		CLRREG32(KEY_MANAGER_CONTROL_ADDRESS, 0x1);
+		while ((INREG32(KEY_MANAGER_STATUS_ADDRESS) & 0x1) == 0x1) {};
+		OTP_RSTN_ENABLE();
+	} else {
+		CLRREG32(KEY_MANAGER2_CONTROL_ADDRESS, 0x1);
+		while ((INREG32(KEY_MANAGER2_STATUS_ADDRESS) & 0x1) == 0x1) {};
+		OTP_RSTN_ENABLE();
+	}
 	return EFUSE_SUCCESS;
 }
 
-static s32 key_write_data_timing(u32 addr, u32 data, u32 timing)
+static s32 key_write_data_timing(EFUSE_ENGINE id, u32 addr, u32 data, u32 timing)
 {
 	u32 ui_bits;
 	u32 ui_data;
@@ -223,11 +250,15 @@ static s32 key_write_data_timing(u32 addr, u32 data, u32 timing)
 
 	ui_bits = 0;
 	OTP_RSTN_DISABLE();
-	OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, timing);
+	if (id == EFUSE_ID_0) {
+		OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, timing);
+	} else {
+		OUTREG32(KEY_MANAGER2_TIMING_CONFIG_ADDRESS, timing);
+	}
 	while (ui_data) {
 		ui_bits = __builtin_ctz(ui_data);
 		ui_data &= ~(1 << ui_bits);
-		if (key_program_bit(addr, ui_bits, MACRO_A_EN) != E_OK) {
+		if (key_program_bit(id, addr, ui_bits, MACRO_A_EN) != E_OK) {
 			DBG_ERR("%s,eFuse program addr[%02x] bit[%2d] fail\r\n", __func__, (u32)addr, (int)ui_bits);
 			return EFUSE_OPS_ERR;
 		} else {
@@ -238,24 +269,31 @@ static s32 key_write_data_timing(u32 addr, u32 data, u32 timing)
 	while (ui_data_macro_B) {
 		ui_bits = __builtin_ctz(ui_data_macro_B);
 		ui_data_macro_B &= ~(1 << ui_bits);
-		if (key_program_bit(addr, ui_bits, MACRO_B_EN) != E_OK) {
+		if (key_program_bit(id, addr, ui_bits, MACRO_B_EN) != E_OK) {
 			DBG_ERR("%s,eFuse program addr[%02x] bit[%2d] fail\r\n", __func__, (u32)addr, (int)ui_bits);
 			return EFUSE_OPS_ERR;
 		} else {
 			udelay(10);
 		}
 	}
-	CLRREG32(KEY_MANAGER_CONTROL_ADDRESS, 0x1);
-	while ((INREG32(KEY_MANAGER_STATUS_ADDRESS) & 0x1) == 0x1) {};
-	OTP_RSTN_ENABLE();
+
+	if (id == EFUSE_ID_0) {
+		CLRREG32(KEY_MANAGER_CONTROL_ADDRESS, 0x1);
+		while ((INREG32(KEY_MANAGER_STATUS_ADDRESS) & 0x1) == 0x1) {};
+		OTP_RSTN_ENABLE();
+	} else {
+		CLRREG32(KEY_MANAGER2_CONTROL_ADDRESS, 0x1);
+		while ((INREG32(KEY_MANAGER2_STATUS_ADDRESS) & 0x1) == 0x1) {};
+		OTP_RSTN_ENABLE();
+	}
 	return EFUSE_SUCCESS;
 }
 
-#define KEY_MANAGER_READ_PARAM()        otp_key_manager(8)
-#define KEY_MANAGER_WRITE_PARAM(m)      key_write_data(8, m)
+#define KEY_MANAGER_READ_PARAM()        otp_key_manager(EFUSE_ID_0, 8)
+#define KEY_MANAGER_WRITE_PARAM(m)      key_write_data(EFUSE_ID_0, 8, m)
 
-#define KEY_MANAGER_READ_2ND_PARAM()    otp_key_manager(9)
-#define KEY_MANAGER_WRITE_2ND_PARAM(m)  key_write_data(9, m)
+#define KEY_MANAGER_READ_2ND_PARAM()    otp_key_manager(EFUSE_ID_0, 9)
+#define KEY_MANAGER_WRITE_2ND_PARAM(m)  key_write_data(EFUSE_ID_0, 9, m)
 
 
 /*
@@ -313,8 +351,8 @@ ER efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H)
 	union T_EFUSE_LOT_ID1_REG lot_id_1_reg;
 	union T_EFUSE_LOT_ID2_REG lot_id_2_reg;
 
-	lot_id_1_reg.Reg = otp_key_manager(EFUSE_LOT_ID1);
-	lot_id_2_reg.Reg = otp_key_manager(EFUSE_LOT_ID2);
+	lot_id_1_reg.Reg = otp_key_manager(EFUSE_ID_0, EFUSE_LOT_ID1);
+	lot_id_2_reg.Reg = otp_key_manager(EFUSE_ID_0, EFUSE_LOT_ID2);
 
 #if 0
 	lot_id_1_reg.Bit.lot_id_no_1_5_0 = 36;
@@ -456,13 +494,13 @@ s32 otp_write_key(EFUSE_OTP_KEY_SET_FIELD key_set_index, UINT8 *uc_key)
 		for (index_cnt = 0; index_cnt < EFUSE_OTP_KEY_FIELD_CNT; index_cnt++) {
 			key_field_index = key_field_start_index + index_cnt;
 			if (uiNeedRetry) {
-				result = key_write_data_timing(key_field_index, data_2nd_write[index_cnt], otp_timing[uiRetryIndex - 1]);
+				result = key_write_data_timing(EFUSE_ID_0, key_field_index, data_2nd_write[index_cnt], otp_timing[uiRetryIndex - 1]);
 				if (result < 0) {
 					DBG_DUMP("[%d]set key => write addr[%2d][0x%08x](org) 2nd data[0x%08x] fail\r\n", (int)(key_set_index + 1), (int)(key_field_index), (UINT32)data[index_cnt], data_2nd_write[index_cnt]);
 					break;
 				}
 			} else {
-				result = key_write_data(key_field_index, data[index_cnt]);
+				result = key_write_data(EFUSE_ID_0, key_field_index, data[index_cnt]);
 				if (result < 0) {
 					//DBG_ERR("[%d]set key => write addr[%2d][0x%08lx] fail\r\n", (int)(((key_field_start_index - 16) / 4) + 1), (int)(key_field_start_index + index_cnt), (unsigned long)data[index_cnt]);
 					DBG_DUMP("[%d]set key => write addr[%2d][0x%08x] fail\r\n", (int)(key_set_index + 1), (int)(key_field_index), (UINT32)data[index_cnt]);
@@ -475,7 +513,7 @@ s32 otp_write_key(EFUSE_OTP_KEY_SET_FIELD key_set_index, UINT8 *uc_key)
 		uiNeedRetry = FALSE;
 		for (index_cnt = 0; index_cnt < EFUSE_OTP_KEY_FIELD_CNT; index_cnt++) {
 			key_field_index = key_field_start_index + index_cnt;
-			data_read_back[index_cnt] = otp_key_manager(key_field_index);
+			data_read_back[index_cnt] = otp_key_manager(EFUSE_ID_0, key_field_index);
 			data_2nd_write[index_cnt] = data_read_back[index_cnt] ^ data[index_cnt];
 			if (data_2nd_write[index_cnt]) {
 				DBG_ERR("[%d]set key => write addr[%2d][0x%08x] != [0x%08x] fail 2nd(0x%08x)\r\n", (int)(key_set_index + 1), (int)(key_field_index), (UINT32)data[index_cnt], (UINT32)data_read_back[index_cnt], (UINT32)data_2nd_write[index_cnt]);
@@ -544,19 +582,19 @@ s32 otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 0);
 	//coverity[check_return]
-	otp_key_manager(key_field_start_index);
+	otp_key_manager(EFUSE_ID_0, key_field_start_index);
 	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 1);
 	//coverity[check_return]
-	otp_key_manager(key_field_start_index + 1);
+	otp_key_manager(EFUSE_ID_0, key_field_start_index + 1);
 	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 2);
 	//coverity[check_return]
-	otp_key_manager(key_field_start_index + 2);
+	otp_key_manager(EFUSE_ID_0, key_field_start_index + 2);
 	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 3);
 	//coverity[check_return]
-	otp_key_manager(key_field_start_index + 3);
+	otp_key_manager(EFUSE_ID_0, key_field_start_index + 3);
 	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_NONE, 0);
 	return E_OK;
@@ -690,7 +728,61 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		break;
 
 	case SECUREBOOT_SIGN_RSA:
-		if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
+		//addr[8] bit[1] == 1
+		//RSA or RSA-PSS or PSAPKCS1.5
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = FALSE;
+		} else {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
+				if (sec2 & OTP_SIGNATURE_RSA_OTHERS) {
+					result = FALSE;
+				} else {
+					result = TRUE;
+				}
+			}
+		}
+		break;
+
+	case SECUREBOOT_SIGN_RSA_PSS:
+		//addr[8] bit[1] == 1
+		//RSA or RSA-PSS or PSAPKCS1.5
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = FALSE;
+		} else {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
+				if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) == OTP_SIGNATURE_RSA_OTHERS) {
+					if ((sec2 & OTP_SIGNATURE_RSAPKCS1P5) == OTP_SIGNATURE_RSAPKCS1P5) {
+						result = FALSE;
+					} else {
+						result = TRUE;
+					}
+				} else {
+					result = FALSE;
+				}
+			}
+		}
+		break;
+
+	case SECUREBOOT_SIGN_RSA_PKCS1P5:
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = FALSE;
+		} else {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
+				if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) == OTP_SIGNATURE_RSA_OTHERS) {
+					if ((sec2 & OTP_SIGNATURE_RSAPKCS1P5) == OTP_SIGNATURE_RSAPKCS1P5) {
+						result = TRUE;
+					} else {
+						result = FALSE;
+					}
+				} else {
+					result = FALSE;
+				}
+			}
+		}
+		break;
+
+	case SECUREBOOT_SIGN_ECDSA:
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
 			result = TRUE;
 		}
 		break;
@@ -699,6 +791,15 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		if ((sec & OTP_SIGNATURE_RSA_CHK_EN) == OTP_SIGNATURE_RSA_CHK_EN) {
 			result = TRUE;
 		}
+		break;
+	
+	case SECUREBOOT_HEADER_SIGNATURE:
+		if ((sec2 & OTP_HEADER_SIGNATURE_EN) == OTP_HEADER_SIGNATURE_EN) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
+		
 		break;
 
 	case SECUREBOOT_JTAG_DISABLE_EN:
@@ -780,49 +881,11 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = FALSE;
 		}
 		break;
-
-	case SECUREBOOT_DSP1_DISABLE:
-		if ((sec & OTP_DSP1_DISABLE) == OTP_DSP1_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_DSP2_DISABLE:
-		if ((sec & OTP_DSP2_DISABLE) == OTP_DSP2_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
 	case SECUREBOOT_GPU_DISABLE:
 		if ((sec & OTP_GPU_DISABLE) == OTP_GPU_DISABLE) {
 			result = TRUE;
 		}
 		break;
-
-	case SECUREBOOT_MCU_DISABLE:
-		if ((sec2 & OTP_MCU_DISABLE) == OTP_MCU_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_VDEC_OVER_CLOCKING:
-		if ((sec2 & OTP_VDEC_OVER_CLOCKING_AVL) == OTP_VDEC_OVER_CLOCKING_AVL) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_CPU_OVER_CLOCKING:
-		if ((sec2 & OTP_CPU_OVER_CLOCKING) == OTP_CPU_OVER_CLOCKING) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_CPU_LOWER_CLOCKING:
-		if ((sec2 & OTP_CPU_LOWER_CLOCKING) == OTP_CPU_LOWER_CLOCKING) {
-			result = TRUE;
-		}
-		break;
-
 	default:
 		break;
 	}
@@ -843,9 +906,11 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 */
 BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 {
-	u32  sec;
+	u32     sec;
+	u32     sec2;
 	BOOL    result = FALSE;
 	sec = KEY_MANAGER_READ_PARAM();
+	sec2 = KEY_MANAGER_READ_2ND_PARAM();
 
 	poweron_efuse();
 
@@ -877,8 +942,65 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
-	case SECUREBOOT_SIGN_RSA_CHK:
+	case SECUREBOOT_SIGN_RSA_PSS:
+		//addr[8] bit[1] == 1
+		//RSA or RSA-PSS or PSAPKCS1.5
+		if ((sec & OTP_SIGNATURE_RSA) != 0x0) {
+			DBG_ERR("Signature use RSA bit[1] already set ...");
+		} else {
+			if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) != 0x0) {
+				DBG_ERR("Signature use RSA others bit[19] already set ...");
+			} else {
+				//addr[8] bit[1] = 1
+				KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+				//addr[9] bit[19] = 1
+				//addr[9] bit[16] = 0
+				KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_RSA_OTHERS);
+			}
+		}
+		break;
 
+	case SECUREBOOT_SIGN_RSA_PKCS1P5:
+		if ((sec & OTP_SIGNATURE_RSA) != 0x0) {
+			DBG_ERR("Signature use RSA bit[1] already set ...");
+		} else {
+			if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) != 0x0) {
+				DBG_ERR("Signature use RSA others bit[19] already set ...");
+			} else {
+				if ((sec2 & OTP_SIGNATURE_RSAPKCS1P5) != 0x0) {
+					DBG_ERR("Signature use RSAPKCS1.5 bit[16] already set ...");
+				} else {
+					//addr[8] bit[1] = 1
+					KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+					//addr[9] bit[19] = 1
+					//addr[9] bit[16] = 1
+					KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_RSA_OTHERS);
+					KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_RSAPKCS1P5);
+				}
+			}
+		}
+		break;
+
+	case SECUREBOOT_SIGN_ECDSA:
+		if ((sec2 & OTP_SIGNATURE_ECDSA) != 0x0) {
+			DBG_ERR("Signature use ECDSA bit already set ...");
+		} else {
+			result = TRUE;
+			KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_ECDSA);
+		}
+		break;
+	
+	case SECUREBOOT_HEADER_SIGNATURE:
+		if ((sec2 & OTP_HEADER_SIGNATURE_EN) != 0x0) {
+			DBG_ERR("Header signature bit already set ...");
+		} else {
+			result = TRUE;
+			KEY_MANAGER_WRITE_2ND_PARAM(OTP_HEADER_SIGNATURE_EN);
+		}
+		
+		break;
+
+	case SECUREBOOT_SIGN_RSA_CHK:
 		if ((sec & OTP_SIGNATURE_RSA_CHK_EN) != 0x0) {
 			DBG_ERR("Signature use RSA and process hash checksum bit already set ...\r\n");
 		} else {
@@ -932,26 +1054,12 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		result = TRUE;
 		break;
 
-	case SECUREBOOT_DSP1_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_DSP1_DISABLE);
-		result = TRUE;
-		break;
-
-	case SECUREBOOT_DSP2_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_DSP2_DISABLE);
-		result = TRUE;
-		break;
-
+#if (0)
 	case SECUREBOOT_GPU_DISABLE:
 		KEY_MANAGER_WRITE_PARAM(OTP_GPU_DISABLE);
 		result = TRUE;
 		break;
-
-	case SECUREBOOT_MCU_DISABLE:
-		KEY_MANAGER_WRITE_2ND_PARAM(OTP_MCU_DISABLE);
-		result = TRUE;
-		break;
-
+#endif
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");
@@ -978,12 +1086,16 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
         - @b  Positive: Valid data
         - @b    E_SYS : Invalid data
 */
-u32 otp_key_manager(u32 rowAddress)
+u32 otp_key_manager(EFUSE_ENGINE id, u32 rowAddress)
 {
 	s32  uiData;
 
 	OTP_RSTN_DISABLE();
-	uiData = local_load((rowAddress & 0x3F) | (DBL_BIT_EN << 11));
+	if (id == EFUSE_ID_0) {
+		uiData = local_load((rowAddress & 0x3F) | (DBL_BIT_EN << 11), IOADDR_EFUSE_REG_BASE);
+	} else {
+		uiData = local_load((rowAddress & 0x3F) | (DBL_BIT_EN << 11), IOADDR_EFUSE2_REG_BASE);
+	}
 	OTP_RSTN_ENABLE();
 
 	return uiData;
@@ -1046,7 +1158,7 @@ INT32 otp_get_pkg_version(void)
 	u32     pkgUID;
 
 
-	code = otp_key_manager(OTP_PKGUID_FIELD);
+	code = otp_key_manager(EFUSE_ID_0, OTP_PKGUID_FIELD);
 	if (code == -33) {
 		printf("Read pkgUID error\r\n");
 		return -1;

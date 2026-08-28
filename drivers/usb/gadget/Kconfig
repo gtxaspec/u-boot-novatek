@@ -121,10 +121,19 @@ config CI_UDC
 config USB_GADGET_NVTIVOT_A64
 	bool "Novatek USB device 64 bit controller"
 	select USB_GADGET_DUALSPEED
-	depends on (TARGET_NS02201_A64) || (TARGET_NA51102_A64) || (TARGET_NS02301) || (TARGET_NA51089) || (TARGET_NA51103) || (TARGET_NA51103_A64)
+	depends on (TARGET_NS02201_A64) || (TARGET_NS02401_A64) || (TARGET_NA51102_A64) || (TARGET_NS02301) || (TARGET_NA51089) || (TARGET_NA51103) || (TARGET_NA51103_A64) || (TARGET_NA51055)
 	help
 	  Say Y here to enable device controller functionality of the
 	  Novatek USB device driver.
+
+if USB_GADGET_NVTIVOT_A64
+config USB_GADGET_NVTIVOT_525
+	bool "NT98525_PROJECT"
+	depends on (USB_GADGET_NVTIVOT_A64) || (TARGET_NA51055)
+	help
+	  NT98525/NT98520: Enable this config
+	  NT98528: Disable this config
+endif #TARGET_NA51055
 
 config USB_GADGET_NVTIVOT_FOTG330
 	bool "Novatek USB device with FOTG330 controller"
