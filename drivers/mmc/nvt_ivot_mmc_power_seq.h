@@ -86,5 +86,6 @@ extern void nvt_set_gpio_inout(u32 gpio_pin, u32 direction, u32 value);
 extern void sdiohost_power_up(struct mmc_nvt_host *host);
 extern void sdiohost_power_down(struct mmc_nvt_host *host);
 extern void sdiohost_power_cycle(struct mmc_nvt_host *host, uint32_t delay_ms);
+extern void nvt_pad_setdrivingsink(struct mmc_nvt_host *host, u32 clk_paddriving, u32 cmd_paddriving, u32 data_paddriving);
 
 #endif

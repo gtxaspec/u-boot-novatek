@@ -12,7 +12,14 @@
 #include "nvt_flash_spi_int.h"
 #include "nvt_flash_spi_reg.h"
 #include <cpu_func.h>
-
+#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_TARGET_NS02401_A64)
+#include <asm/arch/ns02401_regs.h>
+#else
+#define smc_writel(value, ofs)          writel(value, ofs)
+#define smc_readl(ofs)                  readl(ofs)
+#define SMC_INW(x)                      INW(x)
+#define SMC_OUTW(addr, val)             OUTW(addr, val)
+#endif
 /*
 	Configure nand host transfer register
 
@@ -677,6 +684,20 @@ void nand_phy_config(struct drv_nand_dev_info *info)
 		} else {
 			phy_dly2.Bit.OUTDLY_SEL = 0;
 		}
+	} else if (chip_id == CHIP_NS02401) {
+		if (info->ops_freq < 48000000) {
+			phy_dly2.Bit.OUTDLY_SEL = 0;
+			phy_dly2.Bit.INDLY_SEL = 0x0;
+		} else if (info->ops_freq < 120000000) {
+			phy_dly2.Bit.OUTDLY_SEL = 2;
+			phy_dly2.Bit.INDLY_SEL = 0x14;
+		} else if (info->ops_freq == 120000000) {
+			phy_dly2.Bit.OUTDLY_SEL = 2;
+			phy_dly2.Bit.INDLY_SEL = 0x28;
+		} else if (info->ops_freq > 120000000) {
+			phy_dly2.Bit.OUTDLY_SEL = 2;
+			phy_dly2.Bit.INDLY_SEL = 0x28;
+		}
 	} else if (chip_id == CHIP_NS02402) {
 		/* When the frequency >= 120 MHz, indly needs to training. */
 		phy_dly2.Bit.INDLY_SEL = 0x0;
@@ -772,7 +793,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 	if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || \
 		(info->chip_id == CHIP_NS02401) || (info->chip_id == CHIP_NS02402) || \
 		(info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51084) || \
-		(info->chip_id == CHIP_NA51089)) {
+		(info->chip_id == CHIP_NA51089) || (info->chip_id == CHIP_NS02501)) {
 		reg |= (1);
 	} else {
 		reg |= (1 << 10);
@@ -782,7 +803,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 
 	/* Config NAND module RSTN */
 	if ((info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51084) || \
-		(info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NA51089)) {
+		(info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NA51089) || \
+		(info->chip_id == CHIP_NS02501)) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x84);
 		reg |= (1);
 		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
@@ -807,7 +829,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 	//NAND_SETREG(info, NAND_TIME1_REG_OFS, 0x7f0f);
 
 	/* Need use PinCtrl framework */
-	reg = INW(IOADDR_TOP_REG_BASE + 0x4);
+	reg = SMC_INW(IOADDR_TOP_REG_BASE + 0x4);
 	if ((info->chip_id == CHIP_NS02302) || (info->chip_id == CHIP_NS02401) || \
 		(info->chip_id == CHIP_NS02402)) {
 		reg &= ~0x3;
@@ -821,10 +843,10 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		if (fdt_pinmux & 0x4) { // PIN_NAND_CFG_NAND_CS1
 			reg |= 0x4;
 		}
-		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		SMC_OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
 		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
 
-		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		reg = SMC_INW(IOADDR_TOP_REG_BASE + 0xA0);
 		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
 			if (info->chip_id == CHIP_NS02401)
 				reg &= ~(0x0000003F);
@@ -839,7 +861,7 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
 			reg &= ~(0x200);                   // CS1
 		}
-		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+		SMC_OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
 	} else if (info->chip_id == CHIP_NS02301) {
 		reg &= ~0xC;
 		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
@@ -896,6 +918,16 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 			OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
 			NAND_DBG_GLOBAL("dbg cgpio: 0x%x\r\n", reg);
 		}
+	} else if (info->chip_id == CHIP_NS02501) {
+		printf("%s: 533 pinctrl.h is not ready, fix 4-bit mode for fpga emulation \r\n", __func__);
+		reg &= ~(0x3<<12);
+		reg |= (0x1<<12);
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		reg &= ~(0x0000140F);
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+		NAND_DBG_GLOBAL("dbg cgpio: 0x%x\r\n", reg);
 	} else {
 		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
 			flash_pinmux |= (1 << 2);
@@ -936,7 +968,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
 	} else if ( (info->chip_id == CHIP_NA51055) || (info->chip_id == CHIP_NA51089) || \
 				(info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || \
-				(info->chip_id == CHIP_NS02402) || (info->chip_id == CHIP_NA51084)) {
+				(info->chip_id == CHIP_NS02402) || (info->chip_id == CHIP_NA51084) || \
+				(info->chip_id == CHIP_NS02501) ) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x40);
 		NAND_DBG_GLOBAL("get reg: 0x%x \n", reg);
 		reg &= ~(0x3F000);
@@ -1041,6 +1074,74 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		}
 		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
 		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg1);
+	} else if (info->chip_id == CHIP_NS02401) {
+		UINT32 reg1;
+
+		reg = INW(IOADDR_PAD_REG_BASE + 0x100);		// na, dqs, d3~d0, cs0, clk
+		reg &= ~(0x00FFFFFF);
+		if (freq < 48000000) {
+			if (info->flash_info->dtr_read)	// dtr
+				reg |= 0x00666646;
+			else //sdr
+				reg |= 0x00444445;
+		} else if (freq < 120000000) {
+			if (info->flash_info->dtr_read)	// dtr
+				reg |= 0x00666668;
+			else //sdr
+				reg |= 0x00666668;
+		} else if (freq == 120000000) {
+			if (info->flash_info->dtr_read)	// dtr
+				reg |= 0x00aaaa7a;
+			else //sdr
+				reg |= 0x00777778;
+		} else if (freq > 120000000) {
+			if (info->flash_info->dtr_read)	// dtr
+				reg |= 0x00cccc8c;
+			else //sdr
+				reg |= 0x00888889;
+		}
+		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
+
+		if ((fdt_pinmux&0x3) == 0x2 || (fdt_pinmux & 0x4)) {
+			reg1 = INW(IOADDR_PAD_REG_BASE + 0x104);	// na:2, d7~d4, cs1, na
+			if (fdt_pinmux & 0x4) {	// cs1
+				reg1 &= ~(0x000000F0);
+				if (freq < 48000000) {
+					reg1 |= 0x40;
+				} else if (freq < 120000000) {
+					reg1 |= 0x60;
+				} else if (freq == 120000000) {
+					reg1 |= 0x70;
+				} else if (freq > 120000000) {
+					reg1 |= 0x80;
+				}
+			}
+			if ((fdt_pinmux&0x3) == 0x2) {	// d4~d7
+				reg1 &= ~(0x00FFFF00);
+				if (freq < 48000000) {
+					if (info->flash_info->dtr_read)	// dtr
+						reg1 |= 0x666600;
+					else // sdr
+						reg1 |= 0x444400;
+				} else if (freq < 120000000) {
+					if (info->flash_info->dtr_read)	// dtr
+						reg1 |= 0x666600;
+					else // sdr
+						reg1 |= 0x666600;
+				} else if (freq == 120000000) {
+					if (info->flash_info->dtr_read)	// dtr
+						reg1 |= 0xaaaa00;
+					else // sdr
+						reg1 |= 0x777700;
+				} else if (freq > 120000000) {
+					if (info->flash_info->dtr_read)	// dtr
+						reg1 |= 0xcccc00;
+					else // sdr
+						reg1 |= 0x888800;
+				}
+			}
+			OUTW(IOADDR_PAD_REG_BASE + 0x104, reg1);
+		}
 	} else if (info->chip_id == CHIP_NS02402) {
 		UINT32 reg1;
 

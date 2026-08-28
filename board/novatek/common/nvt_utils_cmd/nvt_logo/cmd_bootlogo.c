@@ -699,12 +699,12 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 			emu_disp_dev.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;
 			config.audio_fmt = HDMI_AUDIO48KHZ;
 			config.output_mode = 0;//2; //HDMI_MODE_RGB444 = 0, //	 HDMI_MODE_YCBCR422,  //	HDMI_MODE_YCBCR444,  //
-			config.vid	= HDMI_1920X1080P30;//HDMI_720X480P60;
+			config.vid	= HDMI_1920X1080P60;//HDMI_720X480P60;
 			config.source = HDMI_IDE_0;
 
 			phdmi_disp_obj= dispdev_get_hdmi_dev_obj();
 			phdmi_disp_obj->presetconfig((PDISP_HDMI_CFG)&config);
-			emu_disp_dev.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P30;
+			emu_disp_dev.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P60;
 			emu_disp_dev.SEL.SET_HDMIMODE.audio_id = HDMI_AUDIO48KHZ;
 			p_emu_disp_obj->dev_ctrl(DISPDEV_SET_HDMIMODE, &emu_disp_dev);
 			emu_disp_dev.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;	
@@ -734,12 +734,12 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 			emu_disp_dev.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;
 			config.audio_fmt = HDMI_AUDIO48KHZ;
 			config.output_mode = 0;//2; //HDMI_MODE_RGB444 = 0, //	 HDMI_MODE_YCBCR422,  //	HDMI_MODE_YCBCR444,  //
-			config.vid	= HDMI_1920X1080P30;//HDMI_720X480P60;
+			config.vid	= HDMI_1920X1080P60;//HDMI_720X480P60;
 			config.source = HDMI_IDE_0;
 
 			phdmi_disp_obj= dispdev_get_hdmi2_dev_obj();
 			phdmi_disp_obj->presetconfig((PDISP_HDMI_CFG)&config);
-			emu_disp_dev.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P30;
+			emu_disp_dev.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P60;
 			emu_disp_dev.SEL.SET_HDMIMODE.audio_id = HDMI_AUDIO48KHZ;
 			p_emu_disp_obj->dev_ctrl(DISPDEV_SET_HDMIMODE, &emu_disp_dev);
 			emu_disp_dev.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;	
@@ -748,7 +748,39 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		}
 
 		p_emu_disp_obj->dev_ctrl(DISPDEV_OPEN_DEVICE, &emu_disp_dev);
-#endif		
+#endif
+
+		/*hdmi2p1 init flow*/
+				
+#if ( CONFIG_DISP_VIDEO_HDMITX_IDE && CONFIG_TARGET_NS02401_A64)
+		if(tohdmi == 1){
+			emu_disp_dev.SEL.HOOK_DEVICE_OBJECT.dev_id		   = DISPDEV_ID_TVHDMI;
+			emu_disp_dev.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj	 = dispdev_get_hdmi2p1_dev_obj();
+			if(p_emu_disp_obj->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev)!=0){
+				printf("hook hdmi2p1 dev error \n");
+			} else {
+				_Y_LOG("hook hdmi2p1 dev done \n");
+			}
+		
+			emu_disp_dev.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;
+			config.audio_fmt = HDMI_AUDIO48KHZ;
+			config.output_mode = 0;//2; //HDMI_MODE_RGB444 = 0, //	 HDMI_MODE_YCBCR422,  //	HDMI_MODE_YCBCR444,  //
+			config.vid	= HDMI_1920X1080P60;//HDMI_720X480P60;
+			config.source = HDMI_IDE_0;
+		
+			phdmi_disp_obj= dispdev_get_hdmi2p1_dev_obj();
+			phdmi_disp_obj->presetconfig((PDISP_HDMI_CFG)&config);
+			emu_disp_dev.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P60;
+			emu_disp_dev.SEL.SET_HDMIMODE.audio_id = HDMI_AUDIO48KHZ;
+			p_emu_disp_obj->dev_ctrl(DISPDEV_SET_HDMIMODE, &emu_disp_dev);
+			emu_disp_dev.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;	
+		
+			_Y_LOG("preset hdmi2p1 done\r\n");			
+		}
+		
+		p_emu_disp_obj->dev_ctrl(DISPDEV_OPEN_DEVICE, &emu_disp_dev);
+#endif
+
 
 		p_emu_disp_obj->dev_ctrl(DISPDEV_GET_DISPSIZE, &emu_disp_dev);
 
@@ -858,16 +890,41 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 
 			_W_LOG("DISPCTRL_SET_ALL_LYR_EN\r\n");
 			
-#if CONFIG_TARGET_NS02201_A64
+#if (CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02401_A64)
 			//disp3 flow start
 			p_emu_disp_obj3 = disp_get_display_object(DISP_3);
 			p_emu_disp_obj3->open();			
 
-			
+#if ( CONFIG_DISP_VIDEO_HDMITX_IDE && CONFIG_TARGET_NS02401_A64)// 635 used hdmi3 + lcd3
+			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.dev_id		   = DISPDEV_ID_TVHDMI;
+			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj	 = dispdev_get_hdmi2_dev_obj();
+			if(p_emu_disp_obj3->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev3)!=0){
+				printf("hook hdmi3 dev error \n");
+			} else {
+				_Y_LOG("hook hdmi3 dev done \n");
+			}
+
+			emu_disp_dev3.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;
+			config.audio_fmt = HDMI_AUDIO48KHZ;
+			config.output_mode = 0;//2; //HDMI_MODE_RGB444 = 0, //	 HDMI_MODE_YCBCR422,  //	HDMI_MODE_YCBCR444,  //
+			config.vid	= HDMI_1920X1080P60;//HDMI_720X480P60;
+			config.source = HDMI_IDE_2;
+
+			phdmi_disp_obj= dispdev_get_hdmi2_dev_obj();
+			phdmi_disp_obj->presetconfig((PDISP_HDMI_CFG)&config);
+			emu_disp_dev3.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P60;
+			emu_disp_dev3.SEL.SET_HDMIMODE.audio_id = HDMI_AUDIO48KHZ;
+			p_emu_disp_obj3->dev_ctrl(DISPDEV_SET_HDMIMODE, &emu_disp_dev3);
+			emu_disp_dev3.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;	
+
+			_Y_LOG("preset hdmi3 done\r\n");
+
+#else
 			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.dev_id		    = DISPDEV_ID_PANEL;
 			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj	 = dispdev_get_lcd3_dev_obj();
 			p_emu_disp_obj3->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev3);
-			_Y_LOG("hook panel3 dev done \n");
+#endif			
+			_Y_LOG("hook disp3 dev done \n");
 			
 			p_emu_disp_obj3->dev_ctrl(DISPDEV_OPEN_DEVICE, &emu_disp_dev3);
 		
@@ -938,7 +995,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 #elif CONFIG_TARGET_NS02401_A64
 			_boot_dump_reg(0x4f0400000, 200, "LCD1_reg");
 
-			//_boot_dump_reg(0x4f0420000, 200, "LCD3_reg");
+			_boot_dump_reg(0x4f0420000, 200, "LCD3_reg");
 
 			_boot_dump_reg(0x4f0020000, 24, "CG_reg");
 
@@ -946,9 +1003,11 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 
 			_boot_dump_reg(0x4f0010000, 16, "TOP_reg");
 
-			//_boot_dump_reg(0x4f0480000, 200, "HDMI1_reg");
+			_boot_dump_reg(0x4f0440000, 200, "HDMI0_reg");
 
-			//_boot_dump_reg(0x4f0490000, 200, "HDMI2_reg");
+			_boot_dump_reg(0x4f0450000, 200, "HDMI2_reg");
+			
+			_boot_dump_reg(0x4f0460000, 200, "HDMI3_reg");
 
 #elif CONFIG_TARGET_NS02302_A64
 
@@ -1031,11 +1090,11 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 			emu_disp_dev2.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;
 			config.audio_fmt = HDMI_AUDIO48KHZ;
 			config.output_mode = 0;//2; //HDMI_MODE_RGB444 = 0, //	 HDMI_MODE_YCBCR422,  //	HDMI_MODE_YCBCR444,  //
-			config.vid	= HDMI_1920X1080P30;//HDMI_720X480P60;
+			config.vid	= HDMI_1920X1080P60;//HDMI_720X480P60;
 			config.source = HDMI_IDE_1;
 			phdmi_disp_obj= dispdev_get_hdmi_dev_obj();
 			phdmi_disp_obj->presetconfig((PDISP_HDMI_CFG)&config);
-			emu_disp_dev2.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P30;
+			emu_disp_dev2.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P60;
 			emu_disp_dev2.SEL.SET_HDMIMODE.audio_id = HDMI_AUDIO48KHZ;
 			p_emu_disp_obj2->dev_ctrl(DISPDEV_SET_HDMIMODE, &emu_disp_dev2);
 			emu_disp_dev2.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;

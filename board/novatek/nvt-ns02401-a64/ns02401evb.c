@@ -352,6 +352,8 @@ static int nvt_handle_recovery_sys(void)
 	char cmdline[1024] = {0};
 	char buf[1024] = {0};
 	ret = nvt_process_sys_recovery();
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * To handle bootargs expanding for the kernel /proc/cmdline and uboot mtdids env setting

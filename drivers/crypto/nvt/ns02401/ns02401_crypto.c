@@ -16,6 +16,7 @@
 #include <asm/arch/efuse_protected.h>
 
 #include <linux/delay.h>
+#define sec_version   "0.0.1"
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -159,22 +160,20 @@ static void nvt_crypto_platform_exit(void)
 	uint32_t tmp;
 
 	/* Crypto reset enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x90);
-	tmp &= ~(0x1<<23);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x90, tmp);
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x94);
+	tmp &= ~(0x1<<25);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x94, tmp);
 
 	/* Crypto master clock disable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);
-	tmp &= ~(0x1<<23);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x70, tmp);
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x74);
+	tmp &= ~(0x1<<18);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x74, tmp);
 }
 
 static void nvt_crypto_reset(void)
 {
 	uint32_t value = 0;
 	uint32_t cnt   = 0;
-
-	printk("--------- IOADDR_CRYPTO_REG_BASE = %lx\r\n", IOADDR_CRYPTO_REG_BASE);
 
 	/* disable crypto */
 	crypto_write(NVT_CRYPTO_CFG_REG, 0);

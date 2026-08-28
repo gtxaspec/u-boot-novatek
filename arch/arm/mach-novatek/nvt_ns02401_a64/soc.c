@@ -27,35 +27,16 @@
 #include <asm/nvt-common/nvt_common.h>
 #include <command.h>
 
-#define RAM_SRC_SELECT_OFFSET 0x20
-
-static char nvt_ddr_remap_help_text[] =
-"\n"
-"nvt_ddr_remap 2 - DDR1 base address on 4G bits\n"
-"nvt_ddr_remap 3 - DDR1 base address on 8G bits\n"
-"nvt_ddr_remap 4 - DDR1 base address on 16G bits\n"
-"";
-
 static int do_nvt_ddr_remap(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-	unsigned int reg;
-	unsigned int val;
-
-	if (argc < 2) {
-		return -1;
-	}
-	val = (unsigned int)simple_strtoul(argv[1], NULL, 16);
-
-	reg = readl(IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
-	reg |= 1 << (val + 3);
-	writel(reg, IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
+	printf("635 DDR remapping is not supported \n");
 	return 0;
 }
 
 U_BOOT_CMD(
 	nvt_ddr_remap, 2, 1, do_nvt_ddr_remap,
 	"Represent DRAMx select",
-	nvt_ddr_remap_help_text
+	"\n"
 );
 
 #ifdef CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT
@@ -375,7 +356,7 @@ u32 nvt_get_chip_id(void)
 {
 	unsigned int chip_id;
 
-	chip_id = (readl(IOADDR_TOP_REG_BASE + TOP_VERSION_REG_OFS) >> 16) & 0xFFFF;
+	chip_id = (smc_readl(IOADDR_TOP_REG_BASE + TOP_VERSION_REG_OFS) >> 16) & 0xFFFF;
 
 	return chip_id;
 }

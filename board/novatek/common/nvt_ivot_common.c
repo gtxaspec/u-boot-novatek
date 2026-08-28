@@ -443,11 +443,11 @@ int nvt_board_init_early(void)
 
 int nvt_ivot_set_cpuclk(void)
 {
-	int  nodeoffset = -1, ret = -1, ret_apb = -1;
+	int  nodeoffset, ret, ret_apb;
 	u32 *cell = NULL;
 	u32 cpu_freq = 0;
 #if defined(CONFIG_TARGET_NS02401_A64)
-    u32 cpu_freq2 = 1200;
+	u32 cpu_freq2 = 1200;
 #endif
 	u32 apb_freq = 0;
 	char cmd[512];
@@ -487,7 +487,7 @@ int nvt_ivot_set_cpuclk(void)
 
 	sprintf(cmd, "nvt_cpu_freq %d %d", cpu_freq, cpu_freq2);
 #else
-    sprintf(cmd, "nvt_cpu_freq %d", cpu_freq);
+	sprintf(cmd, "nvt_cpu_freq %d", cpu_freq);
 #endif
 	ret = run_command(cmd, 0);
 
@@ -554,7 +554,7 @@ int nvt_dts_optee_nsmem(unsigned long *addr, unsigned long* size)
  */
 int nvt_dts_config_parsing(void)
 {
-	int  nodeoffset = -1, nextoffset, subnode, ret;
+	int  nodeoffset, nextoffset, subnode, ret;
 	const char *ptr = NULL;
 	char *endptr = NULL;
 	u64 addr, size;
@@ -600,9 +600,9 @@ int nvt_dts_config_parsing(void)
 
 #if defined(CONFIG_SUPPORT_EMMC_BOOT)
 	#if defined(CONFIG_NVT_IVOT_EMMC)
-		sprintf(cmd, "mmc%d", CONFIG_NVT_IVOT_EMMC);
+	sprintf(cmd, "mmc%d", CONFIG_NVT_IVOT_EMMC);
 	#else
-		#error "EMMC should set CONFIG_NVT_IVOT_EMMC";
+	#error "EMMC should set CONFIG_NVT_IVOT_EMMC";
 	#endif
 #endif
 	nodeoffset = fdt_path_offset((void*)nvt_fdt_buffer, cmd);
@@ -639,7 +639,7 @@ nvt_dts_cfg_getnode:
 	cmd[strlen(cmd) - 1] = '\0';
 	ret = env_set("mtdparts", cmd);
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_NVT_IVOT_EMMC
@@ -714,23 +714,23 @@ int nvt_sparse_image_readback(u64 addr, u64 off, u64 size, u64 part_size)
 	/* Using block unit */
 	align_size /= MMC_MAX_BLOCK_LEN;
 	if (is_sparse_image((void*)(unsigned long)addr)) {
-			struct sparse_storage sparse;
-			sparse.blksz = MMC_MAX_BLOCK_LEN;
-			sparse.start = (lbaint_t)align_off;
-			sparse.size = (lbaint_t)part_size/MMC_MAX_BLOCK_LEN;
-			sparse.write = NULL;
-			sparse.read = nvt_mmc_sparse_read;
-			sparse.reserve = nvt_mmc_sparse_reserve;
-			printf("Read sparse ext4 image at offset 0x%lx\n", sparse.start);
-			ret = read_sparse_image(&sparse, "Rootfs.ext4", (void *)(unsigned long)addr, NULL);
-			if (ret < 0) {
-					nvt_dbg(ERR, "Read spares image failed with addr: 0x%08x emmc offset: 0x%08x\n", addr, off);
-					return -1;
-			}
+		struct sparse_storage sparse;
+		sparse.blksz = MMC_MAX_BLOCK_LEN;
+		sparse.start = (lbaint_t)align_off;
+		sparse.size = (lbaint_t)part_size/MMC_MAX_BLOCK_LEN;
+		sparse.write = NULL;
+		sparse.read = nvt_mmc_sparse_read;
+		sparse.reserve = nvt_mmc_sparse_reserve;
+		printf("Read sparse ext4 image at offset 0x%lx\n", sparse.start);
+		ret = read_sparse_image(&sparse, "Rootfs.ext4", (void *)(unsigned long)addr, NULL);
+		if (ret < 0) {
+			nvt_dbg(ERR, "Read spares image failed with addr: 0x%08x emmc offset: 0x%08x\n", addr, off);
+			return -1;
+		}
 	} else {
-			printf("Read raw ext4 image at offset 0x%llx\n", off);
-			sprintf(command, "mmc read 0x%llx 0x%llx 0x%llx", addr, align_off, align_size);
-			run_command(command, 0);
+		printf("Read raw ext4 image at offset 0x%llx\n", off);
+		sprintf(command, "mmc read 0x%llx 0x%llx 0x%llx", addr, align_off, align_size);
+		run_command(command, 0);
 	}
 
 	return 0;

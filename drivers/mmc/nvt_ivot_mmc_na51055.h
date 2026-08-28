@@ -278,4 +278,14 @@ typedef enum {
 #define PAD_PUPD_SDIO3_D7_MASK          GENMASK(15, 14)
 #define PAD_PUPD_SDIO3_D7_SHIFT         (14)
 
+static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
+{
+    return 0;
+}
+
+static inline uint32_t nvt_mmc_get_outdly(uint8_t host_id, uint32_t freq)
+{
+    return 0;
+}
+
 #endif

@@ -1313,7 +1313,7 @@ int nand_cmd_wait_complete(struct drv_nand_dev_info *info)
 
 		time_now = get_timer(0);
 		if ((time_now - time_start) > WAIT_COMP_TIMEOUT) {
-			printf("_COMP_INTR not set\n\r");
+			printf("[TMOUT %d ms(maybe expend WAIT_COMP_TIMEOUT), _COMP_INTR not set\n\r", WAIT_COMP_TIMEOUT);
 			return -EIO;
 		}
 	}

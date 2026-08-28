@@ -31,6 +31,8 @@
 #endif
 #include <linux/libfdt.h>
 
+#include <asm/arch/ns02401_regs.h>
+
 #define WDT_REG_ADDR(ofs)       (IOADDR_WDT_REG_BASE+(ofs))
 #define WDT_GETREG(ofs)         readl(WDT_REG_ADDR(ofs))
 #define WDT_SETREG(ofs,value)   writel(value, WDT_REG_ADDR(ofs))
@@ -54,9 +56,14 @@
 #define PAD_GETREG(ofs)         readl(PAD_REG_ADDR(ofs))
 #define PAD_SETREG(ofs,value)   writel(value, PAD_REG_ADDR(ofs))
 
+#ifdef CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT
+#define TOP_GETREG(ofs)         TOP_SMC_GETREG(ofs)
+#define TOP_SETREG(ofs,value)   TOP_SMC_SETREG(ofs, value)
+#else
 #define TOP_REG_ADDR(ofs)       (IOADDR_TOP_REG_BASE+(ofs))
 #define TOP_GETREG(ofs)         readl(TOP_REG_ADDR(ofs))
 #define TOP_SETREG(ofs,value)   writel(value, TOP_REG_ADDR(ofs))
+#endif
 
 #define CG_PLL_ENABLE_OFS 0x0
 #define CG_ENABLE_OFS 0x70
@@ -167,10 +174,8 @@ static void axi_bridge_timeout_en(void)
 }
 
 typedef enum {
-	PAD_POWERID_SN   =          0x10,      ///< Pad power id for SN  REG
-	PAD_POWERID_SN2  =          0x20,      ///< Pad power id for SN2 REG
-	PAD_POWERID_P1   =          0x40,      ///< Pad power id for P1  REG
-	PAD_POWERID_SD3  =          0x80,      ///< Pad power id for SD3 REG
+	PAD_POWERID_AUD  =          0x10,      ///< Pad power id for AUD  REG
+	PAD_POWERID_MMC  =          0x20,      ///< Pad power id for MMC  REG	
 
 	ENUM_DUMMY4WORD(PAD_POWERID)
 } PAD_POWERID;
@@ -188,8 +193,8 @@ typedef struct {
 	PAD_POWER           pad_status;        ///< Pad cell MS1/MS2 status (for get)
 } PAD_POWER_STRUCT;
 
-#define PAD_PWR1_REG_OFS                     0x204
-#define PAD_PWR2_REG_OFS                     0x208
+#define PAD_PWR1_REG_OFS                     0x204	// AUD
+#define PAD_PWR2_REG_OFS                     0x208	// MMC
 #define PAD_PWR3_REG_OFS                     0x20C
 #define PAD_PWR6_REG_OFS                     0x218
 
@@ -197,6 +202,8 @@ typedef struct {
 #define PAD_1P8V_SN2_MAGIC                   0x00005378
 #define PAD_1P8V_P1_MAGIC                    0x00008031
 #define PAD_1P8V_SD3_MAGIC                   0x00534433
+#define PAD_1P8V_AUD_MAGIC                   0x00415544
+#define PAD_1P8V_EMMC_MAGIC                  0x444D4D43
 
 int pad_set_power(PAD_POWER_STRUCT *pad_power)
 {
@@ -205,47 +212,27 @@ int pad_set_power(PAD_POWER_STRUCT *pad_power)
 		return -1;
 	}
 
-	if (pad_power->pad_power_id == PAD_POWERID_SN) {
+	if (pad_power->pad_power_id == PAD_POWERID_AUD) {
 		if (pad_power->pad_power == PAD_1P8V) {
-			// Set the magic number of SN (bootstrap[11] needs to be 1 before setting)
-			PAD_SETREG(PAD_PWR1_REG_OFS, PAD_1P8V_SN_MAGIC);
+			// Set the magic number of AUD (bootstrap[11] needs to be 1 before setting)
+			PAD_SETREG(PAD_PWR1_REG_OFS, PAD_1P8V_AUD_MAGIC);
 		} else if (pad_power->pad_power == PAD_3P3V) {
 			PAD_SETREG(PAD_PWR1_REG_OFS, 0);
 		} else {
-			pr_err("%s: Not Existed PAD_POWER for SN\r\n", __func__);
+			pr_err("%s: Not Existed PAD_POWER for AUD\r\n", __func__);
 			return -1;
 		}
-	}else if (pad_power->pad_power_id == PAD_POWERID_SN2) {
-                if (pad_power->pad_power == PAD_1P8V) {
-                        // Set the magic number of SN (bootstrap[12] needs to be 1 before setting)
-                        PAD_SETREG(PAD_PWR6_REG_OFS, PAD_1P8V_SN2_MAGIC);
-                } else if (pad_power->pad_power == PAD_3P3V) {
-                        PAD_SETREG(PAD_PWR6_REG_OFS, 0);
-                } else {
-                        pr_err("%s: Not Existed PAD_POWER for SN\r\n", __func__);
-                        return -1;
-                }
-        }else if (pad_power->pad_power_id == PAD_POWERID_P1) {
+	}else if (pad_power->pad_power_id == PAD_POWERID_MMC) {
 		if (pad_power->pad_power == PAD_1P8V) {
-			// Set the magic number of P1 (bootstrap[13] needs to be 1 before setting)
-			PAD_SETREG(PAD_PWR2_REG_OFS, PAD_1P8V_P1_MAGIC);
+			// Set the magic number of EMMC (bootstrap[12] needs to be 1 before setting)
+			PAD_SETREG(PAD_PWR2_REG_OFS, PAD_1P8V_EMMC_MAGIC);
 		} else if (pad_power->pad_power == PAD_3P3V) {
-			PAD_SETREG(PAD_PWR2_REG_OFS, 0);
+				PAD_SETREG(PAD_PWR2_REG_OFS, 0);
 		} else {
-			pr_err("%s: Not Existed PAD_POWER for P1\r\n", __func__);
-			return -1;
+				pr_err("%s: Not Existed PAD_POWER for EMMC\r\n", __func__);
+				return -1;
 		}
-	} else if (pad_power->pad_power_id == PAD_POWERID_SD3) {
-		if (pad_power->pad_power == PAD_1P8V) {
-			// Set the magic number of SD3 (bootstrap[14] needs to be 1 before setting)
-			PAD_SETREG(PAD_PWR3_REG_OFS, PAD_1P8V_SD3_MAGIC);
-		} else if (pad_power->pad_power == PAD_3P3V) {
-			PAD_SETREG(PAD_PWR3_REG_OFS, 0);
-		} else {
-			pr_err("%s: Not Existed PAD_POWER for SD3\r\n", __func__);
-			return -1;
-		}
-	} else {
+    } else {
 		pr_err("%s: Not Existed PAD_POWERID\r\n", __func__);
 		return -1;
 	}
@@ -270,17 +257,17 @@ static void power_init(void)
 	PAD_POWER_STRUCT pad_power;
 	u32 top_reg0 = TOP_GETREG(0x0);
 
-	sprintf(path, "/top/sgpio_0_15");
+	sprintf(path, "/top/pgpio_12_18");
 	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
 	if (cell == NULL) {
-		printf("%s: Not Existed power_config for sgpio_0_15, skip\n", __func__);
+		printf("%s: Not Existed power_config for pgpio_12_18, skip\n", __func__);
 	} else {
 		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
 		pad_power.pad_power = __be32_to_cpu(cell[1]);
 		if (pad_power.pad_power == PAD_1P8V) {
 			if (!(top_reg0 & 0x800)) {
-				printf("WARNING: sgpio_0_15 is <1P8V>, but bootstrap[11] is <3P3V>\n");
+				printf("WARNING: pgpio_12_18 is <1P8V>, but bootstrap[11] is <3P3V>\n");
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
@@ -290,7 +277,7 @@ static void power_init(void)
 			pad_set_power(&pad_power);
 		} else if (pad_power.pad_power == PAD_3P3V) {
 			if (top_reg0 & 0x800) {
-				printf("WARNING: sgpio_0_15 is <3P3V>, but bootstrap[11] is <1P8V>\n");
+				printf("WARNING: pgpio_12_18 is <3P3V>, but bootstrap[11] is <1P8V>\n");
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
@@ -303,17 +290,17 @@ static void power_init(void)
 		}
 	}
 
-	sprintf(path, "/top/sgpio_16_31");
+	sprintf(path, "/top/cgpio_06_17");
         nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
         cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
         if (cell == NULL) {
-                printf("%s: Not Existed power_config for sgpio_16_31, skip\n", __func__);
+                printf("%s: Not Existed power_config for cgpio_06_17, skip\n", __func__);
         } else {
                 pad_power.pad_power_id = __be32_to_cpu(cell[0]);
                 pad_power.pad_power = __be32_to_cpu(cell[1]);
                 if (pad_power.pad_power == PAD_1P8V) {
                         if (!(top_reg0 & 0x1000)) {
-                                printf("WARNING: sgpio_16_31 is <1P8V>, but bootstrap[12] is <3P3V>\n");
+                                printf("WARNING: cgpio_06_17 is <1P8V>, but bootstrap[12] is <3P3V>\n");
 
                                 /* Stop boot */
                                 printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
@@ -323,7 +310,7 @@ static void power_init(void)
                         pad_set_power(&pad_power);
                 } else if (pad_power.pad_power == PAD_3P3V) {
                         if (top_reg0 & 0x1000) {
-                                printf("WARNING: sgpio_16_31 is <3P3V>, but bootstrap[12] is <1P8V>\n");
+                                printf("WARNING: cgpio_06_17 is <3P3V>, but bootstrap[12] is <1P8V>\n");
 
                                 /* Stop boot */
                                 printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
@@ -335,66 +322,7 @@ static void power_init(void)
                         printf("%s: Unknown power_config, id(0x%x), power(0x%x)\n", __func__, pad_power.pad_power_id, pad_power.pad_power);
                 }
         }
-
-	sprintf(path, "/top/pgpio_0_19");
-	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
-	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell == NULL) {
-		printf("%s: Not Existed power_config for pgpio_0_19, skip\n", __func__);
-	} else {
-		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
-		pad_power.pad_power = __be32_to_cpu(cell[1]);
-		if (pad_power.pad_power == PAD_1P8V) {
-			if (!(top_reg0 & 0x2000)) {
-				//printf("WARNING: pgpio_0_19 is <1P8V>, but bootstrap[13] is <3P3V>\n");
-				/* TODO: Stop boot */
-			}
-
-			pad_set_power(&pad_power);
-		} else if (pad_power.pad_power == PAD_3P3V) {
-			if (top_reg0 & 0x2000) {
-				//printf("WARNING: pgpio_0_19 is <3P3V>, but bootstrap[13] is <1P8V>\n");
-				/* TODO: Stop boot */
-			}
-
-			pad_set_power(&pad_power);
-		} else {
-			printf("%s: Unknown power_config, id(0x%x), power(0x%x)\n", __func__, pad_power.pad_power_id, pad_power.pad_power);
-		}
-	}
-
-	sprintf(path, "/top/cgpio_0_12");
-	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
-	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
-	if (cell == NULL) {
-		printf("%s: Not Existed power_config for cgpio_0_12, skip\n", __func__);
-	} else {
-		pad_power.pad_power_id = __be32_to_cpu(cell[0]);
-		pad_power.pad_power = __be32_to_cpu(cell[1]);
-		if (pad_power.pad_power == PAD_1P8V) {
-			if (!(top_reg0 & 0x4000)) {
-				printf("WARNING: cgpio_0_12 is <1P8V>, but bootstrap[14] is <3P3V>\n");
-
-				/* Stop boot */
-				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				cli_loop();
-			}
-
-			pad_set_power(&pad_power);
-		} else if (pad_power.pad_power == PAD_3P3V) {
-			if (top_reg0 & 0x4000) {
-				printf("WARNING: cgpio_0_12 is <3P3V>, but bootstrap[14] is <1P8V>\n");
-
-				/* Stop boot */
-				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				cli_loop();
-			}
-
-			pad_set_power(&pad_power);
-		} else {
-			printf("%s: Unknown power_config, id(0x%x), power(0x%x)\n", __func__, pad_power.pad_power_id, pad_power.pad_power);
-		}
-	}
+	
 }
 
 int nvt_ivot_hw_init(void)

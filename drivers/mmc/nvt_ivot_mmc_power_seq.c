@@ -5,6 +5,13 @@
 #include "nvt_ivot_mmc_power_seq.h"
 #include "nvt_ivot_mmc_a64.h"
 
+#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_TARGET_NS02401_A64)
+#include <asm/arch/ns02401_regs.h>
+#else
+#define smc_writel(value, ofs)          writel(value, ofs)
+#define smc_readl(ofs)                  readl(ofs)
+#endif
+
 u32 SDIO_SUP[SDIO_MAX_EMB] = {
     0x1,
     SDIO1_2_SUP,
@@ -97,6 +104,21 @@ uintptr_t SDIO_1_PAD_SHIFT[2 + SDIO_PIN_MAX] = {
     PAD_PUPD_SDIO_D7_SHIFT,
 #endif
 };
+
+uintptr_t SDIO_1_PAD_DRIVIVG[2 + SDIO_PIN_MAX] = {
+    PAD_DS_SDIO_CLK,
+	PAD_DS_SDIO_CMD,
+	PAD_DS_SDIO_D0,
+	PAD_DS_SDIO_D1,
+	PAD_DS_SDIO_D2,
+	PAD_DS_SDIO_D3,
+#if SDIO_PIN_MAX > 4
+    PAD_DS_SDIO_D4,
+    PAD_DS_SDIO_D5,
+    PAD_DS_SDIO_D6,
+    PAD_DS_SDIO_D7,
+#endif
+};
 #else
 // NULL array
 uintptr_t SDIO_1_PINMUX[PIN_SDIO_BUS_WIDTH] = {0};
@@ -105,6 +127,7 @@ u32 SDIO_1_GPIO[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_1_PAD_REG[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_1_PAD_MASK[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_1_PAD_SHIFT[PIN_SDIO_BUS_WIDTH] = {0};
+uintptr_t SDIO_1_PAD_DRIVIVG[PIN_SDIO_BUS_WIDTH] = {0};
 #endif
 
 // SDIO1_2 gpio/pad/setting
@@ -188,6 +211,21 @@ uintptr_t SDIO_2_PAD_SHIFT[2 + SDIO_PIN_MAX] = {
     PAD_PUPD_SDIO_2_D7_SHIFT,
 #endif
 };
+
+uintptr_t SDIO_2_PAD_DRIVIVG[2 + SDIO_PIN_MAX] = {
+    PAD_DS_SDIO_2_CLK,
+	PAD_DS_SDIO_2_CMD,
+	PAD_DS_SDIO_2_D0,
+	PAD_DS_SDIO_2_D1,
+	PAD_DS_SDIO_2_D2,
+	PAD_DS_SDIO_2_D3,
+#if SDIO_PIN_MAX > 4
+    PAD_DS_SDIO_2_D4,
+    PAD_DS_SDIO_2_D5,
+    PAD_DS_SDIO_2_D6,
+    PAD_DS_SDIO_2_D7,
+#endif
+};
 #else
 // NULL array
 uintptr_t SDIO_2_PINMUX[PIN_SDIO_BUS_WIDTH] = {0};
@@ -196,6 +234,7 @@ u32 SDIO_2_GPIO[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_2_PAD_REG[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_2_PAD_MASK[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_2_PAD_SHIFT[PIN_SDIO_BUS_WIDTH] = {0};
+uintptr_t SDIO_2_PAD_DRIVIVG[2 + SDIO_PIN_MAX] = {0};
 #endif
 
 // SDIO1_3 gpio/pad/setting
@@ -279,6 +318,21 @@ uintptr_t SDIO_3_PAD_SHIFT[2 + SDIO_PIN_MAX] = {
     PAD_PUPD_SDIO_3_D7_SHIFT,
 #endif
 };
+
+uintptr_t SDIO_3_PAD_DRIVIVG[2 + SDIO_PIN_MAX] = {
+    PAD_DS_SDIO_3_CLK,
+	PAD_DS_SDIO_3_CMD,
+	PAD_DS_SDIO_3_D0,
+	PAD_DS_SDIO_3_D1,
+	PAD_DS_SDIO_3_D2,
+	PAD_DS_SDIO_3_D3,
+#if SDIO_PIN_MAX > 4
+    PAD_DS_SDIO_3_D4,
+    PAD_DS_SDIO_3_D5,
+    PAD_DS_SDIO_3_D6,
+    PAD_DS_SDIO_3_D7,
+#endif
+};
 #else
 // NULL array
 uintptr_t SDIO_3_PINMUX[PIN_SDIO_BUS_WIDTH] = {0};
@@ -287,6 +341,7 @@ u32 SDIO_3_GPIO[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_3_PAD_REG[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_3_PAD_MASK[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO_3_PAD_SHIFT[PIN_SDIO_BUS_WIDTH] = {0};
+uintptr_t SDIO_3_PAD_DRIVIVG[PIN_SDIO_BUS_WIDTH] = {0};
 #endif
 #endif
 // SDIO2 settting
@@ -372,6 +427,21 @@ uintptr_t SDIO2_1_PAD_SHIFT[2 + SDIO2_PIN_MAX] = {
     PAD_PUPD_SDIO2_D7_SHIFT,
 #endif
 };
+
+uintptr_t SDIO2_1_PAD_DRIVIVG[2 + SDIO2_PIN_MAX] = {
+    PAD_DS_SDIO2_CLK,
+	PAD_DS_SDIO2_CMD,
+	PAD_DS_SDIO2_D0,
+	PAD_DS_SDIO2_D1,
+	PAD_DS_SDIO2_D2,
+	PAD_DS_SDIO2_D3,
+#if SDIO2_PIN_MAX > 4
+    PAD_DS_SDIO2_D4,
+    PAD_DS_SDIO2_D5,
+    PAD_DS_SDIO2_D6,
+    PAD_DS_SDIO2_D7,
+#endif
+};
 #else
 // NULL array
 uintptr_t SDIO2_1_PINMUX[PIN_SDIO_BUS_WIDTH] = {0};
@@ -380,6 +450,7 @@ u32 SDIO2_1_GPIO[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO2_1_PAD_REG[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO2_1_PAD_MASK[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO2_1_PAD_SHIFT[PIN_SDIO_BUS_WIDTH] = {0};
+uintptr_t SDIO2_1_PAD_DRIVIVG[PIN_SDIO_BUS_WIDTH] = {0};
 #endif
 
 // SDIO2_2 gpio/pad/setting
@@ -463,6 +534,21 @@ uintptr_t SDIO2_2_PAD_SHIFT[2 + SDIO2_PIN_MAX] = {
     PAD_PUPD_SDIO2_2_D7_SHIFT,
 #endif
 };
+
+uintptr_t SDIO2_2_PAD_DRIVIVG[2 + SDIO2_PIN_MAX] = {
+    PAD_DS_SDIO2_2_CLK,
+	PAD_DS_SDIO2_2_CMD,
+	PAD_DS_SDIO2_2_D0,
+	PAD_DS_SDIO2_2_D1,
+	PAD_DS_SDIO2_2_D2,
+	PAD_DS_SDIO2_2_D3,
+#if SDIO_PIN_MAX > 4
+    PAD_DS_SDIO2_2_D4,
+    PAD_DS_SDIO2_2_D5,
+    PAD_DS_SDIO2_2_D6,
+    PAD_DS_SDIO2_2_D7,
+#endif
+};
 #else
 // NULL array
 uintptr_t SDIO2_2_PINMUX[PIN_SDIO_BUS_WIDTH] = {0};
@@ -471,6 +557,7 @@ u32 SDIO2_2_GPIO[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO2_2_PAD_REG[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO2_2_PAD_MASK[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO2_2_PAD_SHIFT[PIN_SDIO_BUS_WIDTH] = {0};
+uintptr_t SDIO2_2_PAD_DRIVIVG[PIN_SDIO_BUS_WIDTH] = {0};
 #endif
 #endif
 // SDIO3 settting
@@ -556,6 +643,21 @@ uintptr_t SDIO3_1_PAD_SHIFT[2 + SDIO3_PIN_MAX] = {
     PAD_PUPD_SDIO3_D7_SHIFT,
 #endif
 };
+
+uintptr_t SDIO3_1_PAD_DRIVIVG[2 + SDIO3_PIN_MAX] = {
+    PAD_DS_SDIO3_CLK,
+	PAD_DS_SDIO3_CMD,
+	PAD_DS_SDIO3_D0,
+	PAD_DS_SDIO3_D1,
+	PAD_DS_SDIO3_D2,
+	PAD_DS_SDIO3_D3,
+#if SDIO3_PIN_MAX > 4
+    PAD_DS_SDIO3_D4,
+    PAD_DS_SDIO3_D5,
+    PAD_DS_SDIO3_D6,
+    PAD_DS_SDIO3_D7,
+#endif
+};
 #else
 // NULL array
 uintptr_t SDIO3_1_PINMUX[PIN_SDIO_BUS_WIDTH] = {0};
@@ -564,6 +666,7 @@ u32 SDIO3_1_GPIO[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO3_1_PAD_REG[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO3_1_PAD_MASK[PIN_SDIO_BUS_WIDTH] = {0};
 uintptr_t SDIO3_1_PAD_SHIFT[PIN_SDIO_BUS_WIDTH] = {0};
+uintptr_t SDIO3_1_PAD_DRIVIVG[PIN_SDIO_BUS_WIDTH] = {0};
 #endif
 #endif
 
@@ -572,58 +675,58 @@ void nvt_mmc_pinmux_update(uintptr_t* pinmux_set, uintptr_t* width_set, u32 isWi
     volatile uintptr_t reg_val;
 
     if (value) {
-        reg_val = readl(pinmux_set[0]);
+        reg_val = smc_readl(pinmux_set[0]);
         reg_val &= ~(pinmux_set[1]);
         reg_val |= (pinmux_set[1]);
-        writel(reg_val, pinmux_set[0]);
+        smc_writel(reg_val, pinmux_set[0]);
         udelay(10);
         // 8 bits pinmux
         if (pinmux_set[4] && isWidth8) { 
-            reg_val = readl(width_set[0]);
+            reg_val = smc_readl(width_set[0]);
             reg_val &= ~(width_set[1]);
             reg_val |= (width_set[1]);
-            writel(reg_val, width_set[0]);
+            smc_writel(reg_val, width_set[0]);
             udelay(10);
         }
        
-        reg_val = readl(pinmux_set[2]);
+        reg_val = smc_readl(pinmux_set[2]);
         reg_val &= ~(pinmux_set[3]);
-        writel(reg_val, pinmux_set[2]);
+        smc_writel(reg_val, pinmux_set[2]);
         udelay(10);
         
         // 8 bits gpio
         if (pinmux_set[4] && isWidth8) { 
-            reg_val = readl(width_set[2]);
+            reg_val = smc_readl(width_set[2]);
             reg_val &= ~(width_set[3]);
-            writel(reg_val, width_set[2]);
+            smc_writel(reg_val, width_set[2]);
             udelay(10);
         }
     } else {
         // 0: EN_REG, 1: EN_MASK, 2: EN_GPIO_REG, 3: EN_GPIO_MASK, 4: 0:NO_BUS_WIDTH/ 1:BUS_WIDTH 
-        reg_val = readl(pinmux_set[0]);
+        reg_val = smc_readl(pinmux_set[0]);
         reg_val &= ~(pinmux_set[1]);
-        writel(reg_val, pinmux_set[0]);
+        smc_writel(reg_val, pinmux_set[0]);
         udelay(10);
         // 8 bits pinmux
         if (pinmux_set[4] && isWidth8) { 
-            reg_val = readl(width_set[0]);
+            reg_val = smc_readl(width_set[0]);
             reg_val &= ~(width_set[1]);
-            writel(reg_val, width_set[0]);
+            smc_writel(reg_val, width_set[0]);
             udelay(10);
         }
 
-        reg_val = readl(pinmux_set[2]);
+        reg_val = smc_readl(pinmux_set[2]);
         reg_val &= ~(pinmux_set[3]);
         reg_val |= (pinmux_set[3]);
-        writel(reg_val, pinmux_set[2]);
+        smc_writel(reg_val, pinmux_set[2]);
         udelay(10);
         
         // 8 bits gpio
         if (pinmux_set[4] && isWidth8) { 
-            reg_val = readl(width_set[2]);
+            reg_val = smc_readl(width_set[2]);
             reg_val &= ~(width_set[3]);
             reg_val |= (width_set[3]);
-            writel(reg_val, width_set[2]);
+            smc_writel(reg_val, width_set[2]);
             udelay(10);
         }
         
@@ -634,10 +737,10 @@ void nvt_pad_set_pull_updown(uintptr_t sdio_pad_reg, uintptr_t sdio_pad_mask, ui
 {
     volatile uintptr_t reg_val;
 
-    reg_val = readl(sdio_pad_reg);
+    reg_val = smc_readl(sdio_pad_reg);
 	reg_val &= ~(sdio_pad_mask);
 	reg_val |= (value << sdio_pad_shift);
-	writel(reg_val, sdio_pad_reg);
+	smc_writel(reg_val, sdio_pad_reg);
     udelay(10);
 }
 
@@ -673,17 +776,17 @@ void sdiohost_power_up(struct mmc_nvt_host *host)
         // set pad power to 1v8 for linux kernel
 #if defined (SDIO1_PAD_POWER_SUP)
         if (host->id == SDIO_HOST_ID_1) {
-            reg_val = readl(SDIO1_PAD_POWER_REG);
+            reg_val = smc_readl(SDIO1_PAD_POWER_REG);
             reg_val &= ~(SDIO1_PAD_POWER_MASK);
-            writel(reg_val, SDIO1_PAD_POWER_REG);
+            smc_writel(reg_val, SDIO1_PAD_POWER_REG);
             udelay(10);
         }
 #endif
 #if defined (SDIO2_PAD_POWER_SUP)
         if (host->id == SDIO_HOST_ID_2) {
-            reg_val = readl(SDIO2_PAD_POWER_REG);
+            reg_val = smc_readl(SDIO2_PAD_POWER_REG);
             reg_val &= ~(SDIO2_PAD_POWER_MASK);
-            writel(reg_val, SDIO2_PAD_POWER_REG);
+            smc_writel(reg_val, SDIO2_PAD_POWER_REG);
             udelay(10);
         }
 #endif
@@ -1232,4 +1335,177 @@ void sdiohost_power_cycle(struct mmc_nvt_host *host, uint32_t delay_ms)
 	sdiohost_power_down(host);
 	udelay(delay_ms * 1000);
 	sdiohost_power_up(host);
+}
+
+/*
+    Set PAD driving Sink
+
+    @param[in] name driving sink name
+    @param[in] paddriving driving current
+
+    @return
+        - @b E_OK: sucess
+        - @b Else: fail
+*/
+
+static int pad_setdrivingsink(u32 name, u32 paddriving)
+{
+	uintptr_t padreg;
+	uintptr_t dwoffset = 0x0, bitoffset = 0x0;
+	uintptr_t driving = paddriving;
+
+	bitoffset = name & 0x1F;
+	dwoffset = (name >> 5);
+
+	HAL_READ_UINT32(IOADDR_PAD_REG_BASE + PAD_PUPD0_REG_OFS + (dwoffset << 2), padreg);
+	padreg &= ~(0xf << bitoffset);
+	padreg |= (driving << bitoffset);
+	HAL_WRITE_UINT32(IOADDR_PAD_REG_BASE + PAD_PUPD0_REG_OFS + (dwoffset << 2), padreg);
+
+	return E_OK;
+}
+
+void nvt_pad_setdrivingsink(struct mmc_nvt_host *host, u32 clk_paddriving, u32 cmd_paddriving, u32 data_paddriving)
+{
+    u8 i,j;
+    uint8_t max_pin = SDIO_PIN_DATA4;
+
+    for (i = 0; i < SDIO_MAX_EMB; i++) {
+        if ((host->pinmux_value & SDIO_SUP[i]) && \
+            (host->id == SDIO_HOST_ID_1)) {
+                // SDIO1_1
+                if (i == SDIO1_1_EMB) {
+                    // set clk driving
+                    pad_setdrivingsink(SDIO_1_PAD_DRIVIVG[0], clk_paddriving);
+                    // set cmd driving
+                    pad_setdrivingsink(SDIO_1_PAD_DRIVIVG[1], cmd_paddriving);
+                    // check 4-bits/8-bits data
+#ifdef PIN_SDIO_CFG_SDIO_BUS_WIDTH
+                    if (host->enable_8bits) {
+                        max_pin = SDIO_PIN_NUM;
+                    } else {
+                        max_pin = SDIO_PIN_DATA4;
+                    }
+#else
+                    max_pin = SDIO_PIN_DATA4;
+#endif
+                    for (j = SDIO_PIN_DATA0; j < max_pin; j++) {
+                        pad_setdrivingsink(SDIO_1_PAD_DRIVIVG[j], data_paddriving);
+                    }
+                }
+                // SDIO1_2 
+                else if (i == SDIO1_2_EMB) {
+                    // set clk driving
+                    pad_setdrivingsink(SDIO_2_PAD_DRIVIVG[0], clk_paddriving);
+                    // set cmd driving
+                    pad_setdrivingsink(SDIO_2_PAD_DRIVIVG[1], cmd_paddriving);
+                    // check 4-bits/8-bits data
+#ifdef PIN_SDIO_CFG_SDIO_BUS_WIDTH
+                    if (host->enable_8bits) {
+                        max_pin = SDIO_PIN_NUM;
+                    } else {
+                        max_pin = SDIO_PIN_DATA4;
+                    }
+#else
+                    max_pin = SDIO_PIN_DATA4;
+#endif
+                    for (j = SDIO_PIN_DATA0; j < max_pin; j++) {
+                        pad_setdrivingsink(SDIO_2_PAD_DRIVIVG[j], data_paddriving);
+                    }
+                } 
+                // SDIO1_3
+                else if (i == SDIO1_3_EMB) {
+                    // set clk driving
+                    pad_setdrivingsink(SDIO_3_PAD_DRIVIVG[0], clk_paddriving);
+                    // set cmd driving
+                    pad_setdrivingsink(SDIO_3_PAD_DRIVIVG[1], cmd_paddriving);
+                    // check 4-bits/8-bits data
+#ifdef PIN_SDIO_CFG_SDIO_BUS_WIDTH
+                    if (host->enable_8bits) {
+                        max_pin = SDIO_PIN_NUM;
+                    } else {
+                        max_pin = SDIO_PIN_DATA4;
+                    }
+#else
+                    max_pin = SDIO_PIN_DATA4;
+#endif
+                    for (j = SDIO_PIN_DATA0; j < max_pin; j++) {
+                        pad_setdrivingsink(SDIO_3_PAD_DRIVIVG[j], data_paddriving);
+                    }
+                }
+            }
+#if (SDIO_HOST_ID_COUNT > 1)
+        if ((host->pinmux_value & SDIO_SUP[i]) && \
+            (host->id == SDIO_HOST_ID_2)) {
+                // SDIO2_1
+                if (i == SDIO2_1_EMB) {
+                    // set clk driving
+                    pad_setdrivingsink(SDIO2_1_PAD_DRIVIVG[0], clk_paddriving);
+                    // set cmd driving
+                    pad_setdrivingsink(SDIO2_1_PAD_DRIVIVG[1], cmd_paddriving);
+                    // check 4-bits/8-bits data
+#ifdef PIN_SDIO_CFG_SDIO2_BUS_WIDTH
+                    if (host->enable_8bits) {
+                        max_pin = SDIO_PIN_NUM;
+                    } else {
+                        max_pin = SDIO_PIN_DATA4;
+                    }
+#else
+                    max_pin = SDIO_PIN_DATA4;
+#endif
+                    for (j = SDIO_PIN_DATA0; j < max_pin; j++) {
+                        pad_setdrivingsink(SDIO2_1_PAD_DRIVIVG[j], data_paddriving);
+                    }
+                }
+                // SDIO2_2
+                else if (i == SDIO2_2_EMB) {
+                    // set clk driving
+                    pad_setdrivingsink(SDIO2_2_PAD_DRIVIVG[0], clk_paddriving);
+                    // set cmd driving
+                    pad_setdrivingsink(SDIO2_2_PAD_DRIVIVG[1], cmd_paddriving);
+                    // check 4-bits/8-bits data
+#ifdef PIN_SDIO_CFG_SDIO2_BUS_WIDTH
+                    if (host->enable_8bits) {
+                        max_pin = SDIO_PIN_NUM;
+                    } else {
+                        max_pin = SDIO_PIN_DATA4;
+                    }
+#else
+                    max_pin = SDIO_PIN_DATA4;
+#endif
+                    for (j = SDIO_PIN_DATA0; j < max_pin; j++) {
+                        pad_setdrivingsink(SDIO2_2_PAD_DRIVIVG[j], data_paddriving);
+                    }
+                }
+                
+            }
+#endif
+#if (SDIO_HOST_ID_COUNT > 2)
+        if ((host->pinmux_value & SDIO_SUP[i]) && \
+            (host->id == SDIO_HOST_ID_3)) {
+                // SDIO3_1
+                if (i == SDIO3_1_EMB) {
+                    // set clk driving
+                    pad_setdrivingsink(SDIO3_1_PAD_DRIVIVG[0], clk_paddriving);
+                    // set cmd driving
+                    pad_setdrivingsink(SDIO3_1_PAD_DRIVIVG[1], cmd_paddriving);
+                    // check 4-bits/8-bits data
+#ifdef PIN_SDIO_CFG_SDIO3_BUS_WIDTH
+                    if (host->enable_8bits) {
+                        max_pin = SDIO_PIN_NUM;
+                    } else {
+                        max_pin = SDIO_PIN_DATA4;
+                    }
+#else
+                    max_pin = SDIO_PIN_DATA4;
+#endif
+                    for (j = SDIO_PIN_DATA0; j < max_pin; j++) {
+                        pad_setdrivingsink(SDIO3_1_PAD_DRIVIVG[j], data_paddriving);
+                    }
+                }
+            }
+#endif
+    }
+
+
 }

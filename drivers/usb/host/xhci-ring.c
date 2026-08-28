@@ -24,7 +24,7 @@
 
 #include <usb/xhci.h>
 #if defined(CONFIG_USB_XHCI_NVTIVOT)
-static state_halt = 0;
+static int state_halt = 0;
 #endif
 /**
  * Is this TRB a link TRB or was the last TRB the last TRB in this event ring

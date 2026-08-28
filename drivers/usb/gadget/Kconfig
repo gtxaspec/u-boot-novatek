@@ -146,7 +146,7 @@ config USB_GADGET_NVTIVOT_FOTG330
 config USB3_2
 	bool "Novatek USB3 controller channel 2 [USB3_2]"
 	select USB_GADGET_DUALSPEED
-	depends on (TARGET_NS02201_A64)
+	depends on (TARGET_NS02201_A64) || (TARGET_NS02401_A64)
 	help
 	  Say Y here to enable device controller functionality of the
 	  Novatek FOTG330 USB3 channel 2.

@@ -49,6 +49,7 @@
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/arch/efuse_protected.h>
 #include <dm/device_compat.h>
+#include <asm/arch/ns02401_regs.h>
 #include "eth_ns02401.h"
 
 #define SOCFPGA_XGMAC_SYSCON_ARG_COUNT 2
@@ -111,7 +112,8 @@ static void mac0_clk_en(phy_interface_t phy_intf)
 
 	udelay(10);
 
-	if (phy_intf == PHY_INTERFACE_MODE_SGMII) {
+	if (phy_intf == PHY_INTERFACE_MODE_SGMII ||
+			phy_intf == PHY_INTERFACE_MODE_2500BASEX) {
 		reg = readl(IOADDR_CG_REG_BASE + 0x0);
 		reg |= (1 << 18); // ENABLE PLL18
 		writel(reg, IOADDR_CG_REG_BASE + 0x0);
@@ -161,7 +163,8 @@ static void mac1_clk_en(phy_interface_t phy_intf)
 
 	udelay(10);
 
-	if (phy_intf == PHY_INTERFACE_MODE_SGMII) {
+	if (phy_intf == PHY_INTERFACE_MODE_SGMII ||
+			phy_intf == PHY_INTERFACE_MODE_2500BASEX) {
 		reg = readl(IOADDR_CG_REG_BASE + 0x0);
 		reg |= (1 << 18); // ENABLE PLL18
 		writel(reg, IOADDR_CG_REG_BASE + 0x0);
@@ -231,6 +234,7 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_2500BASEX:
 		reg = readl(IOADDR_ETH_REG_BASE + 0x4004);
 		reg |= (1 << 4); // select external phy
 		writel(reg, IOADDR_ETH_REG_BASE + 0x4004);
@@ -261,13 +265,13 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		reg |= (1 << 5);
 		writel(reg, IOADDR_CG_REG_BASE + 0x7C);
 
-		reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
 		reg |= (1 << 8);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xC);
 
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0); // TOP EXT PHY GPIO FUNCTION NORMAL
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0); // TOP EXT PHY GPIO FUNCTION NORMAL
 		reg &= ~(1 << 0);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 	}
 
 	if (pin_num == 1) {
@@ -276,7 +280,7 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		gpio_direction_output(E_GPIO(1), 0);
 		mdelay(10); // assert low at least 10ms
 		gpio_set_value(E_GPIO(1), 1);
-		mdelay(50); // wait 50ms before access phy register
+		mdelay(60); // wait 50ms before access phy register
 		gpio_free(E_GPIO(1));
 	} else if (pin_num == 2) {
 		// reset external phy
@@ -284,7 +288,7 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		gpio_direction_output(E_GPIO(1), 0);
 		mdelay(10); // assert low at least 10ms
 		gpio_set_value(E_GPIO(1), 1);
-		mdelay(50); // wait 50ms before access phy register
+		mdelay(60); // wait 50ms before access phy register
 		gpio_free(E_GPIO(1));
 	}
 
@@ -333,6 +337,7 @@ static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_2500BASEX:
 		reg = readl(IOADDR_ETH1_REG_BASE + 0x4004);
 		reg |= (1 << 4); // select external phy
 		writel(reg, IOADDR_ETH1_REG_BASE + 0x4004);
@@ -362,13 +367,13 @@ static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		reg |= (1 << 9);
 		writel(reg, IOADDR_CG_REG_BASE + 0x7C);
 
-		reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
 		reg |= (1 << 16);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xC);
 
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0); // TOP EXT PHY GPIO FUNCTION NORMAL
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0); // TOP EXT PHY GPIO FUNCTION NORMAL
 		reg &= ~(1 << 16);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 	}
 
 	if (pin_num == 1) {
@@ -377,7 +382,7 @@ static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		gpio_direction_output(E_GPIO(17), 0);
 		mdelay(10); // assert low at least 10ms
 		gpio_set_value(E_GPIO(17), 1);
-		mdelay(50); // wait 50ms before access phy register
+		mdelay(60); // wait 50ms before access phy register
 		gpio_free(E_GPIO(17));
 	} else if (pin_num == 2) {
 		// reset external phy
@@ -385,7 +390,7 @@ static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		gpio_direction_output(E_GPIO(17), 0);
 		mdelay(10); // assert low at least 10ms
 		gpio_set_value(E_GPIO(17), 1);
-		mdelay(50); // wait 50ms before access phy register
+		mdelay(60); // wait 50ms before access phy register
 		gpio_free(E_GPIO(17));
 	}
 
@@ -418,14 +423,14 @@ static void mac0_pinmux_en(phy_interface_t phy_intf, int pin_num)
 		writel(reg, IOADDR_PAD_REG_BASE + 0x140);
 
 		// RMII mode
-		reg = readl(IOADDR_TOP_REG_BASE + 0x0C);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0x0C);
 		reg &= ~(0xf << 0);
-		writel(reg | (0x2 << 0), IOADDR_TOP_REG_BASE + 0x0C);
+		smc_writel(reg | (0x2 << 0), IOADDR_TOP_REG_BASE + 0x0C);
 
 		// GPIO EN
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0);
 		reg &= ~(0xCE9C);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
@@ -444,34 +449,35 @@ static void mac0_pinmux_en(phy_interface_t phy_intf, int pin_num)
 		writel(reg, IOADDR_PAD_REG_BASE + 0x144);
 
 		// RGMII mode
-		reg = readl(IOADDR_TOP_REG_BASE + 0x0C);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0x0C);
 		reg &= ~(0xf << 0);
-		writel(reg | (0x1 << 0), IOADDR_TOP_REG_BASE + 0x0C);
+		smc_writel(reg | (0x1 << 0), IOADDR_TOP_REG_BASE + 0x0C);
 
 		// GPIO EN
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0);
 		reg &= ~(0xFFFC);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_2500BASEX:
 		// SGMII mode
-		reg = readl(IOADDR_TOP_REG_BASE + 0x0C);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0x0C);
 		reg &= ~(0xf << 0);
-		writel(reg | (0x3 << 0), IOADDR_TOP_REG_BASE + 0x0C);
+		smc_writel(reg | (0x3 << 0), IOADDR_TOP_REG_BASE + 0x0C);
 
 		// GPIO EN
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0);
 		reg &= ~(0xC000);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
 		break;
 	default: // embedded phy (MII)
 
-		/*      reg = readl(IOADDR_TOP_REG_BASE + 0xC8);
+		/*      reg = smc_readl(IOADDR_TOP_REG_BASE + 0xC8);
 		        reg &= ~(0xF<<4);
 		        reg |= 1<<0;    // connect EMB phy to MAC0
-		        writel(reg, IOADDR_TOP_REG_BASE + 0xC8);
+		        smc_writel(reg, IOADDR_TOP_REG_BASE + 0xC8);
 
 		        printf("mac0 no sup embd phy");
 		*/
@@ -506,14 +512,14 @@ static void mac1_pinmux_en(phy_interface_t phy_intf, int pin_num)
 		writel(reg, IOADDR_PAD_REG_BASE + 0x148);
 
 		// RMII mode
-		reg = readl(IOADDR_TOP_REG_BASE + 0x0C);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0x0C);
 		reg &= ~(0xf << 4);
-		writel(reg | (0x2 << 4), IOADDR_TOP_REG_BASE + 0x0C);
+		smc_writel(reg | (0x2 << 4), IOADDR_TOP_REG_BASE + 0x0C);
 
 		// GPIO EN
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0);
 		reg &= ~(0xCE9C0000);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
@@ -533,35 +539,36 @@ static void mac1_pinmux_en(phy_interface_t phy_intf, int pin_num)
 
 
 		// RGMII mode
-		reg = readl(IOADDR_TOP_REG_BASE + 0x0C);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0x0C);
 		reg &= ~(0xf << 4);
-		writel(reg | (0x1 << 4), IOADDR_TOP_REG_BASE + 0x0C);
+		smc_writel(reg | (0x1 << 4), IOADDR_TOP_REG_BASE + 0x0C);
 
 		// GPIO EN
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0);
 		reg &= ~(0xFFFC0000);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_2500BASEX:
 		// SGMII mode
-		reg = readl(IOADDR_TOP_REG_BASE + 0x0C);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0x0C);
 		reg &= ~(0xf << 4);
-		writel(reg | (0x3 << 4), IOADDR_TOP_REG_BASE + 0x0C);
+		smc_writel(reg | (0x3 << 4), IOADDR_TOP_REG_BASE + 0x0C);
 
 		// GPIO EN
-		reg = readl(IOADDR_TOP_REG_BASE + 0xB0);
+		reg = smc_readl(IOADDR_TOP_REG_BASE + 0xB0);
 		reg &= ~(0xC0000000);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+		smc_writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
 		break;
 
 	default: // embedded phy (MII)
 		/*
-		    reg = readl(IOADDR_TOP_REG_BASE + 0xC8);
+		    reg = smc_readl(IOADDR_TOP_REG_BASE + 0xC8);
 		    reg &= ~(0xF<<8);
 		    reg &= ~(1<<0); // connect EMB phy to MAC1
-		    writel(reg, IOADDR_TOP_REG_BASE + 0xC8);
+		    smc_writel(reg, IOADDR_TOP_REG_BASE + 0xC8);
 		*/
 		printf("mac1 no sup embd phy");
 		break;
@@ -701,6 +708,7 @@ static int xgmac_probe_resources_novatek(struct udevice *dev)
 	u32 phy_intf;
 	u32 phy_clk = 0;
 	u32 ref_clk_out = 0;
+	const char *phy_mode;
 
 	if (xgmac->regs == v_nvt_plat_info[0].base_pa) {
 		xgmac->eth_idx = 0;
@@ -771,30 +779,24 @@ static int xgmac_probe_resources_novatek(struct udevice *dev)
 		phyaddr = __be32_to_cpu(cell[0]);
 		printf("%s: snps,phy-addr 0x%x\r\n", __func__, phyaddr);
 	}
+	ETH_PHY_INTF = -1;
 
-	if (phy_intf & v_nvt_plat_info[xgmac->eth_idx].pinmux_rmii) {
-		printf("%s: pinmux detect RMII 0x%x\r\n", __func__, phy_intf);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_RMII;
-		pin_num = 1;
-	} else if (phy_intf & v_nvt_plat_info[xgmac->eth_idx].pinmux_rmii_2) {
-		printf("%s: pinmux detect RMII_2 0x%x\r\n", __func__, phy_intf);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_RMII;
-		pin_num = 2;
-	} else if (phy_intf & v_nvt_plat_info[xgmac->eth_idx].pinmux_rgmii) {
-		printf("%s: pinmux detect RGMII 0x%x\r\n", __func__, phy_intf);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_RGMII_ID;
-		pin_num = 1;
-	} else if (phy_intf & v_nvt_plat_info[xgmac->eth_idx].pinmux_rgmii_2) {
-		printf("%s: pinmux detect RGMII_2 0x%x\r\n", __func__, phy_intf);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_RGMII_ID;
-		pin_num = 2;
-	} else if (phy_intf & v_nvt_plat_info[xgmac->eth_idx].pinmux_sgmii) {
-		printf("%s: pinmux detect SGMII 0x%x\r\n", __func__, phy_intf);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_SGMII;
-		pin_num = 1;
+	phy_mode = fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "phy-mode", NULL);
+	if (phy_mode) {
+		ETH_PHY_INTF = phy_get_interface_by_name(phy_mode);
+		printf("%s: phy-mode: %s\r\n", __func__, phy_mode);
+	}
+	if (ETH_PHY_INTF == -1) {
+		debug("%s: Invalid PHY interface '%s'\n", __func__, phy_mode);
+		return -EINVAL;
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "phy-mode-oc", &len);
+	if (!cell) {
+		printf("%s: phy-mode-oc not found \r\n", __func__);
 	} else {
-		printf("%s: pinmux detect emb phy 0x%x\r\n", __func__, phy_intf);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_MII;
+		xgmac->phy_mode_oc = __be32_to_cpu(cell[0]);
+		printf("%s: phy-mode-oc %d \r\n", __func__, xgmac->phy_mode_oc);
 	}
 
 	if (phy_intf & v_nvt_plat_info[xgmac->eth_idx].pinmux_ext_phy) {
@@ -1261,20 +1263,19 @@ static void nvt_eth_phy_trim(struct udevice *dev)
 	uintptr_t serdes_phy_ba;
 
 	if (xgmac->eth_idx == 0) {
-		// XXX If efuse OK re-assign addr;
-		addr = 0x0;
+		addr = EFUSE_TRIM_DATA_SATA3_SGMII_1_PRI;
 		serdes_phy_ba = IOADDR_SERDES_PHY_REG_BASE;
 	} else {
-		// XXX If efuse OK re-assign addr;
-		addr = 0x5;
+		addr = EFUSE_TRIM_DATA_SATA3_SGMII_2_PRI;
 		serdes_phy_ba = IOADDR_SERDES_PHY1_REG_BASE;
 	}
 
-	code = otp_key_manager(EFUSE_ID_0, addr);
+	code = otp_key_manager(EFUSE_ID_1, addr);
 	if (code == -33) {
 		pr_err("Get Serdes-phy trim fail, use deault trim\n");
 	} else {
 		is_found = extract_trim_valid(code, (u32 *) &trim);
+		debug("eth%d Trim data read success addr[0x%02x] = 0x%04x\r\n", xgmac->eth_idx, (int)addr, (int)trim);
 		if (is_found) {
 			eth_internal_12k_registor = trim & 0x1F;
 			eth_tx_trim = ((trim >> 5) & 0xf);
@@ -1304,7 +1305,7 @@ static void nvt_eth_phy_trim(struct udevice *dev)
 	}
 
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x3fc, 0x0, 0, 8);
-//	nvt_eth_phy_masked_write(eth_phy->phy_va_base + 0x680, 0x3, 5, 2);
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x680, 0x3, 5, 2);
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x680, internal_12k_trim, 0, 5);
 
 	//Tx trim value
@@ -1381,6 +1382,7 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x9CC, 0x0F, 0, 8); //bit[3:0] = u30p_tx_sp_en_dly_cnt[3:0] = 0xf
 	//#postpone CDR_EN enable
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x518, 0x0A, 0, 8); //#bit[7:0] =  u30p_rxanaif_cdr_s0_dly[7:0]
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x544, 0x13, 0, 8); //bit2 = u30p_rxanaif_aeq_en_sel, bit4 = u30p_rxanaif_AEQ_FSM_disable_sel
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x540, 0x02, 0, 8); //#bit[1:0] = u30p_rxanaif_cdr_ki_en_snum[1:0] = 0x2
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x9EC, 0x51, 0, 8); //#u30p_ele2_dly_time #delay time = value *128us , default = 1ms
 	//#extend  TXPLL settle time
@@ -1398,7 +1400,7 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x088, 0x00, 0, 8); //bit2 = r_eq_c_freerun_en =0
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x5B0, 0x00, 0, 8); //bit[3:0] = r_ofs_sa_eq_cft[3:0]
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x5C0, 0x00, 0, 8); //bit[3:0] =  r_ofs_sa_eq_rct[3:0] ; bit[7:4] = r_ofs_sa_eq_rvga[3:0]
-	nvt_eth_phy_masked_write(serdes_phy_ba + 0x5D0, 0xB9, 0, 8); //bit[1:0] =  r_ofs_eq_eq_spsel0[1:0],bit[3:2] =  r_ofs_eq_eq_spsel1[1:0],bit[5:4] =  r_ofs_eq_eq_spsel2[1:0]
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x5DC, 0xB9, 0, 8); //bit[1:0] =  r_ofs_eq_eq_spsel0[1:0],bit[3:2] =  r_ofs_eq_eq_spsel1[1:0],bit[5:4] =  r_ofs_eq_eq_spsel2[1:0]
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x08C, 0x23, 0, 8); //bit[7:4] = r_aeq_cfine_man[3:0],bit[3:0] = r_aeq_ccoarse_man[3:0]
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x694, 0x1C, 0, 8); //bit[5:4] = r_ki_fctl[1:0] = 0x1,bit[2:0] = r_ki_frate[2:0] =0x4
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x168, 0x08, 0, 8); //bit3 = r_ki_clk_inv=1
@@ -1427,6 +1429,14 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x3FC, 0x01, 0, 8);//to bank 1
 	nvt_eth_phy_masked_write(serdes_phy_ba + 0x16c, 0x80, 0, 8);//r_ba_init
 
+	// LOs deglitch setting
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x3FC, 0x00, 0, 8);//to bank 0
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x250, 0x03, 0, 8);//bit7 = cfg_rx_los_bypass , default 1, modify to 0
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x254, 0x0f, 0, 8);//bit[5:0] : cfg_rx_los_filt_0default 0xf
+
+	// Follow SATA & USB. SGMII not use
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x3FC, 0x00, 0, 8);//to bank 0
+	nvt_eth_phy_masked_write(serdes_phy_ba + 0x158, 0x74, 0, 8);//bit[2:0] = BIAS_VSQ_SEL[2:0] = 3'b100  (unused)bit3 = RX_EN_VOS_CAL = 1'b0 (unused)bit[5:4] = BIAS_VCH_SEL[1:0] = 2'b01 -> 2'b11bit[7:6] = RX_RS_TUNE[1:0] = 2'b01 (unsed)
 
 	if (xgmac->phy->speed == SPEED_2500) {
 		//printk("#SPEED_2500\n");
@@ -1434,7 +1444,7 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		//TXPLL setting
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x3FC, 0x00, 0, 8);//to bank 0
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x1A8, 0x6e, 0, 8);//bit1 = SM_TXPLL_VCO_BAND_SEL =1;bit2 = SM_TXPLL_VCO_CAP_EN =1;bit3 = SM_TXPLL_CLKMULTCLK=1;bit5 = SM_TXPLL_DIV_PRE =1;bit6 = SM_TXPLL_DIV_CNT
-		nvt_eth_phy_masked_write(serdes_phy_ba + 0x194, 0xb8, 0, 8);//bit 3 =  TXPLL_VCO_BAND_SEL = 1'b0;bit 4 = TX_VCO_CAP_EN = 1'b1;bit[7:5] =  TXPLL_CLKMULT_CTL[2:0] = 3'b101
+		nvt_eth_phy_masked_write(serdes_phy_ba + 0x194, 0xb9, 0, 8);//bit 3 =  TXPLL_VCO_BAND_SEL = 1'b0;bit 4 = TX_VCO_CAP_EN = 1'b1;bit[7:5] =  TXPLL_CLKMULT_CTL[2:0] = 3'b101
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x198, 0x40, 0, 8);//bit[7:5] = TXPLL_DIV_PRE[2:0] = 3'b010
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x19C, 0x18, 0, 8);//bit[4:0]  = TXPLL_DIV_CNT = 0x13
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x164, 0x01, 0, 8);//bit[0] = SM_TX_RESERVED0 = 1
@@ -1455,7 +1465,7 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		//TXPLL setting
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x3FC, 0x00, 0, 8);//to bank 0
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x1A8, 0x6e, 0, 8);//bit1 = SM_TXPLL_VCO_BAND_SEL =1;bit2 = SM_TXPLL_VCO_CAP_EN =1;bit3 = SM_TXPLL_CLKMULTCLK=1;bit5 = SM_TXPLL_DIV_PRE =1;bit6 = SM_TXPLL_DIV_CNT
-		nvt_eth_phy_masked_write(serdes_phy_ba + 0x194, 0xb0, 0, 8);//bit 3 =  TXPLL_VCO_BAND_SEL = 1'b0;bit 4 = TX_VCO_CAP_EN = 1'b1;bit[7:5] =  TXPLL_CLKMULT_CTL[2:0] = 3'b101
+		nvt_eth_phy_masked_write(serdes_phy_ba + 0x194, 0xb1, 0, 8);//bit 3 =  TXPLL_VCO_BAND_SEL = 1'b0;bit 4 = TX_VCO_CAP_EN = 1'b1;bit[7:5] =  TXPLL_CLKMULT_CTL[2:0] = 3'b101
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x198, 0x40, 0, 8);//bit[7:5] = TXPLL_DIV_PRE[2:0] = 3'b010
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x19C, 0x13, 0, 8);//bit[4:0]  = TXPLL_DIV_CNT = 0x13
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x164, 0x01, 0, 8);//bit[0] = SM_TX_RESERVED0 = 1
@@ -1464,6 +1474,7 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x3FC, 0x02, 0, 8);//to bank 2
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x0E0, 0x08, 0, 8);//bit3 = SM_CDR_MODE = 1
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x07C, 0x7a, 0, 8);//bit[2:0] = SW_CDR_MODE = 3'b010
+		nvt_eth_phy_masked_write(serdes_phy_ba + 0x0A0, 0xf7, 0, 8);//bit[1:0] = BIAS_EN_CDR_CST;bit[3:2] = BIAS_CDR_SEL_DCO;bit[7:4] = BIAS_CDR_SEL_PI[3:0]
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x3FC, 0x00, 0, 8);//to bank 0
 		nvt_eth_phy_masked_write(serdes_phy_ba + 0x408, 0xf0, 0, 8);//anaif_pc_rst=1
 		udelay(1);
@@ -1481,8 +1492,8 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 //==============================xpcs init======================================
 	// Wait 0x1F0000 [15] = 0
 	writel(0x1f00, xpcs_ba + 0x3fc);
-//	reg = readl(xpcs_ba);
-//	writel(reg | (0x1 << 15), xpcs_ba);
+	reg = readl(xpcs_ba);
+	writel(reg | (0x1 << 15), xpcs_ba);
 	i = 0;
 	do {
 		reg = readl(xpcs_ba);
@@ -1495,22 +1506,50 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		udelay(10);
 	} while (i < EPHY_RETRY_COUNT);
 
-	if (xgmac->phy->interface == PHY_INTERFACE_MODE_1000BASEX) {
-		// 0x1F8001 [2:1] = 0 #VR_MII_AN_CTRL[2:l]
-		writel(0x1f80, xpcs_ba + 0x3fc);
-		reg = readl(xpcs_ba + 0x4);
-		writel(reg & ~(0x3 << 1), xpcs_ba + 0x4);
+	if (xgmac->phy->speed == SPEED_2500) {
+		if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII) {
+			// 0x1F8001 [2:1] = 0 #VR_MII_AN_CTRL[2:l]
+			writel(0x1f80, xpcs_ba + 0x3fc);
+			reg = readl(xpcs_ba + 0x4);
+			reg &= ~(0x3 << 1);
+			writel(reg | (0x2 << 1), xpcs_ba + 0x4);
+			// 0x1F800A [15:0] = 0x7A1, SGMII 2.5G link timer
+			reg = readl(xpcs_ba + 0x40);
+			writel(0x07A1, xpcs_ba + 0x40);
+			// 0x1F8000 [3], SGMII 2.5G over ride link timer
+			reg = readl(xpcs_ba);
+			writel(reg | (0x1 << 3), xpcs_ba);
+		} else {
+			// 0x1F8001 [2:1] = 2 #VR_MII_AN_CTRL[2:l]
+			writel(0x1f80, xpcs_ba + 0x3fc);
+			reg = readl(xpcs_ba + 0x4);
+			writel(reg & ~(0x3 << 1), xpcs_ba + 0x4);
+			if (xgmac->phy_mode_oc) {
+				// 0x1F800A [15:0] = 0x2FAF, 1000BASE-X(OC) 2.5G link timer
+				reg = readl(xpcs_ba + 0x40);
+				writel(0x2FAF, xpcs_ba + 0x40);
+				// 0x1F8000 [3], 1000BASE-X(OC) 2.5G over ride link timer
+				reg = readl(xpcs_ba);
+				writel(reg | (0x1 << 3), xpcs_ba);
+			}
+		}
 	} else {
-		// 0x1F8001 [2:1] = 2 #VR_MII_AN_CTRL[2:l]
+		// 0x1F8001 [2:1] = 2 SGMII mode(This includes speeds of 1000M/100M/10M)
 		writel(0x1f80, xpcs_ba + 0x3fc);
 		reg = readl(xpcs_ba + 0x4);
-		writel(reg | (0x1 << 2), xpcs_ba + 0x4);
+		reg &= ~(0x3 << 1);
+		writel(reg | (0x2 << 1), xpcs_ba + 0x4);
 	}
 
 	// 0x1F0000 [12] = 1 #Clause37 auto-negotiation AN_ENABLE
 	writel(0x1f00, xpcs_ba + 0x3fc);
 	reg = readl(xpcs_ba);
-	writel(reg | (0x1 << 12), xpcs_ba);
+	if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII) {
+		writel(reg | (0x1 << 12), xpcs_ba);
+	} else {
+		writel(reg & ~(0x1 << 12), xpcs_ba);
+	}
+
 
 	// Wait 0x1F0001 [2] = 1;  #link up
 	i = 0;
@@ -1526,38 +1565,40 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		udelay(10);
 	} while (i < EPHY_RETRY_COUNT);
 
-	// Wait 0x1F0001 [5] = 1;  #an complete
-	/*  do {
-	        writel(0x1f00, xpcs_ba + 0x3fc);
-	        reg = readl(xpcs_ba + 0x4);
-	        if (reg & 0x20) {
-	            break;
-	        } else if (++i >= EPHY_RETRY_COUNT)
-	            pr_err("AN Complete fail, reg : 0x%x\n", reg);
+	debug("speed = %d, interface = %d, phy_mode_oc = %d\n", xgmac->phy->speed, xgmac->phy->interface, xgmac->phy_mode_oc);
+	if (xgmac->phy->speed == SPEED_2500) {
+		if (xgmac->phy->interface == PHY_INTERFACE_MODE_2500BASEX) {
+			if (xgmac->phy_mode_oc) {
+				printf("%s, %d\n", __func__, __LINE__);
+				// 0x1f8000 [2] = 1;
+				writel(0x1f80, xpcs_ba + 0x3fc);
+				reg = readl(xpcs_ba);
+				writel(reg | (0x1 << 2), xpcs_ba);
 
-	        udelay(10);
-	    } while (i < EPHY_RETRY_COUNT);
-	*/
-	if ((xgmac->phy->interface == PHY_INTERFACE_MODE_2500BASEX) &&
-				 (xgmac->phy->speed == SPEED_2500)) {
-		// 0x1f8000 [2] = 1;
-		writel(0x1f80, xpcs_ba + 0x3fc);
-		reg = readl(xpcs_ba);
-		writel(reg | (0x1 << 2), xpcs_ba);
+				// 0x1f8004 [3] = 1;
+				reg = readl(xpcs_ba + 0x10);
+				writel(reg & ~(0x1 << 3), xpcs_ba + 0x10);
+			} else {
+				printf("%s, %d\n", __func__, __LINE__);
+				// 0x1f8000 [2] = 1;
+				writel(0x1f80, xpcs_ba + 0x3fc);
+				reg = readl(xpcs_ba);
+				writel(reg & ~(0x1 << 2), xpcs_ba);
 
-		// 0x1f8004 [3] = 1;
-		reg = readl(xpcs_ba + 0x10);
-		writel(reg | (0x1 << 3), xpcs_ba + 0x10);
-	} else if ((xgmac->phy->interface != PHY_INTERFACE_MODE_2500BASEX) &&
-			   (xgmac->phy->speed == SPEED_2500)) {
-		// 0x1f8000 [2] = 1;
-		writel(0x1f80, xpcs_ba + 0x3fc);
-		reg = readl(xpcs_ba);
-		writel(reg | (0x1 << 2), xpcs_ba);
+				// 0x1f8004 [3] = 1;
+				reg = readl(xpcs_ba + 0x10);
+				writel(reg | (0x1 << 3), xpcs_ba + 0x10);
+			}
+		} else {
+			// 0x1f8000 [2] = 1;
+			writel(0x1f80, xpcs_ba + 0x3fc);
+			reg = readl(xpcs_ba);
+			writel(reg | (0x1 << 2), xpcs_ba);
 
-		// 0x1f8004 [3] = 0;
-		reg = readl(xpcs_ba + 0x10);
-		writel(reg & ~(0x1 << 3), xpcs_ba + 0x10);
+			// 0x1f8004 [3] = 0;
+			reg = readl(xpcs_ba + 0x10);
+			writel(reg & ~(0x1 << 3), xpcs_ba + 0x10);
+		}
 	} else {
 		// 0x1f8000 [2] = 0;
 		writel(0x1f80, xpcs_ba + 0x3fc);
@@ -1569,55 +1610,58 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		writel(reg & ~(0x1 << 3), xpcs_ba + 0x10);
 	}
 
-	if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII) {
-		if (xgmac->phy->speed == SPEED_10) {
-			// 0x1f0000 [6] = 0;
-			writel(0x1f00, xpcs_ba + 0x3fc);
-			reg = readl(xpcs_ba);
-			writel(reg & ~(0x1 << 6), xpcs_ba);
-			// 0x1f0000 [13] = 0;
-			reg = readl(xpcs_ba);
-			writel(reg & ~(0x1 << 13), xpcs_ba);
-		} else if (xgmac->phy->speed == SPEED_100) {
-			// 0x1f0000 [6] = 0;
-			writel(0x1f00, xpcs_ba + 0x3fc);
-			reg = readl(xpcs_ba);
-			writel(reg & ~(0x1 << 6), xpcs_ba);
-			// 0x1f0000 [13] = 1;
-			reg = readl(xpcs_ba);
-			writel(reg | (0x1 << 13), xpcs_ba);
-		} else if (xgmac->phy->speed == SPEED_1000) {
-			// 0x1f0000 [6] = 1;
-			writel(0x1f00, xpcs_ba + 0x3fc);
-			reg = readl(xpcs_ba);
-			writel(reg | (0x1 << 6), xpcs_ba);
-			// 0x1f0000 [13] = 0;
-			reg = readl(xpcs_ba);
-			writel(reg & ~(0x1 << 13), xpcs_ba);
-		} else if (xgmac->phy->speed == SPEED_2500) {
-			// 0x1f0000 [6] = 1;
-			writel(0x1f00, xpcs_ba + 0x3fc);
-			reg = readl(xpcs_ba);
-			writel(reg | (0x1 << 6), xpcs_ba);
-			// 0x1f0000 [13] = 0;
-			reg = readl(xpcs_ba);
-			writel(reg & ~(0x1 << 13), xpcs_ba);
-		}
+	if (xgmac->phy->speed == SPEED_10) {
+		// 0x1f0000 [6] = 0;
+		writel(0x1f00, xpcs_ba + 0x3fc);
+		reg = readl(xpcs_ba);
+		writel(reg & ~(0x1 << 6), xpcs_ba);
+		// 0x1f0000 [13] = 0;
+		reg = readl(xpcs_ba);
+		writel(reg & ~(0x1 << 13), xpcs_ba);
+	} else if (xgmac->phy->speed == SPEED_100) {
+		// 0x1f0000 [6] = 0;
+		writel(0x1f00, xpcs_ba + 0x3fc);
+		reg = readl(xpcs_ba);
+		writel(reg & ~(0x1 << 6), xpcs_ba);
+		// 0x1f0000 [13] = 1;
+		reg = readl(xpcs_ba);
+		writel(reg | (0x1 << 13), xpcs_ba);
+	} else if (xgmac->phy->speed == SPEED_1000) {
+		// 0x1f0000 [6] = 1;
+		writel(0x1f00, xpcs_ba + 0x3fc);
+		reg = readl(xpcs_ba);
+		writel(reg | (0x1 << 6), xpcs_ba);
+		// 0x1f0000 [13] = 0;
+		reg = readl(xpcs_ba);
+		writel(reg & ~(0x1 << 13), xpcs_ba);
+	} else if (xgmac->phy->speed == SPEED_2500) {
+		// 0x1f0000 [6] = 1;
+		writel(0x1f00, xpcs_ba + 0x3fc);
+		reg = readl(xpcs_ba);
+		writel(reg | (0x1 << 6), xpcs_ba);
+		// 0x1f0000 [13] = 0;
+		reg = readl(xpcs_ba);
+		writel(reg & ~(0x1 << 13), xpcs_ba);
 	}
 
+	writel(0x1f00, xpcs_ba + 0x3fc);
+	reg = readl(xpcs_ba);
+
+	if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII) {
 	// Wait 0x1F0001 [5] = 1;  #an complete
-	do {
-	        writel(0x1f00, xpcs_ba + 0x3fc);
-	        reg = readl(xpcs_ba + 0x4);
-	        if (reg & 0x20) {
-			break;
-	        } else if (++i >= EPHY_RETRY_COUNT) {
-			pr_err("AN Complete fail, reg : 0x%x\n", reg);
-			return -1;
-		}
+		do {
+			writel(0x1f00, xpcs_ba + 0x3fc);
+			reg = readl(xpcs_ba + 0x4);
+		        if (reg & 0x20) {
+				break;
+			} else if (++i >= EPHY_RETRY_COUNT) {
+				pr_err("AN Complete fail, reg : 0x%x\n", reg);
+				return -1;
+			}
 
 	        udelay(10);
-	} while (i < EPHY_RETRY_COUNT);
+		} while (i < EPHY_RETRY_COUNT);
+	}
 
 #ifdef CONFIG_NVT_FPGA_EMULATION
 	if (xgmac->eth_idx == 0) {
@@ -2225,7 +2269,8 @@ static int xgmac_start(struct udevice *dev)
 		goto err_shutdown_phy;
 	}
 
-	if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII) {
+	if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII ||
+			xgmac->phy->interface == PHY_INTERFACE_MODE_2500BASEX) {
 		ret = xgmac_serdes_xpcs_config(dev);
 		if (ret < 0) {
 			pr_err("xgmac_serdes_xpcs_config() failed: %d\n", ret);

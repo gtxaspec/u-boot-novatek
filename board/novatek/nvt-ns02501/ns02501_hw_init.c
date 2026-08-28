@@ -54,14 +54,14 @@
 #define TOP_GETREG(ofs)         INW(TOP_REG_ADDR(ofs))
 #define TOP_SETREG(ofs,value)   OUTW(TOP_REG_ADDR(ofs), (value))
 
-#define CG_PLL_ENABLE_OFS 0x20 + 0x100000 // WDT in Pre-roll part
+#define CG_PLL_ENABLE_OFS 0x74
 #define STBC_ENABLE_OFS 0x140
-#define CG_RESET_OFS 0x28 + 0x100000 // WDT in Pre-roll part
+#define CG_RESET_OFS 0x80
 #define CG_PLL4_DIV0_OFS 0x1318
 #define CG_PLL4_DIV1_OFS 0x131C
 #define CG_PLL4_DIV2_OFS 0x1320
-#define WDT_POS (1 << 17)
-#define WDT_RST (1 << 17)
+#define WDT_POS (1 << 19)
+#define WDT_RST (1 << 8)
 
 #define WDT_CTRL_OFS 0x0
 #define WDT_MANUL_OFS 0xC

@@ -1294,4 +1294,70 @@ static inline void *xhci_bus_to_virt(struct xhci_ctrl *ctrl, dma_addr_t addr)
 	return phys_to_virt(dev_bus_to_phys(xhci_to_dev(ctrl), addr));
 }
 
+/* project dependence */
+#ifdef CONFIG_TARGET_NS02401_A64
+#define CG_U3MPLL_REG 0x4
+#define CG_U3MPLL_OFS 14
+#define CG_PHY_RSTB_CTRL_REG 0x10
+#define CG_PHY4_RSTB_CTRL_REG 0x10
+#define CG_PHY_RSTB_CTRL_OFS 18
+#define CG_PHY4_RSTB_CTRL_OFS 19
+#define CG_COMBOPHY_SRC_REG 0x10
+#define CG_COMBOPHY_1_SEL_OFS 12
+#define CG_COMBOPHY_4_SEL_OFS 15
+
+#define CG_U3_EN_REG 0x7C
+#define CG_U3_2_EN_REG 0x7C
+#define CG_U3_EN_OFS 2
+#define CG_U3_2_EN_OFS 3
+
+//u3top mask
+//U3TOP: 0x10
+#define USB3TOP_RSTCTRL_REG 0x10
+#define USB3TOP_VBUS_VALID_OFS 0
+#define USB3TOP_USB_ID_OFS     1
+#define USB3TOP_PHY_OFS        2
+#define USB3TOP_FORCE_HS_OFS   3
+#define USB3TOP_EL_BUF_OFS     4
+#define USB3TOP_BYPASS_RXDET_OFS   5
+#define USB3TOP_PP_OFS   6
+#define USB3TOP_PPVAL_OFS   7
+#define USB3TOP_PIPE_MARGIN_OFS   8
+#define USB3TOP_RXTERM_EN_MSK_OFS  11
+#define USB3TOP_U3RSTCTRL_0_OFS      16
+#define USB3TOP_U3RSTCTRL_1_OFS      17
+#define USB3TOP_U3RSTCTRL_2_OFS      18
+#define USB3TOP_PD3_PHYSTS_OFS 19
+#define USB3TOP_TXIDLE_MSK_OFS 20
+#define USB3TOP_U3TOU0_OFS 21
+#define USB3TOP_U3_PM_MODE 23
+#define USB3TOP_U2RSTCTRL_0_OFS      24
+#define USB3TOP_U2RSTCTRL_1_OFS      25
+#define USB3TOP_U2RSTCTRL_2_OFS      26
+
+#define USB3TOP_RSTCTRL_MSK 0x7
+#define USB3TOP_PIPE_MARGIN_MSK 0x7
+//U3TOP: 0x14
+#define USB3TOP_CTRL1_REG 0x14
+#define USB3TOP_RESP_MODE 1
+#define USB3TOP_CH_DIS_OFS 9
+//CG
+#define CG_U2_RSTN_REG 0x9C
+#define CG_U2_2_RSTN_REG 0x9C
+
+#define CG_U2PHY_RSTN_OFS 2
+#define CG_U2_2PHY_RSTN_OFS 5
+
+#define CG_U3_RSTN_REG 0x9C
+#define CG_U3_2_RSTN_REG 0x9C
+
+#define CG_U3_RSTN_OFS 6
+#define CG_U3PHY_RSTN_OFS 7
+
+#define CG_U3GLUE_RSTN_OFS 8
+#define CG_U3_2_RSTN_OFS 9
+#define CG_U3_2PHY_RSTN_OFS 10
+#define CG_U3_2GLUE_RSTN_OFS 11
+#endif //NS02401
+
 #endif /* HOST_XHCI_H_ */

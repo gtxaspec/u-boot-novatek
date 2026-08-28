@@ -464,56 +464,58 @@ ER hdmitx_read_phy(UINT32 ui_offset, UINT32 *pui_value)
 #if !_FPGA_EMULATION_
 static void hdmitx_validate_rtrim(void)
 {
-#if !_EMULATION_
-	
-#if HDMI_EFUSE_USED	
+#if !_EMULATION_	
+//#if HDMI_EFUSE_USED	
 	u32  trim;
 	int  code;
 	BOOL is_found;
+	//      1st HDMI2.0/1.4
+	//      0x3E bit[4..0]     Fine tune VL 1.4 = 0x2F
 	u32  HDMI_resistor_1_4, HDMI_LANE_VL_1_4;
+	//      0x3E bit[9..5]     Fine tune VL 2.0 = 0x01
 	u32  HDMI_resistor_2_0, HDMI_LANE_VL_2_0;
-	u32 val_R;
-	code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_H_PHY_RESISTOR_PRI);
+	u32  val_R;
+	
+	//HDMI2.0 resistor = 0x3E bit[9..5]
+	//Apply HDMI2.0&1.4 's resistor
+	code = otp_key_manager(EFUSE_ID_1, EFUSE_TRIM_DATA_HDMI_1_RESISTOR_PRI);
 	printf("otp_key_manager code = [%d]\n", code);
 	if (code == -33) {
 		hdmitx_write_phy(0x0C, 0x0D); // default value
-	    printf("[%d] data = NULL\n", EFUSE_TRIM_DATA_HDMI_H_PHY_RESISTOR_PRI);
+	    printf("[%d] data = NULL\n", EFUSE_TRIM_DATA_HDMI_1_RESISTOR_PRI);
 	    return ;
 	} else {
 	    is_found = extract_trim_valid(code, (u32 *)&trim);
 	    if (is_found) {
-	        //bit[4..0]
-		HDMI_resistor_1_4 = trim & 0x1F;
-		//bit[9..5]
-		HDMI_resistor_2_0 = ((trim >> 5) & 0x1F);
-
-		
+			//bit[4..0]
+			HDMI_resistor_1_4 = trim & 0x1F;
+			//bit[9..5]
+			HDMI_resistor_2_0 = ((trim >> 5) & 0x1F);		
 			if (HDMI_resistor_1_4 > 0x14) {
 				hdmitx_write_phy(0x0C, 0x0D); // default value
-		  	    printf("1.4 HDMI resistor Trim data error 0x%04x > 0x14\r\n", (int)HDMI_resistor_1_4);
-		    } else if (HDMI_resistor_1_4 < 0x8) {
-		    	hdmitx_write_phy(0x0C, 0x0D); // default value
-				printf("1.4 HDMI resistor Trim data error 0x%04x < 0x8\r\n", (int)HDMI_resistor_1_4);
-		    } else {
-		    	if(clock_rate <= 297000000){
+				printf(" 1.4 HDMI resistor Trim data error 0x%04x > 0x14\r\n", (int)HDMI_resistor_1_4);
+			} else if (HDMI_resistor_1_4 < 0x8) {
+				hdmitx_write_phy(0x0C, 0x0D); // default value
+				printf(" 1.4 HDMI resistor Trim data error 0x%04x < 0x8\r\n", (int)HDMI_resistor_1_4);
+			} else {
+				if(clock_rate <= 297000000){
 					hdmitx_write_phy(0x0C, HDMI_resistor_1_4);
 				}
-				printf("  *1.4 HDMI resistor Trim data range success 0x8 <= [0x%04x] <= 0x14\r\n", (int)HDMI_resistor_1_4);
-		    }
+				printf(" 1.4 HDMI resistor Trim data range success 0x8 <= [0x%04x] <= 0x14\r\n", (int)HDMI_resistor_1_4);
+			}
 			
-		    if (HDMI_resistor_2_0 > 0x14) {
+			if (HDMI_resistor_2_0 > 0x14) {
 				hdmitx_write_phy(0x0C, 0x0D); // default value
-		        printf("2.0 HDMI resistor Trim data error 0x%04x > 0x14\r\n", (int)HDMI_resistor_2_0);
+				printf(" 2.0 HDMI resistor Trim data error 0x%04x > 0x14\r\n", (int)HDMI_resistor_2_0);
 			} else if (HDMI_resistor_2_0 < 0x8) {
 				hdmitx_write_phy(0x0C, 0x0D); // default value
-				printf("2.0 HDMI resistor Trim data error 0x%04x < 0x8\r\n", (int)HDMI_resistor_2_0);
+				printf(" 2.0 HDMI resistor Trim data error 0x%04x < 0x8\r\n", (int)HDMI_resistor_2_0);
 			} else {
-				if (clock_rate >  297000000){
+				if (clock_rate > 297000000){
 					hdmitx_write_phy(0x0C, HDMI_resistor_2_0);
 				}
-				printf("  *2.0 HDMI resistor Trim data range success 0x8 <= [0x%04x] <= 0x14\r\n", (int)HDMI_resistor_2_0);
-			} 
-			
+				printf(" 2.0 HDMI resistor Trim data range success 0x8 <= [0x%04x] <= 0x14\r\n", (int)HDMI_resistor_2_0);
+			} 			
 	    } else {
 	        //!!!Please apply default value here!!!
 	        hdmitx_write_phy(0x0C, 0x0D); // default value
@@ -521,8 +523,10 @@ static void hdmitx_validate_rtrim(void)
 	    }			
 	}
 
-	if (clock_rate >  297000000){//HDMI2.0
-		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI);
+	//HDMI2.0 VL fine tune
+	//0x01 bit[11..0] : Each (2.0)lane fine tune VL trim
+	if (clock_rate > 297000000){//HDMI2.0
+		code = otp_key_manager(EFUSE_ID_1, EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI);
 		if (code == -33) {
 		    printf("[%d] data = NULL\n", EFUSE_TRIM_DATA_HDMI_2_0_H_PHY_VL_TRIM_PRI);
 		    return ;
@@ -537,7 +541,7 @@ static void hdmitx_validate_rtrim(void)
 			val_R = ((HDMI_LANE_VL_2_0 >> 6) & (0x7)) | (((HDMI_LANE_VL_2_0 >> 9) & (0x7))<<4);
 			hdmitx_write_phy(0x0E, val_R);		
 			
-			printf("  *2.0 HDMI VLane Trim data range success 0x0 <= [0x%04x] <= 0xFFF\r\n", (int)HDMI_LANE_VL_2_0);
+			printf("  2.0 HDMI VLane Trim data range success 0x0 <= [0x%04x] <= 0xFFF\r\n", (int)HDMI_LANE_VL_2_0);
 		    } else {
 		        //!!!Please apply default value here!!!
 			hdmitx_write_phy(0x0D, 0x44|0x08); // default value | bit3 reg_restrim_en = 1
@@ -546,33 +550,34 @@ static void hdmitx_validate_rtrim(void)
 		    }	
 		}
 	} else {
-		code = otp_key_manager(EFUSE_TRIM_DATA_HDMI_1_4_H_PHY_VL_TRIM_PRI);
+		//0x2F bit[11..0] : Each (1.4)lane fine tune VL trim
+		code = otp_key_manager(EFUSE_ID_1, EFUSE_TRIM_DATA_HDMI_1_4_VL_TRIM_PRI);
 		if (code == -33) {
-		    printf("[%d] data = NULL\n", EFUSE_TRIM_DATA_HDMI_1_4_H_PHY_VL_TRIM_PRI);
+		    printf("[%d] data = NULL\n", EFUSE_TRIM_DATA_HDMI_1_4_VL_TRIM_PRI);
 		    return ;
 		} else {
 		    is_found = extract_trim_valid(code, (u32 *)&trim);
 		    if (is_found) {
 		        printf("  HDMI 1.4 VLane tunning Trim = 0x%04x\r\n", (int)trim);
-			//bit[11..0]
-			HDMI_LANE_VL_1_4 = trim & 0xFFF;
-			
-			val_R = ((HDMI_LANE_VL_1_4 >> 0) & (0x7)) | (((HDMI_LANE_VL_1_4 >> 3) & (0x7))<<4);
-			hdmitx_write_phy(0x0D, val_R|0x08);
-			val_R = ((HDMI_LANE_VL_1_4 >> 6) & (0x7)) | (((HDMI_LANE_VL_1_4 >> 9) & (0x7))<<4);
-			hdmitx_write_phy(0x0E, val_R);			
-			
-			printf("  *1.4 HDMI VLane Trim data range success 0x0 <= [0x%04x] <= 0xFFF\r\n", (int)HDMI_LANE_VL_1_4);
+				//bit[11..0]
+				HDMI_LANE_VL_1_4 = trim & 0xFFF;
+				
+				val_R = ((HDMI_LANE_VL_1_4 >> 0) & (0x7)) | (((HDMI_LANE_VL_1_4 >> 3) & (0x7))<<4);
+				hdmitx_write_phy(0x0D, val_R|0x08);
+				val_R = ((HDMI_LANE_VL_1_4 >> 6) & (0x7)) | (((HDMI_LANE_VL_1_4 >> 9) & (0x7))<<4);
+				hdmitx_write_phy(0x0E, val_R);	
+				
+				printf(" 1.4 HDMI VLane Trim data range success 0x0 <= [0x%04x] <= 0xFFF\r\n", (int)HDMI_LANE_VL_1_4);
 		    } else {
-		        //!!!Please apply default value here!!!
-			hdmitx_write_phy(0x0D, 0x44|0x08); // default value
-			hdmitx_write_phy(0x0E, 0x44); // default value			        
-			printf("is found [%d][HDMI 1.4 VLNE] = 0x%08x\r\n", is_found, (int)code);
+		    	//!!!Please apply default value here!!!
+				hdmitx_write_phy(0x0D, 0x44|0x08); // default value
+				hdmitx_write_phy(0x0E, 0x44); // default value			        
+				printf("is found [%d][HDMI 1.4 VLNE] = 0x%08x\r\n", is_found, (int)code);
 		    }	
 		}
 	}
 
-#endif
+//#endif
 
 #endif
 }
@@ -906,7 +911,7 @@ static void hdmitx_init_phy(void)
 	//// DDR Setting (Main)
 	hdmitx_write_phy(0xff, 0x05); // Page 0x05
 
-	// ¥H¤U¬°DDR Initial (¦n¹³¸òDefault¤@¼Ë, ¦ý§Ú­ÌÁÙ¬O¦A³]¤@¦¸)
+	// ï¿½Hï¿½Uï¿½ï¿½DDR Initial (ï¿½nï¿½ï¿½ï¿½ï¿½Defaultï¿½@ï¿½ï¿½, ï¿½ï¿½ï¿½Ú­ï¿½ï¿½Ù¬Oï¿½Aï¿½]ï¿½@ï¿½ï¿½)
 	hdmitx_write_phy(0x8d, 0x02);
 	hdmitx_write_phy(0x8e, 0x07);
 	hdmitx_write_phy(0xd7, 0x03);
@@ -960,7 +965,7 @@ static void hdmitx_init_phy(void)
 	// DDR Setting (TF)
 	hdmitx_write_phy(0xff, 0x07); // Page 0x07
 
-	// ¥H¤U¬°DDR Initial (¦n¹³¸òDefault¤@¼Ë, ¦ý§Ú­ÌÁÙ¬O¦A³]¤@¦¸)
+	// ï¿½Hï¿½Uï¿½ï¿½DDR Initial (ï¿½nï¿½ï¿½ï¿½ï¿½Defaultï¿½@ï¿½ï¿½, ï¿½ï¿½ï¿½Ú­ï¿½ï¿½Ù¬Oï¿½Aï¿½]ï¿½@ï¿½ï¿½)
 	hdmitx_write_phy(0x8d, 0x02);
 	hdmitx_write_phy(0x8e, 0x07);
 	hdmitx_write_phy(0xd7, 0x03);
@@ -1011,7 +1016,7 @@ static void hdmitx_init_phy(void)
 	hdmitx_write_phy(0x51, 0x80);
 	hdmitx_write_phy(0x19, 0x70);
 
-	// ¦³Clock Path¨S³]©w¨ì
+	// ï¿½ï¿½Clock Pathï¿½Sï¿½]ï¿½wï¿½ï¿½
 	hdmitx_write_phy(0x15, 0x63);
 	hdmitx_write_phy(0xd2, 0x40);
 
@@ -1056,7 +1061,7 @@ static void hdmitx_init_phy(void)
 	hdmitx_write_phy(0x8C, 0x00);
 
 
-	// USB Path­n¦A¿ï, ¦ý¤£¼vÅTHDMI TX, ¬G¦C¤W
+	// USB Pathï¿½nï¿½Aï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½vï¿½THDMI TX, ï¿½Gï¿½Cï¿½W
 	hdmitx_write_phy(0xff, 0x00); // Page 0x00
 	hdmitx_write_phy(0x6f, 0x03);
 	hdmitx_write_phy(0xff, 0x04); // Page 0x04

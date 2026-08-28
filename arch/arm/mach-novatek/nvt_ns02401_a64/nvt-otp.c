@@ -18,6 +18,14 @@
 #include <linux/delay.h>
 #include "nvt_otp_reg.h"
 
+
+#define __string(_x) #_x
+#define __xstring(_x) __string(_x)
+#define OTP_MAJOR        00
+#define OTP_MINOR        003
+#define OTP_VERSION     "1."__xstring(OTP_MAJOR)"."__xstring(OTP_MINOR)
+
+
 #ifndef CHKPNT
 #define CHKPNT    printf("\033[37mCHK: %d, %s\033[0m\r\n", __LINE__, __func__)
 #endif
@@ -160,13 +168,23 @@ void powerdown_efuse(void)
 void otp_init(void)
 {
 	UINT32  uiReg, uiReg2;
+	UINT32	atf_ver, optee_ver;
+	UINT32	uboot_ver;
 
-	DBG_DUMP("otp_init[1.00.001]\r\n");
+	uboot_ver = INREG32(KEY_MANAGER2_VERSION_ADDRESS);
+	uboot_ver &= ~(OTP_UBOOT_VERSION_MASK << OTP_UBOOT_VERSION_OFS);
+	uboot_ver |= (OTP_MINOR << OTP_UBOOT_VERSION_OFS);
+	OUTREG32(KEY_MANAGER2_VERSION_ADDRESS, uboot_ver);
+	atf_ver = ((INREG32(KEY_MANAGER2_VERSION_ADDRESS) >> OTP_ATF_VERSION_OFS)&0x3F);
+	optee_ver = ((INREG32(KEY_MANAGER2_VERSION_ADDRESS) >> OTP_OPTEE_VERSION_OFS)&0x3F);
+	uboot_ver = ((INREG32(KEY_MANAGER2_VERSION_ADDRESS) >> OTP_UBOOT_VERSION_OFS)&0x3F);
+
+	DBG_DUMP("OTP version: %s, atf [0x%02x], optee[0x%02x], uboot[0x%02x]\n", OTP_VERSION, atf_ver, optee_ver, uboot_ver);
 	OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, OTP_120_TIMING);
 	OUTREG32(KEY_MANAGER2_TIMING_CONFIG_ADDRESS, OTP_120_TIMING);
 	uiReg = INREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS);
 	uiReg2 = INREG32(KEY_MANAGER2_TIMING_CONFIG_ADDRESS);
-	DBG_DUMP("otp_timing_reg= 0x%x 0x%x\r\n", (int)uiReg, (int)uiReg2);
+	//DBG_DUMP("otp_timing_reg= 0x%x 0x%x\r\n", (int)uiReg, (int)uiReg2);
 	//Assert OTP RSTN
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
@@ -529,7 +547,15 @@ s32 otp_write_key(EFUSE_OTP_KEY_SET_FIELD key_set_index, UINT8 *uc_key)
 	}
 
 	if (result == EFUSE_SUCCESS) {
-		enable_secure_boot(enable_secure_number);
+		result = EFUSE_CONTENT_ERR;
+		for (uiRetryIndex = 0; uiRetryIndex < uiRetryCnt; uiRetryIndex++) {
+			OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, otp_timing[uiRetryIndex]);
+			enable_secure_boot(enable_secure_number);
+			if(quary_secure_boot(enable_secure_number) == TRUE) {
+				result = TRUE;
+				break;
+			}
+		}		
 	}
 	return result;
 }
@@ -792,14 +818,14 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = TRUE;
 		}
 		break;
-	
+
 	case SECUREBOOT_HEADER_SIGNATURE:
 		if ((sec2 & OTP_HEADER_SIGNATURE_EN) == OTP_HEADER_SIGNATURE_EN) {
 			result = TRUE;
 		} else {
 			result = FALSE;
 		}
-		
+
 		break;
 
 	case SECUREBOOT_JTAG_DISABLE_EN:
@@ -881,11 +907,59 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = FALSE;
 		}
 		break;
+
 	case SECUREBOOT_GPU_DISABLE:
-		if ((sec & OTP_GPU_DISABLE) == OTP_GPU_DISABLE) {
+		if ((sec & EFUSE_GPU_USAGE_BIT_MASK) == GPU_1ST_AVAILABLE) {
+			//result = TRUE;
+			result = FALSE;
+		} else if ((sec & EFUSE_GPU_USAGE_BIT_MASK) == GPU_2ND_AVAILABLE) {
+			//result = TRUE;
+			result = FALSE;
+		} else if ((sec & EFUSE_GPU_USAGE_BIT_MASK) == GPU_1ST_DISABLE) {
+			//result = FALSE;
+			result = TRUE;
+		} else if ((sec & EFUSE_GPU_USAGE_BIT_MASK) == GPU_2ND_DISABLE) {
+			//result = FALSE;
+			result = TRUE;
+		} else {
+			//result = FALSE;
 			result = TRUE;
 		}
 		break;
+
+	// Change rule => program bit = overclock
+	case SECUREBOOT_VENC_OVER_CLOCKING:
+	case SECUREBOOT_VDEC_OVER_CLOCKING:
+		if ((sec2 & OTP_VDEC_OVER_CLOCKING_AVL) == OTP_VDEC_OVER_CLOCKING_AVL) {
+			//result = FALSE;
+			result = TRUE;
+		} else {
+			//result = TRUE;
+			result = FALSE;
+		}
+		break;
+	case SECUREBOOT_CPU_CA55_OVER_CLOCKING:
+	case SECUREBOOT_CPU_CA76_OVER_CLOCKING:
+	case SECUREBOOT_CPU_L3_OVER_CLOCKING:
+		if ((sec2 & OTP_CPU_OVER_CLOCKING) == OTP_CPU_OVER_CLOCKING) {
+			//result = FALSE;
+			result = TRUE;
+		} else {
+			//result = TRUE;
+			result = FALSE;
+		}
+		break;
+
+	case SECUREBOOT_CONV_OVER_CLOCKING:
+		if ((sec2 & OTP_CONV_OVER_CLOCKING) == OTP_CONV_OVER_CLOCKING) {
+			//result = FALSE;
+			result = TRUE;
+		} else {
+			//result = TRUE;
+			result = FALSE;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -989,7 +1063,7 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 			KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_ECDSA);
 		}
 		break;
-	
+
 	case SECUREBOOT_HEADER_SIGNATURE:
 		if ((sec2 & OTP_HEADER_SIGNATURE_EN) != 0x0) {
 			DBG_ERR("Header signature bit already set ...");
@@ -997,7 +1071,7 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = TRUE;
 			KEY_MANAGER_WRITE_2ND_PARAM(OTP_HEADER_SIGNATURE_EN);
 		}
-		
+
 		break;
 
 	case SECUREBOOT_SIGN_RSA_CHK:
@@ -1139,16 +1213,20 @@ BOOL extract_trim_valid(u32 code, u32 *pData)
 }
 
 
-/*
-     otp_get_pkg_Version
-
-     efuse get IC package version
-
-     @return IC revision of specific package revision
-        - @b   NT98690_PKG      NT98690 package version
-        - @b   NT98692_PKG      NT98692 package version
-        - @b   UNKNOWN_PKG_VER  Unknown IC package version(system must halt)
-*/
+/**
+ * @brief Get IC package version from efuse.
+ *
+ * This function retrieves the IC revision of the specific package revision.
+ *
+ * @return IC revision of specific package revision:
+ * - @b NT98635_PKG         NT98635 package version
+ * - @b NT98635_I_PKG       NT98635-I (WT) package version
+ * - @b NT98635_Q_PKG       NT98635-Q (AECQ100) package version
+ * - @b NT98635_E_PKG       NT98635_E package version
+ * - @b NT98635_E_I_PKG     NT98635_E-I (WT) package version
+ * - @b NT98635_E_Q_PKG     NT98635_E-Q (AECQ100) package version
+ * - @b UNKNOWN_PKG_VER     Unknown IC package version (system must halt)
+ */
 INT32 otp_get_pkg_version(void)
 {
 	u32     trim = 0;
@@ -1157,6 +1235,8 @@ INT32 otp_get_pkg_version(void)
 	BOOL    is_found;
 	u32     pkgUID;
 
+	u32		uiTempPKGUID;
+	u32		uiExtPKGUID;
 
 	code = otp_key_manager(EFUSE_ID_0, OTP_PKGUID_FIELD);
 	if (code == -33) {
@@ -1165,10 +1245,27 @@ INT32 otp_get_pkg_version(void)
 	} else {
 		is_found = extract_trim_valid(code, (u32 *)&trim);
 		printf("[UID] = 0x%08x\r\n", (int)trim);
-		if (trim == OTP_690_TRIM) {
-			pkgUID = NT98690_PKG;
-		} else if (trim == OTP_692_TRIM) {
-			pkgUID = NT98692_PKG;
+		uiTempPKGUID = trim & 0x3FF;
+		uiExtPKGUID  = trim & 0x3C00;
+		if (trim == OTP_635_TRIM) {
+			//pkgUID = NT98690_PKG;
+			if((quary_secure_boot(SECUREBOOT_VDEC_OVER_CLOCKING) == TRUE) && (quary_secure_boot(SECUREBOOT_CPU_CA76_OVER_CLOCKING) == TRUE) && (quary_secure_boot(SECUREBOOT_CONV_OVER_CLOCKING) == TRUE)) {
+				if ((uiExtPKGUID & SOC_AECQ100_ENABLE) == SOC_AECQ100_ENABLE) {
+					pkgUID = NT98635_E_Q_PKG;
+				} else  if ((uiExtPKGUID & SOC_WIDE_TEMPERATURE_ENABLE) == SOC_WIDE_TEMPERATURE_ENABLE) {
+					pkgUID = NT98635_E_I_PKG;
+				} else {
+					pkgUID = NT98635_E_PKG;
+				}
+			} else {
+				if ((uiExtPKGUID & SOC_AECQ100_ENABLE) == SOC_AECQ100_ENABLE) {
+					pkgUID = NT98635_Q_PKG;
+				} else  if ((uiExtPKGUID & SOC_WIDE_TEMPERATURE_ENABLE) == SOC_WIDE_TEMPERATURE_ENABLE) {
+					pkgUID = NT98635_I_PKG;
+				} else {
+					pkgUID = NT98635_PKG;
+				}
+			}
 		} else {
 			pkgUID = UNKNOWN_PKG_VER;
 		}

@@ -22,7 +22,7 @@
 
 #include <usb/fotg330.h>
 
-#define DRV_VERSION                     "1.00.22"
+#define DRV_VERSION                     "1.00.23"
 
 // result of setup packet
 #define CX_IDLE		0
@@ -343,56 +343,136 @@ static void u3phy_bitmask_set(unsigned int addr, unsigned char start_bit, unsign
         USB3PHY_SETREG(USB3PHY_OFS(addr), temp);
 }
 
+static void u3u2phy_bitmask_set(unsigned int addr, unsigned char start_bit, unsigned char end_bit, unsigned int val)
+{
+	unsigned int mask;
+	unsigned int temp;
+
+	mask = (1 << (start_bit + 1)) - (1 << end_bit);
+
+	temp = USB3U2PHY_GETREG(USB3U2PHY_OFS(addr));
+	temp &= ~(mask);
+	temp |= ((val << end_bit) & mask);
+	USB3U2PHY_SETREG(USB3U2PHY_OFS(addr), temp);
+}
+
 static void nvt_u3phy_trim(void)
 {
 	//=====================================
 	//======== Get Trim From Efuse  =======
 	//=====================================
-	u32 temp;
-	u8 u3_trim_rint_sel = 0x10; //12K trim
-	u8 tx_term_trim_val = 0x6; //tx trim
-	u8 rx_term_trim_val = 0xC; //rx trim
-	u8 u2_swctrl = 4, u2_sqsel = 4;
+	u8 u3_trim_tx_val = 6;    //default TX(for SS)
+	u8 u3_trim_rx_val = 0xC;  //default RX(for SS)
+	u8 u3_trim_rint_sel = 0x8; //default 12K (for HS)
+	u8 u2_trim_swctrl = 6, u2_trim_sqsel = 4;
 
-	//[TODO] efuse read
+	u8 TX_TRIM;
+	u8 RX_TRIM;
+	u8 Internal_12K_resistor;
+
+	u32 trim;
+	int code;
+	bool is_found;
+	s32 addr;
+
+	// confirm channel
+	#if defined(CONFIG_USB3_2)
+	addr = EFUSE_TRIM_DATA_SATA_3_USB3_2_PRI;
+	#else
+	addr = EFUSE_TRIM_DATA_SATA3_USB3_1_PRI;
+	#endif
+
+	// get trim value of usb column
+	code = otp_key_manager(EFUSE_ID_1, addr);
+	if(code == -33) {
+		//!!!Please apply default value here!!!
+		printf("Read U3(TX/RX/12K) trim NULL, use default value\r\n");
+	} else {
+		// check if usb trim value is valid
+		is_found = extract_trim_valid(code, (u32 *)&trim);
+
+		if(is_found) {
+			if (USB_TRIM_INFO) {
+				printf(" ******* Trim data read success addr[0x%02x] = 0x%04x *****************\r\n", (int)addr, (int)trim);
+				printf(" ******* (1) 12K_resistor[4..0] valid from 1(0x1) <-> 20(0x14)*********\r\n");
+				printf(" ******* (2) TX trim[8..5] valid from 2(0x2) <-> 14(0xE) **************\r\n");
+				printf(" ******* (3) RX trim[12..9] valid from 8(0x8) <-> 14(0xE)**************\r\n");
+			}
+			Internal_12K_resistor = trim & 0x1F;
+			TX_TRIM = ((trim >> 5) & 0xF);
+			RX_TRIM = ((trim >> 9) & 0xF);
+
+			//(1) 12K resistor 1<= x <= 20(0x14)
+			if (Internal_12K_resistor > 0x14) {
+				printf(" 12K_resistor Trim data out range [0x%02x]=0x%04x > 20(0x14)\r\n", (int)addr, (int)Internal_12K_resistor);
+			} else if (Internal_12K_resistor < 0x1) {
+				printf(" 12K_resistor Trim data out range [0x%02x]=0x%04x < 1(0x1)\r\n", (int)addr, (int)Internal_12K_resistor);
+			} else {
+				if (USB_TRIM_INFO) {
+					printf(" 12K_resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)Internal_12K_resistor);
+				}
+				u3_trim_rint_sel = Internal_12K_resistor;
+			}
+
+			//(2) TX term bit[8..5] 0x2 <= x <= 0xE
+			if (TX_TRIM > 0xE) {
+				printf(" TX Trim data error [0x%02x]=0x%04x > 0xE\r\n", (int)addr, (int)TX_TRIM);
+			} else if (TX_TRIM < 0x2) {
+				printf(" TX Trim data error [0x%02x]=0x%04x < 0x2\r\n", (int)addr, (int)TX_TRIM);
+			} else {
+				if (USB_TRIM_INFO) {
+					printf(" TX Trim data range success 0x2 <= [0x%04x] <= 0xE\r\n", (int)TX_TRIM);
+				}
+				u3_trim_tx_val = TX_TRIM;
+			}
+			//(3) RX term bit[12..9] 0x8 <= x <= 0xE
+			if (RX_TRIM > 0xE) {
+				printf(" RX Trim data error [0x%02x]=0x%04x > 0xE\r\n", (int)addr, (int)RX_TRIM);
+			} else if (RX_TRIM < 0x8) {
+				printf(" RX Trim data error [0x%02x]=0x%04x < 0x8\r\n", (int)addr, (int)RX_TRIM);
+			} else {
+				if (USB_TRIM_INFO) {
+					printf(" RX Trim data range success 0x8 <= [0x%04x] <= 0xE\r\n", (int)RX_TRIM);
+				}
+				u3_trim_rx_val = RX_TRIM;
+			}
+
+
+		} else {
+			//!!!Please apply default value here!!!
+			printf("is found [%d][ USB3] = 0x%08x\r\n", is_found, (int)code);
+		}
+	}
+
 
 	//======================================================
 	// USB30 12K & TX/RX trim bits
 	//======================================================
-	//TRIM: 12K
-	temp = readl((volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE + 0x38));
-	temp &= ~(0x1F << 8);
-	temp |= (u3_trim_rint_sel << 8);
-	writel(temp, (volatile unsigned long *)(IOADDR_USB3CTL_REG_BASE + 0x38));
-
 	//12K src[b7](1: boundary 0: phy internal registers)
 	bank_switch(0);
-	USB3PHY_SETREG(USB3PHY_OFS(0x2684), 0x80);
+	u3phy_bitmask_set(0x2684, 7, 7, 0);
+
+	USB3PHY_SETREG(USB3PHY_OFS(0x2680), 0x40 + u3_trim_rint_sel);
+	USB3PHY_SETREG(USB3PHY_OFS(0x268C), 0x60);
+
 	//TRIM: RX termination
 	bank_switch(2);
-	u3phy_bitmask_set(0x2000, 3, 0, rx_term_trim_val);
+	u3phy_bitmask_set(0x2000, 3, 0, u3_trim_rx_val);
 	//TRIM: TX termination
 	bank_switch(0);
-	u3phy_bitmask_set(0x2040, 7, 4, tx_term_trim_val);
+	u3phy_bitmask_set(0x2040, 7, 4, u3_trim_tx_val);
 
 	//======================================================
 	// USB20 swing & sqsel
 	//======================================================
-        temp = USB3U2PHY_GETREG(USB3U2PHY_OFS(0x1018));
-	temp &= ~(0x7<<1);
-        temp |= (u2_swctrl<<1);
-	USB3U2PHY_SETREG(USB3U2PHY_OFS(0x1018), temp);
-
-        temp = USB3U2PHY_GETREG(USB3U2PHY_OFS(0x1014));
-	temp &= ~(0x7<<2);
-        temp |= (u2_sqsel<<2);
-	USB3U2PHY_SETREG(USB3U2PHY_OFS(0x1014), temp);
+        u3u2phy_bitmask_set(0x1018, 3, 1, u2_trim_swctrl);
+	u3u2phy_bitmask_set(0x1014, 4, 2, u2_trim_sqsel);
 
         //R45 Calibration
-        USB3U2PHY_SETREG(0x51, 0x20);
-        udelay(2);
-        USB3U2PHY_SETREG(0x51, 0x00);
-        udelay(2);
+        USB3U2PHY_SETREG(USB3U2PHY_OFS(0x1144), 0x20);
+        udelay(24);
+        USB3U2PHY_SETREG(USB3U2PHY_OFS(0x1144), 0x00);
+        udelay(24);
 
 }
 
@@ -401,6 +481,7 @@ static void nvt_u2phy_best_setting(void)
 	//=====================================
 	//=========== U2 Best setting =========
 	//=====================================
+	bank_switch(0);
 	USB3PHY_SETREG(USB3PHY_OFS(0x2158), 0x74);
 	USB3U2PHY_SETREG(USB3U2PHY_OFS(0x1024), 0xB0);
 	USB3U2PHY_SETREG(USB3U2PHY_OFS(0x1048), 0x31);
@@ -534,10 +615,25 @@ static void hw_print(void)
 			u3_phy_base = 0xF0490000;
 		}
 
+		printk("============================================\n");
+		printk("============ usb2 trim setting  ============\n");
+		printk("============================================\n");
+		printk("[TRIM_S][U2] 0x%x = (0x%x)\n", (u3_phy_base + 0x2680), USB3PHY_GETREG(USB3PHY_OFS(0x2680)));
+
+		printk("============================================\n");
+		printk("============ USB3 trim setting  ============\n");
+		printk("============================================\n");
+		// TX trim
+		bank_switch(0);
+		printk("[TRIM_S][U3] 0x%x = (0x%x)\n", (u3_phy_base + 0x2040), USB3PHY_GETREG(USB3PHY_OFS(0x2040)));
+		// RX trim
+		bank_switch(2);
+		printk("[TRIM_S][U3] 0x%x = (0x%x)\n", (u3_phy_base + 0x2000), USB3PHY_GETREG(USB3PHY_OFS(0x2000)));
 
 		printk("============================================\n");
 		printk("============ USB2 best setting  ============\n");
 		printk("============================================\n");
+		bank_switch(0);
 		printk("[BEST_S][U2] 0x%x = (0x%x)\n", (u3_phy_base + 0x2158), USB3PHY_GETREG(USB3PHY_OFS(0x2158)));
 		printk("[BEST_S][U2] 0x%x = (0x%x)\n", (u3_phy_base + 0x1024), USB3U2PHY_GETREG(USB3U2PHY_OFS(0x1024)));
 		printk("[BEST_S][U2] 0x%x = (0x%x)\n", (u3_phy_base + 0x1048), USB3U2PHY_GETREG(USB3U2PHY_OFS(0x1048)));

@@ -71,23 +71,23 @@ int atoi(const char *str)
 }
 
 int get_linux_major_version(void) {
-    image_header_t * hdr = (image_header_t *)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
-    char major_version[3];
+	image_header_t * hdr = (image_header_t *)nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
+	char major_version[3];
 
-    const char *version_start = strstr(hdr->ih_name, "Linux-");
-    if (version_start == NULL) {
-        nvt_dbg(ERR, "%s fail\n", __func__);
-        return -1;
-    }
+	const char *version_start = strstr(hdr->ih_name, "Linux-");
+	if (version_start == NULL) {
+		nvt_dbg(ERR, "%s fail\n", __func__);
+		return -1;
+	}
 
-    version_start += strlen("Linux-");
+	version_start += strlen("Linux-");
 
-    strncpy(major_version, version_start, 2);
-    major_version[2] = '\0';
+	strncpy(major_version, version_start, 2);
+	major_version[2] = '\0';
 
-    int major = atoi(major_version);
+	int major = atoi(major_version);
 
-    return major;
+	return major;
 }
 
 #if ((defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)) || defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT))
@@ -184,8 +184,8 @@ static int nvt_chk_key(ulong addr, unsigned int size)
 	}
 	printf("\n");
 	/*************
-		compare key hash from efuse
-	**************/
+	  compare key hash from efuse
+	 **************/
 
 	/*default set sha256 in 1,2 efuse key field,   0 efuse key field for aes key*/
 
@@ -800,6 +800,64 @@ int nvt_decrypt_aes(unsigned long addr)
 }
 #endif /* CONFIG_NVT_IVOT_OPTEE_SUPPORT && CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT || CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
 
+#if defined(CONFIG_NVT_IVOT_EMMC)
+static int assign_remain_emmc_in_fdt(char *part_node_name)
+{
+	int  nodeoffset, nextoffset;
+	const char *ptr = NULL;
+	char path[128] = {0};
+	u64 addr, size;
+	fdt64_t *val;
+	struct mmc *mmc;
+	bool force_init = false;
+
+	sprintf(path, "mmc%d", CONFIG_NVT_IVOT_EMMC);
+	nodeoffset = fdt_path_offset((void *)nvt_fdt_buffer, path);
+	nextoffset = fdt_first_subnode((void *)nvt_fdt_buffer, nodeoffset);
+	if (nextoffset < 0) {
+		return -1;
+	}
+	while (strcmp(ptr, part_node_name) != 0) {
+		nextoffset = fdt_next_node((void *)nvt_fdt_buffer, nodeoffset, NULL);
+		if (nextoffset < 0) {
+			return -1;
+		}
+		ptr = fdt_get_name((const void *)nvt_fdt_buffer, nextoffset, NULL);
+		nodeoffset = nextoffset;
+	}
+	val = (fdt64_t *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "reg", NULL);
+	if (!val) {
+		printf("fdt_getprop fail\n");
+		return -1;
+	}
+
+	mmc = find_mmc_device(CONFIG_NVT_IVOT_EMMC);
+	if (!mmc) {
+		printf("no mmc device at slot %d\n", CONFIG_NVT_IVOT_EMMC);
+		return -1;
+	}
+
+	if (!mmc_getcd(mmc)) {
+		force_init = true;
+	}
+	if (force_init) {
+		mmc->has_init = 0;
+	}
+
+	if (IS_ENABLED(CONFIG_MMC_SPEED_MODE_SET)) {
+		mmc->user_speed_mode = MMC_MODES_END;
+	}
+
+	if (mmc_init(mmc)) {
+		return -1;
+	}
+
+	val[1] = cpu_to_fdt64(((u64)mmc->capacity_user - addr));
+	fdt_setprop_inplace((void *)nvt_fdt_buffer, nodeoffset, "reg", val, sizeof(val));
+	return 0;
+}
+#endif
+
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || defined(CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT) || defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_EMMC_BOOT)
 int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 {
@@ -867,13 +925,15 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 		case FLASHTYPE_NOR:
 			sprintf(cmd, "nor0=spi_nor.0");
 			ret = env_set("mtdids", cmd);
+			if (ret)
+				printf("env_set mtdids failed.\r\n");
 			if (p_cmdline != NULL) {
 				/* To find if mtdparts string existed. If yes, it needs to expand mtdparts environment */
 				char *mtdparts_off = NULL;
 				mtdparts_off = strstr((char *)p_cmdline, "mtdparts=");
 				if (mtdparts_off) {
-				p_cmdline = mtdparts_off;
-				*p_cmdline = '\0';
+					p_cmdline = mtdparts_off;
+					*p_cmdline = '\0';
 				}
 				strcat(p_cmdline, "mtdparts=spi_nor.0:");
 			}
@@ -883,6 +943,8 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 		case FLASHTYPE_NAND:
 			sprintf(cmd, "nand0=spi_nand.0");
 			ret = env_set("mtdids", cmd);
+			if (ret)
+				printf("env_set mtdids failed.\r\n");
 			sprintf(cmd, "mtdparts=spi_nand.0:");
 			break;
 		case FLASHTYPE_EMMC:
@@ -904,11 +966,6 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 		PartitionOffset = p->PartitionOffset;
 		FlashType = p->FlashType;
 
-		if (p->EmbType != EMBTYPE_UNKNOWN && PartitionSize == 0) {
-			printf("%s skip mtdpart config of partition[%d], because its size is 0\n%s", ANSI_COLOR_YELLOW, i, ANSI_COLOR_RESET);
-			continue;
-		}
-
 		if(FlashType != FlashTypePrevious){
 			if (PartitionSize <= 0) {
 				// printf("%s stop when [%d], because its size <= 0\n%s", ANSI_COLOR_YELLOW, i, ANSI_COLOR_RESET);
@@ -917,31 +974,31 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 
 			switch(FlashType) {
 				case FLASHTYPE_NOR:
-				if(env_get("mtdids") != NULL){
-					sprintf(buf, env_get("mtdids"));
-				}
-				strcat(buf, ",nor0=spi_nor.0");
-				env_set("mtdids", buf);
+					if(env_get("mtdids") != NULL){
+						sprintf(buf, env_get("mtdids"));
+					}
+					strcat(buf, ",nor0=spi_nor.0");
+					env_set("mtdids", buf);
 
-				sprintf(buf, ";spi_nor.0:");
-				break;
-			case FLASHTYPE_NAND:
-				if(env_get("mtdids") != NULL){
-					sprintf(buf, env_get("mtdids"));
-				}
-				strcat(buf, ",nand0=spi_nand.0");
-				env_set("mtdids", buf);
+					sprintf(buf, ";spi_nor.0:");
+					break;
+				case FLASHTYPE_NAND:
+					if(env_get("mtdids") != NULL){
+						sprintf(buf, env_get("mtdids"));
+					}
+					strcat(buf, ",nand0=spi_nand.0");
+					env_set("mtdids", buf);
 
-				sprintf(buf, ";spi_nand.0:");
+					sprintf(buf, ";spi_nand.0:");
 
-				break;
-			case FLASHTYPE_EMMC:
-				/* MMC device doesn't need mtdparts */
-				break;
-			default:
-				printf("%s %s:flash type %d is not support %s\r\n", ANSI_COLOR_RED, __func__, FlashType, ANSI_COLOR_RESET);
-				return -1;
-				break;
+					break;
+				case FLASHTYPE_EMMC:
+					/* MMC device doesn't need mtdparts */
+					break;
+				default:
+					printf("%s %s:flash type %d is not support %s\r\n", ANSI_COLOR_RED, __func__, FlashType, ANSI_COLOR_RESET);
+					return -1;
+					break;
 			}
 			strcat(cmd, buf);
 			FlashTypePrevious = FlashType;
@@ -1042,6 +1099,17 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				sprintf(buf, "0x%llx@0x%llx(rootfs%d),", PartitionSize, PartitionOffset, p->OrderIdx);
 				if(FlashType == FLASHTYPE_EMMC) {
 					if (p_cmdline != NULL) {
+#if defined(CONFIG_NVT_IVOT_EMMC)
+						if (PartitionSize == 0) {
+							if (p->OrderIdx == 0) {
+								sprintf(buf, "partition_rootfs", p->OrderIdx);
+							} else {
+								sprintf(buf, "partition_rootfs%d", p->OrderIdx);
+							}
+							assign_remain_emmc_in_fdt(buf);
+							sprintf(buf, "-@0x%llx(rootfs%d),", PartitionOffset, p->OrderIdx);
+						}
+#endif
 						strcat(p_cmdline, buf);
 						strcat(cmd, buf);
 						/* Multiple rootfs partitions if OrderIdx > 0 */
@@ -1192,6 +1260,8 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 #if defined(CONFIG_NVT_IVOT_EMMC)
 		sprintf(buf, "0x%llx@0(total),", mmc->capacity / MMC_MAX_BLOCK_LEN);
 		strcat(p_cmdline, buf);
+		sprintf(buf, "0x%llx@0(total),", mmc->capacity);
+		strcat(cmd_remain, buf);
 		strcat(cmd, cmd_remain);
 		cmd[strlen(cmd) - 1] = ' ';
 
@@ -1243,8 +1313,8 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 				// ubi. squashfs over ubi
 				sprintf(buf, " ubi.mtd=%d ", part_num);
 #else
-                // To handle non-ubifs rootfs type (squashfs/jffs2)
-                sprintf(buf, " root=/dev/mtdblock%d ", part_num);
+				// To handle non-ubifs rootfs type (squashfs/jffs2)
+				sprintf(buf, " root=/dev/mtdblock%d ", part_num);
 #endif
 				break;
 			case FLASHTYPE_EMMC:
@@ -1302,78 +1372,78 @@ static int nvt_on_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_me
 
 	/* Copy to dest address */
 	switch (pEmb[id].EmbType) {
-	case EMBTYPE_LOADER:
-		printf("RUNFW: Ignore T.bin loader\n");
-		break;
-	case EMBTYPE_FDT:
-	case EMBTYPE_FDTFAST:
-		/**
-		 * for some all-in-one bin, there are many bin with fdt format in it.
-		 * Only system fdt (nvt-evb.bin) need to copy to nvt_fdt_buffer
-		 * Check if /model property is existing, which comes from nvt-basic.dtsi
-		 * to indicate system fdt.
-		 */
-		if (fdt_getprop(p_mem->p_data, 0, "model", &len) != NULL) {
-			dst_addr = (ulong)nvt_fdt_buffer;
+		case EMBTYPE_LOADER:
+			printf("RUNFW: Ignore T.bin loader\n");
+			break;
+		case EMBTYPE_FDT:
+		case EMBTYPE_FDTFAST:
+			/**
+			 * for some all-in-one bin, there are many bin with fdt format in it.
+			 * Only system fdt (nvt-evb.bin) need to copy to nvt_fdt_buffer
+			 * Check if /model property is existing, which comes from nvt-basic.dtsi
+			 * to indicate system fdt.
+			 */
+			if (fdt_getprop(p_mem->p_data, 0, "model", &len) != NULL) {
+				dst_addr = (ulong)nvt_fdt_buffer;
+				dst_size = p_mem->len;
+				src_addr = (ulong)p_mem->p_data;
+				printf("RUNFW: Copy FDT from 0x%lx to 0x%lx with length %lu bytes\r\n",
+						(ulong)p_mem->p_data, (ulong)dst_addr, dst_size);
+			}
+			break;
+		case EMBTYPE_UBOOT:
+		case EMBTYPE_DSP:
+		case EMBTYPE_RTOS:
+		case EMBTYPE_AI:
+		case EMBTYPE_MCU:
+			break;
+		case EMBTYPE_LINUX:
+			dst_addr = nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
 			dst_size = p_mem->len;
 			src_addr = (ulong)p_mem->p_data;
-			printf("RUNFW: Copy FDT from 0x%lx to 0x%lx with length %lu bytes\r\n",
-				   (ulong)p_mem->p_data, (ulong)dst_addr, dst_size);
-		}
-		break;
-	case EMBTYPE_UBOOT:
-	case EMBTYPE_DSP:
-	case EMBTYPE_RTOS:
-	case EMBTYPE_AI:
-	case EMBTYPE_MCU:
-		break;
-	case EMBTYPE_LINUX:
-		dst_addr = nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
-		dst_size = p_mem->len;
-		src_addr = (ulong)p_mem->p_data;
-		printf("RUNFW: Copy Linux from 0x%08lx to 0x%08lx with length %lu bytes\r\n",
-			   (ulong)p_mem->p_data, (ulong)dst_addr, dst_size);
+			printf("RUNFW: Copy Linux from 0x%08lx to 0x%08lx with length %lu bytes\r\n",
+					(ulong)p_mem->p_data, (ulong)dst_addr, dst_size);
 #ifdef CONFIG_ARM64
-		char cmd[256] = {0};
+			char cmd[256] = {0};
 
-		sprintf(cmd, "0x%lx", nvt_memory_cfg[MEMTYPE_LINUX].addr);
-		env_set("kernel_comp_addr_r", cmd);
-		sprintf(cmd, "0x%lx", dst_size);
-		env_set("kernel_comp_size", cmd);
+			sprintf(cmd, "0x%lx", nvt_memory_cfg[MEMTYPE_LINUX].addr);
+			env_set("kernel_comp_addr_r", cmd);
+			sprintf(cmd, "0x%lx", dst_size);
+			env_set("kernel_comp_size", cmd);
 #endif
-		break;
-	case EMBTYPE_ROOTFS:
+			break;
+		case EMBTYPE_ROOTFS:
 #ifdef NVT_LINUX_RAMDISK_SUPPORT
 
-		/* Check if the image type is Ramdisk, if not skip it */
+			/* Check if the image type is Ramdisk, if not skip it */
 #ifdef CONFIG_NVT_BIN_CHKSUM_SUPPORT
-		src_addr = (ulong)p_mem->p_data;
-		src_addr += 64;
+			src_addr = (ulong)p_mem->p_data;
+			src_addr += 64;
 #endif
-		hdr = (image_header_t *)src_addr;
-		if (image_check_type(hdr, IH_TYPE_RAMDISK) == 0 || pEmb[id].OrderIdx != 0) {
-			nvt_dbg(MSG, "not a ramdisk rootfs skip it : id%d\n", id);
-			return 0;
-		}
+			hdr = (image_header_t *)src_addr;
+			if (image_check_type(hdr, IH_TYPE_RAMDISK) == 0 || pEmb[id].OrderIdx != 0) {
+				nvt_dbg(MSG, "not a ramdisk rootfs skip it : id%d\n", id);
+				return 0;
+			}
 
-		nvt_ramdisk_size = ALIGN_CEIL(p_mem->len, 4096);
-		nvt_ramdisk_addr = nvt_memory_cfg[MEMTYPE_LINUX].addr + nvt_memory_cfg[MEMTYPE_LINUX].size - nvt_ramdisk_size - 0x10000;
-		dst_addr = nvt_ramdisk_addr;
-		dst_size = nvt_ramdisk_size;
-		src_addr = (ulong)p_mem->p_data;
+			nvt_ramdisk_size = ALIGN_CEIL(p_mem->len, 4096);
+			nvt_ramdisk_addr = nvt_memory_cfg[MEMTYPE_LINUX].addr + nvt_memory_cfg[MEMTYPE_LINUX].size - nvt_ramdisk_size - 0x10000;
+			dst_addr = nvt_ramdisk_addr;
+			dst_size = nvt_ramdisk_size;
+			src_addr = (ulong)p_mem->p_data;
 #ifdef CONFIG_NVT_BIN_CHKSUM_SUPPORT
-		// Skip nvt head info
-		src_addr += 64;
-		dst_size -= 64;
+			// Skip nvt head info
+			src_addr += 64;
+			dst_size -= 64;
 #endif
-		printf("RUNFW: Copy RAMDISK from 0x%lx to 0x%lx with length %lu bytes\r\n",
-			   src_addr, dst_addr, dst_size);
+			printf("RUNFW: Copy RAMDISK from 0x%lx to 0x%lx with length %lu bytes\r\n",
+					src_addr, dst_addr, dst_size);
 
 
 #endif /* NVT_LINUX_RAMDISK_SUPPORT */
-		break;
-	default:
-		break;
+			break;
+		default:
+			break;
 	}
 
 	if (dst_size != 0) {
@@ -1405,7 +1475,7 @@ static void gz_free(void *x, void *addr, unsigned nb)
 }
 
 int gz_uncompress(unsigned char *in, unsigned char *out,
-				  unsigned int insize, unsigned int outsize)
+		unsigned int insize, unsigned int outsize)
 {
 	int err;
 	z_stream stream = {0};
@@ -1458,21 +1528,21 @@ static int nvt_runfw_bin_unpack_to_dest(ulong addr)
 	for (i = 1; i < EMB_PARTITION_INFO_COUNT; i++) {
 		if (pEmb[i].PartitionSize != 0) {
 			switch (pEmb[i].EmbType) {
-			case EMBTYPE_FDT:
-			case EMBTYPE_FDTFAST:
-			case EMBTYPE_UBOOT:
-			case EMBTYPE_LINUX:
+				case EMBTYPE_FDT:
+				case EMBTYPE_FDTFAST:
+				case EMBTYPE_UBOOT:
+				case EMBTYPE_LINUX:
 #ifdef NVT_LINUX_RAMDISK_SUPPORT
-			case EMBTYPE_ROOTFS:
+				case EMBTYPE_ROOTFS:
 #endif
-				//check this type exist in all-in-one
-				np_get_input.id = i;
-				np_get_input.mem = mem_in;
-				if (nvtpack_check_partition(pEmb[i], &np_get_input, &mem_out) != NVTPACK_ER_SUCCESS) {
-					printf("RUNFW boot: need partition[%d]\n", i);
-					return -1;
-				}
-				break;
+					//check this type exist in all-in-one
+					np_get_input.id = i;
+					np_get_input.mem = mem_in;
+					if (nvtpack_check_partition(pEmb[i], &np_get_input, &mem_out) != NVTPACK_ER_SUCCESS) {
+						printf("RUNFW boot: need partition[%d]\n", i);
+						return -1;
+					}
+					break;
 			}
 		}
 	}
@@ -1515,8 +1585,8 @@ static ulong uimage_gen_hcrc(const image_header_t *hdr)
 }
 
 static int uimage_gen_fake_header(image_header_t *hdr,
-								  unsigned long size,
-								  unsigned long type)
+		unsigned long size,
+		unsigned long type)
 {
 	if (!hdr) {
 		printf("uimage_gen_fake_header():hdr is NULL\n");
@@ -1563,7 +1633,7 @@ inline static int is_gzip_image(unsigned long image)
 }
 
 static int nvt_ker_img_ungzip_linux(unsigned long linux_addr,
-									unsigned long workbuf)
+		unsigned long workbuf)
 {
 	unsigned long gzip_image_size = 0;
 	unsigned long image_size = 0;
@@ -1587,7 +1657,7 @@ static int nvt_ker_img_ungzip_linux(unsigned long linux_addr,
 
 	//copy gzipped linux to working buffer
 	memcpy((char *)workbuf, (char *)linux_addr,
-		   gzip_image_size + sizeof(NVTPACK_BFC_HDR));
+			gzip_image_size + sizeof(NVTPACK_BFC_HDR));
 
 	//uncompress linux
 	nvt_dbg(IND, "gz_uncompress linux\n");
@@ -1596,9 +1666,9 @@ static int nvt_ker_img_ungzip_linux(unsigned long linux_addr,
 		return -1;
 	}
 	if (gz_uncompress((unsigned char *)(workbuf + sizeof(NVTPACK_BFC_HDR)),
-					  (void *)(linux_addr + sizeof(image_header_t)),
-					  gzip_image_size,
-					  image_size) == 0) {
+				(void *)(linux_addr + sizeof(image_header_t)),
+				gzip_image_size,
+				image_size) == 0) {
 		nvt_dbg(ERR, "fail to gz_uncompress linux\n");
 		return -1;
 	}
@@ -1606,7 +1676,7 @@ static int nvt_ker_img_ungzip_linux(unsigned long linux_addr,
 	//generate a fake uboot header so that uboot can recognize and boot linux
 	nvt_dbg(IND, "generating uImage header for linux\n");
 	if (uimage_gen_fake_header((image_header_t *)linux_addr,
-							   image_size, 2)) {
+				image_size, 2)) {
 		nvt_dbg(ERR, "fail to generate fake uboot header for linux\n");
 		return -1;
 	}
@@ -1618,7 +1688,7 @@ static int nvt_ker_img_ungzip_linux(unsigned long linux_addr,
 }
 
 static int nvt_ramdisk_img_ungzip_linux(unsigned long ramdisk_addr,
-										unsigned long workbuf)
+		unsigned long workbuf)
 {
 	unsigned long gzip_image_size = 0;
 	unsigned long image_size = 0;
@@ -1641,7 +1711,7 @@ static int nvt_ramdisk_img_ungzip_linux(unsigned long ramdisk_addr,
 	}
 
 	memcpy((char *)workbuf, (char *)ramdisk_addr,
-		   gzip_image_size + sizeof(NVTPACK_BFC_HDR));
+			gzip_image_size + sizeof(NVTPACK_BFC_HDR));
 
 	//uncompress ramdisk
 	nvt_dbg(IND, "gz_uncompress ramdisk\n");
@@ -1651,9 +1721,9 @@ static int nvt_ramdisk_img_ungzip_linux(unsigned long ramdisk_addr,
 	}
 
 	if (gz_uncompress((unsigned char *)(workbuf + sizeof(NVTPACK_BFC_HDR)),
-					  (void *)(ramdisk_addr + sizeof(image_header_t)),
-					  gzip_image_size,
-					  image_size) == 0) {
+				(void *)(ramdisk_addr + sizeof(image_header_t)),
+				gzip_image_size,
+				image_size) == 0) {
 		nvt_dbg(ERR, "fail to gz_uncompress ramdisk\n");
 		return -1;
 	}
@@ -1661,7 +1731,7 @@ static int nvt_ramdisk_img_ungzip_linux(unsigned long ramdisk_addr,
 	//generate a fake uboot header so that uboot can recognize ramdisk
 	nvt_dbg(IND, "generating uImage header for ramdisk\n");
 	if (uimage_gen_fake_header((image_header_t *)ramdisk_addr,
-							   image_size, 3)) {
+				image_size, 3)) {
 		nvt_dbg(ERR, "fail to generate fake uboot header for ramdisk\n");
 		return -1;
 	}
@@ -1677,14 +1747,14 @@ static int nvt_boot_linux_bin_auto(void)
 	unsigned long size;
 #ifdef CONFIG_ENCRYPT_KERNEL
 	unsigned int is_secure = 0;
-	#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
+#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
 	NVT_SMC_EFUSE_DATA efuse_data = {0};
 	efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
 
 	is_secure = nvt_ivot_optee_efuse_operation(&efuse_data);
-	#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
 	is_secure = is_secure_enable();
-	#endif
+#endif
 #endif
 
 	loff_t part_off = 0, part_size = 0;
@@ -1827,7 +1897,7 @@ static int nvt_boot_linux_bin_auto(void)
 #ifndef CONFIG_NVT_SPI_NONE
 	/* To check whether the kernel is nvt gzip format or not */
 	ret = nvt_ker_img_ungzip_linux(nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr,
-								   nvt_memory_cfg[MEMTYPE_LINUXTMP].addr);
+			nvt_memory_cfg[MEMTYPE_LINUXTMP].addr);
 	if (ret < 0) {
 		nvt_dbg(ERR, "The nvt kernel image unzip failed with ret=%d \r\n", ret);
 		return -1;
@@ -1876,14 +1946,14 @@ static int nvt_boot_rootfs_bin_auto(void)
 
 #ifdef CONFIG_ENCRYPT_ROOTFS
 	unsigned int is_secure = 0;
-	#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
+#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
 	NVT_SMC_EFUSE_DATA efuse_data = {0};
 	efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
 
 	is_secure = nvt_ivot_optee_efuse_operation(&efuse_data);
-	#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
+#elif defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
 	is_secure = is_secure_enable();
-	#endif
+#endif
 #endif
 
 	// get rootfs partition info from fdt
@@ -2048,7 +2118,7 @@ static int nvt_boot_rootfs_bin_auto(void)
 
 	/* To check whether the ramdisk format is nvt gzip format or not */
 	ret = nvt_ramdisk_img_ungzip_linux(nvt_ramdisk_addr,
-									   nvt_memory_cfg[MEMTYPE_LINUXTMP].addr);
+			nvt_memory_cfg[MEMTYPE_LINUXTMP].addr);
 	if (ret < 0) {
 		nvt_dbg(ERR, "The nvt ramdisk image unzip failed with ret=%d \r\n", ret);
 		return -1;
@@ -2188,7 +2258,7 @@ int do_nvt_boot_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	if (nvt_set_bootargs_by_dts(nvt_fdt_buffer) < 0) {
 		return -1;
 	}
-	
+
 	/* late bootargs as init string of cmdline */
 	if (snprintf(cmdline, sizeof(cmdline), "%s ", env_get("bootargs")) >= sizeof(cmdline)) {
 		printf("%s:%d buf overfolw\n", __FILE__, __LINE__);
@@ -2260,9 +2330,9 @@ int do_nvt_boot_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 }
 
 U_BOOT_CMD(
-	nvt_boot,   1,  0,  do_nvt_boot_cmd,
-	"To do nvt platform boot init.", "\n"
-);
+		nvt_boot,   1,  0,  do_nvt_boot_cmd,
+		"To do nvt platform boot init.", "\n"
+	  );
 
 #if defined(CONFIG_NVT_LINUX_EMMC_BOOT)
 int do_nvt_mmc_erase_all_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
@@ -2342,9 +2412,9 @@ int do_nvt_mmc_erase_all_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *co
 }
 
 U_BOOT_CMD(
-	nvt_mmc_erase_all,   2,  0,  do_nvt_mmc_erase_all_cmd,
-	"Erase User Partition and Boot Partition in mmc dev.", "dev\n"
-);
+		nvt_mmc_erase_all,   2,  0,  do_nvt_mmc_erase_all_cmd,
+		"Erase User Partition and Boot Partition in mmc dev.", "dev\n"
+	  );
 #endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
 
 

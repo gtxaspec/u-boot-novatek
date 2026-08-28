@@ -1,4 +1,5 @@
 #include "nvt_pwm.h"
+#include <asm/arch/ns02401_regs.h>
 
 #define NUM_PWM                 6
 
@@ -16,12 +17,11 @@ static void nvt_pwm_masked_write(u32 hi, u32 lo, u32 val, void __iomem *phy_reg)
 	u32 mask, tmp;
 
 	mask = GENMASK(hi, lo);
-	tmp = readl(phy_reg);
+	tmp = smc_readl((uintptr_t)phy_reg);
 
 	tmp &= ~(mask);
 	tmp |= ((val << lo) & mask);
-
-	writel(tmp, phy_reg);
+	smc_writel(tmp, (uintptr_t)phy_reg);
 }
 
 void nvt_pwm_set_pinmux(int pwm_id, u32 pwm_pinmux)

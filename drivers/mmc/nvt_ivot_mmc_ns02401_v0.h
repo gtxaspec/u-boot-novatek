@@ -232,4 +232,20 @@
 #define PAD_PUPD_SDIO2_D3_MASK          GENMASK(15, 14)
 #define PAD_PUPD_SDIO2_D3_SHIFT         (14)
 
+static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
+{
+	return 0x14;
+}
+
+static inline uint32_t nvt_mmc_get_outdly(uint8_t host_id, uint32_t freq)
+{
+	if (host_id == 0) {  // SDIO_HOST_ID_1
+		return 1;
+	} else if (host_id == 1) {  // SDIO_HOST_ID_2
+		return 2;
+	} else {
+		return 8;
+	}
+}
+
 #endif

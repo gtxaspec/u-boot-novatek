@@ -51,6 +51,7 @@ typedef enum {
 	DISPDEV_IOCTRL_SET_RGBD_SWAP,                 ///< Set dummy swap
 	DISPDEV_IOCTRL_SET_HDMI_FMT,                  ///< select the HDMI output format 444/422/420
 	DISPDEV_IOCTRL_SET_HDMI2_FMT,                 ///< select the HDMI2 output format 444/422/420
+	DISPDEV_IOCTRL_SET_HDMI3_FMT,                 ///< select the HDMI2 output format 444/422/420
 
 	/* GET control group */
 	DISPDEV_IOCTRL_GET_ENABLE,                    ///< Get display engine's global enable/disable.
@@ -68,7 +69,7 @@ typedef enum {
 	DISPDEV_IOCTRL_GET_LOGOMODE,                  ///< Get the LOGO mode
 	DISPDEV_IOCTRL_GET_HDMI_FMT,                  ///< Get the HDMI output format 444/422/420
 	DISPDEV_IOCTRL_GET_HDMI2_FMT,                 ///< Get the HDMI2 output format 444/422/420
-
+	DISPDEV_IOCTRL_GET_HDMI3_FMT,                 ///< Get the HDMI2 output format 444/422/420
 	/* Others */
 	DISPDEV_IOCTRL_SET_LOAD,                      ///< Set Display Configuration Activation
 	DISPDEV_IOCTRL_WAIT_FRAMEEND,                 ///< Wait Display Frame End

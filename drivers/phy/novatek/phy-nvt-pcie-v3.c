@@ -10,7 +10,7 @@
 #include <asm/arch/efuse_protected.h>
 #include <linux/bitops.h>
 
-#define DRV_VERSION                     "1.00.01"
+#define DRV_VERSION                     "1.00.03"
 
 enum nvt_pcie_phy_id {
 	NVT_PHY_PCIE0 = 0,
@@ -553,10 +553,10 @@ static const struct phy_ops pcie_phy_ops = {
 
 static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 {
-	u32 trim;
+	u32 trim = 0;
 	u32 addr;
 	int code;
-	int is_found;
+	int is_found = 0;
 	int idx;
 
 	if (core == NULL) {
@@ -565,7 +565,7 @@ static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 	}
 
 	// PCIe
-	addr = 0x2C;	// RINT
+	addr = EFUSE_TRIM_PCIe0_ODT_PRI;	// RINT
 	code = otp_key_manager(EFUSE_ID_1, addr);
 	if (code == -33) {
 		//!!!Please apply default value here!!!
@@ -574,11 +574,12 @@ static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 	} else {
 		is_found = extract_trim_valid(code, (u32 *)&trim);
 		if (is_found && (trim & (1<<13))) {
-//			int is_valid;
-
 			printf("PCIe RINT Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)trim);
 			core->phys[NVT_PHY_PCIE0].is_rint = 1;
 			core->phys[NVT_PHY_PCIE0].rint = (trim>>8) & 0x1F;
+			// clamp at 0x7~0x19
+			if (core->phys[NVT_PHY_PCIE0].rint < 0x7) core->phys[NVT_PHY_PCIE0].rint = 0x7;
+			if (core->phys[NVT_PHY_PCIE0].rint > 0x19) core->phys[NVT_PHY_PCIE0].rint = 0x19;
 		} else {
 			//!!!Please apply default value here!!!
 			pr_err("PCIe Trim data raw(0x%x) = NULL\n", addr);
@@ -587,7 +588,26 @@ static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 		}
 	}
 
-	addr = 0x24;
+	addr = EFUSE_TRIM_PCIe1_ODT_PRI;	// if use aggressive setting
+	code = otp_key_manager(EFUSE_ID_1, addr);
+	if (code == -33) {
+		//!!!Please apply default value here!!!
+		printf("Read PCIe Aggressive trim error\r\n");
+		core->is_phy_aggressive = 0;
+	} else {
+		is_found = extract_trim_valid(code, (u32 *)&trim);
+		if (is_found && (trim & (1<<13))) {
+			printf("PCIe Aggressive trim read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)trim);
+			core->is_phy_aggressive = 1;
+		} else {
+			//!!!Please apply default value here!!!
+			pr_err("PCIe Trim data raw(0x%x) = NULL\n", addr);
+			printf("is found [%d][Aggresive] = 0x%08x\r\n", is_found, (int)code);
+			core->is_phy_aggressive = 0;
+		}
+	}
+
+	addr = EFUSE_TRIM_PCIE_PHY0_ODC_PRI;
 	code = otp_key_manager(EFUSE_ID_1, addr);
 	core->phys[0].is_dcc_valid = 0;
 	if (code == -33) {
@@ -601,7 +621,7 @@ static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 			core->phys[0].is_dcc_valid = 1;
 		} else {
 			pr_info("   PCIe DCC disabled: addr[%02x] 0x%04x\r\n", (int)addr, (int)trim);
-			core->phys[0].is_dcc_valid = 9;
+			core->phys[0].is_dcc_valid = 0;
 		}
 	}
 
@@ -609,7 +629,21 @@ static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 		core->phys[NVT_PHY_PCIE0+idx].id = idx;
 
 		// ODT trim
-		addr = 0x2C + idx;
+		switch (idx) {
+		case NVT_PHY_PCIE0:
+			addr = EFUSE_TRIM_PCIe0_ODT_PRI;
+			break;
+		case NVT_PHY_PCIE1:
+			addr = EFUSE_TRIM_PCIe1_ODT_PRI;
+			break;
+		case NVT_PHY_PCIE2:
+			addr = EFUSE_TRIM_PCIe2_ODT_PRI;
+			break;
+		case NVT_PHY_PCIE3:
+		default:
+			addr = EFUSE_TRIM_PCIe3_ODT_PRI;
+			break;
+		}
 		code = otp_key_manager(EFUSE_ID_1, addr);
 		if (code == -33) {
 			//!!!Please apply default value here!!!
@@ -622,8 +656,19 @@ static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 			if (is_found) {
 				printf("PCIe lane%d ODT Trim data read success addr[0x%02x] = 0x%04x\r\n", idx, (int)addr, (int)trim);
 				core->phys[NVT_PHY_PCIE0+idx].tx_odt_p = (trim>>0)&0x0F;
+				// clamp at 0x4~0xE
+				if (core->phys[NVT_PHY_PCIE0+idx].tx_odt_p < 0x4) core->phys[NVT_PHY_PCIE0+idx].tx_odt_p = 0x4;
+				if (core->phys[NVT_PHY_PCIE0+idx].tx_odt_p > 0xE) core->phys[NVT_PHY_PCIE0+idx].tx_odt_p = 0xE;
+
 				core->phys[NVT_PHY_PCIE0+idx].tx_odt_n = (trim>>4)&0x0F;
+				// clamp at 0x4~0xE
+				if (core->phys[NVT_PHY_PCIE0+idx].tx_odt_n < 0x4) core->phys[NVT_PHY_PCIE0+idx].tx_odt_n = 0x4;
+				if (core->phys[NVT_PHY_PCIE0+idx].tx_odt_n > 0xE) core->phys[NVT_PHY_PCIE0+idx].tx_odt_n = 0xE;
+
 				core->phys[NVT_PHY_PCIE0+idx].tx_odt_s = (trim>>8)&0x0F;
+				// clamp at 0x4~0xE
+				if (core->phys[NVT_PHY_PCIE0+idx].tx_odt_s < 0x4) core->phys[NVT_PHY_PCIE0+idx].tx_odt_s = 0x4;
+				if (core->phys[NVT_PHY_PCIE0+idx].tx_odt_s > 0xE) core->phys[NVT_PHY_PCIE0+idx].tx_odt_s = 0xE;
 			} else {
 				pr_err("PCIe Trim data raw(0x%x) = NULL\n", addr);
 				printf("is found [%d][PCIe lane%d ODT] = 0x%08x\r\n", is_found, idx, (int)code);
@@ -635,7 +680,7 @@ static int load_efuse_trim(struct nvt_pcie_phy_core *core)
 
 		// DCC ODC trim
 		if (core->phys[0].is_dcc_valid) {
-			addr = 0x24 + idx;
+			addr = EFUSE_TRIM_PCIE_PHY0_ODC_PRI + idx;
 			code = otp_key_manager(EFUSE_ID_1, addr);
 			if (code == -33) {
 				//!!!Please apply default value here!!!

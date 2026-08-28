@@ -23,6 +23,7 @@ enum CHIP_ID {
 	CHIP_NS02302 = 0x5A21,
 	CHIP_NS02401 = 0xBB21,
 	CHIP_NS02402 = 0x5B21,
+	CHIP_NS02501 = 0x5521,
 };
 
 extern u32 nvt_get_chip_id(void);

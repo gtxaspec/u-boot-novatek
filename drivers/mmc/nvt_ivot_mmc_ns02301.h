@@ -127,6 +127,7 @@
 #define	PAD_DS_CGPIO_BASE               PAD_REG_TO_BASE(0x24)
 #define	PAD_DS_CGPIO_BASE2              PAD_REG_TO_BASE(0x28)
 #define	PAD_DS_CGPIO_BASE3              PAD_REG_TO_BASE(0x44)
+#define	PAD_DS_PGPIO_BASE               PAD_REG_TO_BASE(0x2C)
 
 #define PAD_DS_CGPIO0                   (PAD_DS_CGPIO_BASE + 0)
 #define PAD_DS_CGPIO1                   (PAD_DS_CGPIO_BASE + 2)
@@ -156,6 +157,13 @@
 #define PAD_DS_CGPIO18                  (PAD_DS_CGPIO_BASE3 + 20)
 #define PAD_DS_CGPIO19                  (PAD_DS_CGPIO_BASE3 + 24)
 
+#define PAD_DS_PGPIO2                   (PAD_DS_PGPIO_BASE + 4)
+#define PAD_DS_PGPIO3                   (PAD_DS_PGPIO_BASE + 6)
+#define PAD_DS_PGPIO4                   (PAD_DS_PGPIO_BASE + 8)
+#define PAD_DS_PGPIO5                   (PAD_DS_PGPIO_BASE + 10)
+#define PAD_DS_PGPIO6                   (PAD_DS_PGPIO_BASE + 12)
+#define PAD_DS_PGPIO7                   (PAD_DS_PGPIO_BASE + 14)
+
 #define PAD_DS_SDIO_CLK                 PAD_DS_CGPIO13
 #define PAD_DS_SDIO_CMD                 PAD_DS_CGPIO14
 #define PAD_DS_SDIO_D0                  PAD_DS_CGPIO15
@@ -169,6 +177,13 @@
 #define PAD_DS_SDIO2_D1                 PAD_DS_CGPIO22
 #define PAD_DS_SDIO2_D2                 PAD_DS_CGPIO23
 #define PAD_DS_SDIO2_D3                 PAD_DS_CGPIO24
+
+#define PAD_DS_SDIO2_2_CLK              PAD_DS_PGPIO7
+#define PAD_DS_SDIO2_2_CMD              PAD_DS_PGPIO6
+#define PAD_DS_SDIO2_2_D0               PAD_DS_PGPIO2
+#define PAD_DS_SDIO2_2_D1               PAD_DS_PGPIO3
+#define PAD_DS_SDIO2_2_D2               PAD_DS_PGPIO4
+#define PAD_DS_SDIO2_2_D3               PAD_DS_PGPIO5
 
 #define PAD_DS_SDIO3_CLK                PAD_DS_CGPIO10
 #define PAD_DS_SDIO3_CMD                PAD_DS_CGPIO11
@@ -306,5 +321,21 @@
 #define PAD_PUPD_SDIO3_D7_REG           (IOADDR_PAD_REG_BASE + 0x00)
 #define PAD_PUPD_SDIO3_D7_MASK          GENMASK(15, 14)
 #define PAD_PUPD_SDIO3_D7_SHIFT         (14)
+
+static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
+{
+	return 0;
+}
+
+static inline uint32_t nvt_mmc_get_outdly(uint8_t host_id, uint32_t freq)
+{
+	if (host_id == 0) {  // SDIO_HOST_ID_1
+		return 1;
+	} else if (host_id == 1) {  // SDIO_HOST_ID_2
+		return 2;
+	} else {
+		return 8;
+	}
+}
 
 #endif

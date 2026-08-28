@@ -14,7 +14,7 @@
 #include "nvt_ivot_mmcplat.h"
 #include <linux/bitops.h>
 
-#define NVT_MMC_UBOOT_DRV_VERSION  "0.01.002"
+#define NVT_MMC_UBOOT_DRV_VERSION  "0.02.007"
 
 /************************
  *        Common        *

@@ -6,7 +6,7 @@
 #include <phy_interface.h>
 #include <linux/bitops.h>
 
-#define XGMAC_VER "1.0.0.6"
+#define XGMAC_VER "1.0.0.10"
 /* Core registers */
 
 #define XGMAC_MAC_REGS_BASE 0x000
@@ -303,6 +303,7 @@ struct xgmac_priv {
 	bool reg_access_ok;
 	bool clk_ck_enabled;
 	int eth_idx;
+	int phy_mode_oc;
 };
 
 void xgmac_inval_desc_generic(void *desc);

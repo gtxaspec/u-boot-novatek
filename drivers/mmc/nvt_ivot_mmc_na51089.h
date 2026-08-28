@@ -116,12 +116,12 @@ typedef enum {
 // 2-2
 // #define TOP_SDIO2_EN_REG             (IOADDR_TOP_REG_BASE + 0x04)
 #define TOP_SDIO2_2_EN_MASK             BIT(19)
-#define TOP_SDIO2_2_EN_GPIO_REG         (IOADDR_TOP_REG_BASE + 0xA0)
+#define TOP_SDIO2_2_EN_GPIO_REG         (IOADDR_TOP_REG_BASE + 0xB0)
 #define TOP_SDIO2_2_EN_GPIO_MASK        BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(7) | BIT(8)
 
 #define TOP_SDIO3_EN_REG                (IOADDR_TOP_REG_BASE + 0x04)
 #define TOP_SDIO3_EN_MASK               BIT(17)
-#define TOP_SDIO3_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xB0)
+#define TOP_SDIO3_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xA0)
 #define TOP_SDIO3_EN_GPIO_MASK          BIT(8) | BIT(9) | BIT(0) | BIT(1) | BIT(2) | BIT(3)
 
 #define TOP_SDIO3_WIDTH_REG             (IOADDR_TOP_REG_BASE + 0x04)
@@ -328,5 +328,15 @@ typedef enum {
 #define PAD_PUPD_SDIO3_D7_REG           (IOADDR_PAD_REG_BASE + 0x00)
 #define PAD_PUPD_SDIO3_D7_MASK          GENMASK(15, 14)
 #define PAD_PUPD_SDIO3_D7_SHIFT         (14)
+
+static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
+{
+    return 0;
+}
+
+static inline uint32_t nvt_mmc_get_outdly(uint8_t host_id, uint32_t freq)
+{
+    return 0;
+}
 
 #endif

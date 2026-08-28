@@ -75,18 +75,31 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "card_power_gpio", &lenp);
 
-	if (lenp >= 0) {
-		host->card_power[0] = TRUE;
-		host->card_power[1] = __be32_to_cpu(cell[0]);
-		host->card_power[2] = __be32_to_cpu(cell[1]);
+	if (cell == NULL) {
+		SDIO_WARN("%s: Not Existed mmc card_power_gpio fdt, skip\n", __func__);
+	}  else {
+		if (lenp >= 0) {
+			host->card_power[0] = TRUE;
+			host->card_power[1] = __be32_to_cpu(cell[0]);
+			host->card_power[2] = __be32_to_cpu(cell[1]);
+		} else {
+			SDIO_WARN("%s: mmc card_power_gpio fdt lenp = 0(%d), skip\n", __func__, lenp);
+		}
 	}
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "force_power_cycle", &lenp);
-	if (lenp >= 0) {
-		if (__be32_to_cpu(cell[1]) > 0)
-			host->card_power[3] = __be32_to_cpu(cell[1]);
-		else
-			host->card_power[3] = 36;
+	
+	if (cell == NULL) {
+		SDIO_WARN("%s: Not Existed mmc force_power_cycle fdt, skip\n", __func__);
+	} else {
+		if (lenp >= 0) {
+			if (__be32_to_cpu(cell[1]) > 0)
+				host->card_power[3] = __be32_to_cpu(cell[1]);
+			else
+				host->card_power[3] = 36;
+		} else {
+			SDIO_WARN("%s: mmc force_power_cycle fdt lenp = 0(%d), skip\n", __func__, lenp);
+		}
 	}
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "max-frequency", NULL);
@@ -293,7 +306,6 @@ static void sdiohost_setinvoutdly(struct mmc_nvt_host *host, BOOL data_outdly_in
 	sdiohost_setreg(host, SDIO_DLY5_REG_OFS, dly5_reg.reg);
 }
 
-#if 0
 static void sdiohost_setphyclkoutdly(struct mmc_nvt_host *host, u32 dly_setting)
 {
 	union SDIO_CLOCK_CTRL2_REG clk_crtl_reg;
@@ -304,7 +316,6 @@ static void sdiohost_setphyclkoutdly(struct mmc_nvt_host *host, u32 dly_setting)
 
 	sdiohost_setreg(host, SDIO_CLOCK_CTRL2_REG_OFS, clk_crtl_reg.reg);
 }
-#endif
 
 static void sdiohost_setphyclkindly(struct mmc_nvt_host *host, u32 dly_setting)
 {
@@ -694,34 +705,6 @@ void sdiohost_setdatatimeout(struct mmc_nvt_host *host, u32 timeout)
 }
 
 /*
-    Set PAD driving Sink
-
-    @param[in] name driving sink name
-    @param[in] paddriving driving current
-
-    @return
-        - @b E_OK: sucess
-        - @b Else: fail
-*/
-
-static int pad_setdrivingsink(u32 name, u32 paddriving)
-{
-	uintptr_t padreg;
-	uintptr_t dwoffset = 0x0, bitoffset = 0x0;
-	uintptr_t driving = paddriving;
-
-	bitoffset = name & 0x1F;
-	dwoffset = (name >> 5);
-
-	HAL_READ_UINT32(IOADDR_PAD_REG_BASE + PAD_PUPD0_REG_OFS + (dwoffset << 2), padreg);
-	padreg &= ~(0xf << bitoffset);
-	padreg |= (driving << bitoffset);
-	HAL_WRITE_UINT32(IOADDR_PAD_REG_BASE + PAD_PUPD0_REG_OFS + (dwoffset << 2), padreg);
-
-	return E_OK;
-}
-
-/*
     Set PAD drive/sink of clock pin for specified SDIO channel.
 
     @param[in] id       SDIO channel ID
@@ -756,51 +739,7 @@ static int sdiohost_setpaddriving(struct mmc_nvt_host *host, SDIO_SPEED_MODE mod
 		clk_uidriving = DRIVING_CONVERT(host->pad_driving[SDIO_SDR104_MODE_CLK], host->id);
 	}
 
-	if (host->id == SDIO_HOST_ID_1) {
-		pad_setdrivingsink(PAD_DS_SDIO_CMD, cmd_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO_D0, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO_D1, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO_D2, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO_D3, data_uidriving);
-		return pad_setdrivingsink(PAD_DS_SDIO_CLK, clk_uidriving);
-	}
-#if (SDIO_HOST_ID_COUNT > 1)
-	else if (host->id == SDIO_HOST_ID_2) {
-#if defined(TOP_SDIO2_WIDTH_REG)
-		if (host->enable_8bits) {
-			pad_setdrivingsink(PAD_DS_SDIO2_D4, data_uidriving);
-			pad_setdrivingsink(PAD_DS_SDIO2_D5, data_uidriving);
-			pad_setdrivingsink(PAD_DS_SDIO2_D6, data_uidriving);
-			pad_setdrivingsink(PAD_DS_SDIO2_D7, data_uidriving);
-		}
-#endif
-		pad_setdrivingsink(PAD_DS_SDIO2_CMD, cmd_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO2_D0, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO2_D1, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO2_D2, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO2_D3, data_uidriving);
-		return pad_setdrivingsink(PAD_DS_SDIO2_CLK, clk_uidriving);
-	}
-#endif
-#if (SDIO_HOST_ID_COUNT > 2)
-	else if (host->id == SDIO_HOST_ID_3) {
-#if defined(TOP_SDIO3_WIDTH_REG)
-		if (host->enable_8bits) {
-			pad_setdrivingsink(PAD_DS_SDIO3_D4, data_uidriving);
-			pad_setdrivingsink(PAD_DS_SDIO3_D5, data_uidriving);
-			pad_setdrivingsink(PAD_DS_SDIO3_D6, data_uidriving);
-			pad_setdrivingsink(PAD_DS_SDIO3_D7, data_uidriving);
-		}
-#endif
-
-		pad_setdrivingsink(PAD_DS_SDIO3_CMD, cmd_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO3_D0, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO3_D1, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO3_D2, data_uidriving);
-		pad_setdrivingsink(PAD_DS_SDIO3_D3, data_uidriving);
-		return pad_setdrivingsink(PAD_DS_SDIO3_CLK, clk_uidriving);
-	}
-#endif
+	nvt_pad_setdrivingsink(host, clk_uidriving, cmd_uidriving, data_uidriving);
 
 	return 0;
 }
@@ -2003,35 +1942,16 @@ static int host_set_ios(struct udevice *udev)
 			sdiohost_setbusclk(host, dev->clock, (u32 *)&host->ns_in_one_cycle);
 
 			/*Set host sampling strategy according to different speeds and modes*/
-			if (dev->clock >= 192000000) {
-				sdiohost_setphyclkindly(host, 0x13);
-				sdiohost_setpaddriving(host, SDIO_MODE_SDR104);
-				sdiohost_setblkfifoen(host, true);
-			} else if (dev->clock >= 160000000) {
-				sdiohost_setphyclkindly(host, 0x7);
-				sdiohost_setpaddriving(host, SDIO_MODE_SDR104);
-				sdiohost_setblkfifoen(host, true);
-			} else if (dev->clock >= 120000000) {
-				sdiohost_setphyclkindly(host, 0x0);
-				sdiohost_setpaddriving(host, SDIO_MODE_SDR104);
-				sdiohost_setblkfifoen(host, true);
-			} else if (dev->clock >= 96000000) {
-				sdiohost_setphyclkindly(host, 0x23);
-				sdiohost_setpaddriving(host, SDIO_MODE_SDR50);
-				sdiohost_setblkfifoen(host, true);
-			} else if (dev->clock >= 64000000) {
-				sdiohost_setphyclkindly(host, 0x0);
-				sdiohost_setpaddriving(host, SDIO_MODE_SDR50);
-				sdiohost_setblkfifoen(host, true);
-			} else if (dev->clock >= 25000000) {
-				sdiohost_setphyclkindly(host, 0x0);
+			if (dev->clock >= 25000000) {		// Currently uboot mmc only supports up to 48 MHz. Refer to nvt_mmc_probe()
 				sdiohost_setpaddriving(host, SDIO_MODE_HS);
 				sdiohost_setblkfifoen(host, false);
 			} else {
-				sdiohost_setphyclkindly(host, 0x0);
 				sdiohost_setpaddriving(host, SDIO_MODE_DS);
 				sdiohost_setblkfifoen(host, false);
 			}
+
+			sdiohost_setphyclkindly(host, nvt_mmc_get_indly(host->id, dev->clock));
+			sdiohost_setphyclkoutdly(host, nvt_mmc_get_outdly(host->id, dev->clock));
 
 			if (host->indly_sel >= 0) {
 				sdiohost_setphyclkindly(host, host->indly_sel);
@@ -2496,6 +2416,7 @@ static int nvt_mmc_bind(struct udevice *dev)
 
 static int nvt_mmc_remove(struct udevice *dev)
 {
+#ifndef CONFIG_NVT_FPGA_EMULATION
 	struct mmc_nvt_host *host = dev_get_priv(dev);
 	struct nvt_mmc_plat *plat = dev_get_plat(dev);
 	struct mmc *card = &plat->mmc;
@@ -2503,9 +2424,9 @@ static int nvt_mmc_remove(struct udevice *dev)
 	int err;
 
 	/* Workaround: Should remove */
-#if defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64)
-	return 0;
-#endif
+//#if defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64)
+//	return 0;	
+//#endif
 
 	if (host->id == SDIO_HOST_ID_1) {
 		sdiohost_power_down(host);
@@ -2516,13 +2437,16 @@ static int nvt_mmc_remove(struct udevice *dev)
 	}
 #if (SDIO_HOST_ID_COUNT > 1)
 	else if (host->id == SDIO_HOST_ID_2) {
-		sdiohost_power_down(host);
-		/* Disable CLK */
-		reg_val = readl(CG_SDIO2_CLKEN_REG);
-		reg_val &= ~(CG_SDIO2_CLKEN_MASK);
-		writel(reg_val, CG_SDIO2_CLKEN_REG);
+		if (!IS_MMC(card)) {
+			sdiohost_power_down(host);
+			/* Disable CLK */
+			reg_val = readl(CG_SDIO2_CLKEN_REG);
+			reg_val &= ~(CG_SDIO2_CLKEN_MASK);
+			writel(reg_val, CG_SDIO2_CLKEN_REG);
+		}
 	}
 #endif
+
 	if (card!=NULL && IS_MMC(card)) {
 		if (card->ext_csd == NULL)
 			return 0;
@@ -2548,7 +2472,8 @@ static int nvt_mmc_remove(struct udevice *dev)
 			printk("==================== flush cache ==================== \r\n");
 		}
 	}
-
+#else
+#endif
 	return 0;
 }
 

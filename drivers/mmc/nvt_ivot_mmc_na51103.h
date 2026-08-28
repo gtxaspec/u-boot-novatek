@@ -108,6 +108,13 @@
 #define PAD_DS_SDIO_D2                  PAD_DS_PGPIO15
 #define PAD_DS_SDIO_D3                  PAD_DS_PGPIO23
 
+#define PAD_DS_SDIO_2_CLK               PAD_DS_DGPIO7
+#define PAD_DS_SDIO_2_CMD               PAD_DS_DGPIO6
+#define PAD_DS_SDIO_2_D0                PAD_DS_DGPIO8
+#define PAD_DS_SDIO_2_D1                PAD_DS_DGPIO9
+#define PAD_DS_SDIO_2_D2                PAD_DS_PGPIO20
+#define PAD_DS_SDIO_2_D3                PAD_DS_PGPIO21
+
 /* Controlled as GPIO */
 #define GPIO_SDIO_CLK                   P_GPIO(18)
 #define GPIO_SDIO_CMD                   P_GPIO(17)

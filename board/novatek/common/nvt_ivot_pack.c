@@ -67,13 +67,13 @@ static NVTPACK_ER nvtpack_er(NVTPACK_ER er)
 		return er;
 	}
 
-	#if defined(NVTPACK_WIN32) || defined(NVTPACK_UBOOT) || defined(NVTPACK_LINUX_APP)
+#if defined(NVTPACK_WIN32) || defined(NVTPACK_UBOOT) || defined(NVTPACK_LINUX_APP)
 	printf("nvtpack:%d\r\n", er);
-	#elif defined(NVTPACK_LINUX_KERNEL)
+#elif defined(NVTPACK_LINUX_KERNEL)
 	pr_info("nvtpack:%d\r\n", er);
-	#elif defined(NVTPACK_RTOS)
+#elif defined(NVTPACK_RTOS)
 	DBG_ERR("%d\r\n", er);
-	#endif
+#endif
 
 	return er;
 }
@@ -147,25 +147,25 @@ _NVTPACK_EXTERN_C NVTPACK_ER nvtpack_check_partition(EMB_PARTITION pemb, NVTPACK
 	ret = nvtpack_get_partition(p_input, p_out);
 	if (ret == NVTPACK_ER_NOT_FOUND) {
 
-	    switch(pemb.EmbType)
-	    {
-		case EMBTYPE_MBR:
-		case EMBTYPE_FDT:
-		case EMBTYPE_UBOOT:
-		case EMBTYPE_LINUX:
-		case EMBTYPE_ROOTFS:
-		case EMBTYPE_RTOS:
-		case EMBTYPE_TEEOS:
-		case EMBTYPE_AI:
-		case EMBTYPE_ATF:
-		case EMBTYPE_FDTFAST:
-			break;
-		default:
-			if(!pemb.FileExist)
-				ret = NVTPACK_ER_SUCCESS;
+		switch(pemb.EmbType)
+		{
+			case EMBTYPE_MBR:
+			case EMBTYPE_FDT:
+			case EMBTYPE_UBOOT:
+			case EMBTYPE_LINUX:
+			case EMBTYPE_ROOTFS:
+			case EMBTYPE_RTOS:
+			case EMBTYPE_TEEOS:
+			case EMBTYPE_AI:
+			case EMBTYPE_ATF:
+			case EMBTYPE_FDTFAST:
+				break;
+			default:
+				if(!pemb.FileExist)
+					ret = NVTPACK_ER_SUCCESS;
 
-			break;
-	    }
+				break;
+		}
 	}
 
 	return ret;

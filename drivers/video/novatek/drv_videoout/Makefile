@@ -20,5 +20,5 @@ obj-$(CONFIG_DISP_VIDEO_HDMITX_IDE) += nvt-na51102/hdmi/hdmitx.o nvt-na51102/hdm
 else ifeq ($(CONFIG_TARGET_NS02201)$(CONFIG_TARGET_NS02201_A64),y)
 obj-$(CONFIG_DISP_VIDEO_HDMITX_IDE) += nvt-ns02201/hdmi/hdmitx.o nvt-ns02201/hdmi/dispdev_hdmi.o nvt-ns02201/hdmi/hdmitx_edid.o nvt-ns02201/hdmi/hdmitx_port.o nvt-ns02201/hdmi/hdmitx2.o nvt-ns02201/hdmi/hdmitx2_edid.o
 else ifeq ($(CONFIG_TARGET_NS02401_A64),y)
-obj-$(CONFIG_DISP_VIDEO_HDMITX_IDE) += nvt-ns02401/hdmi/hdmitx.o nvt-ns02401/hdmi/dispdev_hdmi.o nvt-ns02401/hdmi/hdmitx_edid.o nvt-ns02401/hdmi/hdmitx_port.o nvt-ns02401/hdmi/hdmitx2.o nvt-ns02401/hdmi/hdmitx2_edid.o
+obj-$(CONFIG_DISP_VIDEO_HDMITX_IDE) += nvt-ns02401/hdmi/hdmitx.o nvt-ns02401/hdmi/dispdev_hdmi.o nvt-ns02401/hdmi/hdmitx_edid.o nvt-ns02401/hdmi/hdmitx_port.o nvt-ns02401/hdmi/hdmitx2.o nvt-ns02401/hdmi/hdmitx2_edid.o nvt-ns02401/hdmi/hdmitx2p1.o nvt-ns02401/hdmi/hdmitx2p1_edid.o nvt-ns02401/hdmi/hdmitx2p1_reg.o
 endif

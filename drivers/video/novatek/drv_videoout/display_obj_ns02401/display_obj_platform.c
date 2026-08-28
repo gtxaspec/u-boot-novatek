@@ -273,6 +273,10 @@ ER display_obj_platform_pll_en(DISPCTRL_SRCCLK clk_src)
 #if 1
 
 	printf("%s , 0x%x\n", __FUNCTION__, clk_src);
+	pll_set_pll_enable_disp(PLL_ID_11, TRUE);
+	printf("enable pll_11 for lcd0 mclk\r\n");
+	
+
 	if (clk_src == DISPCTRL_SRCCLK_PLL8) {
 		pll_set_pll_enable_disp(PLL_ID_8, TRUE);
 	} else if (clk_src == DISPCTRL_SRCCLK_PLL9) {

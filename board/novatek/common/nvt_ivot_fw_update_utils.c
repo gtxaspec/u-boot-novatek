@@ -11,6 +11,7 @@
     published by the Free Software Foundation.
 */
 #include <common.h>
+#include <cli.h>
 #include <malloc.h>
 #include <fs.h>
 #include <jffs2/jffs2.h>
@@ -128,7 +129,7 @@ int nvt_chk_mtd_fdt_is_null(void)
 			break;
 		default:
 			printf("%s %s:flash type %d is not support %s\r\n", ANSI_COLOR_RED, __func__, pEmb[id].FlashType, ANSI_COLOR_RESET);
-			ret = -1;
+			cli_loop();
 	}
 
 	nvt_dbg(IND, "%s: cmd:%s\n",__func__, command);
@@ -247,9 +248,9 @@ int nvt_detect_fw_tbin(void)
 
 
 /*************************************************************************
-* _LZ_ReadVarSize() - Read unsigned integer with variable number of
-* bytes depending on value.
-*************************************************************************/
+ * _LZ_ReadVarSize() - Read unsigned integer with variable number of
+ * bytes depending on value.
+ *************************************************************************/
 
 static unsigned int _lz_read_var_size(unsigned int *x, unsigned char *buf)
 {
@@ -274,16 +275,16 @@ static unsigned int _lz_read_var_size(unsigned int *x, unsigned char *buf)
 }
 
 /**
-	LZ Uncompress
+  LZ Uncompress
 
-	Uncompress/decompress by LZ77 decoder
+  Uncompress/decompress by LZ77 decoder
 
-	@param[in] in       Input buffer of compressed data
-	@param[out] out     Output buffer to store decompressed data (Caller should maintain large enough buffer size to hold decompressed data)
-	@param[in] insize   Length of input buffer in
+  @param[in] in       Input buffer of compressed data
+  @param[out] out     Output buffer to store decompressed data (Caller should maintain large enough buffer size to hold decompressed data)
+  @param[in] insize   Length of input buffer in
 
-	@return void
-*/
+  @return void
+ */
 void lz_uncompress(unsigned char *in, unsigned char *out, unsigned int insize)
 {
 	unsigned char marker, symbol;
@@ -560,21 +561,21 @@ int nvt_check_is_fomat_rootfs(void)
 
 int nvt_fs_set_blk_dev(void)
 {
-	#if 0
+#if 0
 	if (fs_set_blk_dev("mmc", "0:1", FS_TYPE_FAT))
 		if (fs_set_blk_dev("mmc", "0:1", FS_TYPE_EXFAT))
 			if (fs_set_blk_dev("mmc", "0:0", FS_TYPE_FAT))
 				if (fs_set_blk_dev("mmc", "0:0", FS_TYPE_EXFAT)){
-			                printf("MMC interface configure failed\n");
-			                return -1;
+					printf("MMC interface configure failed\n");
+					return -1;
 				}
-	#else
+#else
 	if (fs_set_blk_dev("mmc", "0:1", FS_TYPE_FAT))
-			if (fs_set_blk_dev("mmc", "0:0", FS_TYPE_FAT)) {
-			                printf("MMC interface configure failed\n");
-			                return -1;
-				}
-	#endif
+		if (fs_set_blk_dev("mmc", "0:0", FS_TYPE_FAT)) {
+			printf("MMC interface configure failed\n");
+			return -1;
+		}
+#endif
 
 	return 0;
 }
@@ -582,7 +583,7 @@ int nvt_fs_set_blk_dev(void)
 #ifndef CONFIG_NVT_SPI_NONE
 int nvt_flash_mark_bad(void)
 {
-	#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT)
+#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT)
 	int i = 0, ret = 0;
 	struct mtd_info *mtd = get_nand_dev_by_index(nand_curr_device);
 	if (!mtd) {
@@ -599,13 +600,13 @@ int nvt_flash_mark_bad(void)
 			}
 		}
 	}
-	#endif
+#endif
 	return 0;
 }
 #endif
 
 int nvt_enum_fdt_props(ulong fdt_addr, char *part_node_name, void *pdata,
-					int (*enum_funcs)(ulong fdt_addr, const char *node_name, const char *prop_name, char *prop_val, void *pdata))
+		int (*enum_funcs)(ulong fdt_addr, const char *node_name, const char *prop_name, char *prop_val, void *pdata))
 {
 	int nodeoffset = 0, nextsubnodeoffset = 0, nextnodeoffset = 0, ret = 0, len = 0, part_num = 0;
 	const char *list_node_name = NULL;
@@ -628,8 +629,8 @@ int nvt_enum_fdt_props(ulong fdt_addr, char *part_node_name, void *pdata,
 		goto loop_prop_parse;
 	}
 	for (nextnodeoffset = nextsubnodeoffset;
-		(nextnodeoffset > 0);
-		(nextnodeoffset = fdt_next_node((const void*)fdt_addr, nextnodeoffset, &len))) {
+			(nextnodeoffset > 0);
+			(nextnodeoffset = fdt_next_node((const void*)fdt_addr, nextnodeoffset, &len))) {
 		nodeoffset = nextnodeoffset;
 		list_node_name = fdt_get_name((const void*)fdt_addr, nextnodeoffset, NULL);
 		if (list_node_name == NULL) {
@@ -648,8 +649,8 @@ int nvt_enum_fdt_props(ulong fdt_addr, char *part_node_name, void *pdata,
 		}
 loop_prop_parse:
 		for (nodeoffset = fdt_first_property_offset((const void*)fdt_addr, nodeoffset);
-			(nodeoffset >= 0);
-			(nodeoffset = fdt_next_property_offset((const void*)fdt_addr, nodeoffset))) {
+				(nodeoffset >= 0);
+				(nodeoffset = fdt_next_property_offset((const void*)fdt_addr, nodeoffset))) {
 			const struct fdt_property *prop;
 
 			if (!(prop = fdt_get_property_by_offset((const void*)fdt_addr, nodeoffset, &len))) {
@@ -705,18 +706,18 @@ static int nvt_getfdt_emb_part_info(ulong fdt_addr, char *part_node_name, EMB_PA
 	unsigned int idx = 0;
 	unsigned short flash_type;
 
-	#if defined(CONFIG_NVT_IVOT_EMMC)
+#if defined(CONFIG_NVT_IVOT_EMMC)
 	char path[128] = {0};
 	flash_type = FLASHTYPE_EMMC;
 	sprintf(path, "mmc%d", CONFIG_NVT_IVOT_EMMC);
 	nodeoffset = fdt_path_offset((void*)fdt_addr, path);
-	#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
+#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
 	flash_type = FLASHTYPE_NOR;
 	nodeoffset = fdt_path_offset((void*)fdt_addr, "/nor");
-	#else
+#else
 	flash_type = FLASHTYPE_NAND;
 	nodeoffset = fdt_path_offset((void*)fdt_addr, "/nand");
-	#endif
+#endif
 
 #ifdef CONFIG_NVT_SPI_NOR_NAND
 getfdt_again:
@@ -778,12 +779,12 @@ getfdt_again:
 		pemb[part_id].PartitionSize = size;
 	}
 	debug("FlashType=%d EmbType=%u PartitionOffset=%llx PartitionSize=%llx Node_name=%s idx=%u\n",
-											pemb[part_id].FlashType,
-											pemb[part_id].EmbType,
-											pemb[part_id].PartitionOffset,
-											pemb[part_id].PartitionSize,
-											part_node_name,
-											idx);
+			pemb[part_id].FlashType,
+			pemb[part_id].EmbType,
+			pemb[part_id].PartitionOffset,
+			pemb[part_id].PartitionSize,
+			part_node_name,
+			idx);
 	return 0;
 }
 
@@ -802,7 +803,7 @@ static int nvt_check_filename(char *part_node_name)
 		i++;
 	}
 	if (i)
-	    ret = 1;
+		ret = 1;
 
 	return ret;
 }
@@ -838,11 +839,11 @@ static int nvt_fdt_enum_fill_emb_parts(ulong fdt_addr, const char *node_name, co
 	if (ret < 0)
 		return -1;
 
-	#if defined(CONFIG_NVT_IVOT_EMMC)
+#if defined(CONFIG_NVT_IVOT_EMMC)
 	debug("%s Got from /emmc/nvtpack/index node name: %s prop name: %s, prop value: %s %s \n", ANSI_COLOR_YELLOW, node_name, part_name, prop_val, ANSI_COLOR_RESET);
-	#else
+#else
 	debug("%s Got from /nand/nvtpack/index node name: %s prop name: %s, prop value: %s %s \n", ANSI_COLOR_YELLOW, node_name, part_name, prop_val, ANSI_COLOR_RESET);
-	#endif
+#endif
 	ret = nvt_getfdt_emb_part_info(fdt_addr, part_name, pemb, part_id);
 	if (ret < 0) {
 		printf("%s get emb part info from nvtpack node is failed: %s %u %s\n", ANSI_COLOR_RED, part_name, part_id, ANSI_COLOR_RESET);
@@ -857,16 +858,16 @@ int nvt_getfdt_emb(ulong fdt_addr, EMB_PARTITION *pemb)
 	int ret = 0;
 	char path[128] = {0};
 
-	#if defined(CONFIG_NVT_IVOT_EMMC)
+#if defined(CONFIG_NVT_IVOT_EMMC)
 	sprintf(path, "mmc%d/nvtpack/index", CONFIG_NVT_IVOT_EMMC);
 	ret = nvt_enum_fdt_props(fdt_addr, path, pemb, nvt_fdt_enum_fill_emb_parts);
-	#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
+#elif defined(CONFIG_NVT_SPI_NOR) || defined(CONFIG_NVT_SPI_NOR_NAND)
 	sprintf(path, "/nor/nvtpack/index");
 	ret = nvt_enum_fdt_props(fdt_addr, path, pemb, nvt_fdt_enum_fill_emb_parts);
-	#else
+#else
 	sprintf(path, "/nand/nvtpack/index");
 	ret = nvt_enum_fdt_props(fdt_addr, path, pemb, nvt_fdt_enum_fill_emb_parts);
-	#endif
+#endif
 	if (ret < 0)
 		return -1;
 

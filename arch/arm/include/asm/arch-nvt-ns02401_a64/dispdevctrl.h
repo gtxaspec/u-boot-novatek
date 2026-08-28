@@ -95,6 +95,8 @@ typedef enum {
 	DISPDEV_ID_TVHDMI,      ///< select display device: TV HDMI
 	DISPDEV_ID_PANEL,       ///< select display device: panel
 	DISPDEV_ID_MIPIDSI,     ///< select display device: MIPI DSI
+	DISPDEV_ID_TVHDMI_MULTI, ///< select display device: TV HDMI (Muti HDMI Display)
+	DISPDEV_ID_TVHDMI_DUAL, ///< select display device: TV HDMI (DUAL Display)
 
 	DISPDEV_ID_MAX,
 	DISPDEV_ID_NULL,        // Default value is none of display device
@@ -172,6 +174,8 @@ typedef enum {
 	DISPDEV_SET_OUTPUT_DRAM,                    ///< Set ide data output to dram(only available in IDE1 with VDO2 disable)
 	DISPDEV_SET_TVFULL,                         ///< Set TV full screen
 	DISPDEV_SET_LOGOMODE,                       ///< Set LOGO MODE
+	DISPDEV_SET_RGBPMODE,                       ///< Set RGBP MODE
+	DISPDEV_SET_HDMI_BT1120_HOMO,               ///< Set homologue
 
 	/* GET control group */
 	DISPDEV_GET_ACT_DEVICE,                     ///< Get current active device. (panel/TV/HDMI)
@@ -188,6 +192,7 @@ typedef enum {
 	DISPDEV_GET_POWERDOWN,                      ///< Get Powerdown
 	DISPDEV_GET_TVPAR,                          ///< Get TV's parameter
 	DISPDEV_GET_LOGOMODE,                       ///< Get LOGO MODE
+	DISPDEV_GET_RGBPMODE,                       ///< Get RGBP MODE
 
 	ENUM_DUMMY4WORD(DISPDEV_OP)
 } DISPDEV_OP;
@@ -267,7 +272,16 @@ typedef enum {
 	ENUM_DUMMY4WORD(DISPDEV_LCDMODE)
 } DISPDEV_LCDMODE;
 
+typedef enum {
+	DISPDEV_RGBP_1920X1080P60 = (0x01 << 16),   ///< RGB paral 1920x1080P60
+	DISPDEV_RGBP_1024X768P60  = (0x02 << 16),   ///< RGB paral 1024x768P60
+	DISPDEV_RGBP_1280X1024P60 = (0x03 << 16),   ///< RGB paral 1280x1024P60
+	DISPDEV_RGBP_USER1        = (0x11 << 16),   ///< RGB paral USER1
+	DISPDEV_RGBP_USER2        = (0x12 << 16),   ///< RGB paral USER2
+	DISPDEV_RGBP_USER3        = (0x13 << 16),   ///< RGB paral USER3
 
+	ENUM_DUMMY4WORD(DISPDEV_RGBP_MODE)
+} DISPDEV_RGBP_MODE;
 
 
 /**
@@ -531,6 +545,7 @@ typedef struct {
 			UINT32      crop_width;              ///< crop width
 			UINT32      crop_height;             ///< crop height
 			UINT32      crop_en;                  ////< crop_enable
+			UINT32      one_shot;                ///< one shot
 		} SET_OUTPUT_DRAM_PAR;
 
 
@@ -559,6 +574,28 @@ typedef struct {
 		struct { // DISPDEV_SET_LOGOMODE
 			BOOL      b_en_logo;
 		} SET_LOGOMODE;
+
+		/**
+		   Set RGBP mode
+
+		   This structure is used for display device control operation code "DISPDEV_SET_LOGOMODE"
+		   to set the parameters.
+		   This structure shuld be used like this:
+		\n  DispDev.SEL.SET_RGBPMODE.rgbp_mode  = DISPDEV_RGBP_1920X1080P60;
+		\n  pDispObj->dev_ctrl(DISPDEV_SET_RGBPMODE, &DispDev);
+		*/
+		struct { // DISPDEV_SET_LOGOMODE
+			DISPDEV_RGBP_MODE      rgbp_mode;
+		} SET_RGBPMODE;
+
+		struct {
+			UINT32     pinmux;
+			UINT32     clk_inv;
+			UINT32     yc_ex;
+			UINT32     c_ex;
+			UINT32     clk_ddr;
+			//UINT32     ycc_clamp;
+		} SET_HOMOMODE;
 
 		/* GET control group */
 
@@ -779,6 +816,19 @@ typedef struct {
 			BOOL      b_en_logo;
 		} GET_LOGOMODE;
 
+		/**
+		   Get RGBP mode
+		
+		   This structure is used for display device control operation code "DISPDEV_GET_RGBPMODE"
+		   to set the parameters.
+		   This structure shuld be used like this:
+		\n	DispDev.SEL.GET_RGBPMODE.rgbp_mode	= DISPDEV_RGBP_1920X1080P60;
+		\n	pDispObj->dev_ctrl(DISPDEV_GET_RGBPMODE, &DispDev);
+		*/
+		struct { // DISPDEV_SET_RGBPMODE
+			DISPDEV_RGBP_MODE      rgbp_mode;
+		} GET_RGBPMODE;
+
 	} SEL;
 } DISPDEV_PARAM, *PDISPDEV_PARAM;
 //@}
@@ -791,6 +841,7 @@ typedef struct {
 	PDISPDEV_OBJ (*get_hdmi_dev_obj)(void);
 
 	void (*set_config)(HDMI_CONFIG_ID config_id, UINT32 ui_config);
+	UINT32 (*get_config)(HDMI_CONFIG_ID config_id);
 	UINT32 (*get_edid_info)(void);
 	void (*get_video_ability)(UINT32 *p_len, PHDMI_VDOABI vdo_ability);
 	void (*get_edid_raw_data)(UINT32 *p_len, UINT8 *data);
@@ -801,6 +852,7 @@ typedef struct {
 //  Exported Get Display Device Object API
 //
 //extern PDISPDEV_OBJ dispdev_get_tv_dev_obj(void);
+extern PDISPDEV_OBJ dispdev_get_hdmi2p1_dev_obj(void);
 extern PDISPDEV_OBJ dispdev_get_hdmi_dev_obj(void);
 extern PDISPDEV_OBJ dispdev_get_hdmi2_dev_obj(void);
 

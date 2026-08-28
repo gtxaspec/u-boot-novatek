@@ -17,12 +17,13 @@
 #ifndef _HDMITX_H
 #define _HDMITX_H
 
-
 #include <common.h>
 #include <asm/nvt-common/nvt_types.h>
 
-
-
+/**
+    @addtogroup mIDrvDisp_HDMITx
+*/
+//@{
 
 
 /**
@@ -89,6 +90,9 @@ typedef enum {
 	HDMI_720X480P240_16X9   = 57,   ///< HDMI Video format is 720X480  & Progressive 240fps & 16:9
 	HDMI_720X480I240        = 58,   ///< HDMI Video format is 720X480  & Interlaced 240fps
 	HDMI_720X480I240_16X9   = 59,   ///< HDMI Video format is 720X480  & Interlaced 240fps & 16:9
+	HDMI_1280X720P24        = 60,   ///< HDMI Video format is 1280X720  & Progressive 24fps
+	HDMI_1280X720P25        = 61,   ///< HDMI Video format is 1280X720  & Progressive 25fps
+	HDMI_1280X720P30        = 62,   ///< HDMI Video format is 1280X720  & Progressive 30fps	
 
 	HDMI_1680X720P60        = 83,   ///< HDMI Video format is 1680x720 & Progressive 60fps
 
@@ -103,28 +107,43 @@ typedef enum {
 	HDMI_4096X2160P50       = 101,  ///< HDMI Video format is 4096x2160 & Progressive 50fps
 	HDMI_4096X2160P60       = 102,  ///< HDMI Video format is 4096x2160 & Progressive 60fps	
 
+	HDMI_7680X4320P24       = 194,   ///< HDMI Video format is 7680x4320 & Progressive 24fps
+	HDMI_7680X4320P25       = 195,   ///< HDMI Video format is 7680x4320 & Progressive 25fps
+	HDMI_7680X4320P30       = 196,   ///< HDMI Video format is 7680x4320 & Progressive 30fps	
+
 
 	HDMI14B_3840X2160P30    = 95+128,///< HDMI 1.4B Extended foramt HDMI_VIC=1. Video format is 3840x2160 & Progressive 30fps
 	HDMI14B_3840X2160P25    = 94+128,///< HDMI 1.4B Extended foramt HDMI_VIC=2. Video format is 3840x2160 & Progressive 30fps
 	HDMI14B_3840X2160P24    = 93+128,///< HDMI 1.4B Extended foramt HDMI_VIC=3. Video format is 3840x2160 & Progressive 24fps
 	HDMI14B_4096X2160P24    = 98+128,///< HDMI 1.4B Extended foramt HDMI_VIC=4. Video format is 4096x2160 & Progressive 24fps
 
-	// Non-std HDMI formats
-	HDMI_1280X720P30        =  4+128,///< HDMI Video format is 1280X720  & Progressive 30fps
-	HDMI_1280X720P25        = 19+128,///< HDMI Video format is 1280x720 & Progressive 25fps
+	// Non-std HDMI formats (DMT ..etc)
 
-	HDMI_3840X2160ALL		= 16+128,///< HDMI Video format is 3840x2160  & Progressive 24,25,30 fps
 		
-	HDMI_1024X768P60		= 35+128,///< HDMI Video format is 1024X768  & Progressive 60fps
-	HDMI_1280X1024P60		= 36+128,///< HDMI Video format is 1280X1024  & Progressive 60fps
-	HDMI_1600X1200P60		= 37+128,///< HDMI Video format is 1600X1200  & Progressive 60fps
-	HDMI_2560X1440P60		= 38+128,///< HDMI Video format is 2560X1440  & Progressive 60fps
-	HDMI_1280X720_FPGA		= 39+128,///< HDMI Video format is 1280X720  & Progressive 21fps
-	HDMI_1920X1080_FPGA 	= 40+128,///< HDMI Video format is 1920X1080  & Progressive 10fps
-	HDMI_1440X900P60		= 41+128,///< HDMI Video format is 1440X900  & Progressive 60fps
-	HDMI_1680X1050P60		= 42+128,///< HDMI Video format is 1680x1050  & Progressive 60fps
-	HDMI_1920X1200P60		= 43+128,///< HDMI Video format is 1920x1200  & Progressive 60fps
-	HDMI_2560X1440P30		= 44+128,///< HDMI Video format is 2560X1440  & Progressive 30fps
+	HDMI_1024X768P60		= 35+128,///< HDMI Video format is 1024X768  & Progressive 60fps (ET/MT)
+	HDMI_1280X1024P60		= 36+128,///< HDMI Video format is 1280X1024  & Progressive 60fps (STI)
+	HDMI_1600X1200P60		= 37+128,///< HDMI Video format is 1600X1200  & Progressive 60fps (STI)
+	HDMI_2560X1440P30		= 38+128,///< HDMI Video format is 2560X1440  & Progressive 30fps (STI)
+	HDMI_2560X1440P60		= 39+128,///< HDMI Video format is 2560X1440  & Progressive 60fps
+	
+	HDMI_1440X900P60		= 41+128,///< HDMI Video format is 1440X900  & Progressive 60fps (STI)
+	HDMI_1680X1050P60		= 42+128,///< HDMI Video format is 1680x1050  & Progressive 60fps (STI)
+	HDMI_1920X1200P60		= 43+128,///< HDMI Video format is 1920x1200  & Progressive 60fps (STI)
+
+	HDMI_640X480P72			= 44+128,///< HDMI Video format is 640X480  & Progressive 72fps (ET/MT)
+	HDMI_640X480P75			= 45+128,///< HDMI Video format is 640X480  & Progressive 75fps (ET/MT)
+	HDMI_800X600P56			= 46+128,///< HDMI Video format is 800X600  & Progressive 56fps (ET/MT)
+	HDMI_800X600P72			= 47+128,///< HDMI Video format is 800X600  & Progressive 72fps (ET/MT)
+	HDMI_800X600P75			= 48+128,///< HDMI Video format is 800X600  & Progressive 75fps (ET/MT)
+
+	HDMI_1024X768P70		= 49+128,///< HDMI Video format is 1024X768  & Progressive 70fps (ET/MT)
+	HDMI_1024X768P75		= 50+128,///< HDMI Video format is 1024X768  & Progressive 75fps (ET/MT)
+	HDMI_1280X1024P75		= 51+128,///< HDMI Video format is 1280X1024  & Progressive 75fps (STI)
+	HDMI_1400X1050P60		= 52+128,///< HDMI Video format is 1400x1050  & Progressive 60fps (STI)
+	HDMI_1280X800P60		= 53+128,///< HDMI Video format is 1280x800  & Progressive 60fps
+	HDMI_1920X1200P75		= 54+128,///< HDMI Video format is 1920x1200  & Progressive 75fps
+	HDMI_800X600P60			= 55+128,///< HDMI Video format is 800X600  & Progressive 60fps (ET/MT)
+	
 	HDMI_VID_NO_CHANGE		= 0xFF, ///< HDMI Video format use current setting
 
 	ENUM_DUMMY4WORD(HDMI_VIDEOID)
@@ -168,6 +187,19 @@ typedef struct {
 	UINT32          vdo_3d_ability;   ///< The 3D format supported for this video ID. The format uses the "bit-wise OR" of HDMI_3DFMT.
 
 } HDMI_VDOABI, *PHDMI_VDOABI;
+
+/**
+    HDMI-Tx Video Timing Structure
+*/
+typedef struct {
+	HDMI_VIDEOID    video_id;        ///< The Video Format which HDMI supports.
+	CHAR            *info;
+	UINT32			h_active;
+	UINT32			v_active;
+	UINT32			hz;
+	UINT32			interalce;
+} HDMI_VDOIDCAP, *PHDMI_VDOIDCAP;
+
 
 /**
     HDMI-Tx 3D Format Type
@@ -330,6 +362,24 @@ typedef enum {
 	HDMI_CONFIG_ID_THREAD_STOP, 	///< stop HDMI polling thread
 
 	HDMI_CONFIG_ID_TIMING_FACTOR_EN,///< Enable video timing to div by 1.001 to get P59.94 timing. 148.5Mhz / 1.001 ~= 148.35Mhz
+	
+	HDMI_CONFIG_ID_AVI_RGB_SEL,	    ///< Set HDMI AVI info frame RGB Quantization select  0x0: default 0x1: limited 0x2: full range
+	HDMI_CONFIG_ID_AVI_YUV_SEL, 	///< Set HDMI AVI info frame YUV Quantization select  0x0: limited 0x1: full range 
+	HDMI_CONFIG_ID_FORCE_DVI,		///< Set HDMI force DVI mode output, need to use HDMI_CONFIG_ID_FORCE_RGB at the same time
+	HDMI_CONFIG_ID_VSI_EN,			///< Set HDMI VSI info frame force output
+	HDMI_CONFIG_ID_VSI_DATA,		///< Set HDMI VSI info frame user defined data
+
+	HDMI_CONFIG_ID_ADAPT_4KP60_420, ///< get EDID info to make sure if need to adapt 4KP60 420 mode due to SCDC not suppot on Sink
+
+	HDMI_CONFIG_ID_REG_DUMP, 		///< get HDMI reg dump info
+
+
+	HDMI_CONFIG_ID_2P1_PXL_MODE = 0x1000,	///< Set HDMI2P1 pixel mode. 0:1-pixel mode 1:2-pixel mode
+	HDMI_CONFIG_ID_2P1_DUAL_DISP_SEL,			///< Set HDMI2P1 dual display mode. 0:from LCD_Left 1:from LCD_Right
+	HDMI_CONFIG_ID_2P1_DSC_EN,			///< Set HDMI2P1  DSC enable
+	HDMI_CONFIG_ID_2P1_PPS_TABLE,			///< Set HDMI2P1  PPS table config
+	HDMI_CONFIG_ID_2P1_FORCE_FRL_EN,			///< Set HDMI2P1  FRL mode enable
+	HDMI_CONFIG_ID_2P1_FRL_LTP_EN,			///< Set HDMI2P1  FRL mode Link-Traing-Proccess enable
 
 	ENUM_DUMMY4WORD(HDMI_CONFIG_ID)
 } HDMI_CONFIG_ID;
@@ -344,6 +394,17 @@ typedef enum {
 	HDMI_SOURCE_LCD,                ///< Select HDMI video stream source from LCD
 	HDMI_SOURCE_LCD2,               ///< Select HDMI video stream source from LCD2.
 	HDMI_SOURCE_LCD3,               ///< Select HDMI video stream source from LCD3
+
+	HDMI2P1_SOURCE_LCD = 0,
+	HDMI2P1_SOURCE_DSC,
+	HDMI2P1_SOURCE_LCD_R,
+
+	HDMI2_SOURCE_LCD = 0,
+	HDMI2_SOURCE_LCD2,
+	HDMI2_SOURCE_LCD_R,
+
+	HDMI3_SOURCE_LCD2 = 0,
+	HDMI3_SOURCE_LCD3,
 
 	ENUM_DUMMY4WORD(HDMI_SOURCE)
 } HDMI_SOURCE;
@@ -398,6 +459,8 @@ typedef enum {
 */
 extern ER       hdmitx_open(void);
 extern ER       hdmitx2_open(void);
+extern ER       hdmitx2p1_open(void);
+
 
 
 /**
@@ -410,6 +473,8 @@ extern ER       hdmitx2_open(void);
 */
 extern ER       hdmitx_close(void);
 extern ER       hdmitx2_close(void);
+extern ER       hdmitx2p1_close(void);
+
 
 
 /**
@@ -423,6 +488,8 @@ extern ER       hdmitx2_close(void);
 */
 extern BOOL     hdmitx_is_opened(void);
 extern BOOL     hdmitx2_is_opened(void);
+extern BOOL     hdmitx2p1_is_opened(void);
+
 
 
 /**
@@ -438,6 +505,8 @@ extern BOOL     hdmitx2_is_opened(void);
 */
 extern void     hdmitx_set_config(HDMI_CONFIG_ID config_id, UINT32 ui_config);
 extern void     hdmitx2_set_config(HDMI_CONFIG_ID config_id, UINT32 ui_config);
+extern void     hdmitx2p1_set_config(HDMI_CONFIG_ID config_id, UINT32 ui_config);
+
 
 
 /**
@@ -451,6 +520,8 @@ extern void     hdmitx2_set_config(HDMI_CONFIG_ID config_id, UINT32 ui_config);
 */
 extern UINT32   hdmitx_get_config(HDMI_CONFIG_ID config_id);
 extern UINT32   hdmitx2_get_config(HDMI_CONFIG_ID config_id);
+extern UINT32   hdmitx2p1_get_config(HDMI_CONFIG_ID config_id);
+
 
 
 /**
@@ -477,6 +548,8 @@ extern void     hdmitx2_check_video_stable(void);
 */
 extern BOOL     hdmitx_check_hotplug(void);
 extern BOOL     hdmitx2_check_hotplug(void);
+extern BOOL     hdmitx2p1_check_hotplug(void);
+
 
 
 /**
@@ -489,6 +562,8 @@ extern BOOL     hdmitx2_check_hotplug(void);
 */
 extern UINT32   hdmitx_get_edid_info(void);
 extern UINT32   hdmitx2_get_edid_info(void);
+extern UINT32   hdmitx2p1_get_edid_info(void);
+
 
 
 /**
@@ -504,6 +579,8 @@ extern UINT32   hdmitx2_get_edid_info(void);
 */
 extern void     hdmitx_verify_video_id(HDMI_VIDEOID *vid_code);
 extern void     hdmitx2_verify_video_id(HDMI_VIDEOID *vid_code);
+extern void     hdmitx2p1_verify_video_id(HDMI_VIDEOID *vid_code);
+
 
 
 /**
@@ -531,6 +608,8 @@ extern void     hdmitx2_dump_info(void);
 */
 extern void     hdmitx_get_video_ability(UINT32 *p_len, PHDMI_VDOABI vdo_ability);
 extern void     hdmitx2_get_video_ability(UINT32 *p_len, PHDMI_VDOABI vdo_ability);
+extern void     hdmitx2p1_get_video_ability(UINT32 *p_len, PHDMI_VDOABI vdo_ability);
+
 
 
 
@@ -547,6 +626,25 @@ extern void     hdmitx2_get_video_ability(UINT32 *p_len, PHDMI_VDOABI vdo_abilit
 
 extern void 	hdmitx_get_edid_raw_data(UINT32 *len, UINT8 *data);
 extern void 	hdmitx2_get_edid_raw_data(UINT32 *len, UINT8 *data);
+extern void 	hdmitx2p1_get_edid_raw_data(UINT32 *len, UINT8 *data);
+
+
+/**
+    Get the HDMI Video Timing ID
+    This api is used to get the HDMI Video Format Support Ability inlcudes the 2D/3D format supporting capability.
+    The user provided "pVdoAbility" buffer should contains at least 30 entries in safety.
+
+    @param[out] pLen            Number of video formats supported by the TV/Display.
+    @param[out] pVdoAbility     The structure of the supported video format and its 3D ability.
+
+    @return void
+*/
+extern void     hdmitx_get_video_id_cap(UINT32 *p_len, PHDMI_VDOIDCAP vdo_id_cap, BOOL copystr);
+extern void     hdmitx2_get_video_id_cap(UINT32 *p_len, PHDMI_VDOIDCAP vdo_id_cap, BOOL copystr);
+extern void     hdmitx2p1_get_video_id_cap(UINT32 *p_len, PHDMI_VDOIDCAP vdo_id_cap, BOOL copystr);
+extern void     hdmitx_get_video_id(UINT32 *table);
+extern void     hdmitx2_get_video_id(UINT32 *table);
+extern void     hdmitx2p1_get_video_id(UINT32 *table);
 
 
 /**
@@ -579,7 +677,8 @@ extern BOOL     hdmitx2_check_ddc(void);
      -@b E_SYS: HDMI is not opened yet! CEC can be opened after HDMI is opened only.
 */
 extern ER       hdmicec_open(void);
-
+extern ER       hdmicec2_open(void);
+extern ER       hdmicec2p1_open(void);
 /**
     Close CEC module driver
 
@@ -589,7 +688,8 @@ extern ER       hdmicec_open(void);
      -@b E_OK: Done and Success.
 */
 extern ER       hdmicec_close(void);
-
+extern ER       hdmicec2_close(void);
+extern ER       hdmicec2p1_close(void);
 /**
     Hook CEC ISR callback
 
@@ -613,6 +713,8 @@ extern ER       hdmicec_close(void);
     @return void
 */
 extern void     hdmicec_set_config(CEC_CONFIG_ID config_id, UINT32 ui_config);
+extern void     hdmicec2_set_config(CEC_CONFIG_ID config_id, UINT32 ui_config);
+extern void     hdmicec2p1_set_config(CEC_CONFIG_ID config_id, UINT32 ui_config);
 
 /**
     Get HDMI CEC functional configurations
@@ -624,6 +726,8 @@ extern void     hdmicec_set_config(CEC_CONFIG_ID config_id, UINT32 ui_config);
     @return  Please reference to the "CEC_CONFIG_ID" for the control function parameter details.
 */
 extern UINT32   hdmicec_get_config(CEC_CONFIG_ID config_id);
+extern UINT32   hdmicec2_get_config(CEC_CONFIG_ID config_id);
+extern UINT32   hdmicec2p1_get_config(CEC_CONFIG_ID config_id);
 
 /**
     Set CEC Transmit Command Data
@@ -640,7 +744,9 @@ extern UINT32   hdmicec_get_config(CEC_CONFIG_ID config_id);
 
     @return void
 */
-extern void     hdmicec_set_tx_data(UINT32 ui_tx_data_size, UINT32 ui_data_buf_addr);
+extern void     hdmicec_set_tx_data(UINT32 ui_tx_data_size, uintptr_t ui_data_buf_addr);
+extern void     hdmicec2_set_tx_data(UINT32 ui_tx_data_size, uintptr_t ui_data_buf_addr);
+extern void     hdmicec2p1_set_tx_data(UINT32 ui_tx_data_size, uintptr_t ui_data_buf_addr);
 
 /**
     Get the CEC received Data Command
@@ -655,7 +761,9 @@ extern void     hdmicec_set_tx_data(UINT32 ui_tx_data_size, UINT32 ui_data_buf_a
 
     @return void
 */
-extern void     hdmicec_get_rx_data(UINT32 *pui_rx_data_size, UINT32 ui_data_buf_addr);
+extern void     hdmicec_get_rx_data(UINT32 *pui_rx_data_size, uintptr_t ui_data_buf_addr);
+extern void     hdmicec2_get_rx_data(UINT32 *pui_rx_data_size, uintptr_t ui_data_buf_addr);
+extern void     hdmicec2p1_get_rx_data(UINT32 *pui_rx_data_size, uintptr_t ui_data_buf_addr);
 
 extern void  hdmitx_module_init(void);
 

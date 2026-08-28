@@ -69,6 +69,7 @@ static UINT8  cpu_key[16] = {0x04, 0x03, 0x02, 0x01, 0x08, 0x07, 0x06, 0x05, 0x1
 
 int do_nvt_encrypt_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
+#if defined(CONFIG_NVT_CRYPTO)	
 	int index_cnt;
 
 	unsigned long test_buf;
@@ -84,11 +85,6 @@ int do_nvt_encrypt_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	u32      key_set = EFUSE_OTP_1ST_KEY_SET_FIELD;
 #endif
 	CRYPT_OP    crypt_op_param = {0};
-
-#if !defined(CONFIG_NVT_CRYPTO)
-	printf("do_nvt_encrypt_cmd but CONFIG_NVT_CRYPTO not defined\r\n");
-	return 0;
-#endif
 
 	test_buf = (unsigned long)malloc(16 + 64 * 4);
 	test_buf_align = ((test_buf + 63) & 0xFFFFFFC0);
@@ -187,7 +183,9 @@ int do_nvt_encrypt_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	if (test_buf) {
 		free((unsigned char *)(unsigned long)test_buf);
 	}
-
+#else
+	printf("do_nvt_encrypt_cmd but CONFIG_NVT_CRYPTO not defined\r\n");
+#endif
 	return 0;
 }
 U_BOOT_CMD(

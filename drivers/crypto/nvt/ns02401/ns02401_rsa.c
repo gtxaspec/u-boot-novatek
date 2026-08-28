@@ -117,18 +117,18 @@ static void nvt_rsa_platform_exit(void)
 
 	/* RSA SRAM shutdown enable */
 	tmp = IO_REG_RD(IOADDR_TOP_REG_BASE, 0x1000);
-	tmp |= (0x1<<10);
+	tmp |= (0x1<<12);
 	IO_REG_WR(IOADDR_TOP_REG_BASE, 0x1000, tmp);
 
 	/* RSA reset enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x98);
-	tmp &= ~(0x1<<26);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x98, tmp);
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x94);
+	tmp &= ~(0x1<<27);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x94, tmp);
 
 	/* RSA master clock disable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x78);
-	tmp &= ~(0x1<<26);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x78, tmp);
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x74);
+	tmp &= ~(0x1<<20);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x74, tmp);
 }
 
 static void nvt_rsa_reset(void)

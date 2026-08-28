@@ -176,7 +176,7 @@ void arb_disable_wp(DDR_ARB id, DMA_WRITEPROT_SET set)
 
 #endif
 }
-#elif defined(CONFIG_TARGET_NS02301)
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02501)
 
 #define IOADDR_TZASC_REG_BASE         	0xF0FE0000
 
@@ -821,7 +821,7 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 
 	if (strncmp(argv[1], "mem_prot_in_1", 13) == 0) {
 		DMA_WRITEPROT_ATTR  protect_attr = {0};
-#if defined(CONFIG_TARGET_NS02301)
+#if defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02501)
 		u32                 start_addr[6];
 #else
 		u64                 start_addr[6];
@@ -869,7 +869,7 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		protect_attr.level = DMA_WPLEL_UNWRITE;
 		protect_attr.size = TEST_SIZE;
 		protect_attr.starting_addr = start_addr[0];
-#elif defined(CONFIG_TARGET_NS02301)
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02501)
 		protect_attr.mask.CPU_NS = TRUE;
 //		protect_attr.mask.CPU = TRUE;
 		protect_attr.level = DMA_WPLEL_UNWRITE;
@@ -922,7 +922,7 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		arb_enable_wp(DDR_ARB_1, 4, &protect_attr);
 		protect_attr.starting_addr = (start_addr[5]);
 		arb_enable_wp(DDR_ARB_1, 5, &protect_attr);
-#elif defined(CONFIG_TARGET_NS02301)
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02501)
 		arb_enable_wp(DDR_ARB_1, 0, &protect_attr);
 		protect_attr.protect_rgn_attr[0].starting_addr = (start_addr[1]);
 		arb_enable_wp(DDR_ARB_1, 1, &protect_attr);
@@ -978,7 +978,7 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		arb_disable_wp(DDR_ARB_1, 5);
 	} else if (strncmp(argv[1], "mem_prot_in_2", 13) == 0) {
 #ifdef CONFIG_TARGET_NS02302_A64
-#elif defined(CONFIG_TARGET_NS02301)
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02501)
 #else
 		DMA_WRITEPROT_ATTR  protect_attr = {0};
 		u64                 start_addr[6];

@@ -44,7 +44,7 @@
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.12"
+#define DRV_VERSION                     "1.00.14"
 
 struct nvt_udc_chip;
 
@@ -241,7 +241,81 @@ static void nvtim_init_usbhc(void)
 
 #ifndef CONFIG_NVT_FPGA_EMULATION
 	/* Configure PHY related settings below */
-#if defined(CONFIG_TARGET_NS02201_A64)
+#if defined(CONFIG_TARGET_NS02401_A64)
+	{
+		u8 u2_trim_swctrl = 6, u2_trim_sqsel = 4, u3_trim_rint_sel = 8;
+		u8 Internal_12K_resistor = 8;
+		u32 trim;
+		int code;
+		bool is_found;
+		s32 addr;
+
+		addr = EFUSE_TRIM_DATA_SATA3_USB3_1_PRI;
+
+		// get trim value of usb column
+		code = otp_key_manager(EFUSE_ID_1, addr);
+		if(code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read 12K trim NULL, use default value\r\n");
+		} else {
+			// check if usb trim value is valid
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if(is_found) {
+				printf("  Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)trim);
+				printf("  12K_resistor[4..0] valid from 1(0x1) <-> 20(0x14)\r\n");
+
+				Internal_12K_resistor = trim & 0x1F; //12K trim value
+
+				if (Internal_12K_resistor > 0x14) {
+					printf(" 12K_resistor Trim data out range [0x%02x]=0x%04x > 20(0x14)\r\n", (int)addr, (int)Internal_12K_resistor);
+				} else if (Internal_12K_resistor < 0x1) {
+					printf(" 12K_resistor Trim data out range [0x%02x]=0x%04x < 1(0x1)\r\n", (int)addr, (int)Internal_12K_resistor);
+				} else {
+					printf("  12K_resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)Internal_12K_resistor);
+					u3_trim_rint_sel = Internal_12K_resistor;
+				}
+
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][ USB] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		//select PHY internal rsel value
+		tmpval = U3PHY_GETREG(0x1A1);
+		tmpval &= ~(0x80);
+		U3PHY_SETREG(0x1A1, tmpval);
+
+		//u3 r45 trim setting
+		U3PHY_SETREG(0x1A0, 0x40 + u3_trim_rint_sel);
+		U3PHY_SETREG(0x1A3, 0x60);
+
+		//best setting
+		U3PHY_SETREG(0x56, 0x74);
+		U3_U2PHY_SETREG(0x9, 0xB0);
+		U2PHY_SETREG(0x9, 0xB0);
+		U3_U2PHY_SETREG(0x12, 0x31);
+		U2PHY_SETREG(0x12, 0x31);
+		U3_U2PHY_SETREG(0x6, 0x1C);
+		U2PHY_SETREG(0x6, 0x1C);
+
+		//r45 cali
+		U3_U2PHY_SETREG(0x51, 0x20);
+		U3_U2PHY_SETREG(0x51, 0x00);
+
+		//u2 tx swing trim setting
+		tmpval = U2PHY_GETREG(0x6);
+		tmpval &= ~(0x7 << 1);
+		tmpval |= (u2_trim_swctrl << 1);
+		U2PHY_SETREG(0x6, tmpval);
+
+		//u2 squelch trim setting
+		tmpval = U2PHY_GETREG(0x5);
+		tmpval &= ~(0x7 << 2);
+		tmpval |= (u2_trim_sqsel << 2);
+		U2PHY_SETREG(0x5, tmpval);
+	}
+#elif defined(CONFIG_TARGET_NS02201_A64)
 	{
 		u32 temp;
 		u32 trim;

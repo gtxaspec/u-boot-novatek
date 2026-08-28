@@ -19,7 +19,7 @@
 
 
 
-#define HDMI_VERSION "1.04.00"
+#define HDMI_VERSION "1.05.01"
 
 
 #define PLATFORM_MAX_CHIP_CNT 1
@@ -159,6 +159,9 @@ typedef enum {
 // Hidden definition of "HDMI_3DFMT"
 #define HDMI3D_FRAMEPACKING         0x04
 
+#define MAX_ID_CAP 92
+
+
 
 #define HDMI2_SCDC_VERSION              0x01
 #define HDMI2_SCDC_SLAVEADDR            0xA8
@@ -257,6 +260,7 @@ typedef enum {
 	HPD_CHANGE = 0x4,
 	HDMI_OPEN = 0x8,
 	HDMI_THREAD_STOP = 0x10,
+	HDMI_DEV_OPEN = 0x20,
 } hdmi_state_t;
 
 
@@ -340,6 +344,9 @@ extern void __iomem *_HDMITX_REG_BASE_ADDR[MODULE_REG_NUM];
 #define HDMI_GETREG(ofs)            INW(IOADDR_HDMI_REG_BASE+(ofs))
 #define HDMI2_SETREG(ofs, value)     OUTW((IOADDR_HDMI2_REG_BASE+(ofs)), (value))
 #define HDMI2_GETREG(ofs)            INW(IOADDR_HDMI2_REG_BASE+(ofs))
+#define HDMI2P1_SETREG(ofs, value)     OUTW((IOADDR_HDMI2P1_REG_BASE+(ofs)), (value))
+#define HDMI2P1_GETREG(ofs)            INW(IOADDR_HDMI2P1_REG_BASE+(ofs))
+
 
 
 #define CEC_SETREG(ofs, value)      OUTW((IOADDR_HDMI_REG_BASE+0x400+(ofs)), (value))

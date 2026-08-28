@@ -69,8 +69,8 @@
 #define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))
 #define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))
 
-#define CPU_CA55_NORMAL_FREQ_MAX        (1200)        //1.4GHz
-#define CPU_CA55_OVER_CLKING_FREQ_MAX   (1700)        //1.6GHz
+#define CPU_CA55_NORMAL_FREQ_MAX        (1200)        //1.2GHz
+#define CPU_CA55_OVER_CLKING_FREQ_MAX   (1500)        //1.5GHz
 
 #define CPU_CA76_NORMAL_FREQ_MAX        (1600)        //1.4GHz
 #define CPU_CA76_OVER_CLKING_FREQ_MAX   (2000)        //1.6GHz
@@ -501,30 +501,41 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		//		value = CPU_LOWER_FREQ_MAX;
 		//	}
 		//} else {
-		if (quary_secure_boot(SECUREBOOT_CPU_OVER_CLOCKING) == TRUE) {
+		if (quary_secure_boot(SECUREBOOT_CPU_CA55_OVER_CLOCKING) == TRUE) {
 			if (value_ca55 > CPU_CA55_OVER_CLKING_FREQ_MAX) {
 				value_ca55 = CPU_CA55_OVER_CLKING_FREQ_MAX;
 			}
 
-			if (value_ca76 > CPU_CA76_OVER_CLKING_FREQ_MAX) {
-				value_ca76 = CPU_CA76_OVER_CLKING_FREQ_MAX;
-			}
+			//if (value_ca76 > CPU_CA76_OVER_CLKING_FREQ_MAX) {
+			//	value_ca76 = CPU_CA76_OVER_CLKING_FREQ_MAX;
+			//}
 		} else {
 			if (value_ca55 > CPU_CA55_NORMAL_FREQ_MAX) {
 				value_ca55 = CPU_CA55_NORMAL_FREQ_MAX;
 				printf("force CPU(A55) clk @%dMHz\n", CPU_CA55_NORMAL_FREQ_MAX);
 			}
 
+			//if (value_ca76 > CPU_CA76_NORMAL_FREQ_MAX) {
+			//	value_ca76 = CPU_CA76_NORMAL_FREQ_MAX;
+			//	printf("force CPU(A76) clk @%dMHz\n", CPU_CA76_NORMAL_FREQ_MAX);
+			//}
+		}
+		//}
+
+		if (quary_secure_boot(SECUREBOOT_CPU_CA76_OVER_CLOCKING) == TRUE) {
+			if (value_ca76 > CPU_CA76_OVER_CLKING_FREQ_MAX) {
+				value_ca76 = CPU_CA76_OVER_CLKING_FREQ_MAX;
+			}
+		} else {
 			if (value_ca76 > CPU_CA76_NORMAL_FREQ_MAX) {
 				value_ca76 = CPU_CA76_NORMAL_FREQ_MAX;
 				printf("force CPU(A76) clk @%dMHz\n", CPU_CA76_NORMAL_FREQ_MAX);
 			}
 		}
-		//}
 	}
 
-	if (value_ca55 >= 1500) {
-		value_dsu = 1500;
+	if (value_ca55 >= CPU_CA55_OVER_CLKING_FREQ_MAX) {
+		value_dsu = CPU_CA55_OVER_CLKING_FREQ_MAX;
 	}
 #endif
 

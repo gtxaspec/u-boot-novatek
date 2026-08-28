@@ -61,7 +61,8 @@
 	#define NVT_OCTAL_IO_SUPPORT		DISABLE
 #elif  (defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64) || \
 		defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64) || \
-		defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64))
+		defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64) || \
+		defined(CONFIG_TARGET_NS02501) )
 	#define NVT_INDLY_STEP              (128)
 	#define SPINAND_FIFO_SIZE           (128)
 	#define NVT_BCH_ECC_SUPPORT         (1)
@@ -84,7 +85,8 @@
 
 #define NAND_HIGH_ADDR_MASK         0xF00000000UL
 
-#if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64))
+#if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64) || \
+	 defined(CONFIG_TARGET_NS02501))
 #ifdef  CONFIG_NVT_FPGA_EMULATION
 #define NVT_FLASH_SOURCE_CLK        12000000  // (24M/2)
 #define WAIT_COMP_TIMEOUT           6000
@@ -108,7 +110,7 @@
 #define WAIT_COMP_TIMEOUT           6000
 #else
 #define NVT_FLASH_SOURCE_CLK        480000000
-#define WAIT_COMP_TIMEOUT           4500
+#define WAIT_COMP_TIMEOUT           8000
 #endif
 #endif
 

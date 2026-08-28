@@ -120,8 +120,8 @@ unsigned int ide_log_cnt[LCD_ID_1+3]={0,0,0};
 unsigned int ide_exit_task[LCD_ID_1+3]={0,0,0};
 unsigned int ide_pa_en[LCD_ID_1+3]={0,0,0};
 
-#define PLL_CLKSEL_R1_OFFSET        32
-#define PLL_CLKSEL_R2_OFFSET        64
+#define PLL_CLKSEL_R1_OFFSET        32 //0x14
+#define PLL_CLKSEL_R2_OFFSET        64 //0x18
 #define PLL_CLKSEL_R3_OFFSET        96
 #define PLL_CLKSEL_R4_OFFSET        128
 #define PLL_CLKSEL_R5_OFFSET        160
@@ -135,12 +135,20 @@ unsigned int ide_pa_en[LCD_ID_1+3]={0,0,0};
 #define PLL_CLKSEL_R13_OFFSET       416
 #define PLL_CLKSEL_R14_OFFSET       448
 #define PLL_CLKSEL_R15_OFFSET       480
+#define PLL_CLKSEL_R16_OFFSET       512
+#define PLL_CLKSEL_R17_OFFSET       544
+#define PLL_CLKSEL_R18_OFFSET       576
+
+
+
 #define PLL_CLKSEL_RLITE_OFFSET       6272
 
 
-#define PLL_CLKSEL_LCD_CLKSRC_OFFSET		20
-#define PLL_CLKSEL_LCD2_CLKSRC_OFFSET		24
-#define PLL_CLKSEL_LCD_LITE_CLKSRC_OFFSET		0
+#define PLL_CLKSEL_LCD_CLKSRC_OFFSET		0
+#define PLL_CLKSEL_LCD2_CLKSRC_OFFSET		4
+#define PLL_CLKSEL_LCD_LITE_CLKSRC_OFFSET		8
+#define PLL_CLKSEL_LCD_MCLKSRC_OFFSET		12
+
 
 
 
@@ -165,17 +173,19 @@ typedef enum {
     Clock select ID for pll_set_clock_rate() & pll_get_clock_rate().
 */
 typedef enum {
-	PLL_CLKSEL_LCD_CLKSRC = 	PLL_CLKSEL_R5_OFFSET + 20,	//< Clock Select Module ID: IDE clock source
-	PLL_CLKSEL_LCD2_CLKSRC =	PLL_CLKSEL_R5_OFFSET + 24,	//< Clock Select Module ID: IDE2 clock source
-	PLL_CLKSEL_LCD_LITE_CLKSRC =	PLL_CLKSEL_R5_OFFSET + 0,	//< Clock Select Module ID: IDE lite clock source
+	PLL_CLKSEL_LCD_CLKSRC = 	PLL_CLKSEL_R5_OFFSET + 0,	//< Clock Select Module ID: IDE clock source
+	PLL_CLKSEL_LCD2_CLKSRC =	PLL_CLKSEL_R5_OFFSET + 4,	//< Clock Select Module ID: IDE2 clock source
+	PLL_CLKSEL_LCD_LITE_CLKSRC =	PLL_CLKSEL_R5_OFFSET + 8,	//< Clock Select Module ID: IDE lite clock source
+
+	PLL_CLKSEL_LCD_MCLKSRC = 	PLL_CLKSEL_R5_OFFSET + 12,	//< Clock Select Module ID: IDE mclk clock source
 
 	//Display Clock Divider bit definition
-	PLL_CLKSEL_LCD_CLKDIV = 	PLL_CLKSEL_R15_OFFSET + 0,	//< Clock Select Module ID: IDE clock divider
-	PLL_CLKSEL_LCD_OUTIF_CLKDIV = PLL_CLKSEL_R15_OFFSET + 8, //< Clock Select Module ID: IDE Output Interface clock divider
-	PLL_CLKSEL_LCD2_CLKDIV =	PLL_CLKSEL_R15_OFFSET + 16, //< Clock Select Module ID: IDE2 clock divider
-	PLL_CLKSEL_LCD2_OUTIF_CLKDIV = PLL_CLKSEL_R15_OFFSET + 24, //< Clock Select Module ID: IDE2 Output Interface clock divider
-	PLL_CLKSEL_LCD_LITE_CLKDIV =	PLL_CLKSEL_RLITE_OFFSET + 0, //< Clock Select Module ID: IDE lite clock divider
-	PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV = PLL_CLKSEL_RLITE_OFFSET + 8, //< Clock Select Module ID: IDE lite Output Interface clock divider	
+	PLL_CLKSEL_LCD_CLKDIV = 	PLL_CLKSEL_R16_OFFSET + 0,	//< Clock Select Module ID: IDE clock divider
+	PLL_CLKSEL_LCD_OUTIF_CLKDIV = PLL_CLKSEL_R16_OFFSET + 8, //< Clock Select Module ID: IDE Output Interface clock divider
+	PLL_CLKSEL_LCD2_CLKDIV =	PLL_CLKSEL_R17_OFFSET + 0, //< Clock Select Module ID: IDE2 clock divider
+	PLL_CLKSEL_LCD2_OUTIF_CLKDIV = PLL_CLKSEL_R17_OFFSET + 8, //< Clock Select Module ID: IDE2 Output Interface clock divider
+	PLL_CLKSEL_LCD_LITE_CLKDIV =	PLL_CLKSEL_R18_OFFSET + 0, //< Clock Select Module ID: IDE lite clock divider
+	PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV = PLL_CLKSEL_R18_OFFSET + 8, //< Clock Select Module ID: IDE lite Output Interface clock divider	
 
 	PLL_CLKSEL_MAX_ITEM,									// magic number for pll checking usage.
 	ENUM_DUMMY4WORD(PLL_CLKSEL)
@@ -234,17 +244,23 @@ typedef enum {
 #define PLL_CLKSEL_LCD_LITE_CLKSRC_PLL10  (0x04 << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE LITE clock source as PLL17 (for DSI)
 
 
+#define PLL_CLKSEL_LCD_MCLKSRC_AXI0    (0x00 << (PLL_CLKSEL_LCD_MCLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE2 clock source as 480 MHz
+#define PLL_CLKSEL_LCD_MCLKSRC_PLL2    (0x01 << (PLL_CLKSEL_LCD_MCLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE2 clock source as PLL9 (for IDE)
+#define PLL_CLKSEL_LCD_MCLKSRC_PLL11   (0x02 << (PLL_CLKSEL_LCD_MCLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE2 clock source as 192MHz
+#define PLL_CLKSEL_LCD_MCLKSRC_192     (0x03 << (PLL_CLKSEL_LCD_MCLKSRC - PLL_CLKSEL_R5_OFFSET))    //< Select IDE2 clock source as PLL10 (for IDE2)
+
+
 #define PLL_CLKSEL_LCD_CLKSRC_MASK      (0x0F << (PLL_CLKSEL_LCD_CLKSRC - PLL_CLKSEL_R5_OFFSET))
 #define PLL_CLKSEL_LCD2_CLKSRC_MASK     (0x0F << (PLL_CLKSEL_LCD2_CLKSRC - PLL_CLKSEL_R5_OFFSET))
 #define PLL_CLKSEL_LCD_LITE_CLKSRC_MASK   (0x0F << (PLL_CLKSEL_LCD_LITE_CLKSRC - PLL_CLKSEL_R5_OFFSET))
 
 /*r15*/
-#define PLL_CLKSEL_LCD_CLKDIV_MASK        (0xFF << (PLL_CLKSEL_LCD_CLKDIV - PLL_CLKSEL_R15_OFFSET))
-#define PLL_CLKSEL_LCD_OUTIF_CLKDIV_MASK  (0xFF << (PLL_CLKSEL_LCD_OUTIF_CLKDIV - PLL_CLKSEL_R15_OFFSET))
-#define PLL_CLKSEL_LCD2_CLKDIV_MASK       (0xFF << (PLL_CLKSEL_LCD2_CLKDIV - PLL_CLKSEL_R15_OFFSET))
-#define PLL_CLKSEL_LCD2_OUTIF_CLKDIV_MASK (0xFF << (PLL_CLKSEL_LCD2_OUTIF_CLKDIV - PLL_CLKSEL_R15_OFFSET))
-#define PLL_CLKSEL_LCD_LITE_CLKDIV_MASK       (0xFF << (PLL_CLKSEL_LCD_LITE_CLKDIV - PLL_CLKSEL_RLITE_OFFSET))
-#define PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV_MASK (0xFF << (PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV - PLL_CLKSEL_RLITE_OFFSET))
+#define PLL_CLKSEL_LCD_CLKDIV_MASK        (0xFF << (PLL_CLKSEL_LCD_CLKDIV - PLL_CLKSEL_R16_OFFSET))
+#define PLL_CLKSEL_LCD_OUTIF_CLKDIV_MASK  (0xFF << (PLL_CLKSEL_LCD_OUTIF_CLKDIV - PLL_CLKSEL_R16_OFFSET))
+#define PLL_CLKSEL_LCD2_CLKDIV_MASK       (0xFF << (PLL_CLKSEL_LCD2_CLKDIV - PLL_CLKSEL_R17_OFFSET))
+#define PLL_CLKSEL_LCD2_OUTIF_CLKDIV_MASK (0xFF << (PLL_CLKSEL_LCD2_OUTIF_CLKDIV - PLL_CLKSEL_R17_OFFSET))
+#define PLL_CLKSEL_LCD_LITE_CLKDIV_MASK       (0xFF << (PLL_CLKSEL_LCD_LITE_CLKDIV - PLL_CLKSEL_R18_OFFSET))
+#define PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV_MASK (0xFF << (PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV - PLL_CLKSEL_R18_OFFSET))
 
 
 
@@ -746,6 +762,8 @@ ER pll_set_clock_freq(PLL_CLKFREQ clock_id, UINT32 ui_freq)
 		return E_PAR;
 	}
 
+	DBG_WRN("Target (%d) pll(%d) freq is %dHz.\r\n", clock_id, PLL_ID_8, (UINT)(source_clock));
+
 	if(source_clock % ui_freq){
 		clock_source = pll_get_clock_rate(PLL_CLKSEL_LCD_LITE_CLKSRC);
 		if (clock_source == PLL_CLKSEL_LCD_LITE_CLKSRC_480) {
@@ -1185,9 +1203,11 @@ UINT32 ide_platform_get_freq(IDE_ID id)
 ER ide_platform_set_clksrc(IDE_ID id, UINT32 src)
 {
 #if 1//defined __UITRON || defined __ECOS || defined __FREERTOS
-	if (id == LCD_ID_1)
+	if (id == LCD_ID_1){
 		pll_set_clock_rate(PLL_CLKSEL_LCD_CLKSRC, (src<<PLL_CLKSEL_LCD_CLKSRC_OFFSET));
-	else if (id == LCD_ID_2)
+		pll_set_clock_rate(PLL_CLKSEL_LCD_MCLKSRC, PLL_CLKSEL_LCD_MCLKSRC_PLL11);
+		DBG_ERR("LCD0 MCLK to PLL11\r\n");
+	} else if (id == LCD_ID_2)
 		pll_set_clock_rate(PLL_CLKSEL_LCD2_CLKSRC, (src<<PLL_CLKSEL_LCD2_CLKSRC_OFFSET));
 	else
 		pll_set_clock_rate(PLL_CLKSEL_LCD_LITE_CLKSRC, (src<<PLL_CLKSEL_LCD_LITE_CLKSRC_OFFSET));

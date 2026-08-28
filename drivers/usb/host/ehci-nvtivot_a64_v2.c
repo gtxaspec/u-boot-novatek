@@ -25,20 +25,56 @@
 
 /* Declare global data pointer */
 DECLARE_GLOBAL_DATA_PTR;
+#if defined(CONFIG_TARGET_NS02401_A64)
+/* Support two channel */
+#define U2PHY_SETREG(ch,ofs,value) \
+    ((ch) ? \
+	writel((value), (volatile void __iomem *)(IOADDR_USB2PHY_REG_BASE + 0x1000 + ((ofs)<<2))) : \
+	writel((value), (volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2))))
+#define U2PHY_GETREG(ch,ofs) \
+    ((ch) ? \
+	readl((volatile void __iomem *)(IOADDR_USB2PHY_REG_BASE + 0x1000 + ((ofs)<<2))) : \
+	readl((volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2))))
+
+#define U3PHY_SETREG(ch,ofs,value) \
+    ((ch) ? \
+	writel((value), (volatile void __iomem *)(IOADDR_USB3_2PHY_REG_BASE + 0x2000 + ((ofs)<<2))) : \
+	writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2))))
+#define U3PHY_GETREG(ch, ofs) \
+    ((ch) ? \
+    readl((volatile void __iomem *)(IOADDR_USB3_2PHY_REG_BASE + 0x2000 + ((ofs) << 2))) : \
+    readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs) << 2))))
+
+#define U3_U2PHY_SETREG(ch,ofs,value) \
+    ((ch) ? \
+	writel((value), (volatile void __iomem *)(IOADDR_USB3_2PHY_REG_BASE + 0x1000 + ((ofs)<<2))) : \
+	writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2))))
+#define U3_U2PHY_GETREG(ch,ofs) \
+    ((ch) ? \
+	readl((volatile void __iomem *)(IOADDR_USB3_2PHY_REG_BASE + 0x1000 + ((ofs)<<2))) : \
+	readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2))))
+
+#define USB_TRIM_INFO 0
+
+#else
+/* Support one channel */
 #define U2PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
 #define U2PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USBPHY_REG_BASE + 0x1000 + ((ofs)<<2)))
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02401_A64)
+#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
 #define U3PHY_SETREG(ofs,value)         writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
 #define U3PHY_GETREG(ofs)               readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x2000 + ((ofs)<<2)))
 #define U3_U2PHY_SETREG(ofs,value)      writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
 #define U3_U2PHY_GETREG(ofs)            readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE + 0x1000 + ((ofs)<<2)))
 #endif
+
+#endif
+
 #define MAP_PHY(ofs)                    ((ofs)>>2)
 
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.12"
+#define DRV_VERSION                     "1.00.14"
 
 static REGVALUE usb_getreg(unsigned long usbbase, unsigned long offset)
 {
@@ -370,7 +406,95 @@ static void nvtim_init_usbhc(int index)
 
 #ifndef CONFIG_NVT_FPGA_EMULATION
 	/* Configure PHY related settings below */
-#if defined(CONFIG_TARGET_NS02201_A64)
+#if defined(CONFIG_TARGET_NS02401_A64)
+	{
+		u8 u2_trim_swctrl = 6, u2_trim_sqsel = 4, u3_trim_rint_sel = 8;
+		u8 Internal_12K_resistor = 8;
+		u32 trim;
+		int code;
+		bool is_found;
+		s32 addr;
+
+		if (index == 0) {
+			addr = EFUSE_TRIM_DATA_SATA3_USB3_1_PRI;
+		} else if (index == 1) {
+			addr = EFUSE_TRIM_DATA_SATA_3_USB3_2_PRI;
+		} else {
+			pr_err("%s: invalid channel\n", __func__);
+		}
+
+		if (USB_TRIM_INFO) {
+			printf("USB3_%d read trim\n", (int)(index + 1));
+		}
+
+		// get trim value of usb column
+		code = otp_key_manager(EFUSE_ID_1, addr);
+		if(code == -33) {
+			//!!!Please apply default value here!!!
+			printf("Read 12K trim NULL, usb default value\r\n");
+		} else {
+			// check if usb trim value is valid
+			is_found = extract_trim_valid(code, (u32 *)&trim);
+			if(is_found) {
+				if (USB_TRIM_INFO) {
+					printf("  Trim data read success addr[0x%02x] = 0x%04x\r\n", (int)addr, (int)trim);
+					printf("  12K_resistor[4..0] valid from 1(0x1) <-> 20(0x14)\r\n");
+				}
+				Internal_12K_resistor = trim & 0x1F; //12K trim value
+
+				if (Internal_12K_resistor > 0x14) {
+					printf(" 12K_resistor Trim data out range [0x%02x]=0x%04x > 20(0x14)\r\n", (int)addr, (int)Internal_12K_resistor);
+				} else if (Internal_12K_resistor < 0x1) {
+					printf(" 12K_resistor Trim data out range [0x%02x]=0x%04x < 1(0x1)\r\n", (int)addr, (int)Internal_12K_resistor);
+				} else {
+					if (USB_TRIM_INFO) {
+						printf("  12K_resistor Trim data range success 0x1 <= [0x%04x] <= 0x14\r\n", (int)Internal_12K_resistor);
+					}
+					u3_trim_rint_sel = Internal_12K_resistor;
+				}
+
+			} else {
+				//!!!Please apply default value here!!!
+				printf("is found [%d][ USB] = 0x%08x\r\n", is_found, (int)code);
+			}
+		}
+
+		//select PHY internal rsel value
+		tmpval = U3PHY_GETREG(index, 0x1A1);
+		tmpval &= ~(0x80);
+		U3PHY_SETREG(index, 0x1A1, tmpval);
+
+		//u3 r45 trim setting
+		U3PHY_SETREG(index, 0x1A0, 0x40 + u3_trim_rint_sel);
+		U3PHY_SETREG(index, 0x1A3, 0x60);
+
+		//best setting
+		U3PHY_SETREG(index, 0x56, 0x74);
+		U3_U2PHY_SETREG(index, 0x9, 0xB0);
+		U2PHY_SETREG(index, 0x9, 0xB0);
+		U3_U2PHY_SETREG(index, 0x12, 0x31);
+		U2PHY_SETREG(index, 0x12, 0x31);
+		U3_U2PHY_SETREG(index, 0x6, 0x1C);
+		U2PHY_SETREG(index, 0x6, 0x1C);
+
+		//r45 cali
+		U3_U2PHY_SETREG(index, 0x51, 0x20);
+		mdelay(5);
+		U3_U2PHY_SETREG(index, 0x51, 0x00);
+
+		//u2 tx swing trim setting
+		tmpval = U2PHY_GETREG(index, 0x6);
+		tmpval &= ~(0x7 << 1);
+		tmpval |= (u2_trim_swctrl << 1);
+		U2PHY_SETREG(index, 0x6, tmpval);
+
+		//u2 squelch trim setting
+		tmpval = U2PHY_GETREG(index, 0x5);
+		tmpval &= ~(0x7 << 2);
+		tmpval |= (u2_trim_sqsel << 2);
+		U2PHY_SETREG(index, 0x5, tmpval);
+	}
+#elif defined(CONFIG_TARGET_NS02201_A64)
 	{
 		u8 u2_trim_swctrl = 6, u2_trim_sqsel = 4, u3_trim_rint_sel = 8;
 		u32 trim;
@@ -615,6 +739,9 @@ static void nvtim_remove_power_save(void)
 	printf("ehci_nvt: Enter powerdown script\r\n");
 
 	// IP provided to make PHY deeply sleeping
+#if defined(CONFIG_TARGET_NS02401_A64)
+	//TODO
+#else
 	U2PHY_SETREG(MAP_PHY(0xD4), 0xB4);   // Port0 dmpulldown = 1, dppulldown = 0, suspendm = 1, termselect = 1, xcvrselect = 01, opmode = 00
 	U2PHY_SETREG(MAP_PHY(0xD0), 0xFF);   // Enable port0 sw reg 0xF060_10D4
 	U2PHY_SETREG(MAP_PHY(0x08), 0x14);   // Port0 pll_pdn = 0, pll_rstn = 0
@@ -624,6 +751,7 @@ static void nvtim_remove_power_save(void)
 	U2PHY_SETREG(MAP_PHY(0x28), 0x20);   // Port0 usb_pwr_ok = 0
 	U2PHY_SETREG(MAP_PHY(0x24), 0xB3);   // Port0 u11_rx_pwd = 1
 	U2PHY_SETREG(MAP_PHY(0x34), 0x90);   // Port0 tx_pdn = 0
+#endif
 }
 
 #ifndef CONFIG_DM_USB

@@ -115,7 +115,7 @@ extern IDEDATA_TYPE IOADDR_LCD3_REG_BASE;
     @note This if for pll_set_clock_rate(PLL_CLKSEL_LCD_CLKDIV).
 */
 //@{
-#define PLL_LCD_CLKDIV(x)           ((x) << (PLL_CLKSEL_LCD_CLKDIV - PLL_CLKSEL_R15_OFFSET))     //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD_CLKDIV)
+#define PLL_LCD_CLKDIV(x)           ((x) << (PLL_CLKSEL_LCD_CLKDIV - PLL_CLKSEL_R16_OFFSET))     //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD_CLKDIV)
 //@}
 
 /*
@@ -126,7 +126,7 @@ extern IDEDATA_TYPE IOADDR_LCD3_REG_BASE;
     @note This if for pll_set_clock_rate(PLL_CLKSEL_LCD_OUTIF_CLKDIV).
 */
 //@{
-#define PLL_IDE_OUTIF_CLKDIV(x)          ((x) << (PLL_CLKSEL_LCD_OUTIF_CLKDIV - PLL_CLKSEL_R15_OFFSET))    //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD_OUTIF_CLKDIV)
+#define PLL_IDE_OUTIF_CLKDIV(x)          ((x) << (PLL_CLKSEL_LCD_OUTIF_CLKDIV - PLL_CLKSEL_R16_OFFSET))    //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD_OUTIF_CLKDIV)
 //@}
 
 /*
@@ -137,7 +137,7 @@ extern IDEDATA_TYPE IOADDR_LCD3_REG_BASE;
     @note This if for pll_set_clock_rate(PLL_CLKSEL_LCD_CLKDIV).
 */
 //@{
-#define PLL_LCD2_CLKDIV(x)           ((x) << (PLL_CLKSEL_LCD2_CLKDIV - PLL_CLKSEL_R15_OFFSET))     //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_CLKDIV)
+#define PLL_LCD2_CLKDIV(x)           ((x) << (PLL_CLKSEL_LCD2_CLKDIV - PLL_CLKSEL_R17_OFFSET))     //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_CLKDIV)
 //@}
 
 /*
@@ -148,7 +148,7 @@ extern IDEDATA_TYPE IOADDR_LCD3_REG_BASE;
     @note This if for pll_set_clock_rate(PLL_CLKSEL_LCD2_OUTIF_CLKDIV).
 */
 //@{
-#define PLL_IDE2_OUTIF_CLKDIV(x)          ((x) << (PLL_CLKSEL_LCD2_OUTIF_CLKDIV - PLL_CLKSEL_R15_OFFSET))    //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_OUTIF_CLKDIV)
+#define PLL_IDE2_OUTIF_CLKDIV(x)          ((x) << (PLL_CLKSEL_LCD2_OUTIF_CLKDIV - PLL_CLKSEL_R17_OFFSET))    //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_OUTIF_CLKDIV)
 //@}
 
 /*
@@ -159,7 +159,7 @@ extern IDEDATA_TYPE IOADDR_LCD3_REG_BASE;
     @note This if for pll_set_clock_rate(PLL_CLKSEL_LCD_CLKDIV).
 */
 //@{
-#define PLL_LCD_LITE_CLKDIV(x)           ((x) << (PLL_CLKSEL_LCD_LITE_CLKDIV - PLL_CLKSEL_RLITE_OFFSET))     //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_CLKDIV)
+#define PLL_LCD_LITE_CLKDIV(x)           ((x) << (PLL_CLKSEL_LCD_LITE_CLKDIV - PLL_CLKSEL_R18_OFFSET))     //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_CLKDIV)
 //@}
 
 /*
@@ -170,7 +170,7 @@ extern IDEDATA_TYPE IOADDR_LCD3_REG_BASE;
     @note This if for pll_set_clock_rate(PLL_CLKSEL_LCD2_OUTIF_CLKDIV).
 */
 //@{
-#define PLL_IDE_LITE_OUTIF_CLKDIV(x)          ((x) << (PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV - PLL_CLKSEL_RLITE_OFFSET))    //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_OUTIF_CLKDIV)
+#define PLL_IDE_LITE_OUTIF_CLKDIV(x)          ((x) << (PLL_CLKSEL_LCD_LITE_OUTIF_CLKDIV - PLL_CLKSEL_R18_OFFSET))    //< Used for pll_set_clock_rate(PLL_CLKSEL_LCD2_OUTIF_CLKDIV)
 //@}
 
 

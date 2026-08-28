@@ -961,8 +961,8 @@ ER dispdev3_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 
 			if (er_return != E_OK)
 				return er_return;
-			if (p_disp_dev_param->SEL.SET_CLK_FREQ.ui_freq > 150000000){
-				DBG_ERR("IDE2 clock need under 150MHz (%d)\n", p_disp_dev_param->SEL.SET_CLK_FREQ.ui_freq);
+			if (p_disp_dev_param->SEL.SET_CLK_FREQ.ui_freq > 600000000){
+				DBG_ERR("IDE3 clock need under 600MHz (%d)\n", p_disp_dev_param->SEL.SET_CLK_FREQ.ui_freq);
 				return E_SYS;
 			}
 

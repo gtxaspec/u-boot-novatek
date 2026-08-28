@@ -276,4 +276,20 @@
 #define SDIO2_PAD_POWER_MASK            GENMASK(9, 8)
 #define SDIO2_PAD_POWER_SHIFT           (9)
 
+static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
+{
+	return 0;
+}
+
+static inline uint32_t nvt_mmc_get_outdly(uint8_t host_id, uint32_t freq)
+{
+	if (host_id == 0) {  // SDIO_HOST_ID_1
+		return 1;
+	} else if (host_id == 1) {  // SDIO_HOST_ID_2
+		return 2;
+	} else {
+		return 8;
+	}
+}
+
 #endif

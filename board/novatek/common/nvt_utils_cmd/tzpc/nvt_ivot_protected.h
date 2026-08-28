@@ -91,14 +91,14 @@
 typedef struct {
 	UINT32 CPU: 1;   //CPU_S
 	UINT32 CPU_NS: 1;
-	UINT32 HVYLD: 1; 
+	UINT32 HVYLD: 1;
 	UINT32 reserved: 1;
 	//M1
 	UINT32 AGE: 1;
 	UINT32 SSCA: 1;
-	UINT32 OSG: 1;		
-	UINT32 GPE: 1;		
-	UINT32 GPE2: 1;			
+	UINT32 OSG: 1;
+	UINT32 GPE: 1;
+	UINT32 GPE2: 1;
 	UINT32 JPG: 1;
 	UINT32 SMC: 1;
 	UINT32 SDIO: 1;
@@ -299,7 +299,7 @@ REGDEF_END(MAU_PROTECT_MODE_REG)
 #define MAU_OUT_PROTECT_START_ADDR 	0x4B8
 #define MAU_OUT_PROTECT_END_ADDR 	0x4BC
 
-#elif defined(CONFIG_TARGET_NS02301)
+#elif defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02501)
 /*
     DMA channel mask
 
@@ -307,6 +307,196 @@ REGDEF_END(MAU_PROTECT_MODE_REG)
 
     @note For DMA_WRITEPROT_ATTR
 */
+#if defined(CONFIG_TARGET_NS02501)
+typedef struct _DMA_CH_MSK {
+	// ch 0
+	UINT32 REFC: 1;                       	   //< bit0: reserved (auto refresh)
+	UINT32 CPU_NS  :1;
+	UINT32 IP_USB_ETH :1;
+	UINT32 GRA_0   :1;    // Graphic Input 0
+	UINT32 GRA_1   :1;    // Graphic Input 1
+	UINT32 GRA_2   :1;    // Graphic Input 2
+	UINT32 GRA_3   :1;    // Graphic output
+	UINT32 GRA_4   :1;    // Graphic output
+	UINT32 GRA2_0  :1;    // Graphic2 input
+	UINT32 GRA2_1  :1;    // Graphic2 input
+	UINT32 GRA2_2  :1;    // Graphic2 output
+	UINT32 JPG0    :1;    // JPG IMG
+	UINT32 JPG1    :1;    // JPG BS
+	UINT32 JPG2    :1;    // JPG Encode mode DC output
+	UINT32 JPG3    :1;
+	UINT32 IPE0    :1;    // IPE input
+	UINT32 IPE1    :1;    // IPE input
+	UINT32 IPE2    :1;    // IPE output
+	UINT32 IPE3    :1;    // IPE output
+	UINT32 IPE4    :1;    // IPE output
+	UINT32 IPE5    :1;    // IPE output
+	UINT32 IPE6    :1;    // IPE input
+	UINT32 SIE_0   :1;    // SIE output
+	UINT32 SIE_1   :1;    // SIE output
+	UINT32 SIE_2   :1;    // SIE output
+	UINT32 SIE_3   :1;    // SIE input
+	UINT32 SIE2_0  :1;    // SIE2 output
+	UINT32 SIE2_1  :1;    // SIE2 output
+	UINT32 SIE2_2  :1;    // SIE2 input
+	UINT32 SIE2_3  :1;    // SIE2 input
+	UINT32 SIE3_0  :1;    // SIE3 output
+	UINT32 SIE3_1  :1;    // SIE3 output
+
+	/* Channel 1 */
+	UINT32 SIE3_2  :1;
+	UINT32 LARB    :1;    // Local Arbit for SIF/BMC/I2C/UART/SPI
+	UINT32 DAI     :1;    // DAI
+	UINT32 DAI_2   :1;    // DAI
+	UINT32 IFE_0   :1;    // IFE input
+	UINT32 IFE_1   :1;    // IFE input
+	UINT32 IFE_2   :1;    // IFE output
+	UINT32 IFE_3   :1;    // IFE output
+	UINT32 IFE_4   :1;    // IFE output
+	UINT32 IFE_5   :1;    // IFE output
+	UINT32 IME_0   :1;    // IME input
+	UINT32 IME_1   :1;    // IME input
+	UINT32 IME_2   :1;    // IME input
+	UINT32 IME_3   :1;    // IME output
+	UINT32 IME_4   :1;    // IME output
+	UINT32 IME_5   :1;    // IME output
+	UINT32 IME_6   :1;    // IME output
+	UINT32 IME_7   :1;    // IME output
+	UINT32 IME_8   :1;    // IME output
+	UINT32 IME_9   :1;    // IME output
+	UINT32 IME_A   :1;    // IME output
+	UINT32 IME_B   :1;    // IME output
+	UINT32 IME_C   :1;    // IME input
+	UINT32 IME_D   :1;    // IME output
+	UINT32 IME_E   :1;    // IME input
+	UINT32 IME_F   :1;    // IME input
+	UINT32 IME_10  :1;    // IME input
+	UINT32 IME_11  :1;    // IME input
+	UINT32 IME_12  :1;    // IME output
+	UINT32 IME_13  :1;    // IME output
+	UINT32 IME_14  :1;    // IME output
+	UINT32 IME_15  :1;    // IME output
+
+	/* Channel 2 */
+	UINT32 ISE_0   :1;    // ISE input
+	UINT32 ISE_1   :1;    // ISE output
+	UINT32 ISE_2   :1;    // ISE output
+	UINT32 ISE_3   :1;
+	UINT32 ISE_4   :1;
+	UINT32 IDE_0   :1;    // IDE V1 Y (in)
+	UINT32 IDE_1   :1;    // IDE V1 C (in)
+	UINT32 IDE_2   :1;    // IDE V2 Y (in/out)
+	UINT32 IDE_3   :1;    // IDE V2 C (in/out)
+	UINT32 IDE_4   :1;    // IDE O1 PAL/A (in)
+	UINT32 IDE_5   :1;    // IDE O1 RGB (in)
+	UINT32 SDIO1   :1;    // SDIO1
+	UINT32 SDIO2   :1;    // SDIO2
+	UINT32 SDIO3   :1;    // SDIO3
+	UINT32 NAND    :1;    // NAND
+	UINT32 H264_0  :1;    // H.264 (input)
+	UINT32 H264_1  :1;    // H.264 (input)
+	UINT32 H264_2  :1;
+	UINT32 H264_3  :1;    // H.264 (input/output)
+	UINT32 H264_4  :1;    // H.264 (input)
+	UINT32 H264_5  :1;    // H.264 (output)
+	UINT32 H264_6  :1;    // H.264 (input)
+	UINT32 H264_8  :1;    // H.264 (output)
+	UINT32 H264_9  :1;    // H.264 (COE input)
+	UINT32 H264_10 :1;
+	UINT32 TSM_0   :1;    // TSE input
+	UINT32 TSM_1   :1;    // TSE output
+	UINT32 CRYPTO  :1;    // CRYPTO
+	UINT32 HASH    :1;    // Hash
+	UINT32 CONV_0  :1;
+	UINT32 CONV_1  :1;
+	UINT32 CONV_2  :1;
+
+	/* Channel 3 */
+	UINT32 CONV_3  :1;
+	UINT32 CONV_4  :1;
+	UINT32 CONV_5  :1;
+	UINT32 CONV_6  :1;
+	UINT32 CONV_7  :1;
+	UINT32 CONV_8  :1;
+	UINT32 CONV_9  :1;
+	UINT32 CONV_A  :1;
+	UINT32 NUE2_0  :1;    // NUE input
+	UINT32 NUE2_1  :1;    // NUE input
+	UINT32 NUE2_2  :1;    // NUE input
+	UINT32 NUE2_3  :1;    // NUE output
+	UINT32 NUE2_4  :1;    // NUE output
+	UINT32 NUE2_5  :1;    // NUE output
+	UINT32 NUE2_6  :1;    // NUE output
+	UINT32 MDBC_0  :1;    // MDBC input
+	UINT32 MDBC_1  :1;    // MDBC input
+	UINT32 MDBC_2  :1;    // MDBC input
+	UINT32 MDBC_3  :1;    // MDBC input
+	UINT32 MDBC_4  :1;
+	UINT32 MDBC_5  :1;    // MDBC input
+	UINT32 MDBC_6  :1;    // MDBC output
+	UINT32 MDBC_7  :1;    // MDBC output
+	UINT32 MDBC_8  :1;
+	UINT32 MDBC_9  :1;
+	UINT32 HLOAD_0 :1;
+	UINT32 HLOAD_1 :1;
+	UINT32 HLOAD_2 :1;
+	UINT32 IVE_0   :1;
+	UINT32 IVE_1   :1;
+	UINT32 IVE_2   :1;
+	UINT32 UVC_0   :1;
+
+	/* Channel 4 */
+	UINT32 UVC_1   :1;
+	UINT32 VPE_0   :1;
+	UINT32 VPE_1   :1;
+	UINT32 VPE_2   :1;
+	UINT32 VPE_3   :1;
+	UINT32 VPE_4   :1;
+	UINT32 PRE_0   :1;
+	UINT32 PRE_1   :1;
+	UINT32 PRE_2   :1;
+	UINT32 PRE_3   :1;
+	UINT32 PRE_4   :1;
+	UINT32 PRE_5   :1;
+	UINT32 PRE_6   :1;
+	UINT32 PRE_7   :1;
+	UINT32 PRE_8   :1;
+	UINT32 PRE_9   :1;
+	UINT32 PRE_A   :1;
+	UINT32 PRE_B   :1;
+	UINT32 PRE_C   :1;
+	UINT32 DNE_0   :1;
+	UINT32 DNE_1   :1;
+	UINT32 DNE_2   :1;
+	UINT32 DNE_3   :1;
+	UINT32 DNE_4   :1;
+	UINT32 DNE_5   :1;
+	UINT32 DNE_6   :1;
+	UINT32 GZIP    :1;
+	UINT32 GZIP_2  :1;
+	UINT32 SIE4_0  :1;
+	UINT32 SIE4_1  :1;
+	UINT32 reserve1 :2;
+
+	/* Channel 5 */
+	UINT32 CPU :1;
+	UINT32 reserve2 :31;
+
+
+	// Should be deleted later, reserved to prevent compile errors
+	UINT32 CNN_0   :1;    // CNN input
+	UINT32 CNN_1   :1;    // CNN input
+	UINT32 CNN_2   :1;    // CNN input
+	UINT32 CNN_3   :1;    // CNN input
+	UINT32 CNN_4   :1;    // CNN output
+	UINT32 CNN_5   :1;    // CNN output
+	UINT32 CNN_6   :1;    // CNN output
+	UINT32 CNN_7   :1;    // CNN output
+	UINT32 CNN_8   :1;    // CNN output
+	UINT32 CNN_9   :1;
+
+} DMA_CH_MSK, *PDMA_CH_MSK;
+#elif defined(CONFIG_TARGET_NS02301)
 typedef struct _DMA_CH_MSK {
 	// ch 0
 	UINT32 REFC: 1;                       	   //< bit0: reserved (auto refresh)
@@ -467,6 +657,7 @@ typedef struct _DMA_CH_MSK {
 	UINT32 DCE_7: 1;
 
 } DMA_CH_MSK, *PDMA_CH_MSK;
+#endif
 
 /**
     DDR Arbiter ID

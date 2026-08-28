@@ -8,6 +8,7 @@
 #include <asm/arch/efuse_protected.h>
 #include <linux/delay.h>
 
+#define DRV_VERSION		"1.00.002"
 #define msleep(a) udelay(a * 1000)
 
 static bool debug_write = false;
@@ -104,24 +105,39 @@ static void nvt_sata_phy_trim(struct ahci_nvt_plat_data *sata_phy)
 	u32		addr;
 	int		code;
 	BOOL	is_found;
-	u32		internal_12k_trim = 0x8, tx_trim = 0x6, rx_trim = 0xc;
+	u32		internal_12k_trim = 0x8, tx_trim = 0x6, rx_trim = 0xc, rx_ldo = 0x1;
 	u32		SATA1_Internal_12K_resistor;                          //0x00
 	u32		SATA1_TX_TRIM, SATA1_RX_TRIM;                         //0x00
-	u32		EFUSE_TRIM_DATA_SATA;
+	u32 	SATA1_RXLDO_LIMIT;
+//	u32		EFUSE_TRIM_DATA_SATA;
 
-/*
-	if (sata_phy->idx == 1) {
-		addr = 0x0;
-		EFUSE_TRIM_DATA_SATA = EFUSE_TRIM_DATA_SATA1_PRI;
-	} else if (sata_phy->idx == 2) {
-		addr = 0x5;
-		EFUSE_TRIM_DATA_SATA = EFUSE_TRIM_DATA_USB_SATA_PRI;
+	
+	if (sata_phy->idx == 1) {			//1st sata
+		//0x0
+		addr = EFUSE_TRIM_DATA_SATA1_PRI;
+//		EFUSE_TRIM_DATA_SATA = EFUSE_TRIM_DATA_SATA1_PRI;
+	} else if (sata_phy->idx == 2) {	//2nd SATA
+		//0x7
+		addr = EFUSE_TRIM_DATA_SATA2_PRI;
+//		EFUSE_TRIM_DATA_SATA = EFUSE_TRIM_DATA_USB_SATA_PRI;
+	} else if (sata_phy->idx == 3) {    //SATA3-3(USB3-2) 3rd SATA
+		//0x3D
+		addr = EFUSE_TRIM_DATA_SATA_3_USB3_2_PRI;
+	} else if (sata_phy->idx == 4) {
+		//0x05;                        //SATA3-4(USB3-1) 4th SATA
+		addr = EFUSE_TRIM_DATA_SATA3_USB3_1_PRI;
+	} else if (sata_phy->idx == 5) {
+		//0x3C;                        //SATA3-5(SGMII-1)
+		addr = EFUSE_TRIM_DATA_SATA3_SGMII_1_PRI;
+	} else if (sata_phy->idx == 6) {
+		//0x3B;                        //SATA3-6(SGMII-2)
+		addr = EFUSE_TRIM_DATA_SATA3_SGMII_2_PRI;
 	} else {
-		printf("Invalid SATA index\r\n");
+		printf("Invalid SATA index(%d)\r\n", sata_phy->idx);
 		return;
 	}
 
-	code = otp_key_manager(EFUSE_TRIM_DATA_SATA);
+	code = otp_key_manager(EFUSE_ID_1, addr);
 
 	if (code == -33) {
 		//!!!Please apply default value here!!!
@@ -135,7 +151,7 @@ static void nvt_sata_phy_trim(struct ahci_nvt_plat_data *sata_phy)
 			SATA1_Internal_12K_resistor = trim & 0x1F;
 			SATA1_TX_TRIM = ((trim >> 5) & 0xF);
 			SATA1_RX_TRIM = ((trim >> 9) & 0xF);
-
+			SATA1_RXLDO_LIMIT = ((trim >> 13) & 0x1);
 			//12K resistor 1<= x <= 20(0x14)
 			if (SATA1_Internal_12K_resistor > 0x14) {
 				printf("SATA1 12K_resistor Trim data error [0x%02x]=0x%04x > 20(0x14)\r\n", (int)addr, (int)SATA1_Internal_12K_resistor);
@@ -164,12 +180,16 @@ static void nvt_sata_phy_trim(struct ahci_nvt_plat_data *sata_phy)
 				printf("  *SATA1 RX Trim data range success 0x8 <= [0x%04x] <= 0xE\r\n", (int)SATA1_RX_TRIM);
 				rx_trim = SATA1_RX_TRIM;
 			}
+			if (SATA1_RXLDO_LIMIT) {
+//				pr_info("  SATA%d RXLDO Trim data range success 0x0 <= [0x%04x] <= 0x1\r\n", (int)sata_phy->idx, (int)SATA1_RXLDO_LIMIT);
+				rx_ldo = 0x0;
+			}
 		} else {
 			//!!!Please apply default value here!!!
 			printf("is found [%d][SATA1 trim] = 0x%08x\r\n", is_found, (int)code);
 		}
 	}
-*/
+
 
 	//12k trim value
 	nvt_sata_phy_write(0x00, (sata_phy->phy_va_base + 0x3fc));
@@ -184,6 +204,10 @@ static void nvt_sata_phy_trim(struct ahci_nvt_plat_data *sata_phy)
 	// RX trim value
 	nvt_sata_phy_write(0x02, (sata_phy->phy_va_base + 0x3fc));
 	nvt_sata_phy_masked_write(3, 0, rx_trim, (sata_phy->phy_va_base + 0x000));
+
+	// ldo
+	nvt_sata_phy_write(0x02, (sata_phy->phy_va_base + 0x3fc));
+	nvt_sata_phy_masked_write(5, 4, rx_ldo, (sata_phy->phy_va_base + 0x0a8));
 
 	msleep(1000);
 }
@@ -458,7 +482,7 @@ static int nvt_sata_phy_init(struct udevice *dev)
 	//#*(volatile UINT32 *)(USB30_PHY_BASE + 0x50) = (0xfb);
 	//#bit3 = TX_DE_EN
 	//#mww 0xf0251050 0xfb
-	nvt_sata_phy_write(0x8a, (sata_phy->phy_va_base + 0x050));
+	nvt_sata_phy_write(0xca, (sata_phy->phy_va_base + 0x050));
 	//#bit[5:4] = TX_AMP_CTL_LFPS[1:0]
 	nvt_sata_phy_write(0xf8, (sata_phy->phy_va_base + 0x048));
 	//#nable software control
@@ -471,7 +495,7 @@ static int nvt_sata_phy_init(struct udevice *dev)
 	//#bit1 : u30p_pwoerdown_chg_int_src_sel
 	//#bit2 : u30p_anaif_pwrctrl_txrx_ss_ready_sync_en = 1
 	//#bit3 : u30p_anaif_pwrctrl_sync_powerdownP3_en (pwrdwnP3_syn_en) = 1
-	nvt_sata_phy_write(0x0D, (sata_phy->phy_va_base + 0x188));
+	nvt_sata_phy_write(0x09, (sata_phy->phy_va_base + 0x188));
 
 #if 0
 	//MR_off back to NT98690
