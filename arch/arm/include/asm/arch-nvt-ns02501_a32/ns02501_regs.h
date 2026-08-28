@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Novatek Microelectronics Corp. All rights reserved.
+ * Copyright (C) 2025 Novatek Microelectronics Corp. All rights reserved.
  * Author: IVOT-KSW <iVoT_KSW_MailGrp@novatek.com.tw>
  *
  * SPDX-License-Identifier:	GPL-2.0+
@@ -239,5 +239,126 @@ static inline unsigned long read_periphbase(void)
 }
 
 #define TOP_VERSION_REG_OFS			0xF0
+
+#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_TARGET_NS02501)
+#warning "533 NVT_IVOT_OPTEE_SECBOOT_SUPPORT is not ready"
+#include <linux/arm-smccc.h>
+/**
+ * @brief SMC Macro define
+ * @note ./BSP/trusted-firmware-a/plat/novatek/nvt_ns02401/plat_sip_calls.c
+ *       ./BSP/trusted-firmware-a/plat/novatek/nvt_ns02401/include/plat_sip_calls.h
+ */
+#define NVT_REG_READ            (0xC200FF04)
+#define NVT_REG_WRITE           (0xC200FF05)
+#define NVT_TOP_REG_READ        (0xC200FF08)
+#define NVT_TOP_REG_WRITE       (0xC200FF09)
+
+static unsigned long __invoke_nvt_top_reg_fn_smc(unsigned long function_id,
+        unsigned long arg0, unsigned long arg1,
+        unsigned long arg2)
+{
+    struct arm_smccc_res res;
+    arm_smccc_smc(function_id, arg0, arg1, arg2, 0, 0, 0, 0, &res);
+    return res.a0;
+}
+
+/**
+    @brief Send a message to ATF via SMC.
+
+    This function performs the same action as OUTW(OUTREG32) param is TOP reg
+    offset
+
+    @param[in] ofs          The offset of TOP to write to.
+    @param[in] value        The value to write to the specified TOP offset.
+    @return void            This function does not return any value.
+
+    @note Example usage:
+    @code
+    {
+        Write value 0x12345678 to TOP offset 0x18
+        TOP_SMC_GETREG(0x18, 0x12345678);
+    }
+    @endcode
+*/
+static inline void TOP_SMC_SETREG(int ofs, u32 value)
+{
+    __invoke_nvt_top_reg_fn_smc(NVT_TOP_REG_WRITE, (ofs), value, 0);
+}
+
+/**
+    @brief Send a message to ATF via SMC to read a register.
+
+    This function performs the same action as INW(INREG32). param is TOP reg
+    offset
+
+    @param[in] ofs         The address to read from.
+    @return                The value read from the specified address.
+
+    @note Example usage:
+    @code
+    {
+        Read value from TOP offset 0x18
+        u32 value = TOP_SMC_GETREG(0x18);
+    }
+    @endcode
+ */
+static inline u32 TOP_SMC_GETREG(int ofs)
+{
+    return __invoke_nvt_top_reg_fn_smc(NVT_TOP_REG_READ, (ofs), 0, 0);
+}
+
+/**
+    @brief Send a message to ATF via SMC.
+
+    This function performs the same action as OUTW(OUTREG32).
+
+    @param[in] value        The value to write to the specified address.
+    @param[in] address      The address to write to.
+    @return void            This function does not return any value.
+
+    @note Example usage:
+    @code
+    {
+        Write value 0x12345678 to address 0x4F0130000
+        SMC_SETREG(0x4F0130000, 0x12345678);
+    }
+    @endcode
+ */
+static inline void smc_writel(u32 value, uintptr_t address)
+{
+    __invoke_nvt_top_reg_fn_smc(NVT_REG_WRITE, (address), value, 0);
+}
+
+/**
+    @brief Send a message to ATF via SMC to read a register.
+
+    This function performs the same action as INW(INREG32).
+
+    @param[in] address         The address to read from.
+    @return The value read from the specified address.
+
+    @note Example usage:
+    @code
+    {
+        Read value from address 0x4F0130000
+        u32 value = SMC_GETREG(0x4F0130000);
+    }
+    @endcode
+ */
+static inline u32 smc_readl(uintptr_t address)
+{
+    return __invoke_nvt_top_reg_fn_smc(NVT_REG_READ, (address), 0, 0);
+}
+#define SMC_INW(x)                      smc_readl(x)
+#define SMC_OUTW(addr, val)             smc_writel(val, addr)
+
+#else
+	#define TOP_SMC_SETREG(ofs, value)      writel(value, (IOADDR_TOP_REG_BASE +ofs))
+	#define TOP_SMC_GETREG(ofs)             readl(IOADDR_TOP_REG_BASE +ofs)
+	#define smc_writel(value, ofs)          writel(value, ofs)
+	#define smc_readl(ofs)                  readl(ofs)
+	#define SMC_INW(x)                      INW(x)
+	#define SMC_OUTW(addr, val)             OUTW(addr, val)
+#endif
 
 #endif /* __ARCH_REGS_H_ */

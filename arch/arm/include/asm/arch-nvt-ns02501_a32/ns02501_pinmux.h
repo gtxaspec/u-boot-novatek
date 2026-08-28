@@ -8,7 +8,7 @@
 
 typedef uint32_t u32;
 
-#define DRV_VERSION "1.00.03"
+#define DRV_VERSION "1.00.07"
 
 #define TOP_SETREG(info, ofs,value)    OUTW(info->top_base+(ofs),(value))
 #define TOP_GETREG(info, ofs)          INW(info->top_base+(ofs))
@@ -360,8 +360,10 @@ void pad_preset(struct nvt_pinctrl_info *info);
 void pinmux_gpio_parsing(struct nvt_pinctrl_info *info);
 int pinmux_set_config(PINMUX_FUNC_ID id, u32 pinmux);
 
+void pad_show(void);
 int pad_suspend(struct nvt_pinctrl_info *info);
 int pad_resume(struct nvt_pinctrl_info *info);
+int pinmux_conflict_check(void);
 
 static inline int pinmux_set_host(struct nvt_pinctrl_info *info, PINMUX_FUNC_ID id, u32 pinmux)
 {

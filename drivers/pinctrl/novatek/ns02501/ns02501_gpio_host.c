@@ -10,7 +10,7 @@
     Copyright   Novatek Microelectronics Corp. 2024.  All rights reserved.
 */
 
-#include "ns02501_pinmux.h"
+#include <asm/nvt_pinmux.h>
 
 static DEFINE_SPINLOCK(gpio_lock);
 #define loc_cpu(lock, flags) spin_lock_irqsave(lock, flags)

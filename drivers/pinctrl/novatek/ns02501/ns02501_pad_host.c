@@ -11,7 +11,7 @@
 */
 
 #include <asm/arch/pad.h>
-#include "ns02501_pinmux.h"
+#include <asm/nvt_pinmux.h>
 #include <asm/nvt-common/rcw_macro.h>
 
 #define __MODULE__    rtos_pad
@@ -326,7 +326,7 @@ void pad_show(void)
 
 	CHAR pull_type[4][32] = {"\033[0;37mNone\033[0m", "\033[0;36mPullDown\033[0m", "\033[0;33mPullUp\033[0m", "\033[1;33mStrong PullUp\033[0m"};
 	UINT32 index, pinMax, uiPullType = 0, uiPadLevel = 0;
-	UINT32 reg;
+
 	pr_err("%-12s | %-10s | %-15s\r\n", "Pin Name", "Pull", "Driving");
 	pr_err("============================================\r\n");
 
@@ -406,9 +406,6 @@ void pad_show(void)
 	for (index = 0; index <= pinMax; index++) {
 		pad_get_drivingsink(PAD_DS_DGPIO0 + (2*index), &uiPadLevel);
 		pad_get_pull_updown(PAD_PIN_DGPIO0 + (2*index), &uiPullType);
-		if(index == 12)
-		pr_err("SYS_RST  : %d(%s)    \r\n", uiPullType, pull_type[uiPullType]);
-		else
 		pr_err("D_GPIO_%02d     | %-2d %-19s | 0x%-6x\r\n", index, uiPullType, pull_type[uiPullType], uiPadLevel);
 	}
 }

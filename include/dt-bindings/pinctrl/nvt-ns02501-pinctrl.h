@@ -241,6 +241,12 @@
 
 #define PIN_SENSOR_CFG_SN_VSHS                 0x100000     ///< VD/HD/PXCLK (S_GPIO[2]/S_GPIO[3]/S_GPIO[1])
 #define PIN_SENSOR_CFG_SN_VSHS_2               0x200000     ///< VD/HD/PXCLK (HSI_GPIO[7]/HSI_GPIO[8]/S_GPIO[1])
+
+#define PIN_SN_TIMER_SET_MUX_1                 0x1000000
+#define PIN_SN_TIMER_SET_MUX_2                 0x2000000
+#define PIN_SN_TIMER_SET_MUX_3                 0x4000000
+#define PIN_SN_TIMER_SET_MUX_4                 0x8000000
+
 /**
     PIN config for Sensor2
 

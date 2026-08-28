@@ -244,4 +244,20 @@ static inline unsigned long read_periphbase(void)
 
 #define TOP_VERSION_REG_OFS			0xF0
 
+#if 0 // defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+	#define TOP_SMC_SETREG(ofs, value)      writel(value, (IOADDR_TOP_REG_BASE +ofs))
+	#define TOP_SMC_GETREG(ofs)             readl(IOADDR_TOP_REG_BASE +ofs)
+	#define smc_writel(value, ofs)          writel(value, ofs)
+	#define smc_readl(ofs)                  readl(ofs)
+	#define SMC_INW(x)                      INW(x)
+	#define SMC_OUTW(addr, val)             OUTW(addr, val)
+#else
+	#define TOP_SMC_SETREG(ofs, value)      writel(value, (IOADDR_TOP_REG_BASE +ofs))
+	#define TOP_SMC_GETREG(ofs)             readl(IOADDR_TOP_REG_BASE +ofs)
+	#define smc_writel(value, ofs)          writel(value, ofs)
+	#define smc_readl(ofs)                  readl(ofs)
+	#define SMC_INW(x)                      INW(x)
+	#define SMC_OUTW(addr, val)             OUTW(addr, val)
+#endif
+
 #endif /* __ARCH_REGS_H_ */

@@ -25,7 +25,7 @@
 #include "pcie_dw_common.h"
 #include "pcie_nvt.h"
 
-#define DRV_VERSION                     "1.01.02"
+#define DRV_VERSION                     "1.01.03"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -395,6 +395,8 @@ static int pcie_nvt_probe(struct udevice *dev)
 	struct phy phy0;//, phy1;
 	int phy_mode;
 	int ret;
+	int spd, wdh;
+	u32 dbg_low, dbg_high, lnk_sts;
 
 	if (pci == NULL) {
 		dev_err(dev, "NULL priv\n");
@@ -473,10 +475,37 @@ static int pcie_nvt_probe(struct udevice *dev)
 		wait_speed_change_done(pci);
 	}
 
+	spd = pcie_dw_get_link_speed(&pci->dw);
+	wdh = pcie_dw_get_link_width(&pci->dw);
 	printf("PCIE-%d: Link up (Gen%d-x%d, Bus%d)\n", dev_seq(dev),
-	       pcie_dw_get_link_speed(&pci->dw),
-	       pcie_dw_get_link_width(&pci->dw),
+	       spd,
+	       wdh,
 	       hose->first_busno);
+	if (spd != pci->link_gen) {
+		unsigned long t_start, t_end;
+		u32 val;
+
+		val = readl(pci->top_base + 0x08);
+		printf("%s: Not Gen%d\r\n", __func__, pci->link_gen);
+		printf("PCIE TOP DMC_STS0 = 0x%x\r\n", val);
+	
+		dbg_low = readl(pci->dw.dbi_base + PCIE_PORT_DEBUG0);
+		dbg_high = readl(pci->dw.dbi_base + PCIE_PORT_DEBUG0 + 4);
+		lnk_sts = readl(pci->dw.dbi_base + PCIE_LINK_STATUS_REG);
+
+		val = readl(pci->dw.dbi_base + 0x80);
+		printf("DBI LINK STS = 0x%x\r\n", val);
+		val = readl(pci->dw.dbi_base + 0xA0);
+		printf("DBI LINK STS2 = 0x%x\r\n", val);
+
+		printf("LnkSts 0x%x, DBG low 0x%x, DBG high 0x%x\r\n",
+				lnk_sts, dbg_low, dbg_high);
+
+		t_start = get_timer(0);
+		wait_speed_change_done(pci);
+		t_end = get_timer(0);
+		printf("%s: to gen%d elps %ld ms\r\n", __func__, pci->link_gen, t_end-t_start);
+	}
 
 	return pcie_dw_prog_outbound_atu_unroll(&pci->dw, PCIE_ATU_REGION_INDEX0,
 					 PCIE_ATU_TYPE_MEM,

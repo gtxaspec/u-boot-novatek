@@ -10,7 +10,7 @@
     Copyright   Novatek Microelectronics Corp. 2016.  All rights reserved.
 */
 
-#include "ns02501_pinmux.h"
+#include <asm/nvt_pinmux.h>
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 #include <malloc.h>
@@ -582,6 +582,16 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 		value |= PIN_SENSOR_CFG_SN_VSHS;
 	}  else if (local_top_reg3.bit.SN_VSHS == MUX_2) {
 		value |= PIN_SENSOR_CFG_SN_VSHS_2;
+	}
+
+	if (local_top_reg3.bit.SN_TIMER_SET_MUX == MUX_1) {
+		value |= PIN_SN_TIMER_SET_MUX_1;
+	} else if (local_top_reg3.bit.SN_TIMER_SET_MUX == MUX_2) {
+		value |= PIN_SN_TIMER_SET_MUX_2;
+	} else if (local_top_reg3.bit.SN_TIMER_SET_MUX == MUX_3) {
+		value |= PIN_SN_TIMER_SET_MUX_3;
+	} else if (local_top_reg3.bit.SN_TIMER_SET_MUX == MUX_4) {
+		value |= PIN_SN_TIMER_SET_MUX_4;
 	}
 
 	info->top_pinmux[PIN_FUNC_SENSOR].config = value;
@@ -1167,15 +1177,15 @@ static int pinmux_config_sdio(uint32_t config)
 			}
 
 			if (config & PIN_SDIO_CFG_SDIO3_DS) {
-				confl_detect += gpio_conflict_detect(CGPIO_10, 1, func_SDIO3);
+				confl_detect += gpio_conflict_detect(CGPIO_8, 1, func_SDIO3);
 				if (confl_detect > 0) {
 					return E_PAR;
 				}
 				if(!check_flag){
 					top_reg1.bit.SDIO3_DS_EN = MUX_1;
-					top_reg_cgpio0.bit.CGPIO_10 = GPIO_ID_EMUM_FUNC;
+					top_reg_cgpio0.bit.CGPIO_8 = GPIO_ID_EMUM_FUNC;
 				}
-				gpio_func_keep(CGPIO_10, 1, func_SDIO3);
+				gpio_func_keep(CGPIO_8, 1, func_SDIO3);
 			}
 		}
 	}
@@ -2138,15 +2148,15 @@ static int pinmux_config_pwmIII(uint32_t config)
 
 		} else if (config & PIN_PWMIII_CFG_PWM8_5) {
 
-			confl_detect += gpio_conflict_detect(DSIGPIO_8, 1, func_PWM8_4);
+			confl_detect += gpio_conflict_detect(DSIGPIO_8, 1, func_PWM8_5);
 			if (confl_detect > 0) {
 				return E_PAR;
 			}
 			if(!check_flag){
-				top_reg6.bit.PWM8 = MUX_4;
+				top_reg6.bit.PWM8 = MUX_5;
 				top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
 			}
-			gpio_func_keep(DSIGPIO_8, 1, func_PWM8_4);
+			gpio_func_keep(DSIGPIO_8, 1, func_PWM8_5);
 		}
 
 		if (config & PIN_PWMIII_CFG_PWM9_1) {
@@ -2187,15 +2197,15 @@ static int pinmux_config_pwmIII(uint32_t config)
 
 		} else if (config & PIN_PWMIII_CFG_PWM9_5) {
 
-			confl_detect += gpio_conflict_detect(DSIGPIO_9, 1, func_PWM9_4);
+			confl_detect += gpio_conflict_detect(DSIGPIO_9, 1, func_PWM9_5);
 			if (confl_detect > 0) {
 				return E_PAR;
 			}
 			if(!check_flag){
-				top_reg6.bit.PWM9 = MUX_4;
+				top_reg6.bit.PWM9 = MUX_5;
 				top_reg_dsigpio0.bit.DSIGPIO_9 = GPIO_ID_EMUM_FUNC;
 			}
-			gpio_func_keep(DSIGPIO_9, 1, func_PWM9_4);
+			gpio_func_keep(DSIGPIO_9, 1, func_PWM9_5);
 		}
 
 		if (config & PIN_PWMIII_CFG_PWM10_1) {
@@ -2234,15 +2244,15 @@ static int pinmux_config_pwmIII(uint32_t config)
 			gpio_func_keep(HSIGPIO_8, 1, func_PWM10_3);
 
 		} else if (config & PIN_PWMIII_CFG_PWM10_5) {
-			confl_detect += gpio_conflict_detect(DSIGPIO_10, 1, func_PWM10_4);
+			confl_detect += gpio_conflict_detect(DSIGPIO_10, 1, func_PWM10_5);
 			if (confl_detect > 0) {
 				return E_PAR;
 			}
 			if(!check_flag){
-				top_reg6.bit.PWM10 = MUX_4;
+				top_reg6.bit.PWM10 = MUX_5;
 				top_reg_dsigpio0.bit.DSIGPIO_10 = GPIO_ID_EMUM_FUNC;
 			}
-			gpio_func_keep(DSIGPIO_10, 1, func_PWM10_4);
+			gpio_func_keep(DSIGPIO_10, 1, func_PWM10_5);
 
 		}
 
@@ -2579,6 +2589,16 @@ static int pinmux_config_sensor(uint32_t config)
 			}
 			gpio_func_keep(HSIGPIO_7, 2, func_SN1_VSHS_2);
 			gpio_func_keep(SGPIO_1, 1, func_SN1_VSHS_2);
+		}
+
+		if (config & PIN_SN_TIMER_SET_MUX_1) {
+			top_reg3.bit.SN_TIMER_SET_MUX = MUX_1;
+		} else if (config & PIN_SN_TIMER_SET_MUX_2) {
+			top_reg3.bit.SN_TIMER_SET_MUX = MUX_2;
+		} else if (config & PIN_SN_TIMER_SET_MUX_3) {
+			top_reg3.bit.SN_TIMER_SET_MUX = MUX_3;
+		} else if (config & PIN_SN_TIMER_SET_MUX_4) {
+			top_reg3.bit.SN_TIMER_SET_MUX = MUX_4;
 		}
 	}
 

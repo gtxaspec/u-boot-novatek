@@ -17,7 +17,7 @@
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/nvt-common/nvt_ivot_optee.h>
-#include <asm/arch/ns02501_regs.h>
+#include <asm/nvt-common/nvt_reg.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
 #include <linux/sizes.h>

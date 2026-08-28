@@ -73,8 +73,13 @@ obj-$(CONFIG_MTK_SERIAL) += serial_mtk.o
 obj-$(CONFIG_MT7620_SERIAL) += serial_mt7620.o
 obj-$(CONFIG_SIFIVE_SERIAL) += serial_sifive.o
 obj-$(CONFIG_XEN_SERIAL) += serial_xen.o
+
 ifeq ($(CONFIG_TARGET_NS02301),y)
 obj-$(CONFIG_SERIAL_NVT) += serial_nvt_plat_ns02301.o
+endif
+
+ifeq ($(or $(CONFIG_TARGET_NS02401),$(CONFIG_TARGET_NS02401_A64)), y)
+obj-$(CONFIG_SERIAL_NVT) += serial_nvt_plat_ns02401.o
 endif
 
 ifndef CONFIG_SPL_BUILD

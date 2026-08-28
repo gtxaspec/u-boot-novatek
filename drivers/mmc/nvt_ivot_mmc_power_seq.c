@@ -1,16 +1,11 @@
 
 #include <asm/nvt-common/nvt_common.h>
+#include <asm/nvt-common/nvt_reg.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include "nvt_ivot_mmc_power_seq.h"
 #include "nvt_ivot_mmc_a64.h"
 
-#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_TARGET_NS02401_A64)
-#include <asm/arch/ns02401_regs.h>
-#else
-#define smc_writel(value, ofs)          writel(value, ofs)
-#define smc_readl(ofs)                  readl(ofs)
-#endif
 
 u32 SDIO_SUP[SDIO_MAX_EMB] = {
     0x1,

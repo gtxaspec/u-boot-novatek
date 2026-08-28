@@ -4,7 +4,7 @@
 #
 
 #
-# Compiler: arm-ca32-linux-gnueabihf-gcc.br_real (Buildroot 2022.08.3-13-ga841cf8) 10.4.0
+# Compiler: arm-ca32-linux-gnueabihf-gcc.br_real (Buildroot 2022.08.3-18-g328e034) 10.4.0
 #
 CONFIG_CREATE_ARCH_SYMLINK=y
 CONFIG_LINKER_LIST_ALIGN=4
@@ -190,7 +190,7 @@ CONFIG_NVT_NAND_ECC=1
 # CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT is not set
 CONFIG_NVT_IVOT_SOC=y
 # CONFIG_NVT_IVOT_QEMU_SIM is not set
-CONFIG_NVT_FPGA_EMULATION=y
+# CONFIG_NVT_FPGA_EMULATION is not set
 CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT=y
 CONFIG_NVT_BIN_CHKSUM_SUPPORT=y
 CONFIG_NVT_LINUX_SPINAND_BOOT=y
@@ -530,6 +530,8 @@ CONFIG_CMD_NAND_TRIMFFS=y
 # CONFIG_CMD_OSD is not set
 # CONFIG_CMD_PART is not set
 # CONFIG_CMD_PCI is not set
+CONFIG_CMD_PINMUX=y
+CONFIG_CMD_NVT_PINMUX=y
 # CONFIG_CMD_POWEROFF is not set
 # CONFIG_CMD_READ is not set
 # CONFIG_CMD_SATA is not set
@@ -790,6 +792,10 @@ CONFIG_BLOCK_CACHE=y
 # CONFIG_FSL_CAAM is not set
 # CONFIG_SYS_FSL_SEC_BE is not set
 # CONFIG_SYS_FSL_SEC_LE is not set
+# CONFIG_NVT_CRYPTO is not set
+# CONFIG_NVT_HASH is not set
+# CONFIG_NVT_RSA is not set
+# CONFIG_NVT_ECDSA is not set
 
 #
 # Demo for driver model
@@ -1020,7 +1026,49 @@ CONFIG_PHYLIB=y
 CONFIG_DM_ETH=y
 # CONFIG_DM_MDIO is not set
 CONFIG_DM_ETH_PHY=y
-# CONFIG_NETDEVICES is not set
+CONFIG_NETDEVICES=y
+# CONFIG_PHY_GIGE is not set
+# CONFIG_ALTERA_TSE is not set
+# CONFIG_BCM_SF2_ETH is not set
+# CONFIG_BCMGENET is not set
+# CONFIG_CALXEDA_XGMAC is not set
+# CONFIG_DWC_ETH_QOS is not set
+# CONFIG_E1000 is not set
+# CONFIG_EEPRO100 is not set
+# CONFIG_ETH_DESIGNWARE is not set
+# CONFIG_ETH_DESIGNWARE_MESON8B is not set
+# CONFIG_ETHOC is not set
+# CONFIG_FMAN_ENET is not set
+# CONFIG_FTMAC100 is not set
+# CONFIG_FTGMAC100 is not set
+# CONFIG_MCFFEC is not set
+# CONFIG_FSLDMAFEC is not set
+# CONFIG_KS8851_MLL is not set
+# CONFIG_MACB is not set
+# CONFIG_PCH_GBE is not set
+# CONFIG_RGMII is not set
+# CONFIG_MII is not set
+# CONFIG_PCNET is not set
+# CONFIG_QE_UEC is not set
+# CONFIG_RTL8139 is not set
+# CONFIG_RTL8169 is not set
+# CONFIG_SMC911X is not set
+# CONFIG_SUN7I_GMAC is not set
+# CONFIG_SUN4I_EMAC is not set
+# CONFIG_SUN8I_EMAC is not set
+# CONFIG_SH_ETHER is not set
+# CONFIG_DRIVER_TI_CPSW is not set
+# CONFIG_DRIVER_TI_EMAC is not set
+# CONFIG_DRIVER_TI_KEYSTONE_NET is not set
+# CONFIG_TULIP is not set
+# CONFIG_XILINX_AXIEMAC is not set
+# CONFIG_XILINX_EMACLITE is not set
+# CONFIG_ZYNQ_GEM is not set
+# CONFIG_SYS_DPAA_QBMAN is not set
+# CONFIG_TSEC_ENET is not set
+# CONFIG_MEDIATEK_ETH is not set
+# CONFIG_HIGMACV300_ETH is not set
+CONFIG_NOVATEK_MAC_ENET=y
 # CONFIG_PCI is not set
 
 #
@@ -1044,7 +1092,23 @@ CONFIG_DM_ETH_PHY=y
 #
 # Pin controllers
 #
-# CONFIG_PINCTRL is not set
+CONFIG_PINCTRL=y
+CONFIG_PINCTRL_FULL=y
+CONFIG_PINCTRL_GENERIC=y
+CONFIG_PINMUX=y
+# CONFIG_PINCONF is not set
+CONFIG_PINCONF_RECURSIVE=y
+# CONFIG_PINCTRL_AT91 is not set
+# CONFIG_PINCTRL_AT91PIO4 is not set
+# CONFIG_PINCTRL_INTEL is not set
+# CONFIG_PINCTRL_QE is not set
+# CONFIG_PINCTRL_ROCKCHIP_RV1108 is not set
+# CONFIG_PINCTRL_SINGLE is not set
+# CONFIG_PINCTRL_STM32 is not set
+# CONFIG_PINCTRL_STMFX is not set
+# CONFIG_PINCTRL_K210 is not set
+CONFIG_PINCTRL_NTK=y
+CONFIG_PINCTRL_NS02501=y
 
 #
 # Power

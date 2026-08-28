@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/libfdt.h>
 #include <fdt_support.h>
+#include <asm/nvt_pinmux.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 extern int nvt_mmc_init(int id);
@@ -492,6 +493,17 @@ int misc_init_r(void)
 	}
 
 	nvt_dbg(FUNC, "boot time: %lu(us) \n", get_nvt_timer0_cnt());
+
+#ifdef CONFIG_PINCTRL_NS02501
+	/*
+	 * pinmux_conflict_check API.
+	 */
+	if (pinmux_conflict_check() == E_OK){
+		printf("pinmux_conflict_check: pass\n");
+	} else {
+		printf("pinmux_conflict_check: error\n");
+	}
+#endif
 
 	return 0;
 }

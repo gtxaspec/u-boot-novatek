@@ -133,6 +133,9 @@ void otp_init(void)
 	//Assert OTP RSTN
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
+#ifdef CONFIG_PWM_NVT
+	prepare_power_trim(PWM0_CORE_POWER);
+#endif
 }
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
@@ -663,7 +666,7 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		break;
 
 	case SECUREBOOT_SIGN_ECDSA:
-		if ((sec & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
 			result = TRUE;
 		}
 		break;
@@ -839,7 +842,7 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 			DBG_ERR("Signature use ECDSA bit already set ...");
 		} else {
 			result = TRUE;
-			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_ECDSA);
+			KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_ECDSA);
 		}
 		break;
 

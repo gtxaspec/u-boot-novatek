@@ -47,9 +47,9 @@
 #include <linux/delay.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
+#include <asm/nvt-common/nvt_reg.h>
 #include <asm/arch/efuse_protected.h>
 #include <dm/device_compat.h>
-#include <asm/arch/ns02401_regs.h>
 #include "eth_ns02401.h"
 
 #define SOCFPGA_XGMAC_SYSCON_ARG_COUNT 2

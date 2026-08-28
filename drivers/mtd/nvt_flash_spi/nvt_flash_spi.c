@@ -12,14 +12,8 @@
 #include "nvt_flash_spi_int.h"
 #include "nvt_flash_spi_reg.h"
 #include <cpu_func.h>
-#if defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT) && defined(CONFIG_TARGET_NS02401_A64)
-#include <asm/arch/ns02401_regs.h>
-#else
-#define smc_writel(value, ofs)          writel(value, ofs)
-#define smc_readl(ofs)                  readl(ofs)
-#define SMC_INW(x)                      INW(x)
-#define SMC_OUTW(addr, val)             OUTW(addr, val)
-#endif
+#include <asm/nvt-common/nvt_reg.h>
+
 /*
 	Configure nand host transfer register
 
@@ -1085,10 +1079,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 			else //sdr
 				reg |= 0x00444445;
 		} else if (freq < 120000000) {
-			if (info->flash_info->dtr_read)	// dtr
-				reg |= 0x00666668;
-			else //sdr
-				reg |= 0x00666668;
+			// The driving lv of SDR and DTR is identical in this case.
+			reg |= 0x00666668;
 		} else if (freq == 120000000) {
 			if (info->flash_info->dtr_read)	// dtr
 				reg |= 0x00aaaa7a;

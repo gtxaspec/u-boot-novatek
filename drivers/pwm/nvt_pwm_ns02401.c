@@ -1,5 +1,5 @@
 #include "nvt_pwm.h"
-#include <asm/arch/ns02401_regs.h>
+#include <asm/nvt-common/nvt_reg.h>
 
 #define NUM_PWM                 6
 

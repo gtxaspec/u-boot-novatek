@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <dm/pinctrl.h>
 #include <dm/uclass-internal.h>
-#include "../drivers/pinctrl/novatek/ns02501/ns02501_pinmux.h"
+#include <asm/nvt_pinmux.h>
 #include <malloc.h>
 #include <asm/arch/IOAddress.h>
 

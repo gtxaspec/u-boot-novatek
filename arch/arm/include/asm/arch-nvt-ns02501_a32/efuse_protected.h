@@ -18,6 +18,11 @@
 #include <asm/nvt-common/rcw_macro.h>
 
 typedef enum {
+	PWM0_CORE_POWER     = 0x0,
+	PWM1_CPU_POWER,
+} PWM_POWER_SET;
+
+typedef enum {
 	NT98690_PKG 	= 0,
 	NT98692_PKG,
 	NT98XXX_PKG_CNT = 2,
@@ -174,7 +179,7 @@ typedef enum {
 #define OTP_4TH_KEY_PROGRAMMED_BIT          30
 #define OTP_5TH_KEY_PROGRAMMED_BIT          31
 
-#define OTP_SIGNATURE_ECDSA_BIT             17
+#define OTP_SIGNATURE_ECDSA_BIT             20
 
 #if (0)
 #define OTP_DSP1_DISABLE_BIT                17
@@ -267,6 +272,7 @@ extern BOOL extract_trim_valid(u32 code, u32 *pData);
 extern ER   efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H);
 extern void otp_init(void);
 
+extern int  prepare_power_trim(int mode);
 /**
     efuse_secure_en
 

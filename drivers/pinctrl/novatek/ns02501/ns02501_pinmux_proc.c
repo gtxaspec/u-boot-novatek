@@ -20,7 +20,7 @@
 #include <linux/uaccess.h>
 #include <plat/efuse_protected.h>
 #include <plat/dma_protected.h>
-#include "ns02501_pinmux.h"
+#include <asm/nvt_pinmux.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
 

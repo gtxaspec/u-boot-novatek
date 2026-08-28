@@ -26,7 +26,7 @@
 #include <asm/arch/efuse_protected.h>
 #endif
 
-#define DRV_VERSION                     "1.00.18"
+#define DRV_VERSION                     "1.00.19"
 #ifdef CONFIG_DM_USB
 /* Declare global data pointer */
 DECLARE_GLOBAL_DATA_PTR;
@@ -94,6 +94,64 @@ static u64 u3_ioaddr = IOADDR_USB3PHY_REG_BASE;
 #define USB_TRIM_INFO 0
 #endif
 
+
+static void nvtim_set_gpio_power(int index)
+{
+        /* Enable it after dts parsing ready*/
+        int nodeoffset;
+        u32 *cell = NULL;
+        char path[20] = {0};
+        int gpio_pin, gpio_value, err;
+
+	#if  defined(CONFIG_TARGET_NS02401_A64)
+        if (index) {
+                //for two controller case
+                sprintf(path,"/u3h2@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB3_2_REG_BASE & 0xFFFFFFFF));
+        } else {
+                sprintf(path,"/u3h@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB3_REG_BASE & 0xFFFFFFFF));
+        }
+	#elif (defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
+	if (index) {
+		//for two controller case
+		sprintf(path,"/u3hst@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB3_2_REG_BASE & 0xFFFFFFFF));
+	} else {
+		sprintf(path,"/u3hst@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB3_REG_BASE & 0xFFFFFFFF));
+	}
+
+	#elif (defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
+	sprintf(path,"/u3hst@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB3_REG_BASE & 0xFFFFFFFF));
+
+
+	#elif defined(CONFIG_TARGET_NS02302_A64)
+	sprintf(path,"/u3h@%ld,%lx", (IOADDR_GLOBAL_BASE >> 32L), (IOADDR_USB3_REG_BASE & 0xFFFFFFFF));
+	#endif
+
+        nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+
+        cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_gpio", NULL);
+
+        if (cell > 0) {
+                gpio_pin = __be32_to_cpu(cell[0]);
+                gpio_value = __be32_to_cpu(cell[1]);
+
+                err = gpio_request(gpio_pin, "vbus");
+                if (err) {
+                        printf("#### failed to request vbus, %d\n", gpio_pin);
+                        return;
+                } else {
+			printf("#### pass to request vbus, %d\n", gpio_pin);
+		}
+
+                gpio_direction_output(gpio_pin, !gpio_value);
+                mdelay(10);
+
+                gpio_direction_output(gpio_pin, gpio_value);
+                mdelay(10);
+                gpio_free(gpio_pin);
+        } else {
+                printf("no power gpio found\n");
+        }
+}
 
 #ifdef CONFIG_TARGET_NS02401_A64
 
@@ -1917,6 +1975,14 @@ static int xhci_usb_probe(struct udevice *dev)
 
 	printk("%s base =  0x%lx , u3_ioaddr is 0x%llx\n", __func__,         base_addr, u3_ioaddr);
 	#endif
+
+
+	#if (defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NS02302_A64))
+	nvtim_set_gpio_power(0); //one channel case
+	#else
+	nvtim_set_gpio_power(u3_channel); //two channel case
+	#endif
+
 	ret = dm_xhci_hcd_init(0 , &ctx->hccr, &ctx->hcor);
 	if (ret) {
 		puts("XHCI: failed to initialize controller\n");

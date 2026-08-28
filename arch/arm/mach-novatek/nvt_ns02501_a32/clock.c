@@ -726,3 +726,48 @@ U_BOOT_CMD(
 	"get ddr freq/type\n",
 	"\n"
 );
+
+/* TODO: move to pwm driver */
+int prepare_power_trim(int mode)
+{
+    unsigned int remap_data;
+    char cmd[50];
+
+#if (0)
+    BOOL      is_found;
+    int       code;
+	unsigned int    power_trim = 0;
+
+	code = otp_key_manager(EFUSE_ID_0, 4);
+	if (code == 0) {
+		power_trim = 0x5;
+	} else {
+		code = otp_key_manager(EFUSE_ID_1, 0x2B);
+		is_found = extract_trim_valid(code, (u32 *)&power_trim);
+
+		if (!is_found || power_trim == 0) {
+			if ((quary_secure_boot(SECUREBOOT_CPU_CA76_OVER_CLOCKING) == TRUE) && (quary_secure_boot(SECUREBOOT_CONV_OVER_CLOCKING) == TRUE) \
+				&& (quary_secure_boot(SECUREBOOT_VENC_OVER_CLOCKING) == TRUE)) {
+				power_trim = 0x8;
+			} else {
+				power_trim = 0x0;
+			}
+		}
+	}
+
+	remap_data = extract_trim_to_pwm_duty(PWM0_CORE_POWER, power_trim);
+	printf("remap_data %d\n", remap_data);
+	sprintf(cmd, "power_ctl %d", remap_data);
+
+	run_command(cmd, 0);
+#else
+	//Fixed @ 0.88V
+	remap_data = 24;
+
+	printf("remap_data %d\n", remap_data);
+	sprintf(cmd, "power_ctl %d", remap_data);
+	run_command(cmd, 0);
+#endif
+
+    return 0;
+}

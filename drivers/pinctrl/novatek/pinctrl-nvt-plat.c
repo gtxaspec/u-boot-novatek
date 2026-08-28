@@ -30,43 +30,9 @@
 #include <asm/nvt-common/nvt_common.h>
 // #include <asm/arch/top.h>
 
-#ifdef CONFIG_TARGET_NA51055
-#include <asm/arch/na51055_regs.h>
-#include <asm/arch/na51055_pinmux.h>
-#else
-#ifdef CONFIG_TARGET_NA51089
-#include <asm/arch/na51089_regs.h>
-#include <asm/arch/na51089_pinmux.h>
-#else
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64))
-#include <asm/arch/na51090_regs.h>
-#else
-#if (defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
-#include <asm/arch/na51102_regs.h>
-#include <asm/arch/na51102_pinmux.h>
-#else
-#if (defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
-#include <asm/arch/ns02201_regs.h>
-#include <asm/arch/ns02201_pinmux.h>
-#else
-#if defined(CONFIG_TARGET_NS02302_A64)
-#include <asm/arch/ns02302_regs.h>
-#include <asm/arch/ns02302_pinmux.h>
-#include <asm/arch-nvt-ns02302_a64/top.h>
-#else
-#if defined(CONFIG_TARGET_NS02501)
-#include <asm/arch/ns02501_regs.h>
-#include <asm/arch/ns02501_pinmux.h>
-#include <asm/arch-nvt-ns02501_a32/top.h>
-#else
-#include <asm/arch/na51000_regs.h>
-#endif
-#endif
-#endif
-#endif
-#endif
-#endif
-#endif
+#include <asm/nvt-common/nvt_reg.h>
+#include <asm/nvt_pinmux.h>
+
 
 #if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51090_A64)
 u64 top_reg_addr = 0x2f0010000;

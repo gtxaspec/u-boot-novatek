@@ -8,7 +8,7 @@
 #ifndef __NVT_IVOT_MMC_NS02501_H__
 #define __NVT_IVOT_MMC_NS02501_H__
 
-#include <asm/arch/ns02501_regs.h>
+#include <asm/nvt-common/nvt_reg.h>
 #include <asm/arch/gpio.h>
 #include <linux/bitops.h>
 

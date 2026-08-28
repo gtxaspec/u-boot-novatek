@@ -18,6 +18,7 @@
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
+#include <asm/nvt-common/nvt_reg.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/efuse_protected.h>
 #ifdef CONFIG_NVT_IVOT_STBC_PMC_SUPPORT
@@ -31,7 +32,6 @@
 #endif
 #include <linux/libfdt.h>
 
-#include <asm/arch/ns02401_regs.h>
 
 #define WDT_REG_ADDR(ofs)       (IOADDR_WDT_REG_BASE+(ofs))
 #define WDT_GETREG(ofs)         readl(WDT_REG_ADDR(ofs))

@@ -886,7 +886,7 @@ config MPC8XX_CONS
 
 config SERIAL_NVT
 	bool "NVT serial port support"
-	depends on TARGET_NS02301
+	depends on TARGET_NS02301 || TARGET_NS02401 || TARGET_NS02401_A64
 	help
 		Generic UART driver for Novatek.
 

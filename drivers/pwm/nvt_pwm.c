@@ -248,7 +248,7 @@ static int do_pwm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	}
 }
 
-#if defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64)
+#if defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501)
 void pwm_set(int pwm_id, int level)
 {
 	u32 duty = 0;
@@ -308,6 +308,8 @@ static int do_power_ctl(struct cmd_tbl *cmdtp, int flag, int argc, char *const a
 	pwr_id = 10;
 #elif defined CONFIG_TARGET_NS02401_A64
 	pwr_id = 2;
+#elif defined CONFIG_TARGET_NS02501
+	pwr_id = 1;
 #endif
 
 	chip_id = nvt_get_chip_id();
