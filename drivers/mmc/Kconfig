@@ -107,6 +107,24 @@ config SUPPORT_EMMC_RPMB
 	  Enable support for reading, writing and programming the
 	  key for the Replay Protection Memory Block partition in eMMC.
 
+if SUPPORT_EMMC_RPMB
+
+config SUPPORT_EMMC_RPMB_AUTO_PROGRAM_KEY
+	bool "Support auto program key for eMMC replay protected memory block (RPMB)"
+	depends on OPTEE
+	default n
+	help
+	  Enable support for auto programming the key for the
+	  Replay Protection Memory Block partition in eMMC.
+
+config EMMC_RPMB_DEV_ID
+	int "RPMB device ID"
+	default 2
+	help
+	  Device identifier used when SUPPORT_EMMC_RPMB
+
+endif
+
 config SUPPORT_EMMC_BOOT
 	bool "Support some additional features of the eMMC boot partitions"
 	help

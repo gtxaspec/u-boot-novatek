@@ -144,19 +144,14 @@ static void nvt_crypto_platform_init(void)
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0xE4, tmp);
 
 	/* Crypto reset disable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x90);
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x80);
 	tmp |= (0x1<<23);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x90, tmp);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x80, tmp);
 }
 
 static void nvt_crypto_platform_exit(void)
 {
 	uint32_t tmp;
-
-	/* Crypto reset enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x90);
-	tmp &= ~(0x1<<23);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x90, tmp);
 
 	/* Crypto master clock disable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);

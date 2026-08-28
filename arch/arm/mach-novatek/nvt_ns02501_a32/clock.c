@@ -38,6 +38,7 @@
 #define PLL_CLKSEL_CPU_80               (0x00 << PLL_CLKSEL_CPU)        //< Select CPU clock 80MHz
 #define PLL_CLKSEL_CPU_ARMPLL           (0x01 << PLL_CLKSEL_CPU)        //< Select CPU clock ARMPLL (for CPU)
 #define PLL_CLKSEL_CPU_480              (0x02 << PLL_CLKSEL_CPU)        //< Select CPU clock 480MHz
+#define PLL_CLKSEL_CPU_240              (0x03 << PLL_CLKSEL_CPU)        //< Select CPU clock 240MHz
 #define PLL_CLKSEL_CPUMASK              (0x3)
 
 #define PLL_CLKSEL_APBMASK              (0x3<<8)
@@ -340,6 +341,36 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 #endif
 			}
 			break;
+		
+		case 240:
+			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+			if ((uiReg & PLL_CLKSEL_CPUMASK) == PLL_CLKSEL_CPU_240) {
+				printf("Already 240MHz\n");
+				break;
+			} else {
+				uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
+				uiReg &= ~PLL_CLKSEL_CPUMASK;
+				uiReg |= PLL_CLKSEL_CPU_240;
+				writel(uiReg, (IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS));
+				writel(0x34, (IOADDR_CG_REG_BASE + 0xA0));
+				while (!(readl(IOADDR_CG_REG_BASE + 0xA0) & (1 << 3)));
+				writel(0x28, (IOADDR_CG_REG_BASE + 0xA0));
+#ifdef CONFIG_NVT_FPGA_EMULATION
+				printf("Set CPU clk 480MHz(24MHz@FPGA)\n");
+#else
+				printf("Set CPU clk 240MHz\n");
+				uiReg = readl(IOADDR_CG_REG_BASE);
+				if ((uiReg & (1 << PLL_CPU_NO)) == (1 << PLL_CPU_NO)) {
+					printf("PLL%d = Enabled => Disable it\n", PLL_CPU_NO);
+					uiReg &= ~(1 << PLL_CPU_NO);
+					writel(uiReg, IOADDR_CG_REG_BASE); // B0
+					uiReg = readl(IOADDR_CG_REG_BASE);
+//					printf("PLL%d = 0x%08x \n", PLL_CPU_NO, uiReg);
+				}
+#endif
+			}
+			break;
+
 #ifdef CONFIG_NVT_FPGA_EMULATION
 		case 80:
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
@@ -539,7 +570,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			writel(0x35, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
 			printf("Set CPU clk 320MHz\n");
 			break;
-
+#if (0)
 		case 240:
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
 			if ((uiReg & PLL_CLKSEL_CPUMASK) != PLL_CLKSEL_CPU_ARMPLL) {
@@ -566,7 +597,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 			writel(0x28, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
 			printf("Set CPU clk 240MHz\n");
 			break;
-
+#endif
 		default:
 			printf("Not define this CPU Freq %d, use defualt value 800!\n", value);
 			uiReg = readl(IOADDR_CG_REG_BASE + SYSTEM_CLOCK_RATE_OFS);
@@ -616,7 +647,7 @@ U_BOOT_CMD(
 	"nvt_cpu_freq  80(change to 24MHz@FPGA)\n"
 	"nvt_cpu_freq !=480 && != 80(will change to ARMPLL@FPGA, check excel)\n"
 #else
-	"nvt_cpu_freq  240(PLL)\n"
+	"nvt_cpu_freq  240(Fix240)\n"
 	"nvt_cpu_freq  320(PLL)\n"
 	"nvt_cpu_freq  480(Fix480)\n"
 	"nvt_cpu_freq 600\n"

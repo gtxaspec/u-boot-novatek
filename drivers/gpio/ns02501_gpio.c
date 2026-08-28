@@ -26,9 +26,9 @@ struct nvt_gpio_bank {
 #define PRGPIO_SETREG(ofs, value)	 OUTW(IOADDR_PRGPIO_REG_BASE+(ofs),(value))
 
 #define NVT_GPIO_STG_DATA_0		(0)
-#define NVT_GPIO_STG_DIR_0		(0x10)
-#define NVT_GPIO_STG_SET_0		(0x20)
-#define NVT_GPIO_STG_CLR_0		(0x30)
+#define NVT_GPIO_STG_DIR_0		(0x20)
+#define NVT_GPIO_STG_SET_0		(0x40)
+#define NVT_GPIO_STG_CLR_0		(0x60)
 
 #define NVT_PRGPIO_STG_DATA_0   (0)
 #define NVT_PRGPIO_STG_DIR_0	(0x0C)

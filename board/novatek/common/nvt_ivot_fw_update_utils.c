@@ -75,6 +75,7 @@ EMB_PARTITION_FDT_TRANSLATE_TABLE emb_part_fdt_map[EMBTYPE_TOTAL_SIZE] = {
 	{"partition_bank", EMBTYPE_BANK},
 	{"partition_loader.aov", EMBTYPE_LOADER}, // 2nd loader for always on video
 	{"partition_mcu", EMBTYPE_MCU}, // mcu firmware
+	{"partition_dne", EMBTYPE_AI}, // aiisp dne model
 };
 
 EMB_PARTITION emb_partition_info_data_curr[EMB_PARTITION_INFO_COUNT];

@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.24"
+#define NOR_VERSION "1.0.25"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;
@@ -47,6 +47,7 @@ const struct spi_flash_params spi_flash_params_table[] = {
 	{"GD25LQ32",       0xc86016, 0x0,       64 * 1024,    64,       0, SECT_4K},
 	{"GD25Q127C",      0xc84018, 0x0,       64 * 1024,   256, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE2 | SPI_FLASH_BUSWIDTH_QUAD_TYPE1_CMD31},
 	{"GD25Q256C",      0xc84019, 0x0,       64 * 1024,   512, RD_EXTN, 0},
+	{"GD25F256F",      0xc84319, 0x0,       64 * 1024,   512, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE2 | SPI_FLASH_BUSWIDTH_QUAD_TYPE1_CMD31 | SPI_FLASH_BUSWIDTH_DTR_READ, 8},
 	{"GD55T01GE",      0xc8461B, 0x0,       64 * 1024,  2048, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE2 | SPI_FLASH_BUSWIDTH_QUAD_TYPE1_CMD31 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
 	{"GD25X512ME",     0xc8481A, 0x0,       64 * 1024,  1024,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},
 	{"GD55X01GE",      0xc8481B, 0x0,       64 * 1024,  2048,       0, SPI_FLASH_BUSWIDTH_OCTAL_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 16},

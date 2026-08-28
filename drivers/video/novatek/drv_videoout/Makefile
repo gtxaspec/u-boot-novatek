@@ -14,6 +14,9 @@ obj-$(CONFIG_TARGET_NS02201_A64) += nvt-ns02201/ide/ide2.o nvt-ns02201/ide/ide2_
 obj-$(CONFIG_TARGET_NS02301) += nvt-ns02301/ide/ide2.o nvt-ns02301/ide/ide2_int.o nvt-ns02301/ide/ide2_osd.o nvt-ns02301/ide/ide2_video.o nvt-ns02301/ide/idec_cmd.o nvt-ns02301/ide/idec.o nvt-ns02301/ide/ide_platform.o display_obj/disp1.o display_obj/display.o display_obj/display_obj_platform.o display_obj/kdrv_vdoout.o
 obj-$(CONFIG_TARGET_NS02302_A64) += nvt-ns02302/ide/ide2.o nvt-ns02302/ide/ide2_int.o nvt-ns02302/ide/ide2_osd.o nvt-ns02302/ide/ide2_video.o nvt-ns02302/ide/idec_cmd.o nvt-ns02302/ide/idec.o nvt-ns02302/ide/ide_platform.o nvt-ns02302/dsi/dsi.o nvt-ns02302/dsi/dsi_int.o nvt-ns02302/dsi/dsi_platform.o display_obj/disp1.o display_obj/display.o display_obj/display_obj_platform.o display_obj/kdrv_vdoout.o nvt-ns02302/dsi/dsi_int.o  nvt-ns02302/dsiphy/dsiphy.o  nvt-ns02302/dsiphy/dsiphy_platform.o
 obj-$(CONFIG_TARGET_NS02401_A64) += nvt-ns02401/ide/ide2.o nvt-ns02401/ide/ide2_int.o nvt-ns02401/ide/ide2_osd.o nvt-ns02401/ide/ide2_video.o nvt-ns02401/ide/idec_cmd.o nvt-ns02401/ide/idec.o nvt-ns02401/ide/ide_platform.o nvt-ns02401/ide/lcdc.o display_obj_ns02401/disp1.o display_obj_ns02401/disp2.o display_obj_ns02401/disp3.o display_obj_ns02401/display.o display_obj_ns02401/display_obj_platform.o display_obj_ns02401/kdrv_vdoout.o
+obj-$(CONFIG_TARGET_NS02501) += nvt-ns02501/ide/ide2.o nvt-ns02501/ide/ide2_int.o nvt-ns02501/ide/ide2_osd.o nvt-ns02501/ide/ide2_video.o nvt-ns02501/ide/idec_cmd.o nvt-ns02501/ide/idec.o nvt-ns02501/ide/ide_platform.o display_obj/disp1.o display_obj/display.o display_obj/display_obj_platform.o display_obj/kdrv_vdoout.o
+
+
 
 ifeq ($(CONFIG_TARGET_NA51102)$(CONFIG_TARGET_NA51102_A64),y)
 obj-$(CONFIG_DISP_VIDEO_HDMITX_IDE) += nvt-na51102/hdmi/hdmitx.o nvt-na51102/hdmi/dispdev_hdmi.o nvt-na51102/hdmi/hdmitx_edid.o nvt-na51102/hdmi/hdmitx_port.o

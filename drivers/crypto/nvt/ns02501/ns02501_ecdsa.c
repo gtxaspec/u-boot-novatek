@@ -106,11 +106,6 @@ static void nvt_ecdsa_platform_exit(void)
 {
 	uint32_t tmp;
 
-	/* ECDSA reset enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x88);
-	tmp &= ~(0x1<<11);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x88, tmp);
-
 	/* ECDSA master clock disable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x78);
 	tmp &= ~(0x1<<7);

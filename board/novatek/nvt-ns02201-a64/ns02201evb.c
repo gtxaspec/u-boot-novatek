@@ -26,6 +26,14 @@
 #include <linux/libfdt.h>
 #include <fdt_support.h>
 
+#ifdef CONFIG_SUPPORT_EMMC_RPMB
+#include <mmc.h>
+#include <malloc.h>
+
+extern int nvt_get_rpmb_key(unsigned int *mmc_cid, void *keybuf);
+#endif
+
+
 DECLARE_GLOBAL_DATA_PTR;
 extern int nvt_mmc_init(int id);
 extern int ns02201_eth_initialize(struct bd_info *bis);
@@ -475,6 +483,55 @@ static int nvt_norflash_init(void)
 	return ret;
 }
 #endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
+
+
+#if defined(CONFIG_SUPPORT_EMMC_RPMB) && defined(CONFIG_SUPPORT_EMMC_RPMB_AUTO_PROGRAM_KEY)
+int nvt_mmc_rpmb_write_key(void)
+{
+	struct mmc *mmc;
+	void *keybuf = memalign(1024, 1 * 1024);
+	unsigned long counter = 0;
+	char original_part;
+
+	if(!keybuf) {
+		printf("allocate memory failed\n");
+		return 0;
+	}
+
+	mmc = find_mmc_device(cpu_to_le16(CONFIG_EMMC_RPMB_DEV_ID));
+
+	if(mmc == NULL) {
+		printf("can't find rpmb device\n");
+		free(keybuf);
+		return 0;
+	}
+
+	original_part = mmc_get_blk_desc(mmc)->hwpart;
+
+	if (blk_select_hwpart_devnum(IF_TYPE_MMC, cpu_to_le16(CONFIG_EMMC_RPMB_DEV_ID), MMC_PART_RPMB) != 0) {
+		printf("blk_select_hwpart_devnum to rpmb failed\n");
+		free(keybuf);
+		return 0;
+	}
+
+	if(mmc_rpmb_get_counter(mmc, &counter)) {
+		if(nvt_get_rpmb_key(mmc->cid, keybuf) == 0) {
+			if (mmc_rpmb_set_key(mmc, keybuf)) {
+				printf("Key programmed ERR\n");
+			}
+		}
+		memset(keybuf, 0, 1024);
+	}
+
+	if (blk_select_hwpart_devnum(IF_TYPE_MMC, cpu_to_le16(CONFIG_EMMC_RPMB_DEV_ID), original_part) != 0) {
+		printf("blk_select_hwpart_devnum to original_part failed\n");
+	}
+
+	free(keybuf);
+	return 0;
+}
+#endif
+
 /**
  * @brief misc_init_r - To do nvt update and board init.
  *

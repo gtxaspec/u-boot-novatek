@@ -79,7 +79,7 @@
 #define CG_SDIO2_RSTN_MASK              BIT(3)
 
 #define CG_SDIO3_RSTN_REG               (IOADDR_CG_REG_BASE + 0x84)
-#define CG_SDIO3_RSTN_MASK              BIT(14)
+#define CG_SDIO3_RSTN_MASK              BIT(8)
 
 /* PINMUX */
 #define PIN_SDIO_CFG_SDIO_1             (0x1)
@@ -368,17 +368,17 @@
 
 static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
 {
-	return 0;
+	return 0x7;
 }
 
 static inline uint32_t nvt_mmc_get_outdly(uint8_t host_id, uint32_t freq)
 {
 	if (host_id == 0) {  // SDIO_HOST_ID_1
-		return 1;
+		return 0;
 	} else if (host_id == 1) {  // SDIO_HOST_ID_2
-		return 2;
+		return 0;
 	} else {
-		return 8;
+		return 0;
 	}
 }
 

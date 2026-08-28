@@ -130,19 +130,14 @@ static void nvt_hash_platform_init(void)
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0xE4, tmp);
 
 	/* Hash reset disable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x98);
+	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x88);
 	tmp |= (0x1<<27);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x98, tmp);
+	IO_REG_WR(IOADDR_CG_REG_BASE, 0x88, tmp);
 }
 
 static void nvt_hash_platform_exit(void)
 {
 	uint32_t tmp;
-
-	/* Hash reset enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x98);
-	tmp &= ~(0x1<<27);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x98, tmp);
 
 	/* Hash master clock disable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);

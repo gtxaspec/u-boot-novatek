@@ -74,7 +74,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.15"
+#define DRV_VERSION                     "1.00.16"
 
 static REGVALUE usb_getreg(unsigned long usbbase, unsigned long offset)
 {
@@ -624,14 +624,14 @@ static void nvtim_init_usbhc(int index)
 
 					if ((TRIM_RESINT_LOWER <= (trim & 0x1F)) && ((trim & 0x1F) <= TRIM_RESINT_UPPER)) {
 						u2_trim_resint = trim & 0x1F;
-						printf("%s: [is_found(%d) code(%d)] [trim(0x%04x) 12K_resistor(0x%04x)]\r\n", __func__, code, is_found, (int)trim, (int)u2_trim_resint);
+						printf("%s: [code(%d) is_found(%d)] [trim(0x%04x) 12K_resistor(0x%04x)]\r\n", __func__, code, is_found, (int)trim, (int)u2_trim_resint);
 					} else {
 						//!!!Please apply default value here!!!
-						printf("%s: [is_found(%d) code(%d)] [trim(0x%04x)], trim out of range!!!\r\n", __func__, code, is_found, (int)trim);
+						printf("%s: [code(%d) is_found(%d)] [trim(0x%04x)], trim out of range!!!\r\n", __func__, code, is_found, (int)trim);
 					}
 				} else {
 					//!!!Please apply default value here!!!
-					printf("%s: [is_found(%d) code(%d)] [trim(0x%04x)], trim not found!!!\r\n", __func__, code, is_found, (int)trim);
+					printf("%s: [code(%d) is_found(%d)] [trim(0x%04x)], trim not found!!!\r\n", __func__, code, is_found, (int)trim);
 				}
 			}
 		}
@@ -675,6 +675,26 @@ static void nvtim_init_usbhc(int index)
 
 		// Get trim value of usb column
 		{
+			int code;
+			bool is_found;
+			u32 trim;
+
+			code = otp_key_manager(1);
+			if (code == -33) {
+				//!!!Please apply default value here!!!
+				printf("%s: Read USB trim error, use default value\r\n", __func__);
+			} else {
+				// check if usb trim value is valid
+				is_found = extract_trim_valid(code, (u32 *)&trim);
+				if (is_found) {
+					u2_trim_resint = trim & 0x1F;
+					u2_trim_rsel_45 = (trim >> 5) & 0x1F;
+					printf("%s: [code(%d) is_found(%d)] [trim(0x%04x) 12K(0x%x) 45R(0x%x)]\r\n", __func__, code, is_found, trim, u2_trim_resint, u2_trim_rsel_45);
+				} else {
+					//!!!Please apply default value here!!!
+					printf("%s: [code(%d) is_found(%d)] [trim(0x%04x)], trim not found!!!\r\n", __func__, code, is_found, trim);
+				}
+			}
 		}
 
 		/************************

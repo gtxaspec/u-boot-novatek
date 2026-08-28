@@ -6,7 +6,7 @@
 #include <phy_interface.h>
 #include <linux/bitops.h>
 
-#define XGMAC_VER "1.0.0.10"
+#define XGMAC_VER "1.0.0.11"
 /* Core registers */
 
 #define XGMAC_MAC_REGS_BASE 0x000

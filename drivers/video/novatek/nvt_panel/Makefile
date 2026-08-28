@@ -11,6 +11,8 @@ obj-$(CONFIG_DISP_IFDSI_LCD1_UT35067A0) += disp_ifdsi_lcd1_ut35067a0_ili9488/
 obj-$(CONFIG_DISP_IF8B_LCD2_PW35P00_HX8238D) += disp_if8b_lcd2_pw35p00_hx8238d/
 ifeq ($(CONFIG_TARGET_NS02302_A64),y)
 obj-$(CONFIG_VIDEO_LOGO) += dispdev_panlcomn.o dispdev_platform.o
+else ifeq ($(CONFIG_TARGET_NS02501),y)
+obj-$(CONFIG_VIDEO_LOGO) += dispdev_panlcomn.o dispdev_platform.o
 else
 obj-$(CONFIG_DISP_IFPA_LCD3_RGB8888) += disp_ifpa_lcd3_rgb888/
 obj-$(CONFIG_DISP_IFPA_LCD3_BT1120) += disp_ifpa_lcd3_bt1120_4k_clkinv0/

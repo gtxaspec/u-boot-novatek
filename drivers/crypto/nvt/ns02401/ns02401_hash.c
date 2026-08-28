@@ -144,11 +144,6 @@ static void nvt_hash_platform_exit(void)
 {
 	uint32_t tmp;
 
-	/* Hash reset enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x94);
-	tmp &= ~(0x1<<26);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x94, tmp);
-
 	/* Hash master clock disable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x74);
 	tmp &= ~(0x1<<19);

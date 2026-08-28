@@ -1896,7 +1896,6 @@ static int nvt_boot_linux_bin_auto(void)
 	}
 #endif
 
-#ifndef CONFIG_NVT_SPI_NONE
 	/* To check whether the kernel is nvt gzip format or not */
 	ret = nvt_ker_img_ungzip_linux(nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr,
 			nvt_memory_cfg[MEMTYPE_LINUXTMP].addr);
@@ -1907,7 +1906,7 @@ static int nvt_boot_linux_bin_auto(void)
 
 	nvt_dbg(IND, "linux_addr:0x%lx\n", nvt_ker_img_addr);
 	nvt_dbg(IND, "linux_size:0x%lx\n", nvt_ker_img_size);
-#endif
+
 	return 0;
 }
 

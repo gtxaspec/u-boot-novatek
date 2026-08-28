@@ -16,7 +16,7 @@
 #include <asm/arch/gpio.h>
 #include <linux/libfdt.h>
 #include <linux/delay.h>
-#if (CONFIG_TARGET_NS02301 || CONFIG_TARGET_NA51089 || CONFIG_TARGET_NA51055)
+#if (CONFIG_TARGET_NS02301 || CONFIG_TARGET_NA51089 || CONFIG_TARGET_NA51055 || CONFIG_TARGET_NS02501)
 #include <cpu_func.h>
 #endif
 
@@ -146,6 +146,16 @@ extern uint8_t *nvt_fdt_buffer;
 #define PLL8_OFFSET 0x4F0020620
 #define PLL9_OFFSET 0x4F0020660
 #define PLL10_OFFSET 0x4F00206A0
+
+#elif defined(CONFIG_TARGET_NS02501)
+#define PLL_CLKSEL_IDE_CLKSRC_480   (0x00)    //< Select IDE clock source as 480 MHz
+#define PLL_CLKSEL_IDE_CLKSRC_PLL6  (0x01)    //< Select IDE clock source as PLL6 (for IDE/ETH)
+#define PLL_CLKSEL_IDE_CLKSRC_PLL9  (0x03)    //< Select IDE clock source as PLL9 (for IDE backup)
+
+#define PLL6_OFFSET 0xF00244E0
+#define PLL9_OFFSET 0xF0024520
+#define DSI_RSTN_OFFSET 0xF0020080
+
 #endif
 
 
@@ -536,7 +546,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	_W_LOG("do_bootlogo, layer = %d\r\n",layer);
 
 
-#if (!CONFIG_TARGET_NS02302_A64)
+#if (!(CONFIG_TARGET_NS02302_A64 || CONFIG_TARGET_NS02501))
 	//TODO
 	_W_LOG("set tog reg go\r\n");
 	nvt_pinmux_probe();
@@ -550,7 +560,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	udelay(1000);
 	reg_data |= 0x1000;
 	OUTW(DSI_RSTN_OFFSET, reg_data);
-#elif !CONFIG_TARGET_NS02301
+#elif !(CONFIG_TARGET_NS02301 || CONFIG_TARGET_NS02501)
 	reg_data = INREG32(DSI_RSTN_OFFSET);
 	reg_data &= 0xFFFFFFF7;
 	OUTW(DSI_RSTN_OFFSET, reg_data);
@@ -564,7 +574,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		p_emu_disp_obj = disp_get_display_object(DISP_1);
 		p_emu_disp_obj->open();
 
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64 || CONFIG_TARGET_NS02301 || CONFIG_TARGET_NS02401_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64 || CONFIG_TARGET_NS02301 || CONFIG_TARGET_NS02401_A64 || CONFIG_TARGET_NS02501
 		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nvt-clk/clk_ide_src");
 		if (nodeoffset < 0) {
 			printf("no find node clk_ide_src\n");
@@ -627,7 +637,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		}
 
 		_Y_LOG("clock_source = %d clock_freq = %d\n",clock_source ,clock_freq);
-#if !(CONFIG_TARGET_NS02302_A64||CONFIG_TARGET_NS02301)
+#if !(CONFIG_TARGET_NS02302_A64||CONFIG_TARGET_NS02301||CONFIG_TARGET_NS02501)
 		pll_set_ideclock_rate(clock_source, clock_freq);
 #endif
 
@@ -674,6 +684,10 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = L_GPIO(22);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = L_GPIO(23);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = L_GPIO(24);
+#elif CONFIG_TARGET_NS02501
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = P_GPIO(3);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = P_GPIO(4);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = P_GPIO(5); 		
 #endif
 	}
 		p_emu_disp_obj->dev_ctrl(DISPDEV_SET_REG_IF, &emu_disp_dev);

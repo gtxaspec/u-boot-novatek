@@ -1541,25 +1541,16 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		writel(reg | (0x2 << 1), xpcs_ba + 0x4);
 	}
 
-	// 0x1F0000 [12] = 1 #Clause37 auto-negotiation AN_ENABLE
+	// Wait 0x1F0001 [2] = 1;  #link up
 	writel(0x1f00, xpcs_ba + 0x3fc);
 	reg = readl(xpcs_ba);
-	if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII) {
-		writel(reg | (0x1 << 12), xpcs_ba);
-	} else {
-		writel(reg & ~(0x1 << 12), xpcs_ba);
-	}
-
-
-	// Wait 0x1F0001 [2] = 1;  #link up
 	i = 0;
 	do {
 		reg = readl(xpcs_ba + 0x4);
 		if (reg & 0x4) {
 			break;
 		} else if (++i >= EPHY_RETRY_COUNT) {
-			pr_err("link up fail, reg : 0x%x\n", reg);
-			return -1;
+			pr_err("link up fail, reg : 0x%x, speed = %d, interface = %d, phy_mode_oc = %d\n", reg, xgmac->phy->speed, xgmac->phy->interface, xgmac->phy_mode_oc);
 		}
 
 		udelay(10);
@@ -1569,7 +1560,6 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 	if (xgmac->phy->speed == SPEED_2500) {
 		if (xgmac->phy->interface == PHY_INTERFACE_MODE_2500BASEX) {
 			if (xgmac->phy_mode_oc) {
-				printf("%s, %d\n", __func__, __LINE__);
 				// 0x1f8000 [2] = 1;
 				writel(0x1f80, xpcs_ba + 0x3fc);
 				reg = readl(xpcs_ba);
@@ -1579,7 +1569,6 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 				reg = readl(xpcs_ba + 0x10);
 				writel(reg & ~(0x1 << 3), xpcs_ba + 0x10);
 			} else {
-				printf("%s, %d\n", __func__, __LINE__);
 				// 0x1f8000 [2] = 1;
 				writel(0x1f80, xpcs_ba + 0x3fc);
 				reg = readl(xpcs_ba);
@@ -1644,11 +1633,14 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 		writel(reg & ~(0x1 << 13), xpcs_ba);
 	}
 
+	// 0x1F0000 [12] = 1 #Clause37 auto-negotiation AN_ENABLE
 	writel(0x1f00, xpcs_ba + 0x3fc);
 	reg = readl(xpcs_ba);
-
+	i = 0;
 	if (xgmac->phy->interface == PHY_INTERFACE_MODE_SGMII) {
-	// Wait 0x1F0001 [5] = 1;  #an complete
+		writel(reg | (0x1 << 12), xpcs_ba);
+
+		// Wait 0x1F0001 [5] = 1;  #an complete
 		do {
 			writel(0x1f00, xpcs_ba + 0x3fc);
 			reg = readl(xpcs_ba + 0x4);
@@ -1656,12 +1648,21 @@ static int xgmac_serdes_xpcs_config(struct udevice *dev)
 				break;
 			} else if (++i >= EPHY_RETRY_COUNT) {
 				pr_err("AN Complete fail, reg : 0x%x\n", reg);
-				return -1;
 			}
 
 	        udelay(10);
 		} while (i < EPHY_RETRY_COUNT);
+
+	} else {
+		writel(reg & ~(0x1 << 12), xpcs_ba);
 	}
+
+	writel(0x1f00, xpcs_ba + 0x3fc);
+	reg = readl(xpcs_ba);
+	writel(reg | (0x1 << 11), xpcs_ba);
+	mdelay(5);
+	writel(reg & ~(0x1 << 11), xpcs_ba);
+	mdelay(5);
 
 #ifdef CONFIG_NVT_FPGA_EMULATION
 	if (xgmac->eth_idx == 0) {

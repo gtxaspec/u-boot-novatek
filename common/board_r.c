@@ -100,6 +100,13 @@ __weak int cpu_secondary_init_r(void)
 	return 0;
 }
 
+#if defined(CONFIG_SUPPORT_EMMC_RPMB) && defined(CONFIG_SUPPORT_EMMC_RPMB_AUTO_PROGRAM_KEY)
+__weak int nvt_mmc_rpmb_write_key(void)
+{
+	return 0;
+}
+#endif
+
 static int initr_trace(void)
 {
 #ifdef CONFIG_TRACE
@@ -760,6 +767,9 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 #ifdef CONFIG_MISC_INIT_R
 	misc_init_r,		/* miscellaneous platform-dependent init */
+#endif
+#if defined(CONFIG_SUPPORT_EMMC_RPMB) && defined(CONFIG_SUPPORT_EMMC_RPMB_AUTO_PROGRAM_KEY)
+	nvt_mmc_rpmb_write_key,
 #endif
 	INIT_FUNC_WATCHDOG_RESET
 #ifdef CONFIG_CMD_KGDB

@@ -84,6 +84,10 @@ typedef enum _COMM_RESV_IDX_{
 	COMM_RESV_IDX_OTA_NAME_ADDR = 7,
 	COMM_RESV_IDX_S3_APB_ADDR = 8,
 	COMM_RESV_IDX_S3_APB_LEN = 9,
+	COMM_RESV_IDX_CORE1_LINUX_ADDR = 10,
+	COMM_RESV_IDX_CORE1_FDT_ADDR = 11,
+	COMM_RESV_IDX_LD_TIME_ADDR = 12,
+	COMM_RESV_IDX_LD_TIME_CNTS = 13,
 } COMM_RESV_IDX;
 
 typedef struct _COMMINFO {
@@ -102,6 +106,10 @@ typedef struct _COMMINFO {
 	// Resv[7]: COMM_OTA_NAME_ADDR : OTA name
 	// Resv[8]: COMM_S3_APB_ADDR : S3-resume's apb register info addr
 	// Resv[9]: COMM_S3_APB_LEN : S3-resume's apb register info len
+	// Resv[10]: COMM_RESV_IDX_CORE1_LINUX_ADDR = 10: linux addr, for rtos on core2 to boot linux on core1
+	// Resv[11]: COMM_RESV_IDX_CORE1_FDT_ADDR = 11, fdt addr, reconstruct fdt, for rtos on core2 to boot linux on core1
+	// Resv[12]: COMM_RESV_IDX_LD_TIME_ADDR = 12, loader performance tag address (from per_mark, passed to RTOS)
+	// Resv[13]: COMM_RESV_IDX_LD_TIME_CNTS = 13, loader performance tag count (from per_mark, passed to RTOS)
 	__be32 UserDef[5]; ///< can be used for customer
 } COMMINFO;
 

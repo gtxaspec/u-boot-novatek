@@ -519,6 +519,45 @@ aes_operation_exit:
 }
 #endif
 
+#if defined(CONFIG_SUPPORT_EMMC_RPMB) && defined(CONFIG_SUPPORT_EMMC_RPMB_AUTO_PROGRAM_KEY)
+int nvt_get_rpmb_key(unsigned int *mmc_cid, void *keybuf)
+{
+	struct arm_smccc_res return_val = {0};
+	struct CID_DATA {
+		uint8_t cid[64];
+	};
+	unsigned long shm_size = 0;
+	unsigned long shm_addr = 0;
+	int i = 0;
+	int ret = -1;
+
+	uint64_t *arr = (uint64_t *)keybuf;
+
+	if (nvt_dts_optee_nsmem(&shm_addr, &shm_size) != 0) {
+		printf("parsing share memory fail\r\n");
+		return ret;
+	}
+	struct CID_DATA *driver_data = (struct CID_DATA *)shm_addr;
+	snprintf(driver_data->cid, 63, "%x%x%x%x", mmc_cid[0], mmc_cid[1], mmc_cid[2], mmc_cid[3]);
+
+	//a0: for smc cmd,   a2: for share memory , others not use
+	__arm_smccc_smc(NVT_GET_SMC_RPMB, 0x00, shm_addr, 0x00, 0x00, 0x00, 0x00, 0x00, &return_val, NULL);
+
+	arr[0] = return_val.a0;
+	arr[1] = return_val.a1;
+	arr[2] = return_val.a2;
+	arr[3] = return_val.a3;
+
+	if(return_val.a0 == 0 && return_val.a1 == 0 &&
+		return_val.a2 == 0 && return_val.a3 == 0) {
+		printf("NO smc right for rpmb!\r\n");
+	} else {
+		ret = 0;
+	}
+
+	return ret;
+}
+#endif
 
 
 

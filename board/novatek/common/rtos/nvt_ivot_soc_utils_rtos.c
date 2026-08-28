@@ -638,6 +638,11 @@ int nvt_boot_rtos_bin_auto(void)
 		}
 	}
 
+#if !defined(__aarch64__)
+	// update HEADINFO_RESV_IDX_DRAM_SIZE on 32bit-rtos
+	pbininfo->head.Resv1[HEADINFO_RESV_IDX_DRAM_SIZE] = nvt_memory_cfg[MEMTYPE_DRAM].size;
+#endif
+
 	printf("rtos starting.... 0x%lx\n", rtos_addr);
 	{
 		typedef void (*BRANCH_CB)(void);
