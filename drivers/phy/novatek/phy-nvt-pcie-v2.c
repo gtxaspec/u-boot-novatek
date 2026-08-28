@@ -10,7 +10,7 @@
 #include <asm/arch/efuse_protected.h>
 #include <linux/bitops.h>
 
-#define DRV_VERSION                     "1.00.00"
+#define DRV_VERSION                     "1.00.01"
 
 enum nvt_pcie_phy_id {
 	NVT_PHY_PCIE0 = 0,
@@ -166,7 +166,7 @@ static int pcie_phy_init(struct phy *phy)
 		rc_apbm_srmw(core->v_base[idx]+0x3020, 0x1, 16, 1); // reg_dec128b_sym_cnt_clr_sel
 		rc_apbm_srmw(core->v_base[idx]+0x00, 0xff, 16, 8); // RXODT
 		rc_apbm_srmw(core->v_base[idx]+0x3010, 0x1, 31, 1); // FIFO start read index
-		rc_apbm_srmw(core->v_base[idx]+0x3010, 0xa, 24, 7); // FIFO start read index
+		rc_apbm_srmw(core->v_base[idx]+0x3010, 0x10, 24, 7); // FIFO start read index
 		rc_apbm_srmw(core->v_base[idx]+0x1208, 0x1, 11, 1); // dphy rst
 	}
 

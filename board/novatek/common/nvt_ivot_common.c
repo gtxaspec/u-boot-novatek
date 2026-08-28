@@ -216,14 +216,14 @@ int nvt_fdt_init(bool reload)
 		//read first block to get fdt size
 		char command[128];
 		#if defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(CONFIG_NVT_SPI_NOR) && defined(NVT_LINUX_RAMDISK_SUPPORT))
-		sprintf(command, "sf read 0x%lx 0x%x 0x%x", tmp_addr, pEmb[id].PartitionOffset, preload_size);
+		sprintf(command, "sf read 0x%lx 0x%llx 0x%x", tmp_addr, pEmb[id].PartitionOffset, preload_size);
 		ret = run_command(command, 0);
 		#elif defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(CONFIG_NVT_SPI_NAND) && defined(NVT_LINUX_RAMDISK_SUPPORT))
-		sprintf(command, "nand read %lx %x %x", tmp_addr, pEmb[id].PartitionOffset, preload_size);
+		sprintf(command, "nand read %lx 0x%llx 0x%x", tmp_addr, pEmb[id].PartitionOffset, preload_size);
 		ret = run_command(command, 0);
 		#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(CONFIG_NVT_IVOT_EMMC) && defined(NVT_LINUX_RAMDISK_SUPPORT))
 		/* MMC read should use block number unit */
-		sprintf(command, "mmc read 0x%lx 0x%x 0x%x", tmp_addr, ALIGN_CEIL(pEmb[id].PartitionOffset, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN, ALIGN_CEIL(preload_size,MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN);
+		sprintf(command, "mmc read 0x%lx 0x%llx 0x%x", tmp_addr, ALIGN_CEIL(pEmb[id].PartitionOffset, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN, ALIGN_CEIL(preload_size,MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN);
 		ret = run_command(command, 0);
 		#elif defined(CONFIG_NVT_LINUX_SD_BOOT) || defined(NVT_LINUX_RAMDISK_SUPPORT)
 		sprintf(command, "fatload mmc 0:1 0x%lx %s", tmp_addr, get_nvt_bin_name(NVT_BIN_NAME_TYPE_MODELEXT));
@@ -231,6 +231,7 @@ int nvt_fdt_init(bool reload)
 		#else
 		/* All-in-one SD boot */
 		#endif /* CONFIG_NVT_LINUX_SPINAND_BOOT */
+		nvt_dbg(IND, "%s: cmd:%s\n",__func__, command);
 		if (ret) {
 			printf("fdt init fail return %d\n", ret);
 			free((void*)tmp_addr);
@@ -253,10 +254,10 @@ int nvt_fdt_init(bool reload)
 		//read remain size
 		if (fdt_real_size > preload_size) {
 			#if defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(CONFIG_NVT_SPI_NOR) && defined(NVT_LINUX_RAMDISK_SUPPORT))
-			sprintf(command, "sf read 0x%lx 0x%x 0x%x", tmp_addr+preload_size, pEmb[id].PartitionOffset+preload_size, fdt_real_size-preload_size);
+			sprintf(command, "sf read 0x%lx 0x%llx 0x%x", tmp_addr+preload_size, pEmb[id].PartitionOffset+preload_size, fdt_real_size-preload_size);
 			ret = run_command(command, 0);
 			#elif defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(CONFIG_NVT_SPI_NAND) && defined(NVT_LINUX_RAMDISK_SUPPORT))
-			sprintf(command, "nand read %lx %x %x", tmp_addr+preload_size, pEmb[id].PartitionOffset+preload_size, fdt_real_size-preload_size);
+			sprintf(command, "nand read 0x%lx 0x%llx 0x%x", tmp_addr+preload_size, pEmb[id].PartitionOffset+preload_size, fdt_real_size-preload_size);
 			ret = run_command(command, 0);
 			#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(CONFIG_NVT_IVOT_EMMC) && defined(NVT_LINUX_RAMDISK_SUPPORT))
 			/* MMC read should use block number unit */
@@ -266,7 +267,7 @@ int nvt_fdt_init(bool reload)
 				free((void*)tmp_addr);
 				return -1;
 			}
-			sprintf(command, "mmc read 0x%lx 0x%x 0x%x", tmp_addr, ALIGN_CEIL(pEmb[id].PartitionOffset, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN, num);
+			sprintf(command, "mmc read 0x%lx 0x%llx 0x%x", tmp_addr, ALIGN_CEIL(pEmb[id].PartitionOffset, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN, num);
 			ret = run_command(command, 0);
 			#elif defined(CONFIG_NVT_LINUX_SD_BOOT) || defined(NVT_LINUX_RAMDISK_SUPPORT)
 			sprintf(command, "fatload mmc 0:1 0x%lx %s", tmp_addr+preload_size, get_nvt_bin_name(NVT_BIN_NAME_TYPE_MODELEXT));

@@ -91,27 +91,27 @@ int nvt_chk_mtd_fdt_is_null(void)
 	void *tmp_model_ptr = memalign(ARCH_DMA_MINALIGN, pEmb[id].PartitionSize);
 	#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT)
 		#if defined(CONFIG_NVT_SPI_NOR_NAND)
-			sprintf(command, "sf read 0x%x 0x%x 0x%x", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+			sprintf(command, "sf read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
 		#else
-			sprintf(command, "nand read %x %x %x", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+			sprintf(command, "nand read %x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
 		#endif
 	#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT)
-		sprintf(command, "mmc read 0x%x 0x%x 0x%x", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
+		sprintf(command, "mmc read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
 	#else
 		#if defined(NVT_LINUX_RAMDISK_SUPPORT)
 			#if defined(CONFIG_NVT_SPI_NAND)
-				sprintf(command, "nand read %x %x %x", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+				sprintf(command, "nand read %x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
 
 			#elif defined(CONFIG_NVT_SPI_NOR)
-				sprintf(command, "sf read 0x%x 0x%x 0x%x", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+				sprintf(command, "sf read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
 
 			#elif defined(CONFIG_NVT_IVOT_EMMC)
-				sprintf(command, "mmc read 0x%x 0x%x 0x%x", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
+				sprintf(command, "mmc read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
 			#else
 				printf("nvt_chk_mtd_fdt_is_null, no flash or emmc for ramdisk boot\n");
 			#endif
 		#else
-			sprintf(command, "sf read 0x%x 0x%x 0x%x", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+			sprintf(command, "sf read 0x%x 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
 
 		#endif
 	#endif

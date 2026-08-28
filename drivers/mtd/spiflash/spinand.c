@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.04"
+#define NAND_VERSION "1.0.06"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {
@@ -473,10 +473,10 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 	info->data_size = 0;
 	info->state = STATE_READY;
-	info->retcode = ERR_NONE;
 
 	switch (command) {
 	case NAND_CMD_READOOB:
+		info->retcode = ERR_NONE;
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		info->buf_start = mtd->writesize + column;
 
@@ -492,6 +492,7 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_READ0:
+		info->retcode = ERR_NONE;
 		if (((unsigned long)(info->data_buff)) % CACHE_LINE_SIZE) {
 			printf("NAND_CMD_READ0 : is not Cache_Line_Size alignment!\n");
 		}
@@ -512,6 +513,7 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_SEQIN:
+		info->retcode = ERR_NONE;
 		info->buf_start = column;
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		memset(info->data_buff, 0xff, info->buf_count);
@@ -522,6 +524,7 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_PAGEPROG:
+		info->retcode = ERR_NONE;
 		if (((unsigned long)(info->data_buff)) % CACHE_LINE_SIZE) {
 			printf("not MIPS_Cache_Line_Size alignment!\n");
 		}
@@ -533,6 +536,7 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_ERASE1:
+		info->retcode = ERR_NONE;
 		ret = nand_cmd_erase_block(info, page_addr);
 		if (ret) {
 			info->retcode = ERR_BBERR;
@@ -543,6 +547,7 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_READID:
+		info->retcode = ERR_NONE;
 		info->buf_start = 0;
 		info->buf_count = 4;
 		if (info->flash_info->chip_id) {
@@ -555,6 +560,7 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		}
 		break;
 	case NAND_CMD_STATUS:
+		info->retcode = ERR_NONE;
 		info->buf_start = 0;
 		info->buf_count = 1;
 		nand_cmd_read_status(info, NAND_SPI_STS_FEATURE_2);
@@ -608,7 +614,7 @@ static int drv_nand_reset(struct drv_nand_dev_info *info)
 
 	/* Config NAND module CLKEN */
 	reg = INW(IOADDR_CG_REG_BASE + 0x74);
-	if (chid == CHIP_NS02302) {
+	if ((chid == CHIP_NS02301) || (chid == CHIP_NS02302)) {
 		reg |= (1);
 	} else {
 		reg |= (1 << 10);
@@ -617,14 +623,21 @@ static int drv_nand_reset(struct drv_nand_dev_info *info)
 	OUTW(IOADDR_CG_REG_BASE + 0x74, reg);
 
 	/* Config NAND module RSTN */
-	reg = INW(IOADDR_CG_REG_BASE + 0x94);
-	if (chid == CHIP_NS02302) {
+	if (chid == CHIP_NS02301) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x84);
 		reg |= (1);
+		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
+		OUTW(IOADDR_CG_REG_BASE + 0x84, reg);
 	} else {
-		reg |= (1 << 10);
+		reg = INW(IOADDR_CG_REG_BASE + 0x94);
+		if (chid == CHIP_NS02302) {
+			reg |= (1);
+		} else {
+			reg |= (1 << 10);
+		}
+		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
+		OUTW(IOADDR_CG_REG_BASE + 0x94, reg);
 	}
-	NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
-	OUTW(IOADDR_CG_REG_BASE + 0x94, reg);
 
 	NAND_SETREG(info, NAND_TIME0_REG_OFS, 0x06002222);
 	NAND_SETREG(info, NAND_TIME1_REG_OFS, 0x7f0f);
@@ -632,32 +645,72 @@ static int drv_nand_reset(struct drv_nand_dev_info *info)
 	/* Need use PinCtrl framework */
 	reg = INW(IOADDR_TOP_REG_BASE + 0x4);
 	if (chid == CHIP_NS02302) {
-		printf("538 nand mux: 0x2 (TODO)\r\n");
-		reg |= 2;
+		reg &= ~0x3;
+		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
+			reg |= 0x1;
+		} else if ((fdt_pinmux&0x3) == 0x2) {   // PIN_NAND_CFG_NAND_2, Octal mode
+			reg |= 0x2;
+		} else {
+			printf("%s: nand fdt_pinmux 0x%x not support\r\n", __func__, fdt_pinmux);
+		}
+		if (fdt_pinmux & 0x4) { // PIN_NAND_CFG_NAND_CS1
+			reg |= 0x4;
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
+			reg &= ~(0x0000090F);              // 4-bit
+		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
+			reg &= ~(0x00000DFF);              // 8-bit + DQS
+		}
+		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
+			reg &= ~(0x200);                   // CS1
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+	} else if (chid == CHIP_NS02301) {
+		reg &= ~0xC;
+		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
+			reg |= 0x4;
+		} else if ((fdt_pinmux&0x3) == 0x2) {   // PIN_NAND_CFG_NAND_2, Octal mode
+			reg |= 0x8;
+		} else {
+			printf("%s: nand fdt_pinmux 0x%x not support\r\n", __func__, fdt_pinmux);
+		}
+		if (fdt_pinmux & 0x4) { // PIN_NAND_CFG_NAND_CS1
+			reg |= 0x40;
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
+			reg &= ~(0x0000140F);              // 4-bit
+		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
+			reg &= ~(0x000015FF);              // 8-bit + DQS
+		}
+		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
+			reg &= ~(0x200);                   // CS1
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
 	} else {
-		if (fdt_pinmux & 0x2) {		// PIN_NAND_CFG_NAND_CS1 = 0x2
+		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
 			flash_pinmux |= (1 << 2);
 		}
 		reg |= flash_pinmux;
-	}
-	OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-	NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
 
-	reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
-	if (chid == CHIP_NS02302) {
-		if (fdt_pinmux & 0x2) {
-			reg &= ~(0x00000DFF); // 8-bit+DQS
-		} else {
-			reg &= ~(0x0000090F); // 4-bit
-		}// TODO: CS1
-	} else {
-		if (fdt_pinmux & 0x2) {		// PIN_NAND_CFG_NAND_CS1 = 0x2
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
 			reg &= ~(0x0000070F);
 		} else {
 			reg &= ~(0x0000030F);
 		}
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
 	}
-	OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
 
 	/* reset NAND Config NAND module configuration */
 
@@ -677,7 +730,7 @@ static int drv_nand_reset(struct drv_nand_dev_info *info)
 		reg &= ~(0x3F0000);
 		reg |= (clk_div << 16);
 		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
-	} else if (chid == CHIP_NS02302) {
+	} else if (chid == CHIP_NS02301 || chid == CHIP_NS02302) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x40);
 		printf("get reg: 0x%x \n", reg);
 		reg &= ~(0x3F000);

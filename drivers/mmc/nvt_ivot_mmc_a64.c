@@ -467,7 +467,7 @@ BOOL sdiohost_getrdy(struct mmc_nvt_host *host)
 
 	stsreg.reg = sdiohost_getreg(host, SDIO_BUS_STATUS_REG_OFS);
 
-	return stsreg.bit.CARD_BUSY;
+	return stsreg.bit.BUS_STS_D0;
 }
 
 /*

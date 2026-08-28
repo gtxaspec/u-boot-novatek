@@ -18,6 +18,39 @@
 #include <asm/nvt-common/rcw_macro.h>
 
 typedef enum {
+	TRIM_1ST_FIELD 	= 0x0,
+	TRIM_2ND_FIELD,
+} TRIM_FIELD_SET;
+
+typedef enum {
+	PWM0_CORE_POWER 	= 0x0,
+	PWM1_CPU_POWER,
+} PWM_POWER_SET;
+
+typedef enum {
+	LEAKAGE_0,
+	LEAKAGE_1,
+	LEAKAGE_2,
+	LEAKAGE_3,
+	LEAKAGE_4,
+	LEAKAGE_5,
+	LEAKAGE_6,
+	LEAKAGE_7,
+	LEAKAGE_8,
+	LEAKAGE_9,
+	LEAKAGE_10,
+	LEAKAGE_11,
+	LEAKAGE_12,
+	LEAKAGE_13,
+	LEAKAGE_14,
+	LEAKAGE_15,
+	LEAKAGE_16,
+	LEAKAGE_COUNT,
+
+	LEAKAGE_MAX = 255,
+} PWM_POWER_LEAKAGE;
+
+typedef enum {
 	NT98690_PKG 	= 0,
 	NT98692_PKG,	
 	NT98XXX_PKG_CNT = 2,
@@ -281,6 +314,8 @@ extern BOOL extract_trim_valid(u32 code, u32 *pData);
 extern ER   efuse_get_unique_id(UINT32 *id_L, UINT32 *id_H);
 extern void otp_init(void);
 
+extern u32 	extract_trim_to_pwm_duty(PWM_POWER_SET power_set, UINT32 data);
+extern int 	prepare_power_trim(int mode);
 /**
     efuse_secure_en
 
@@ -304,4 +339,3 @@ extern void otp_init(void);
 #define efuse_GPU_dis()                	enable_secure_boot(SECUREBOOT_GPU_DISABLE)
 #define efuse_MCU_dis()                	enable_secure_boot(SECUREBOOT_MCU_DISABLE)
 #endif /* __ARCH_EFUSE_PROTECTED_H */
-

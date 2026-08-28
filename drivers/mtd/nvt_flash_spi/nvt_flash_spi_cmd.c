@@ -4,7 +4,7 @@
 #include "nvt_flash_spi_reg.h"
 #include "nvt_flash_spi_int.h"
 
-
+#define CACHELINE_SIZE         CONFIG_SYS_CACHELINE_SIZE
 u32 nvt_flash_ecc_err_pages[100] = {0};
 
 extern void invalidate_dcache_range(ulong start_addr, ulong stop);
@@ -277,9 +277,9 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 
 			if (nvt_get_chip_id() == CHIP_NA51103) {
 				if (uiColAddr == info->flash_info->page_size) {
-					flush_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->oob_size) / 4));
+					flush_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 				} else {
-					flush_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4));
+					flush_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 				}
 			}
 			nand_host_send_command(info, uiCmdCycle.Reg, TRUE);
@@ -287,9 +287,9 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 			ret = nand_cmd_wait_complete(info);
 
 			if (uiColAddr == info->flash_info->page_size) {
-				invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + info->flash_info->oob_size / 4));
+				invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + info->flash_info->oob_size / 4), CACHELINE_SIZE));
 			} else {
-				invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4));
+				invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 			}
 			nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 
@@ -343,7 +343,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 						} else {
 							debug("bch%d Bit errors were detected and corrected\n", info->flash_info->spare_size);
 							debug("  row Addr 0x%08x, col Addr 0x%08x\n", uiRowAddr, uiColAddr);
-							invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + info->flash_info->page_size + info->flash_info->oob_size));
+							invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + info->flash_info->page_size + info->flash_info->oob_size), CACHELINE_SIZE));
 							ret = ECC_CORRECTED;
 						}
 					}
@@ -359,7 +359,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 							printf("uncorrect ecc error sts 0x%08x, row Addr 0x%08x, col Addr 0x%08x\r\n", (uint32_t)SPINAND_FEATURE_STATUS_ECC_UNCORR_ERR, (uint32_t)uiRowAddr, (uint32_t)uiColAddr);
 							ret = E_CTX;
 						} else {
-							invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + info->flash_info->page_size + info->flash_info->oob_size));
+							invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + info->flash_info->page_size + info->flash_info->oob_size), CACHELINE_SIZE));
 							ret = ECC_CORRECTED;
 						}
 					}
@@ -526,10 +526,10 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				nand_host_setup_transfer(info, &transParam, 1, info->flash_info->page_size, _SINGLE_PAGE);
 
 				if (nvt_get_chip_id() == CHIP_NA51090 || nvt_get_chip_id() == CHIP_NA51102 || nvt_get_chip_id() == CHIP_NS02201) {
-					invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4));
+					invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 				}
 				if (nvt_get_chip_id() == CHIP_NA51103) {
-					flush_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4));
+					flush_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 				}
 
 				uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_PAGE_READ;
@@ -563,7 +563,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 
 				ret = nand_cmd_wait_complete(info);
 
-				invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4));
+				invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 
 				nand_host_set_cpu_access_spare(info, TRUE);
 
@@ -696,7 +696,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 						} else {
 							debug("bch%d Bit errors were detected and corrected\n", info->flash_info->spare_size);
 							debug("  row Addr 0x%08x, col Addr 0x%08x\n", uiRowAddr, uiColAddr);
-							invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4));
+							invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 							ret = ECC_CORRECTED;
 						}
 					}
@@ -711,7 +711,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 							printf("uncorrect ecc error sts 0x%08x, row Addr 0x%08x, col Addr 0x%08x\r\n", (uint32_t)SPINAND_FEATURE_STATUS_ECC_UNCORR_ERR, (uint32_t)uiRowAddr, (uint32_t)uiColAddr);
 							ret = E_CTX;
 						} else {
-							invalidate_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4));
+							invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 							ret = ECC_CORRECTED;
 						}
 					}
@@ -920,10 +920,10 @@ static ER spiNand_programPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr
 			}
 
 			if (uiBufSize > info->flash_info->page_size) {
-				flush_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + info->flash_info->page_size / 4));
+				flush_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + info->flash_info->page_size / 4), CACHELINE_SIZE));
 				nand_host_setup_transfer(info, &transParam, 1, info->flash_info->page_size, _SINGLE_PAGE);
 			} else {
-				flush_dcache_range((uintptr_t)pulBuf, (uintptr_t)(pulBuf + uiBufSize / 4));
+				flush_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + uiBufSize / 4), CACHELINE_SIZE));
 				nand_host_setup_transfer(info, &transParam, 1, uiBufSize, _SINGLE_PAGE);
 			}
 
@@ -1485,7 +1485,7 @@ void nand_cmd_write_spare_sram(struct drv_nand_dev_info *info)
 
 	NAND_DEBUG_MSG("writeSpare sram\n");
 
-	flush_dcache_range((uintptr_t)pul_buf, (uintptr_t)(pul_buf + info->flash_info->oob_size / 4));
+	flush_dcache_range((uintptr_t)pul_buf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pul_buf + info->flash_info->oob_size / 4), CACHELINE_SIZE));
 
 	nand_host_set_cpu_access_spare(info, TRUE);
 	spare_area_addr = (unsigned long) info->mmio_base + NAND_SPARE00_REG_OFS;
@@ -2197,7 +2197,7 @@ int spinor_read_operation(struct drv_nand_dev_info *info, u32 byte_addr, u32 byt
 		} else {
 			debug("r");
 		}
-		invalidate_dcache_range((uintptr_t)pbuf, (uintptr_t)(pbuf + align_length));
+		invalidate_dcache_range((uintptr_t)pbuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pbuf + align_length), CACHELINE_SIZE));
 	}
 
 	/*Handle if length is not cacheline alignment*/
@@ -2243,9 +2243,9 @@ int spinor_program_operation(struct drv_nand_dev_info *info, u32 byte_addr, u32 
 
 	if (p_flush_buf & (CONFIG_SYS_CACHELINE_SIZE - 1)) {
 		p_flush_buf &= ~cacheline_mask;
-		flush_dcache_range(p_flush_buf, p_flush_buf + align_size + CONFIG_SYS_CACHELINE_SIZE);
+		flush_dcache_range(p_flush_buf & ~(CACHELINE_SIZE - 1), ALIGN( p_flush_buf + align_size + CONFIG_SYS_CACHELINE_SIZE, CACHELINE_SIZE));
 	} else {
-		flush_dcache_range(p_flush_buf, p_flush_buf + align_size);
+		flush_dcache_range(p_flush_buf & ~(CACHELINE_SIZE - 1), ALIGN( p_flush_buf + align_size, CACHELINE_SIZE));
 	}
 
 	for (cycle_index = 0; cycle_index < program_cycle; cycle_index++, addr_index += SPIFLASH_MAX_PROGRAM_BYTE_AT_ONCE) {

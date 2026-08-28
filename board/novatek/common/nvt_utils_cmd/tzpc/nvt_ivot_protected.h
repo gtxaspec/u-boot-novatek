@@ -87,6 +87,218 @@
 */
 #define         dma_getNonCacheAddr(addr)       ((((UINT32)(addr))<0x60000000UL)?((UINT32)(addr)+0x60000000UL):(UINT32)(addr))
 
+#ifdef CONFIG_TARGET_NS02302_A64
+typedef struct {
+	UINT32 CPU: 1;   //CPU_S
+	UINT32 CPU_NS: 1;
+	UINT32 HVYLD: 1; 
+	UINT32 reserved: 1;
+	//M1
+	UINT32 AGE: 1;
+	UINT32 SSCA: 1;
+	UINT32 OSG: 1;		
+	UINT32 GPE: 1;		
+	UINT32 GPE2: 1;			
+	UINT32 JPG: 1;
+	UINT32 SMC: 1;
+	UINT32 SDIO: 1;
+	UINT32 DAI3: 1;
+	UINT32 DAI4: 1;
+	UINT32 ETH: 1;
+	UINT32 ETH2: 1;
+	UINT32 USB: 1;
+	UINT32 USB2: 1;
+	UINT32 SATA: 1;
+	UINT32 SATA2: 1;
+	UINT32 LARB: 1;
+	UINT32 SCE: 1;
+	UINT32 HASH: 1;
+	UINT32 HWCP: 1;
+	UINT32 HVYLD2: 1;
+	UINT32 reserved3: 1;
+	UINT32 reserved4: 1;
+	UINT32 reserved5: 1;
+
+	//M2
+	UINT32 CNN: 1;
+	UINT32 NUE: 1;
+	UINT32 NUE2: 1;
+	UINT32 VPE_0: 1;
+	UINT32 VPE_1: 1;
+	UINT32 reserved6: 1;
+	UINT32 reserved7: 1;
+	UINT32 reserved8: 1;
+	//M3
+	UINT32 VENC_0_1: 1;
+	UINT32 HVYLD3: 1;
+	UINT32 reserved9: 1;
+	UINT32 reserved10: 1;
+	UINT32 reserved11: 1;
+	UINT32 reserved12: 1;
+	UINT32 reserved13: 1;
+	UINT32 reserved14: 1;
+	//M4
+	UINT32 VDEC_0: 1;
+	UINT32 VDEC_1_2_3: 1;
+	UINT32 DEI: 1;
+	UINT32 reserved15: 1;
+	UINT32 reserved16: 1;
+	UINT32 reserved17: 1;
+	UINT32 reserved18: 1;
+	UINT32 reserved19: 1;
+	//M5
+	UINT32 VCAP_0: 1;
+	UINT32 VCAP_1: 1;
+	UINT32 VCAP_2: 1;
+	UINT32 LCD_0: 1;
+	UINT32 LCD_1: 1;
+	UINT32 GPD: 1;
+	UINT32 DAI: 1;
+	UINT32 DAI2: 1;
+	UINT32 DAI5: 1;
+	UINT32 reserved20: 1;
+	UINT32 reserved21: 1;
+	UINT32 reserved22: 1;
+} DMA_CH_MSK, *PDMA_CH_MSK;
+
+/**
+    DDR Arbiter ID
+
+*/
+typedef enum _DDR_ARB {
+        DDR_ARB_1,                           ///< DDR Arbiter
+        DDR_ARB_2,                           ///< DDR Arbiter
+
+        DDR_ARB_COUNT,                       //< Arbiter count
+
+        ENUM_DUMMY4WORD(DDR_ARB)
+} DDR_ARB;
+
+
+typedef enum _DMA_WRITEPROT_SET {
+        WPSET_0,            // Write protect function set 0
+        WPSET_1,            // Write protect function set 1
+        WPSET_2,            // Write protect function set 2
+        WPSET_3,            // Write protect function set 3
+        WPSET_4,            // Write protect function set 4
+        OUT_WP,             // Out range write protect
+        WPSET_COUNT,
+        ENUM_DUMMY4WORD(DMA_WRITEPROT_SET)
+} DMA_WRITEPROT_SET;
+
+typedef enum _DMA_WRITEPROT_LEVEL {
+	DMA_WPLEL_UNWRITE,      // Not only detect write action but also denial access.
+	DMA_WPLEL_DETECT,       // Only detect write action but allow write access.
+	DMA_RPLEL_UNREAD,       // Not only detect read action but also denial access.
+	DMA_RWPLEL_UNRW,        // Not only detect read write action but also denial access.
+	ENUM_DUMMY4WORD(DMA_WRITEPROT_LEVEL)
+} DMA_WRITEPROT_LEVEL;
+
+typedef struct _DMA_WRITEPROT_ATTR {
+        DMA_CH_MSK          mask;       // DMA channel masks to be protected/detected
+        DMA_WRITEPROT_LEVEL level;          // protect level
+        uint64_t            starting_addr; // DDR3:must be 4 words alignment
+        uint32_t            size;          // DDR3:must be 4 words alignment
+} DMA_WRITEPROT_ATTR, *PDMA_WRITEPROT_ATTR;
+
+typedef enum _DMA_CH_GROUP {
+	DMA_CH_GROUP0 = 0x0,
+	DMA_CH_GROUP1,
+
+	DMA_CH_GROUP_CNT,
+	ENUM_DUMMY4WORD(DMA_CH_GROUP)
+} DMA_CH_GROUP;
+
+#define MAU_INT_ENABLE_OFS 0x190
+REGDEF_BEGIN(MAU_INT_ENABLE_REG)
+REGDEF_BIT(ERR_MEM_INT_EN0, 1)
+REGDEF_BIT(ERR_MEM_INT_EN1, 1)
+REGDEF_BIT(ERR_MEM_INT_EN2, 1)
+REGDEF_BIT(ERR_MEM_INT_EN3, 1)
+REGDEF_BIT(ERR_MEM_INT_EN4, 1)
+REGDEF_BIT(ERR_MEM_INT_EN5, 1)
+REGDEF_BIT(ERR_MEM_INT_EN6, 1)
+REGDEF_BIT(ERR_MEM_INT_EN7, 1)
+REGDEF_BIT(ERR_WT_INT_EN0, 1)
+REGDEF_BIT(ERR_WT_INT_EN1, 1)
+REGDEF_BIT(ERR_WT_INT_EN2, 1)
+REGDEF_BIT(ERR_WT_INT_EN3, 1)
+REGDEF_BIT(ERR_WT_INT_EN4, 1)
+REGDEF_BIT(ERR_WT_INT_EN5, 1)
+REGDEF_BIT(ERR_WT_INT_EN6, 1)
+REGDEF_BIT(ERR_WT_INT_EN7, 1)
+REGDEF_BIT(READ_TIMEOUT_INT_EN, 1)
+REGDEF_BIT(MON_UPDATE_INT_EN, 1)
+REGDEF_BIT(, 14)
+REGDEF_END(MAU_INT_ENABLE_REG)
+
+#define MAU_INT_STATUS_OFS 0x194
+REGDEF_BEGIN(MAU_INT_STATUS_REG)
+REGDEF_BIT(ERR_MEM_INT0, 1)
+REGDEF_BIT(ERR_MEM_INT1, 1)
+REGDEF_BIT(ERR_MEM_INT2, 1)
+REGDEF_BIT(ERR_MEM_INT3, 1)
+REGDEF_BIT(ERR_MEM_INT4, 1)
+REGDEF_BIT(ERR_MEM_INT5, 1)
+REGDEF_BIT(ERR_MEM_INT6, 1)
+REGDEF_BIT(ERR_MEM_INT7, 1)
+REGDEF_BIT(ERR_WT_INT0, 1)
+REGDEF_BIT(ERR_WT_INT1, 1)
+REGDEF_BIT(ERR_WT_INT2, 1)
+REGDEF_BIT(ERR_WT_INT3, 1)
+REGDEF_BIT(ERR_WT_INT4, 1)
+REGDEF_BIT(ERR_WT_INT5, 1)
+REGDEF_BIT(ERR_WT_INT6, 1)
+REGDEF_BIT(ERR_WT_INT7, 1)
+REGDEF_BIT(READ_TIMEOUT_INT, 1)
+REGDEF_BIT(MON_UPDATE_INT, 1)
+REGDEF_BIT(, 14)
+REGDEF_END(MAU_INT_STATUS_REG)
+
+#define MAU_PROTECT_MODE_OFS 0x48C
+REGDEF_BEGIN(MAU_PROTECT_MODE_REG)
+REGDEF_BIT(WP0_MODE, 2)
+REGDEF_BIT(, 2)
+REGDEF_BIT(WP1_MODE, 2)
+REGDEF_BIT(, 2)
+REGDEF_BIT(WP2_MODE, 2)
+REGDEF_BIT(, 2)
+REGDEF_BIT(WP3_MODE, 2)
+REGDEF_BIT(, 2)
+REGDEF_BIT(WP4_MODE, 2)
+REGDEF_BIT(, 2)
+REGDEF_BIT(OUT_WP_MODE, 2)
+REGDEF_BIT(, 10)
+REGDEF_END(MAU_PROTECT_MODE_REG)
+
+// Protect
+#define MAU_IN_RANGE_PROTECT0_ENABLE_OFS0 0x440
+#define MAU_IN_RANGE_PROTECT1_ENABLE_OFS0 0x448
+#define MAU_IN_RANGE_PROTECT2_ENABLE_OFS0 0x450
+#define MAU_IN_RANGE_PROTECT3_ENABLE_OFS0 0x458
+#define MAU_IN_RANGE_PROTECT4_ENABLE_OFS0 0x460
+#define MAU_OUT_RANGE_PROTECT_ENABLE_OFS0 0x468
+
+#define MAU_IN_RANGE_PROTECT0_ENABLE_OFS1 0x444
+#define MAU_IN_RANGE_PROTECT1_ENABLE_OFS1 0x44C
+#define MAU_IN_RANGE_PROTECT2_ENABLE_OFS1 0x454
+#define MAU_IN_RANGE_PROTECT3_ENABLE_OFS1 0x45C
+#define MAU_IN_RANGE_PROTECT4_ENABLE_OFS1 0x464
+#define MAU_OUT_RANGE_PROTECT_ENABLE_OFS1 0x46C
+
+#define MAU_PROTECT0_START_ADDR 	0x490
+#define MAU_PROTECT0_END_ADDR 		0x494
+#define MAU_PROTECT1_START_ADDR 	0x498
+#define MAU_PROTECT1_END_ADDR 		0x49C
+#define MAU_PROTECT2_START_ADDR 	0x4A0
+#define MAU_PROTECT2_END_ADDR 		0x4A4
+#define MAU_PROTECT3_START_ADDR 	0x4A8
+#define MAU_PROTECT3_END_ADDR 		0x4AC
+#define MAU_PROTECT4_START_ADDR 	0x4B0
+#define MAU_PROTECT4_END_ADDR 		0x4B4
+#define MAU_OUT_PROTECT_START_ADDR 	0x4B8
+#define MAU_OUT_PROTECT_END_ADDR 	0x4BC
+#else
 typedef enum _DMA_CH_GROUP {
 	DMA_CH_GROUP0 = 0x0,    // represent channel 00-31
 	DMA_CH_GROUP1,          // represent channel 32-63
@@ -404,6 +616,6 @@ REGDEF_END(DMA_RANGE_SEL_REG)
 
 #define DMA_PROTECT_START_ADDR_REG_OFS      0x88
 #define DMA_PROTECT_END_ADDR_REG_OFS        0x8C
-
+#endif
 
 #endif /* _ASM_ARMV8_GIC_H_ */

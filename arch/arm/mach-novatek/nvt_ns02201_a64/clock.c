@@ -17,6 +17,7 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
+#include <asm/arch/efuse_protected.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
@@ -901,4 +902,101 @@ U_BOOT_CMD(
 	nvt_get_ddr_freq, 2,      1,     do_nvt_ddr_freq,
 	"get ddr freq/type\n",
 	"\n"
+);
+
+
+int prepare_power_trim(int mode)
+{
+    //BOOL      is_found;
+    int       code;
+    unsigned int    power_trim, remap_data;
+    char cmd[50];
+#if (0)
+    code = otp_key_manager(7);
+
+    if(code == -33) {
+        printf("Read power trim error\r\n");
+        return -1;
+    } else {
+        power_trim = 0;
+        is_found = extract_trim_valid(code, (u32 *)&power_trim);
+
+		power_trim = ((power_trim >> 8)&0xF);
+
+        if(is_found) {
+            printf("Read power trim = 0x%08x\r\n", power_trim);
+        } else {
+            printf("Read power trim = 0x%08x(NULL)\r\n", power_trim);
+        }
+
+        remap_data = extract_trim_to_pwm_duty(PWM0_CORE_POWER, power_trim);
+        printf("remap_data %d\n", remap_data);
+        sprintf(cmd, "power_ctl %d", remap_data);
+
+        run_command(cmd, 0);
+    }
+#else
+	//Fixed @ 0.93V
+	code = otp_key_manager(7);
+	power_trim = 0;
+	printf("packageUID = 0x%08x\n", code);
+	if(code == 0) {
+		remap_data = extract_trim_to_pwm_duty(PWM0_CORE_POWER, power_trim);
+	} else {
+		remap_data = 31;
+	}
+	printf("remap_data %d\n", remap_data);
+	sprintf(cmd, "power_ctl %d", remap_data);
+	run_command(cmd, 0);
+#endif
+    return 0;
+}
+
+int do_nvt_pwr_ctrl(struct cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+{
+	u32 value = simple_strtoul(argv[1], NULL, 10);
+	//u32 uiReg;
+	unsigned int    remap_data;
+	char cmd[50];
+
+	switch (argc) {
+	case 2:
+		switch (value) {
+		case LEAKAGE_0:
+		case LEAKAGE_1:
+		case LEAKAGE_2:
+		case LEAKAGE_3:
+		case LEAKAGE_4:
+		case LEAKAGE_5:
+		case LEAKAGE_6:
+		case LEAKAGE_7:
+		case LEAKAGE_8:
+		case LEAKAGE_9:
+		case LEAKAGE_10:
+		case LEAKAGE_11:
+		case LEAKAGE_12:
+		case LEAKAGE_13:
+		case LEAKAGE_14:
+		case LEAKAGE_15:
+			remap_data = extract_trim_to_pwm_duty(PWM0_CORE_POWER, value);
+			printf("tr<%d> <----> du<%d>\n", value, remap_data);
+			sprintf(cmd, "power_ctl %d", remap_data);
+			run_command(cmd, 0);
+			break;
+
+		default:
+			printf("Please input 0~15\n");
+			break;
+		}
+		break;
+	default:
+		printf("type nvt_pwr_ctrl_test <0>~<15>\n");
+		return CMD_RET_USAGE;
+	}
+	return 0;
+}
+U_BOOT_CMD(
+	nvt_pwr_ctrl_test, 2,    1,  do_nvt_pwr_ctrl,
+	"Config PWM pwr ctrl(test only)",
+	"nvt_pwr_ctrl_test 0~15\n"
 );

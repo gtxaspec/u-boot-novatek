@@ -15,6 +15,166 @@
 
 //UINT32 dma_getDramBaseAddr(DMA_ID id);
 //UINT32 dma_getDramCapacity(DMA_ID id);
+#define INREG32(x)                      readl(x)
+#define OUTREG32(x, y)                  writel((y), (x))
+
+#define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))     ///< Set 32bits IO register
+#define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))    ///< Clear 32bits IO register
+
+#define _Y_LOG(fmt, args...)            printf(DBG_COLOR_YELLOW fmt DBG_COLOR_END, ##args)
+#define _R_LOG(fmt, args...)            printf(DBG_COLOR_RED fmt DBG_COLOR_END, ##args)
+#define _M_LOG(fmt, args...)            printf(DBG_COLOR_MAGENTA fmt DBG_COLOR_END, ##args)
+#define _G_LOG(fmt, args...)            printf(DBG_COLOR_GREEN fmt DBG_COLOR_END, ##args)
+#define _W_LOG(fmt, args...)            printf(DBG_COLOR_WHITE fmt DBG_COLOR_END, ##args)
+#define _X_LOG(fmt, args...)            printf(DBG_COLOR_HI_GRAY fmt DBG_COLOR_END, ##args)
+static void debug_dump_addr(UINT64 addr, UINT32 size)
+{
+	UINT32 i;
+	UINT64 j;
+
+	for (j = addr; j < (addr + size); j += 0x10) {
+		printf("0x%lx:", j);
+		for (i = 0; i < 4; i++) {
+			printf("%08x", readl(j + 4 * i));
+			printf("  ");
+		}
+		printf("\r\n");
+	}
+}
+
+static UINT32 chip_id = 0x0;
+
+#ifdef CONFIG_TARGET_NS02302_A64
+
+#define PROT_START_OFS(ch)				(MAU_PROTECT0_START_ADDR + ch * 8)
+#define PROT_END_OFS(ch)				(MAU_PROTECT0_END_ADDR + ch * 8)
+#define PROT_EN0_OFS(ch)				(MAU_IN_RANGE_PROTECT0_ENABLE_OFS0 + ch * 8)
+#define PROT_EN1_OFS(ch)				(MAU_IN_RANGE_PROTECT0_ENABLE_OFS1 + ch * 8)
+
+#define IOADDR_TZASC_REG_BASE         	0x2F01C0000
+
+#define ARB_SETREG(ofs,value)           OUTREG32(IOADDR_TZASC_REG_BASE+(ofs),(value))
+#define ARB_GETREG(ofs)                 INREG32(IOADDR_TZASC_REG_BASE+(ofs))
+
+static UINT32 arb_get_reg(DDR_ARB id, UINT32 offset)
+{
+	return ARB_GETREG(offset);
+}
+
+static void arb_set_reg(DDR_ARB id, UINT32 offset, REGVALUE value)
+{
+	ARB_SETREG(offset, value);
+}
+
+void arb_enable_wp(DDR_ARB id, DMA_WRITEPROT_SET set,
+		DMA_WRITEPROT_ATTR *p_attr)
+{
+#if 1
+	UINT32 v_mask[DMA_CH_GROUP_CNT];
+	union T_MAU_INT_ENABLE_REG intctrl_reg = {0};
+	union T_MAU_INT_STATUS_REG sts_reg;
+	union T_MAU_PROTECT_MODE_REG mode;
+
+	if (id > DDR_ARB_1) {
+		printf("invalid arb ch %d\r\n", id);
+		return;
+	}
+
+	if (set > OUT_WP) {
+		printf("invalid protect ch %d\r\n", set);
+		return;
+	}
+
+	if (p_attr->starting_addr & 0x7f) {
+		printf("starting addr not 32 word aligned 0x%08x\r\n", (unsigned int)p_attr->starting_addr);
+		return;
+	}
+
+	if (p_attr->size & 0x7f) {
+		printf("size not 32 word aligned 0x%x\r\n", (unsigned int)p_attr->size);
+		return;
+	}
+
+	mode.Reg = arb_get_reg(id, MAU_PROTECT_MODE_OFS);
+	memcpy(v_mask, &p_attr->mask, sizeof(DMA_CH_MSK));
+
+
+	// disable wp int
+	intctrl_reg.Reg = arb_get_reg(id, MAU_INT_ENABLE_OFS);
+	intctrl_reg.Reg &= ~0xffff;
+	arb_set_reg(id, MAU_INT_ENABLE_OFS, intctrl_reg.Reg);
+
+	// clr status
+	sts_reg.Reg = 0xffff;
+	arb_set_reg(id, MAU_INT_STATUS_OFS, sts_reg.Reg);
+
+	// set addr
+	if (set > WPSET_4) {
+		arb_set_reg(id, MAU_OUT_PROTECT_START_ADDR, p_attr->starting_addr);
+		arb_set_reg(id, MAU_OUT_PROTECT_END_ADDR, p_attr->starting_addr + p_attr->size - 1);
+	} else {
+		arb_set_reg(id, PROT_START_OFS(set), p_attr->starting_addr);
+		arb_set_reg(id, PROT_END_OFS(set), p_attr->starting_addr + p_attr->size - 1);
+	}
+
+	// set mode
+	if (set == WPSET_0) {
+		mode.Bit.WP0_MODE = p_attr->level;
+	} else if (set == WPSET_1) {
+		mode.Bit.WP1_MODE = p_attr->level;
+	} else if (set == WPSET_2) {
+		mode.Bit.WP2_MODE = p_attr->level;
+	} else if (set == WPSET_3) {
+		mode.Bit.WP3_MODE = p_attr->level;
+	} else if (set == WPSET_4) {
+		mode.Bit.WP4_MODE = p_attr->level;
+	} else {
+		mode.Bit.OUT_WP_MODE = p_attr->level;
+	}
+	arb_set_reg(id, MAU_PROTECT_MODE_OFS, mode.Reg);
+
+	// set en
+	arb_set_reg(id, PROT_EN0_OFS(set), v_mask[0]);
+	arb_set_reg(id, PROT_EN1_OFS(set), v_mask[1]);
+#endif
+}
+
+void arb_disable_wp(DDR_ARB id, DMA_WRITEPROT_SET set)
+{
+#if 1
+	union T_MAU_INT_ENABLE_REG intctrl_reg = {0};
+	union T_MAU_INT_STATUS_REG sts_reg;
+
+
+	if (id > DDR_ARB_1) {
+                printf("invalid arb ch %d\r\n", id);
+                return;
+        }
+
+        if (set > OUT_WP) {
+                printf("invalid protect ch %d\r\n", set);
+                return;
+        }
+
+
+	// disable wp
+	arb_set_reg(id, PROT_EN0_OFS(set), 0);
+	arb_set_reg(id, PROT_EN1_OFS(set), 0);
+
+    // disable inten
+    intctrl_reg.Reg = arb_get_reg(id, MAU_INT_ENABLE_OFS);
+    intctrl_reg.Reg &= ~0xffff;
+    arb_set_reg(id, MAU_INT_ENABLE_OFS, intctrl_reg.Reg);
+
+    // ensure int sts is cleared
+    sts_reg.Reg = 0xffff;
+    arb_set_reg(id, MAU_INT_STATUS_OFS, sts_reg.Reg);
+
+#endif
+}
+
+#else
+
 #define HEAVY_LOAD_CTRL_OFS(ch)         (DMA_CHANNEL0_HEAVY_LOAD_CTRL_OFS + ((ch) * 0x10))
 #define HEAVY_LOAD_ADDR_OFS(ch)         (DMA_CHANNEL0_HEAVY_LOAD_START_ADDR_OFS + ((ch) * 0x10))
 #define HEAVY_LOAD_SIZE_OFS(ch)         (DMA_CHANNEL0_HEAVY_LOAD_DMA_SIZE_OFS + ((ch) * 0x10))
@@ -58,23 +218,10 @@
 #define DETECT_CH_R_MSK6_OFS(ch)         (DMA_DETECT_CH6_R_REG_OFS+(ch)*0x100)
 #define DETECT_CH_R_MSK7_OFS(ch)         (DMA_DETECT_CH7_R_REG_OFS+(ch)*0x100)
 
-static UINT32 chip_id = 0x0;
 
-#define INREG32(x)                      readl(x)
-#define OUTREG32(x, y)                  writel((y), (x))
-
-#define SETREG32(x, y)                  OUTREG32((x), INREG32(x) | (y))     ///< Set 32bits IO register
-#define CLRREG32(x, y)                  OUTREG32((x), INREG32(x) & ~(y))    ///< Clear 32bits IO register
 
 #define IOADDR_DDR_ARB_REG_BASE         IOADDR_DRAM_REG_BASE
 #define IOADDR_DDR_ARB2_REG_BASE        IOADDR_DRAM2_REG_BASE
-
-#define _Y_LOG(fmt, args...)            printf(DBG_COLOR_YELLOW fmt DBG_COLOR_END, ##args)
-#define _R_LOG(fmt, args...)            printf(DBG_COLOR_RED fmt DBG_COLOR_END, ##args)
-#define _M_LOG(fmt, args...)            printf(DBG_COLOR_MAGENTA fmt DBG_COLOR_END, ##args)
-#define _G_LOG(fmt, args...)            printf(DBG_COLOR_GREEN fmt DBG_COLOR_END, ##args)
-#define _W_LOG(fmt, args...)            printf(DBG_COLOR_WHITE fmt DBG_COLOR_END, ##args)
-#define _X_LOG(fmt, args...)            printf(DBG_COLOR_HI_GRAY fmt DBG_COLOR_END, ##args)
 
 #define ARB_SETREG(ofs,value)           OUTREG32(IOADDR_DDR_ARB_REG_BASE+(ofs),(value))
 #define ARB_GETREG(ofs)                 INREG32(IOADDR_DDR_ARB_REG_BASE+(ofs))
@@ -89,20 +236,7 @@ static UINT32 chip_id = 0x0;
 #define PROT2_GETREG(ofs)               INREG32(IOADDR_DDR_ARB2_REG_BASE+0x4300+(ofs))
 
 #define REG_LOG                         0
-static void debug_dump_addr(UINT64 addr, UINT32 size)
-{
-	UINT32 i;
-	UINT64 j;
 
-	for (j = addr; j < (addr + size); j += 0x10) {
-		printf("0x%lx:", j);
-		for (i = 0; i < 4; i++) {
-			printf("%08x", readl(j + 4 * i));
-			printf("  ");
-		}
-		printf("\r\n");
-	}
-}
 
 #if 0
 static UINT32 arb_get_reg(DDR_ARB id, UINT32 offset)
@@ -420,7 +554,7 @@ void arb_disable_wp(DDR_ARB id, DMA_WRITEPROT_SET set)
 	prot_set_reg(id, (int)set, DETECT_CH_R_MSK6_OFS(0), 0);
 	prot_set_reg(id, (int)set, DETECT_CH_R_MSK7_OFS(0), 0);
 }
-
+#endif
 #define TEST_SIZE  0x3000
 static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
@@ -479,6 +613,14 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		_Y_LOG("addr 0x%lx\n", start_addr[4]);
 		_Y_LOG("addr 0x%lx\n", start_addr[5]);
 
+#ifdef CONFIG_TARGET_NS02302_A64
+		//printf("====================  mode%d, %s ===================\r\n", (int)protect_mode, is_out ? "out range" : "in range");
+		protect_attr.mask.CPU_NS = TRUE;
+//		protect_attr.mask.CPU_S = TRUE;
+		protect_attr.level = DMA_WPLEL_UNWRITE;
+		protect_attr.size = TEST_SIZE;
+		protect_attr.starting_addr = start_addr[0];
+#else
 		//printf("====================  mode%d, %s ===================\r\n", (int)protect_mode, is_out ? "out range" : "in range");
 		protect_attr.mask.CPU_NS = TRUE;
 //		protect_attr.mask.CPU_S = TRUE;
@@ -487,7 +629,7 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		protect_attr.protect_rgn_attr.en = ENABLE;
 		protect_attr.protect_rgn_attr.size = TEST_SIZE;
 		protect_attr.protect_rgn_attr.starting_addr = start_addr[0];
-
+#endif
 		//memset((void *)(start_addr[0]-0x3000), 0x96, 0x3000);
 		memset((void *)start_addr[0], 0x96, TEST_SIZE);
 		memset((void *)start_addr[1], 0x96, TEST_SIZE);
@@ -511,6 +653,19 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		_G_LOG("==========[addr 5]================\n");
 		debug_dump_addr(start_addr[5], 0x80);
 
+#ifdef CONFIG_TARGET_NS02302_A64
+		arb_enable_wp(DDR_ARB_1, 0, &protect_attr);
+		protect_attr.starting_addr = (start_addr[1]);
+		arb_enable_wp(DDR_ARB_1, 1, &protect_attr);
+		protect_attr.starting_addr = (start_addr[2]);
+		arb_enable_wp(DDR_ARB_1, 2, &protect_attr);
+		protect_attr.starting_addr = (start_addr[3]);
+		arb_enable_wp(DDR_ARB_1, 3, &protect_attr);
+		protect_attr.starting_addr = (start_addr[4]);
+		arb_enable_wp(DDR_ARB_1, 4, &protect_attr);
+		protect_attr.starting_addr = (start_addr[5]);
+		arb_enable_wp(DDR_ARB_1, 5, &protect_attr);
+#else
 		arb_enable_wp(DDR_ARB_1, 0, &protect_attr);
 		protect_attr.protect_rgn_attr.starting_addr = (start_addr[1]);
 		arb_enable_wp(DDR_ARB_1, 1, &protect_attr);
@@ -521,8 +676,8 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		protect_attr.protect_rgn_attr.starting_addr = (start_addr[4]);
 		arb_enable_wp(DDR_ARB_1, 4, &protect_attr);
 		protect_attr.protect_rgn_attr.starting_addr = (start_addr[5]);
-		arb_enable_wp(DDR_ARB_1, 5, &protect_attr);
-
+		//arb_enable_wp(DDR_ARB_1, 5, &protect_attr);
+#endif
 		memset((void *)start_addr[0], 0x5a, TEST_SIZE);
 
 		memset((void *)start_addr[1], 0xa5, TEST_SIZE);
@@ -553,6 +708,8 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		arb_disable_wp(DDR_ARB_1, 4);
 		arb_disable_wp(DDR_ARB_1, 5);
 	} else if (strncmp(argv[1], "mem_prot_in_2", 13) == 0) {
+#ifdef CONFIG_TARGET_NS02302_A64
+#else
 		DMA_WRITEPROT_ATTR  protect_attr = {0};
 		u64                 start_addr[6];
 		BOOL                bResult;
@@ -678,6 +835,7 @@ static int do_tzasc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 		arb_disable_wp(DDR_ARB_2, 3);
 		arb_disable_wp(DDR_ARB_2, 4);
 		arb_disable_wp(DDR_ARB_2, 5);
+#endif
 	}
 	return 0;
 }

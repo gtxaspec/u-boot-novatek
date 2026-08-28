@@ -248,7 +248,7 @@ static int do_pwm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	}
 }
 
-#if defined(CONFIG_TARGET_NA51102_A64)
+#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
 void pwm_set(int pwm_id, int level)
 {
 	u32 duty = 0;
@@ -292,6 +292,10 @@ static int do_power_ctl(struct cmd_tbl *cmdtp, int flag, int argc, char *const a
 	u32 level = 0x0;
 	int pwr_id = 0;
 	int id = 0;
+
+#ifdef CONFIG_TARGET_NS02201_A64
+	pwr_id = 12;
+#endif
 
 	if (argc == 2) {
 		level = simple_strtoul(argv[1], NULL, 10);

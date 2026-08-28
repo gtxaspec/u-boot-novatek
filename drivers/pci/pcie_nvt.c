@@ -24,7 +24,7 @@
 
 #include "pcie_dw_common.h"
 
-#define DRV_VERSION                     "1.00.00"
+#define DRV_VERSION                     "1.00.03"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -40,7 +40,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define PORT_LOGIC_LTSSM_STATE_MASK	0x1f
 #define PORT_LOGIC_LTSSM_STATE_L0	0x11
 
-#define PCIE_LINK_UP_TIMEOUT_MS		100
+#define PCIE_LINK_UP_TIMEOUT_MS		1000
 
 //
 // Novatek definitions
@@ -81,19 +81,32 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /* PCIE TOP registers */
 #define NVT_PCIE_TOP_CTRL0_OFS		0x300
-#define NVT_PCIE_TOP_RESET_MSK		GENMASK(3, 0)
+#define NVT_PCIE_TOP_RESET_MSK		GENMASK(2, 0)
 #define NVT_PCIE_TOP_PHY_APBRST_MSK	GENMASK(3, 3)
 
 #define NVT_PCIE_TOP_CTRL1_OFS				0x304
-#define NVT_PCIE_LINK_DOWN_RST_REQ_MSK			GENMASK(0, 0)
-#define NVT_PCIE_LINK_DOWN_RST_ACK_MSK			GENMASK(1, 1)
+#define NVT_PCIE_LINK_DOWN_RST_ACK_MSK			GENMASK(0, 0)
+#define NVT_PCIE_LINK_DOWN_RST_REQ_MSK			GENMASK(1, 1)
 #define NVT_PCIE_LINK_TRAIN_MSK				GENMASK(2, 2)
 #define NVT_PCIE_LINK_TRAIN_EN				(1)
 #define NVT_PCIE_LINK_TRAIN_DIS				(0)
 
 /* PCIE DBI registers */
+#define SD_CONTROL1_REG_OFS		0x274
+#define FORCE_DETECT_LANE_EN_MSK	GENMASK(16, 16)
+#define FORCE_DETECT_LANE_X2_MSK	GENMASK(1, 0)
+
+#define PORT_FORCE_OFF_OFS		0x708
+#define SUPPORT_PART_LANES_MSK		GENMASK(22, 22)
+
+#define PORT_LINK_CTRL_OFS		0x710
+#define HOT_RESET_MSK			GENMASK(3, 3)
+
 #define GEN3_RELATED_OFS		0x890
 #define GEN3_ZRXDC_NONCOMPL_MSK		GENMASK(0, 0)
+
+#define MISC_CONTROL_1_OFF		0x8BC
+#define DBI_RO_WR_EN_MSK		GENMASK(0, 0)
 
 #define GEN3_EQ_CONTROL_OFS		0x8a8
 #define GEN3_EQ_FOM_INC_INITIAL_MSK	GENMASK(24, 24)
@@ -354,6 +367,21 @@ static int pcie_power_on(struct pcie_nvt *pci)
 	val = readl(pci->dw.dbi_base + GEN3_RELATED_OFS);
 	val &= ~GEN3_ZRXDC_NONCOMPL_MSK;
 	writel(val, pci->dw.dbi_base + GEN3_RELATED_OFS);
+
+	val = readl(pci->dw.dbi_base + MISC_CONTROL_1_OFF);
+	val |= DBI_RO_WR_EN_MSK;
+	writel(val, pci->dw.dbi_base + MISC_CONTROL_1_OFF);
+
+	val = readl(pci->dw.dbi_base + PORT_FORCE_OFF_OFS);
+	val |= SUPPORT_PART_LANES_MSK;
+	writel(val, pci->dw.dbi_base + PORT_FORCE_OFF_OFS);
+
+	// Force detect
+	if (pci->num_lanes == 2) {
+		val = readl(pci->dw.dbi_base + SD_CONTROL1_REG_OFS);
+		val |= FORCE_DETECT_LANE_EN_MSK | FORCE_DETECT_LANE_X2_MSK;
+		writel(val, pci->dw.dbi_base + SD_CONTROL1_REG_OFS);
+	}
 
 	// release PRESET (to EP)
 	val = readl(IOADDR_TOP_REG_BASE + TOP_CTRL_REG22_OFS);

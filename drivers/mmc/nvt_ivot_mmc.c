@@ -34,6 +34,8 @@
 #include <asm/arch/na51103_regs.h>
 #elif (defined(CONFIG_TARGET_NS02201))
 #include <asm/arch/ns02201_regs.h>
+#elif (defined(CONFIG_TARGET_NS02301))
+#include <asm/arch/ns02301_regs.h>
 #else
 #include <asm/arch/na51000_regs.h>
 #endif
@@ -2579,7 +2581,7 @@ static int nvt_mmc_probe(struct udevice *dev)
 			| MMC_VDD_165_195;
 #ifdef CONFIG_NVT_FPGA_EMULATION
 	cfg->f_min = 312500;
-	cfg->f_max = 12000000;
+	cfg->f_max = 6000000;
 #else
 	cfg->f_min = 312500;
 	cfg->f_max = host->mmc_default_clk;

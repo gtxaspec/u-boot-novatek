@@ -24,11 +24,13 @@ static inline u32 read_cntfrq(void)
 }
 #endif
 
+#if (defined(CONFIG_TARGET_NS02301))
+
+#else
 int timer_init(void)
 {
 	gd->arch.tbl = 0;
 	gd->arch.tbu = 0;
-
 #ifdef CONFIG_SYS_HZ_CLOCK
 	gd->arch.timer_rate_hz = CONFIG_SYS_HZ_CLOCK;
 #else
@@ -36,7 +38,11 @@ int timer_init(void)
 #endif
 	return 0;
 }
+#endif
 
+#if (defined(CONFIG_TARGET_NS02301))
+
+#else
 unsigned long long get_ticks(void)
 {
 	ulong nowl, nowu;
@@ -48,7 +54,7 @@ unsigned long long get_ticks(void)
 
 	return (((unsigned long long)gd->arch.tbu) << 32) | gd->arch.tbl;
 }
-
+#endif
 
 ulong timer_get_boot_us(void)
 {
@@ -58,7 +64,11 @@ ulong timer_get_boot_us(void)
 	return lldiv(get_ticks(), gd->arch.timer_rate_hz / 1000000);
 }
 
+#if (defined(CONFIG_TARGET_NS02301))
+
+#else
 ulong get_tbclk(void)
 {
 	return gd->arch.timer_rate_hz;
 }
+#endif

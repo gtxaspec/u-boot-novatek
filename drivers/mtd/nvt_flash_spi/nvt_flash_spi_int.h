@@ -52,12 +52,23 @@
 
 #define NAND_HIGH_ADDR_MASK         0xF00000000UL
 
+#if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64))
+#ifdef  CONFIG_NVT_FPGA_EMULATION
+#define NVT_FLASH_SOURCE_CLK        12000000  // (24M/2)
+#define WAIT_COMP_TIMEOUT           6000
+#else
+#define NVT_FLASH_SOURCE_CLK        240000000 // (480M/2)
+#define WAIT_COMP_TIMEOUT           6000
+#endif
+
+#else
 #ifdef  CONFIG_NVT_FPGA_EMULATION
 #define NVT_FLASH_SOURCE_CLK        48000000
 #define WAIT_COMP_TIMEOUT           6000
 #else
 #define NVT_FLASH_SOURCE_CLK        480000000
 #define WAIT_COMP_TIMEOUT           4500
+#endif
 #endif
 
 #define QUAD_PROGRAM (SPI_FLASH_BUSWIDTH_QUAD_TYPE1 | \
@@ -176,6 +187,7 @@ typedef enum
 {
 	NAND_SPI_SPARE_16_BYTE = 0x0,			// 512 + 16 byte per section
 	NAND_SPI_SPARE_32_BYTE,					// 512 + 32 byte per section
+	NAND_SPI_SPARE_0_BYTE,					// no spare area, for WB continuous mode
 } NAND_SPI_SPARE_SIZE_SEL;
 
 typedef enum

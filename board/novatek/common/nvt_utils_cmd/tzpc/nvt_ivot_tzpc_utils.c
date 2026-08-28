@@ -328,6 +328,92 @@ static TZPC_NAME tz_pc_NS02201[] = {
 	{CPU_TZPC_EDAP1_CTRL,              "EDAP1 controller"},
 	{CPU_TZPC_EDAP2_CTRL,              "EDAP2 controller"},
 };
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+static TZPC_NAME tz_pc_NS02302[] = {
+	{CPU_TZPC_TOP_CTRL,                   "TOP controller"},
+	{CPU_TZPC_CG_CTRL,                    "CKG controller"},
+	{CPU_TZPC_PAD_CTRL,                   "PAD controller"},
+	{CPU_TZPC_GPIO_CTRL,                 "GPIO controller"},
+
+	{CPU_TZPC_TEST_CTRL,     			 "Test controller"},    //4
+	{CPU_TZPC_TIMER_CTRL,               "TIMER controller"},
+	{CPU_TZPC_UART_CTRL,                 "UART controller"},
+    {CPU_TZPC_I2C_CTRL,     			  "I2C controller"},
+	
+	{CPU_TZPC_SPI_CTRL,					  "SPI controller"},
+	{CPU_TZPC_PWM_CTRL,     			  "PWM controller"},
+	{CPU_TZPC_EAC_CTRL,     			  "EAC controller"},
+	{CPU_TZPC_EFUSE_CTRL,               "Efuse controller"},
+
+	{CPU_TZPC_HVYLD_CTRL,   		"Heavyload controller"},
+	{CPU_TZPC_MAU_CTRL,     			  "MAU controller"},
+	{CPU_TZPC_IDE_CTRL,     			  "IDE controller"},
+	{CPU_TZPC_MI_CTRL,      			   "MI controller"},
+	
+    {CPU_TZPC_ETH_CTRL,					  "ETH controller"},
+	{CPU_TZPC_MCU_CTRL,					  "MCU controller"},    //16
+	{CPU_TZPC_CC_CTRL,					   "CC controller"},
+	{CPU_TZPC_MCU_SRAM_CTRL,	 	 "MCU SRAM controller"},
+	
+	{CPU_TZPC_STBC_CG_CTRL,			  "STBG CG controller"},
+    {CPU_TZPC_WDT_CTRL,					  "WDT controller"},
+	{CPU_TZPC_USB3_CTRL,     			 "USB3 controller"},
+	{CPU_TZPC_USB3_A_CTRL,			   "USB3 A controller"},
+	
+	{CPU_TZPC_RTC_CTRL,					  "RTC controller"},
+	{CPU_TZPC_DSI_CTRL,    				  "DSI controller"},
+    {CPU_TZPC_CSI_TX_CTRL,  		   "CSI TX controller"},
+    {CPU_TZPC_DSI_PHY_CTRL, 		  "DSI PHY controller"},
+
+	{CPU_TZPC_MIPI_CSI_CTRL,              "CSI controller"},
+	{CPU_TZPC_SIE_CTRL,     			  "SIE controller"},
+    {CPU_TZPC_VIE_CTRL,					  "VIE controller"},
+	{CPU_TZPC_TGE_CTRL,					  "TGE controller"},
+	
+	{CPU_TZPC_IFE_CTRL,					  "IFE controller"},
+	{CPU_TZPC_NAND_CTRL,				 "NAND controller"},
+	{CPU_TZPC_SD3_CTRL,					"SDIO3 controller"},
+    {CPU_TZPC_DRE_CTRL,					  "DRE controller"},
+	
+	{CPU_TZPC_ISE_CTRL,					  "ISE controller"},    //32
+	{CPU_TZPC_IPE_CTRL,      			  "IPE controller"},
+	{CPU_TZPC_IME_CTRL,      			  "IME controller"},
+    {CPU_TZPC_SD_CTRL,       			 "SDIO controller"},
+	
+	{CPU_TZPC_SD2_CTRL,      			"SDIO2 controller"},
+	{CPU_TZPC_ADC_CTRL,      			  "ADC controller"},
+	{CPU_TZPC_VPE_CTRL,      			  "VPE controller"},
+	{CPU_TZPC_VENC_CTRL,     			 "VENC controller"},
+	
+	{CPU_TZPC_JM_CTRL,       			   "JM controller"},
+	{CPU_TZPC_JMISP_CTRL,    			"JMISP controller"},
+    {CPU_TZPC_UTL_CTRL,       			  "UTL controller"},
+	{CPU_TZPC_ROU_CTRL,      			  "ROU controller"},
+	
+	{CPU_TZPC_CAL_CTRL,      			  "CAL controller"},
+	{CPU_TZPC_LSU_CTRL,      			  "LSU controller"},
+	{CPU_TZPC_PPU_CTRL,      			  "PPU controller"},
+	{CPU_TZPC_CONV_CTRL,     			 "CONV controller"},
+	
+	{CPU_TZPC_IFE_SRAM_CTRL, 		 "IFE SRAM controller"},
+    {CPU_TZPC_HWCP_CTRL,     		   "HWCOPY controller"},
+	{CPU_TZPC_TSE_CTRL,					  "TSE controller"},    //52
+	{CPU_TZPC_UVCP_CTRL,				 "UVCP controller"},
+	
+	{CPU_TZPC_GRPH_CTRL,				 "GRPH controller"},
+	{CPU_TZPC_GRPH2_CTRL,				"GRPH2 controller"},
+    {CPU_TZPC_GRPH3_CTRL, 				"GRPH3 controller"},
+	{CPU_TZPC_JPG_CTRL,     			 "JPEG controller"},
+	
+	{CPU_TZPC_IVE_CTRL,     			  "IVE controller"},
+	{CPU_TZPC_MDBC_CTRL,     			 "MDBC controller"},
+    {CPU_TZPC_TRKE_CTRL,				 "TRKE controller"},     
+	{CPU_TZPC_NUE2_CTRL,     			 "NUE2 controller"},
+	
+	{CPU_TZPC_TRICK_BOX_CTRL,		"Trick Box controller"},
+	{CPU_TZPC_TCM_CTRL,                   "TCM controller"},     //110
+	{CPU_TZPC_TCM2_CTRL,                 "TCM2 controller"},
+};
 #else
 static TZPC_NAME tz_pc_NA51102[] = {
 	{CPU_TZPC_SCE_CTRL,         "   SCE controller"},
@@ -349,6 +435,7 @@ static TZPC_NAME tz_pc_NA51102[] = {
 #define NA51084                             0x50210000
 #define NA51090                             0xbc210000
 #define NA51102                             0x52210000
+#define NS02201                             0xf2210000
 
 #define EMU_COMMON_CMD_SIZE    20
 static char emuCommonBuf[EMU_COMMON_CMD_SIZE];
@@ -510,6 +597,8 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 		element = sizeof(tz_pc_NA51102) / sizeof(TZPC_NAME);
 #elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 		element = sizeof(tz_pc_NS02201) / sizeof(TZPC_NAME);
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+		element = sizeof(tz_pc_NS02302) / sizeof(TZPC_NAME);
 #endif
 		printf("=>Select test module 0 ~ %d\r\n", element);
 		selectionBit = emu_get_number(0, element - 1);
@@ -517,8 +606,11 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 		address = tz_pc_NA51102[selectionBit].base_address;
 #elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 		address = tz_pc_NS02201[selectionBit].base_address;
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+		address = tz_pc_NS02302[selectionBit].base_address;
 #endif
 		if (address >= 0x100) {
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 			tzpc_address = 0x2F0220024;
 			if (address == CPU_TZPC_PCIE_DBI2_CTRL) {
 				address_bit = 6;
@@ -551,6 +643,17 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 			} else if (address == CPU_TZPC_EDAP2_CTRL) {
 				address = 0x2F3800000;
 			}
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+			tzpc_address = 0x2F0166024;
+
+			address_bit = address - CPU_TZPC_SPECIAL_START;
+	
+			if (address == CPU_TZPC_TCM_CTRL) {
+				address = 0x2F1000000;
+			} else if (address == CPU_TZPC_TCM2_CTRL) {
+				address = 0x2F1100000;
+			}
+#endif
 		} else {
 			address_ofs = address;
 			address_bit = address_ofs % 32;
@@ -560,6 +663,9 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 			address = (0x2F0000000 | (address << 16));
 #elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 			tzpc_address = 0x2F0220000 + address_ofs;
+			address = (0x2F0000000 | (address << 16));
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+			tzpc_address = 0x2F0166000 + address_ofs;
 			address = (0x2F0000000 | (address << 16));
 #endif
 		}
@@ -572,9 +678,12 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 		printf("[51102][%s]\r\n", tz_pc_NA51102[selectionBit].module_name);
 #elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 		printf("[02201][%s]\r\n", tz_pc_NS02201[selectionBit].module_name);
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+		printf("[02302][%s]\r\n", tz_pc_NS02302[selectionBit].module_name);
 #endif
 		printf(" -> TZPC base address = 0x%08lx bit[%d]\r\n", tzpc_address, address_bit);
 
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 		if (address < 0x2F1400000) {
 			if (address == 0xf0700000) {
 				debug_dump_addr(address, 128);
@@ -592,11 +701,11 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 		} else {
 			printf("skip read 0x%lx\r\n", address);
 		}
-
+#endif
 		if (tzpc_address == 0xFF600000) {
 			*(volatile UINT32 *)0xF0FF0020 |= (1 << 2);
 		} else {
-			*(volatile u32 *)tzpc_address |= (1 << address_bit);
+			*(volatile uintptr_t *)tzpc_address |= (1 << address_bit);
 		}
 
 		printf("switch to secure mode allow only\r\n");
@@ -638,20 +747,50 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 		printf(" RSA SRAM clr [0x%08lx] = bit%d[%d]\r\n", (int)reg, TOP_SRAM_SD_RSA_BIT_OFS, (int)((reg >> TOP_SRAM_SD_RSA_BIT_OFS) & 0x1));
 
 	} else if (strncmp(argv[1], "tzpc_dump", 9) == 0) {
+#ifdef CONFIG_TARGET_NA51102_A64
+		element = sizeof(tz_pc_NA51102) / sizeof(TZPC_NAME);
+#elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 		element = sizeof(tz_pc_NS02201) / sizeof(TZPC_NAME);
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+		element = sizeof(tz_pc_NS02302) / sizeof(TZPC_NAME);
+#endif
 		for (index = 0; index < element; index ++) {
-			address = tz_pc_NS02201[index].base_address;
+#ifdef CONFIG_TARGET_NA51102_A64
+		address = tz_pc_NA51102[selectionBit].base_address;
+#elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
+		address = tz_pc_NS02201[selectionBit].base_address;
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+		address = tz_pc_NS02302[selectionBit].base_address;
+#endif
 			address_ofs = address;
 			address_bit = address_ofs % 32;
 			address_ofs = (address_ofs / 32) * 4;
 			tzpc_address = IOADDR_TOP_REG_BASE + address_ofs;
 			address = (IOADDR_GLOBAL_BASE | (address << 16));
-
+#ifdef CONFIG_TARGET_NA51102_A64
+			printf("TZPC[0x%08lx]bit[%2d] -> [0x%08x] => %s\r\n", tzpc_address, address_bit, address, tz_pc_NA51102[index].module_name);
+#elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 			printf("TZPC[0x%08lx]bit[%2d] -> [0x%08x] => %s\r\n", tzpc_address, address_bit, address, tz_pc_NS02201[index].module_name);
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+			printf("TZPC[0x%08lx]bit[%2d] -> [0x%08x] => %s\r\n", tzpc_address, address_bit, address, tz_pc_NS02302[index].module_name);
+#endif	
+			
 			if ((INREG32(tzpc_address) & (1 << address_bit)) == (1 << address_bit)) {
+#ifdef CONFIG_TARGET_NA51102_A64
+				printf("[SEC only]=>[%s]\r\n", tz_pc_NA51102[index].module_name);
+#elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 				printf("[SEC only]=>[%s]\r\n", tz_pc_NS02201[index].module_name);
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+				printf("[SEC only]=>[%s]\r\n", tz_pc_NS02302[index].module_name);
+#endif	
 			} else {
+#ifdef CONFIG_TARGET_NA51102_A64
+				printf("[BOTH]=>[%s]\r\n", tz_pc_NA51102[index].module_name);
+#elif defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 				printf("[BOTH]=>[%s]\r\n", tz_pc_NS02201[index].module_name);
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+				printf("[BOTH]=>[%s]\r\n", tz_pc_NS02302[index].module_name);
+#endif
 			}
 		}
 	}
@@ -802,12 +941,20 @@ static int do_tzpc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 				reg = *(UINT64 *)0x2F00C0030;
 				printf("	=>[%2d] read back [%2d]\r\n", i, reg);
 			}
-		} else {
+		} else if (chip_id == NS02201) {
 			int i;
 			printf("=>NT98690 NV counter over flow @ 64\r\n");
 			for (i = 0; i < 70; i++) {
 				*(UINT64 *)0x2F0220030 = 1;
 				reg = readl(0x2F0220030);
+				printf("	=>[%2d] read back [%2d]\r\n", i, reg);
+			}
+		} else {
+			int i;
+			printf("=>NT98538 NV counter over flow @ 64\r\n");
+			for (i = 0; i < 70; i++) {
+				*(UINT64 *)0x2F0166030 = 1;
+				reg = readl(0x2F0166030);
 				printf("	=>[%2d] read back [%2d]\r\n", i, reg);
 			}
 		}

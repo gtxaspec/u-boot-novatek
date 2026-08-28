@@ -1269,6 +1269,8 @@ int do_nvt_boot_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	}
 
 	nvt_dbg(FUNC, "boot time: %lu(us)\n", get_nvt_timer0_cnt());
+	sprintf(buf, "%s ", env_get("bootargs"));
+	strcat(cmdline, buf);
 
 	/*
 	 * Loading linux kernel
@@ -1286,8 +1288,16 @@ int do_nvt_boot_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 
 	nvt_dbg(FUNC, "boot time: %lu(us)\n", get_nvt_timer0_cnt());
 	nvt_tm0_cnt_end = get_nvt_timer0_cnt();
+	/* boot time recording */
+#ifdef CONFIG_ARM64
+	sprintf(buf, "bootts=%lu,%lu print-fatal-signals=1 ", nvt_tm0_cnt_beg, nvt_tm0_cnt_end);
+#else
+	sprintf(buf, "bootts=%lu,%lu resume user_debug=0xff ", nvt_tm0_cnt_beg, nvt_tm0_cnt_end);
+#endif
+	strcat(cmdline, buf);
+	env_set("bootargs", cmdline);
+	nvt_dbg(IND, "bootargs:%s\n", env_get("bootargs"));
 
-	nvt_dbg(IND, "bootargs:%s\n", cmdline);
 	/* To assign relocated fdt address */
 	sprintf(buf, "0x%lx ", nvt_memory_cfg[MEMTYPE_LINUX].addr + nvt_memory_cfg[MEMTYPE_LINUX].size);
 	env_set("fdt_high", buf);

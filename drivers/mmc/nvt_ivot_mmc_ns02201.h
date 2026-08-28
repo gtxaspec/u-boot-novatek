@@ -93,12 +93,12 @@
 #define TOP_SDIO_EN_REG                 (IOADDR_TOP_REG_BASE + 0x04)
 #define TOP_SDIO_EN_MASK                BIT(4)
 #define TOP_SDIO_EN_GPIO_REG            (IOADDR_TOP_REG_BASE + 0xA0)
-#define TOP_SDIO_EN_GPIO_MASK           BIT(11) | BIT(12) | BIT(13) | BIT(14) | BIT(15) | BIT(16)
+#define TOP_SDIO_EN_GPIO_MASK           BIT(13) | BIT(14) | BIT(15) | BIT(16) | BIT(17) | BIT(18)
 
 #define TOP_SDIO2_EN_REG                (IOADDR_TOP_REG_BASE + 0x04)
 #define TOP_SDIO2_EN_MASK               BIT(8)
 #define TOP_SDIO2_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xA0)
-#define TOP_SDIO2_EN_GPIO_MASK          BIT(17) | BIT(18) | BIT(19) | BIT(20) | BIT(21) | BIT(22)
+#define TOP_SDIO2_EN_GPIO_MASK          BIT(19) | BIT(20) | BIT(21) | BIT(22) | BIT(23) | BIT(24)
 
 #define TOP_SDIO3_EN_REG                (IOADDR_TOP_REG_BASE + 0x04)
 #define TOP_SDIO3_EN_MASK               BIT(12)

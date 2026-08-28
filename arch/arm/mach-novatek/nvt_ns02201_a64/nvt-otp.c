@@ -98,6 +98,30 @@ extern s32 local_store(u32 uiRowAddress);
 #define MACRO_B_EN                  0x2
 #define DBL_BIT_EN                  0x3
 
+static const UINT32   core_power_leakage[LEAKAGE_COUNT] = {
+	31,			//0.850(V)
+	31,			//0.850(V)
+	31,			//0.850(V)
+	31,			//0.850(V)
+
+	31,			//0.850(V)
+	31,			//0.850(V)
+	31,			//0.850(V)
+	31,			//0.850(V)
+
+	31,			//0.850(V)
+	31,			//0.850(V)
+	31,			//0.850(V)
+	31,			//0.850(V)
+
+	31,			//0.850(V)
+	31,			//0.850(V)
+
+	31,			//0.850(V)
+	31,			//0.850(V)
+	31,			//0.850(V)
+};
+
 static UINT32 otp_timing[RETRY_CNT] = {
 	TIMING_1ST,
 	TIMING_2ND,
@@ -133,6 +157,9 @@ void otp_init(void)
 	//Assert OTP RSTN
 	OTP_RSTN_ENABLE();
 	powerdown_efuse();
+#ifdef CONFIG_PWM_NVT
+    prepare_power_trim(PWM0_CORE_POWER);
+#endif
 }
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
@@ -1019,4 +1046,28 @@ INT32 otp_get_pkg_version(void)
 		}
 	}
 	return pkgUID;
+}
+
+/*
+    exteact trim data to PWM duty cycle
+
+    Parsing trim data and transfer to pwm duty cycle
+
+    @param [in] data	trim data
+	@param [in] freq	CPU freq
+    @return read half-word efuse data
+        - @b  UINT32: PWM dufy
+*/
+#define CORE_DEFAULT_DUTY 31
+
+u32 extract_trim_to_pwm_duty(PWM_POWER_SET power_set, UINT32 data)
+{
+	u32 duty = 0;
+
+	if (data < LEAKAGE_COUNT) {
+		duty = core_power_leakage[data];
+	} else {	//leakage >= 21 =>
+		duty = CORE_DEFAULT_DUTY;
+	}
+	return duty;
 }

@@ -7,6 +7,8 @@
 #include "nvt_ivot_mmc_ns02201.h"
 #elif (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64))
 #include "nvt_ivot_mmc_ns02302.h"
+#elif (defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64))
+#include "nvt_ivot_mmc_ns02301.h"
 #endif
 
 #endif

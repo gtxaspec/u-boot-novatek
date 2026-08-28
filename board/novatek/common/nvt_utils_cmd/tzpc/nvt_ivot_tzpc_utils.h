@@ -378,6 +378,95 @@ typedef enum {
 	CPU_TZPC_MAX,
 
 } CPU_TZPC_MEMORY_MAP;
+#elif defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64)
+typedef enum {
+	CPU_TZPC_NULL_CTRL          = 0x0,
+	CPU_TZPC_TOP_CTRL           = 0x1,
+	CPU_TZPC_CG_CTRL,
+	CPU_TZPC_PAD_CTRL,
+	CPU_TZPC_GPIO_CTRL,         //0x4
+	//0x5
+	//0x6
+	CPU_TZPC_TEST_CTRL          = 0x7,
+
+	CPU_TZPC_TIMER_CTRL         = 0x10,
+	CPU_TZPC_UART_CTRL,         //0x11
+	CPU_TZPC_I2C_CTRL,          //0x12
+	CPU_TZPC_SPI_CTRL,			//0x13
+	CPU_TZPC_PWM_CTRL,          //0x14
+	CPU_TZPC_EAC_CTRL,          //0x15
+
+	CPU_TZPC_EFUSE_CTRL,        //0x16
+	CPU_TZPC_HVYLD_CTRL,        //0x17
+	CPU_TZPC_MAU_CTRL,          //0x18
+	CPU_TZPC_IDE_CTRL,          //0x19
+	CPU_TZPC_MI_CTRL,           //0x1a
+	CPU_TZPC_ETH_CTRL,			//0x1b
+	CPU_TZPC_MCU_CTRL			= 0x20,
+	CPU_TZPC_CC_CTRL,			//0x21
+	CPU_TZPC_MCU_SRAM_CTRL,		//0x22
+	CPU_TZPC_STBC_CG_CTRL,		//0x23
+	CPU_TZPC_WDT_CTRL,			//0x24
+	CPU_TZPC_USB3_CTRL          = 0x28,
+	CPU_TZPC_USB3_A_CTRL,		//0x29
+	CPU_TZPC_RTC_CTRL			= 0x2b,
+	CPU_TZPC_DSI_CTRL,          //0x2c
+	CPU_TZPC_CSI_TX_CTRL,       //0x2d
+	CPU_TZPC_DSI_PHY_CTRL,      //0x2e
+
+	CPU_TZPC_MIPI_CSI_CTRL      = 0x30,
+
+	CPU_TZPC_SIE_CTRL,          //0x31
+	CPU_TZPC_VIE_CTRL,			//0x32
+	CPU_TZPC_TGE_CTRL,			//0x33
+	CPU_TZPC_IFE_CTRL,			//0x34
+	CPU_TZPC_NAND_CTRL,			//0x35
+	CPU_TZPC_SD3_CTRL,			//0x36
+	CPU_TZPC_DRE_CTRL,			//0x37
+	CPU_TZPC_ISE_CTRL,			//0x38
+
+	CPU_TZPC_IPE_CTRL           = 0x40,
+	CPU_TZPC_IME_CTRL           = 0x41,
+	CPU_TZPC_SD_CTRL            = 0x42,
+	CPU_TZPC_SD2_CTRL           = 0x43,
+	CPU_TZPC_ADC_CTRL           = 0x44,
+	
+	CPU_TZPC_VPE_CTRL           = 0x50,
+
+	CPU_TZPC_VENC_CTRL          = 0x60,
+	
+	CPU_TZPC_JM_CTRL            = 0x70,
+	CPU_TZPC_JMISP_CTRL         = 0x71,
+	CPU_TZPC_UTL_CTRL           = 0x72,
+	CPU_TZPC_ROU_CTRL           = 0x73,
+	CPU_TZPC_CAL_CTRL           = 0x74,
+	CPU_TZPC_LSU_CTRL           = 0x75,
+	CPU_TZPC_PPU_CTRL           = 0x76,
+	
+	CPU_TZPC_CONV_CTRL          = 0x80,
+
+	CPU_TZPC_IFE_SRAM_CTRL      = 0xD4,
+	
+	CPU_TZPC_HWCP_CTRL     		= 0xE0,
+	CPU_TZPC_TSE_CTRL		    = 0xE1,
+	CPU_TZPC_UVCP_CTRL		    = 0xE2,
+	CPU_TZPC_GRPH_CTRL		    = 0xE3,
+	CPU_TZPC_GRPH2_CTRL		    = 0xE4,
+	CPU_TZPC_GRPH3_CTRL 	    = 0xE5,
+	
+	CPU_TZPC_JPG_CTRL     		= 0xE8,
+	CPU_TZPC_IVE_CTRL     		= 0xE9,
+	CPU_TZPC_MDBC_CTRL     		= 0xEA,
+	CPU_TZPC_TRKE_CTRL     		= 0xEB,
+	CPU_TZPC_NUE2_CTRL     		= 0xEC,
+
+	CPU_TZPC_TRICK_BOX_CTRL     = 0xF0,
+	CPU_TZPC_SPECIAL_START      = 0x100,
+	CPU_TZPC_TCM_CTRL           = CPU_TZPC_SPECIAL_START,
+	CPU_TZPC_TCM2_CTRL,
+	CPU_TZPC_MAX,
+
+} CPU_TZPC_MEMORY_MAP;
 #else
 typedef enum {
 	CPU_TZPC_SCE_CTRL       = 0x62,
