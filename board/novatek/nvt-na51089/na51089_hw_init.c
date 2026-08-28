@@ -259,9 +259,7 @@ static void axi_bridge_timeout_en(void)
 
 int nvt_ivot_hw_init(void)
 {
-	if (nvt_ivot_set_cpuclk() != 0) {
-		printf("Set CPU clock fail, use default clock frequency\n");
-	}
+	nvt_ivot_set_cpuclk();
 
 	ethernet_init();
 

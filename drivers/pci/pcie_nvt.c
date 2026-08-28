@@ -24,7 +24,7 @@
 
 #include "pcie_dw_common.h"
 
-#define DRV_VERSION                     "1.00.03"
+#define DRV_VERSION                     "1.00.04"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -50,6 +50,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /* TOP defines */
 #define TOP_BS_REG_OFS			0x00
+#define TOP_BS_PCIE_EP_MSK		(1<<15)
 #define TOP_BS_PCIE_LANE_MODE_MSK	(1<<16)
 #define TOP_BS_PCIE_LANE_MODE_ONE_X2	(0)
 #define TOP_BS_PCIE_LANE_MODE_TWO_X1	(1<<16)
@@ -243,6 +244,10 @@ static int bootstrap_read(struct pcie_nvt *pci)
 	u32 val;
 
 	val = readl(IOADDR_TOP_REG_BASE + TOP_BS_REG_OFS);
+	if (val & TOP_BS_PCIE_EP_MSK) {
+		printf("%s: RC driver probe, but bootstrap is EP\r\n", __func__);
+		return -1;
+	}
 	if ((val&TOP_BS_PCIE_LANE_MODE_MSK) == TOP_BS_PCIE_LANE_MODE_TWO_X1) {
 		// x1 * 2
 		if (pci->num_lanes == 2) {

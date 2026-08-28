@@ -496,6 +496,16 @@ config MT7621_GPIO
 	help
 	  Say yes here to support MediaTek MT7621 compatible GPIOs.
 
+config NA51055_GPIO
+	bool "Novatek GPIO driver"
+	depends on DM_GPIO && TARGET_NA51055
+	select GPIO_EXTRA_HEADER
+	default n
+	help
+	  Support GPIO controllers on Novatek Video Platform family of SoCs.
+	  Supported devices:
+	  - NA51055 Series
+
 config NA51089_GPIO
 	bool "Novatek GPIO driver"
 	depends on DM_GPIO && TARGET_NA51089

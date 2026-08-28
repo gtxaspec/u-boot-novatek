@@ -1131,6 +1131,7 @@ dtb-$(CONFIG_TARGET_IMX8MM_CL_IOT_GATE) += imx8mm-cl-iot-gate.dtb
 dtb-$(CONFIG_TARGET_EA_LPC3250DEVKITV2) += lpc3250-ea3250.dtb
 
 # For NVT board
+dtb-$(CONFIG_TARGET_NA51055) += nvt-na51055-evb.dtb
 dtb-$(CONFIG_TARGET_NA51089) += nvt-na51089-evb.dtb
 dtb-$(CONFIG_TARGET_NA51090) += nvt-na51090-evb.dtb
 dtb-$(CONFIG_TARGET_NA51090_A64) += nvt-na51090-evb-a64.dtb

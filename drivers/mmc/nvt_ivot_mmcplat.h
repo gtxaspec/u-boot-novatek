@@ -1,7 +1,9 @@
 #ifndef __NVT_IVOT_MMCPLAT_H__
 #define __NVT_IVOT_MMCPLAT_H__
 
-#if (defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51089_A64))
+#if (defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51055_A64))
+#include "nvt_ivot_mmc_na51055.h"
+#elif (defined(CONFIG_TARGET_NA51089) || defined(CONFIG_TARGET_NA51089_A64))
 #include "nvt_ivot_mmc_na51089.h"
 #elif (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64))
 #include "nvt_ivot_mmc_na51090.h"

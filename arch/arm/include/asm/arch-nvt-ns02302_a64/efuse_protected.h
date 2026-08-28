@@ -110,7 +110,7 @@ typedef enum {
 	SECUREBOOT_SIGN_RSA_CHK,            ///< Quary if Signature hash checksum RSA key correct or not
 	SECUREBOOT_JTAG_DISABLE_EN,         ///< Quary if JTAG is disable or not(TRUE : disable)
 	SECUREBOOT_SIGN_ECDSA,              ///< Quary if Signature methed is ECDSA (once RSA ECDSA enable at the same time=> ECDSA priority high)
-
+	
 	SECUREBOOT_1ST_KEY_SET_PROGRAMMED,  ///< Quary if 1st key set programmed or not
 	SECUREBOOT_2ND_KEY_SET_PROGRAMMED,  ///< Quary if 2nd key set programmed or not
 	SECUREBOOT_3RD_KEY_SET_PROGRAMMED,  ///< Quary if 3rd key set programmed or not
@@ -131,6 +131,11 @@ typedef enum {
 	SECUREBOOT_MCU_DISABLE,
 #endif
 	SECUREBOOT_STATUS_NUM,
+	//NT98539A
+	SECUREBOOT_SIGN_RSA_PSS,			///RSAPKCS2.1
+	SECUREBOOT_SIGN_RSA_PKCS1P5,		///RSAPKCS1.5
+	SECUREBOOT_HEADER_SIGNATURE,		
+	//NT98539A
 
 	SECUREBOOT_CPU_OVER_CLOCKING,       ///< Quary if CPU can over clocking or not
 	SECUREBOOT_CONV_OVER_CLOCKING,      ///< Quary if CONV can over clocking or not
@@ -176,9 +181,12 @@ typedef enum {
 #define OTP_4TH_KEY_PROGRAMMED_BIT          30
 #define OTP_5TH_KEY_PROGRAMMED_BIT          31
 
+#define OTP_SIGNATURE_RSAPSS_BIT           	16
 #define OTP_SIGNATURE_ECDSA_BIT             17
 
 //2nd addr[9]
+#define OTP_HEADER_SIGNATURE_BIT			17
+#define OTP_SIGNATURE_RSAPKCS1P5_BIT		16
 #define OTP_DDR_OVER_CLOCKING_BIT       	15
 #define OTP_CPU_OVER_CLOCKING_BIT       	14
 #define OTP_CONV_OVER_CLOCKING_BIT      	13
@@ -194,6 +202,7 @@ typedef enum {
 #define HDMI_2ND_AVAILABLE                  (0x3<<EFUSE_HDMI_USAGE_BIT)
 #define HDMI_2ND_DISABLE                    (0x7<<EFUSE_HDMI_USAGE_BIT)
 #endif
+#define OTP_SIGNATURE_RSAPSS                (1 << OTP_SIGNATURE_RSAPSS_BIT)
 #define OTP_SIGNATURE_ECDSA                 (1 << OTP_SIGNATURE_ECDSA_BIT)
 
 #define OTP_1ST_KEY_PROGRAMMED              (1 << OTP_1ST_KEY_PROGRAMMED_BIT)
@@ -226,7 +235,8 @@ typedef enum {
 #define OTP_DDR_OVER_CLOCKING           	(1 << OTP_DDR_OVER_CLOCKING_BIT)	//bit[15]
 #define OTP_VENC_OVER_CLOCKING      		(1 << OTP_VENC_OVER_CLOCKING_BIT)	//bit[12]
 #define OTP_CONV_OVER_CLOCKING          	(1 << OTP_CONV_OVER_CLOCKING_BIT)	//bit[13]
-
+#define OTP_SIGNATURE_RSAPKCS1P5			(1 << OTP_SIGNATURE_RSAPKCS1P5_BIT)	//bit[16]
+#define OTP_HEADER_SIGNATURE_EN				(1 << OTP_HEADER_SIGNATURE_BIT)		//bit[17]
 
 #define OTP_1ST_KEY_BIT_START               (0xF << 16)
 #define OTP_2ND_KEY_BIT_START               (0xF << 20)
@@ -238,11 +248,14 @@ typedef enum {
 #define is_secure_enable()                  quary_secure_boot(SECUREBOOT_SECURE_EN)
 #define is_data_area_encrypted()            quary_secure_boot(SECUREBOOT_DATA_AREA_ENCRYPT)
 #define is_signature_rsa()                  quary_secure_boot(SECUREBOOT_SIGN_RSA)
+#define is_signature_rsapss()               quary_secure_boot(SECUREBOOT_SIGN_RSA_PSS)
+#define is_signature_rsapkcs1p5()           quary_secure_boot(SECUREBOOT_SIGN_RSA_PKCS1P5)
 #define is_signature_ecdsa()                quary_secure_boot(SECUREBOOT_SIGN_ECDSA)
 #define is_signature_rsa_chsum_enable()     quary_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
 #define is_signature_chsum_enable()         quary_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
 #define is_signature_aes()                  !quary_secure_boot(SECUREBOOT_SIGN_RSA)
 #define is_JTAG_DISABLE_en()                quary_secure_boot(SECUREBOOT_JTAG_DISABLE_EN)
+#define is_header_signature_en()			quary_secure_boot(SECUREBOOT_HEADER_SIGNATURE)
 
 #define is_1st_key_programmed()             quary_secure_boot(SECUREBOOT_1ST_KEY_SET_PROGRAMMED)
 #define is_2nd_key_programmed()             quary_secure_boot(SECUREBOOT_2ND_KEY_SET_PROGRAMMED)
@@ -301,6 +314,10 @@ extern void otp_init(void);
 #define efuse_signature_ecdsa_en()      enable_secure_boot(SECUREBOOT_SIGN_ECDSA)
 #define efuse_signature_rsa_chksum_en() enable_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
 #define efuse_signature_chksum_en()     enable_secure_boot(SECUREBOOT_SIGN_RSA_CHK)
+
+#define efuse_header_signature_en()		enable_secure_boot(SECUREBOOT_HEADER_SIGNATURE)
+#define efuse_signature_rsapss_en() 	enable_secure_boot(SECUREBOOT_SIGN_RSA_PSS)
+#define efuse_signature_rsapkcs1p5_en() enable_secure_boot(SECUREBOOT_SIGN_RSA_PKCS1P5)
 
 #if (0)
 #define efuse_DSP1_dis()                enable_secure_boot(SECUREBOOT_DSP1_DISABLE)

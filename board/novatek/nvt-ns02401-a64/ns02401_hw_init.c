@@ -161,16 +161,6 @@ static void axi_bridge_timeout_en(void)
 #endif
 }
 
-
-static void nvt_usb3_init(void)
-{
-	int reg = 0;
-
-	reg = readl(0x2f0580140);
-	reg |= (0x30);
-	writel(reg, 0x2f0580140);
-}
-
 typedef enum {
 	PAD_POWERID_SN   =          0x10,      ///< Pad power id for SN  REG
 	PAD_POWERID_SN2  =          0x20,      ///< Pad power id for SN2 REG
@@ -409,8 +399,6 @@ int nvt_ivot_hw_init(void)
 	axi_bridge_timeout_en();
 
 	usbphy_init();
-
-	nvt_usb3_init();
 
 	power_init();
 

@@ -34,6 +34,6 @@ enum CHIP_VER {
 extern u32 nvt_get_chip_id(void);
 extern u32 nvt_get_chip_ver(void);
 
-#define NVT_TIMER0_CNT		0x2F0100108
+#define NVT_TIMER0_CNT		(IOADDR_TIMER_REG_BASE + 0x108)
 
 #endif /* __ARCH_HARDWARE_H__ */

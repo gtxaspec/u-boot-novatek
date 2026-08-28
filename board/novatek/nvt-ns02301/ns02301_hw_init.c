@@ -65,6 +65,7 @@
 
 #define WDT_CTRL_OFS 0x0
 #define WDT_MANUL_OFS 0xC
+#define WDT_DATA_OFS 0x84
 
 #if defined(CONFIG_SD_CARD1_POWER_PIN) || defined(CONFIG_SD_CARD2_POWER_PIN) || defined(ETH_PHY_HW_RESET)
 static void gpio_set_output(u32 pin)
@@ -112,11 +113,12 @@ void nvt_ivot_reset_cpu(void)
 	reg_value = CG_GETREG(CG_PLL_ENABLE_OFS);
 	CG_SETREG(CG_PLL_ENABLE_OFS, reg_value | WDT_POS);
 
-	WDT_SETREG(WDT_CTRL_OFS, 0x5A960112);
+	WDT_SETREG(WDT_DATA_OFS, 0x0);
+	WDT_SETREG(WDT_CTRL_OFS, 0x5A960102);
 
 	udelay(80);
 
-	WDT_SETREG(WDT_CTRL_OFS, 0x5A960113);
+	WDT_SETREG(WDT_CTRL_OFS, 0x5A960103);
 
 	WDT_SETREG(WDT_MANUL_OFS, 0x1);
 }

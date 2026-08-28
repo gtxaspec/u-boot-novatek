@@ -252,7 +252,7 @@ int nvt_boot_rtos_bin_auto(void)
 	ulong dram_addr, dram_size;
 	char cmd[256] = {0};
 	int ret = 0;
-	unsigned int tmp_addr = 0;
+	ulong tmp_addr = 0;
 	u_int32_t codesize = 0;
 	u32 align_size = 0;
 	u32 signature_size = 0; // corresponding to nvt-info.dtsi SIGNATURE_SHASIZE = 512
@@ -369,7 +369,7 @@ int nvt_boot_rtos_bin_auto(void)
 			size_t firmware_size = cpu_to_be32(pbfc->uiSizeComp) + sizeof(NVTPACK_BFC_HDR);
 			tmp_addr = rtos_addr + rtos_size - firmware_size;
 			if ((firmware_size + cpu_to_be32(pbfc->uiSizeUnComp)) > rtos_size) {
-				printf("%s Attention!!! rtos starting address at 0x%lx with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08x %s\r\n",
+				printf("%s Attention!!! rtos starting address at 0x%lx with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08lx %s\r\n",
 					   ANSI_COLOR_RED, rtos_addr, cpu_to_be32(pbfc->uiSizeUnComp), tmp_addr, ANSI_COLOR_RESET);
 				printf("%s It can't decompress %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
 				return -1;
@@ -443,19 +443,19 @@ int nvt_boot_rtos_bin_auto(void)
 			size_t firmware_size = cpu_to_be32(pbfc->uiSizeComp) + sizeof(NVTPACK_BFC_HDR);
 			tmp_addr = rtos_addr + rtos_size - firmware_size;
 			if ((firmware_size + cpu_to_be32(pbfc->uiSizeUnComp)) > rtos_size) {
-				printf("%s Attention!!! rtos starting address at 0x%lx with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08x %s\r\n",
+				printf("%s Attention!!! rtos starting address at 0x%lx with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08lx %s\r\n",
 					   ANSI_COLOR_RED, rtos_addr, cpu_to_be32(pbfc->uiSizeUnComp), tmp_addr, ANSI_COLOR_RESET);
 				printf("%s It can't decompress %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
 				while (1);
 			}
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
             || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))
-			sprintf(cmd, "nand read 0x%x %s 0x%lx ", tmp_addr, rtos_name, firmware_size);
+			sprintf(cmd, "nand read 0x%lx %s 0x%lx ", tmp_addr, rtos_name, firmware_size);
 #elif defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR))
-			sprintf(cmd, "sf read 0x%x 0x%llx 0x%lx ", tmp_addr, part_off, firmware_size);
+			sprintf(cmd, "sf read 0x%lx 0x%llx 0x%lx ", tmp_addr, part_off, firmware_size);
 #elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
 			align_size = ALIGN_CEIL(firmware_size, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN;
-			sprintf(cmd, "mmc read 0x%x 0x%llx 0x%x", tmp_addr, part_off / MMC_MAX_BLOCK_LEN, align_size);
+			sprintf(cmd, "mmc read 0x%lx 0x%llx 0x%x", tmp_addr, part_off / MMC_MAX_BLOCK_LEN, align_size);
 #endif
 			printf("=>run cmd : %s\n", cmd);
 			run_command(cmd, 0);
@@ -473,8 +473,7 @@ int nvt_boot_rtos_bin_auto(void)
 				/* lzma compressed image*/
 				size_t Uncompsz = cpu_to_be32(pbfc->uiSizeUnComp);
 				printf("Decompressed lzma rtos\n");
-				flush_dcache_range((ulong)tmp_addr,
-								   (ulong)(tmp_addr + firmware_size));
+				flush_dcache_range((ulong)tmp_addr, (ulong)(tmp_addr + firmware_size));
 
 				ret = lzmaBuffToBuffDecompress((unsigned char *)rtos_addr, &Uncompsz, (unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), Compsz);
 				if (ret != 0) {

@@ -41,6 +41,10 @@
 #include <asm/nvt-common/nvt_ivot_aes_smc.h>
 #include <malloc.h>
 
+#if defined(CONFIG_TARGET_NS02302_A64)
+#include <asm/arch/hardware.h>
+#endif
+
 #if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
 //This is encrypt / decrypt sample code
 #define SAMPLE_CODE_KEYMANAGER      0
@@ -530,6 +534,9 @@ static UINT32 otp_hdmitx2_read_phy(UINT32 ui_offset)
 
 int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
+#if defined(CONFIG_TARGET_NS02302_A64)
+	u32 chip_id = nvt_get_chip_id();
+#endif		
 	if (!strncmp(argv[1], "secure_en", 9)) {
 		printf("=>[secure_en]\r\n");
 		efuse_secure_en();
@@ -542,7 +549,33 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		printf("=>[efuse_signature_rsa_en]\r\n");
 		efuse_signature_rsa_en();
 		printf("is_signature_rsa()=%d\r\n", is_signature_rsa());
-	} else if (!strncmp(argv[1], "ecdsa_en", 8)) {
+	} else if (!strncmp(argv[1], "rsapss_en", 9)) {
+#if defined(CONFIG_TARGET_NS02302_A64)		
+		if(nvt_get_chip_id() != CHIP_NS02402) {
+			printf("=>[rsa_pss(pkcs2.1) not support]\r\n");	
+		} else {
+			printf("=>[rsa_pss(pkcs2.1) enable]\r\n");
+			efuse_signature_rsapss_en();
+			printf("is_signature_rsapss_enable()=%d\r\n", is_signature_rsapss());
+		}
+#endif		
+	}  else if (!strncmp(argv[1], "rsapkcs1p5_en", 13)) {
+#if defined(CONFIG_TARGET_NS02302_A64)	
+		if(nvt_get_chip_id() == CHIP_NS02402) {
+			printf("=>[rsa_pkcs1.5 enable]\r\n");
+			efuse_signature_rsapss_en();
+			printf("is_signature_rsa_chsum_enable()=%d\r\n", is_signature_rsapkcs1p5());
+		}
+#endif	
+	}  else if (!strncmp(argv[1], "header_signature_en", 19)) {
+#if defined(CONFIG_TARGET_NS02302_A64)		
+		if(nvt_get_chip_id() == CHIP_NS02402) {
+			printf("=>[header signature enable]\r\n");
+			efuse_header_signature_en();
+			printf("is_header_signature_en()=%d\r\n", is_header_signature_en());
+		}
+#endif		
+	}  else if (!strncmp(argv[1], "ecdsa_en", 8)) {
 #if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301)
 		printf("=>[efuse_signature_ecdsa_en]\r\n");
 		efuse_signature_ecdsa_en();
@@ -2044,6 +2077,13 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		printf("             is_secure_enable()=%d\r\n", is_secure_enable());
 		printf("       is_data_area_encrypted()=%d\r\n", is_data_area_encrypted());
 		printf("             is_signature_rsa()=%d\r\n", is_signature_rsa());
+#if defined(CONFIG_TARGET_NS02302_A64)
+		if(chip_id == CHIP_NS02402) {
+			printf("          is_signature_rsapss()=%d\r\n", is_signature_rsapss());	
+			printf("      is_signature_rsapkcs1p5()=%d\r\n", is_signature_rsapkcs1p5());					
+			printf("       is_header_signature_en()=%d\r\n", is_header_signature_en());							
+		}
+#endif		
 #if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301)
 		printf("           is_signature_ecdsa()=%d\r\n", is_signature_ecdsa());
 #endif
@@ -2107,8 +2147,13 @@ U_BOOT_CMD(
 	"              [data_encrypt]\n"
 	"              [rsa_en]\n"
 #if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301)
+#if defined(CONFIG_TARGET_NS02302_A64)	
+	"              [rsapss_en](=>pkcs2.1, only@539A)\n"
+	"              [rsapkcs1p5_en](only@539A)\n"
+	"              [header_signature_en](only@539A)\n"
+#endif	
 	"              [ecdsa_en]\n"
-	"              [ecdsa_chksum_en]\n"
+	"              [ecdsa_chksum_en]\n"	
 #endif
 	"              [rsa_chk_en]\n"
 	"              [jtag_disable]\n"

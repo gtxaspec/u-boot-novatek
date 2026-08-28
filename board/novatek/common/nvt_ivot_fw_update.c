@@ -520,11 +520,16 @@ static int nvt_chk_app(ulong addr, unsigned int size, unsigned int pat_id){
 
 static int nvt_chk_loader(ulong addr, unsigned int size, unsigned int pat_id)
 {
+#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT) || defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
+	printf("loader pat%d, no need to check encrypt loader.\r\n",pat_id);
+#else
 	if(MemCheck_CalcCheckSum16Bit(addr, size)!=0)
 	{
 		printf("loader pat%d, res check sum fail.\r\n",pat_id);
 		return -1;
 	}
+#endif
+
 	return 0;
 }
 

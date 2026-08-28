@@ -665,8 +665,60 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		break;
 
 	case SECUREBOOT_SIGN_RSA:
-		if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
-			result = TRUE;
+		if(chip_id == CHIP_NS02402) {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {			//addr8 bit[01] = 1
+				if ((sec & OTP_SIGNATURE_RSAPSS) == OTP_SIGNATURE_RSAPSS) {	//addr8 bit[16] = 1
+					result = FALSE;	//<<RSAPSS(PKCS2.1)
+ 				} else {
+					//addr8 bit[16] = 0 -> check addr[9] bit[16]	
+					if((sec2 & OTP_SIGNATURE_RSAPKCS1P5) == OTP_SIGNATURE_RSAPKCS1P5) {
+						result = FALSE; // PKCS1.5
+					} else {
+						result = TRUE;	// RSA X.509
+					}
+				}
+			}
+		} else {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {	
+				result = TRUE;
+			}
+		}
+		break;
+	case SECUREBOOT_SIGN_RSA_PSS:
+		if(chip_id == CHIP_NS02402) {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {			//addr8 bit[01] = 1
+				if ((sec & OTP_SIGNATURE_RSAPSS) == OTP_SIGNATURE_RSAPSS) {	//addr8 bit[16] = 1
+					result = TRUE;	//<<RSAPSS(PKCS2.1)
+ 				} else {
+					//addr8 bit[16] = 0 -> check addr[9] bit[16]	
+					if((sec2 & OTP_SIGNATURE_RSAPKCS1P5) == OTP_SIGNATURE_RSAPKCS1P5) {
+						result = FALSE; // PKCS1.5
+					} else {
+						result = FALSE;	// RSA X.509
+					}
+				}
+			}
+		} else {			
+			result = FALSE;			
+		}
+		break;
+
+	case SECUREBOOT_SIGN_RSA_PKCS1P5:
+		if(chip_id == CHIP_NS02402) {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {			//addr8 bit[01] = 1
+				if ((sec & OTP_SIGNATURE_RSAPSS) == OTP_SIGNATURE_RSAPSS) {	//addr8 bit[16] = 1
+					result = FALSE;	//<<RSAPSS(PKCS2.1)
+ 				} else {
+					//addr8 bit[16] = 0 -> check addr[9] bit[16]	
+					if((sec2 & OTP_SIGNATURE_RSAPKCS1P5) == OTP_SIGNATURE_RSAPKCS1P5) {
+						result = TRUE; 	// PKCS1.5
+					} else {
+						result = FALSE;	// RSA X.509
+					}
+				}
+			}
+		} else {			
+			result = FALSE;			
 		}
 		break;
 
@@ -772,6 +824,19 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 			result = TRUE;
 		}
 		break;
+	
+	case SECUREBOOT_HEADER_SIGNATURE:
+		if(chip_id == CHIP_NS02402) {
+			if((sec2 & OTP_HEADER_SIGNATURE_EN) == OTP_HEADER_SIGNATURE_EN) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
+		} else {
+			result = FALSE;
+		}
+		break;
+	
 	default:
 		break;
 	}
@@ -802,9 +867,13 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 	case SECUREBOOT_SECURE_EN:
 		if ((sec & (OTP_HW_SECURE_EN | OTP_FW_SECURE_EN)) != 0x0) {
 			DBG_ERR("Secure already enabled ...");
-		} else {
-			result = TRUE;
+		} else {			
 			KEY_MANAGER_WRITE_PARAM((OTP_HW_SECURE_EN | OTP_FW_SECURE_EN));
+			if(quary_secure_boot(SECUREBOOT_SECURE_EN) == TRUE) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
 		}
 		break;
 
@@ -812,17 +881,52 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		if ((sec & OTP_DATA_ENCRYPT_EN) != 0x0) {
 			DBG_ERR("Data area encrypted bit already set ...");
 		} else {
-			result = TRUE;
 			KEY_MANAGER_WRITE_PARAM(OTP_DATA_ENCRYPT_EN);
+			if(quary_secure_boot(SECUREBOOT_DATA_AREA_ENCRYPT) == TRUE) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
 		}
 		break;
 
 	case SECUREBOOT_SIGN_RSA:
 		if ((sec & OTP_SIGNATURE_RSA) != 0x0) {
 			DBG_ERR("Signature use RSA bit already set ...");
-		} else {
-			result = TRUE;
+		} else {			
 			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+			if(quary_secure_boot(SECUREBOOT_SIGN_RSA)) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
+		}
+		break;
+	
+	case SECUREBOOT_SIGN_RSA_PSS:
+		if(chip_id == CHIP_NS02402) {
+			//addr8 bit[01] =1
+			//addr8 bit[16] =1
+			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSAPSS);
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
+		break;
+	
+	case SECUREBOOT_SIGN_RSA_PKCS1P5:
+		if(chip_id == CHIP_NS02402) {
+			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSAPSS);
+			KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_RSAPKCS1P5);
+			if(quary_secure_boot(SECUREBOOT_SIGN_RSA_PKCS1P5)) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
+		} else {
+			result = FALSE;
 		}
 		break;
 
@@ -830,87 +934,122 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		if ((sec & OTP_SIGNATURE_ECDSA) != 0x0) {
 			DBG_ERR("Signature use ECDSA bit already set ...");
 		} else {
-			result = TRUE;
 			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_ECDSA);
+			if(quary_secure_boot(SECUREBOOT_SIGN_ECDSA)) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
 		}
 		break;
 
 	case SECUREBOOT_SIGN_RSA_CHK:
-
 		if ((sec & OTP_SIGNATURE_RSA_CHK_EN) != 0x0) {
 			DBG_ERR("Signature use RSA and process hash checksum bit already set ...\r\n");
 		} else {
-			result = TRUE;
 			KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA_CHK_EN);
+			if(quary_secure_boot(SECUREBOOT_SIGN_RSA_CHK)) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
 		}
 		break;
 
 	case SECUREBOOT_JTAG_DISABLE_EN:
 		KEY_MANAGER_WRITE_PARAM(OTP_JTAG_DISABLE_EN);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_JTAG_DISABLE_EN)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_1ST_KEY_SET_PROGRAMMED:
 		KEY_MANAGER_WRITE_PARAM(OTP_1ST_KEY_PROGRAMMED);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_1ST_KEY_SET_PROGRAMMED)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_2ND_KEY_SET_PROGRAMMED:
 		KEY_MANAGER_WRITE_PARAM(OTP_2ND_KEY_PROGRAMMED);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_2ND_KEY_SET_PROGRAMMED)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_3RD_KEY_SET_PROGRAMMED:
 		KEY_MANAGER_WRITE_PARAM(OTP_3RD_KEY_PROGRAMMED);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_3RD_KEY_SET_PROGRAMMED)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_4TH_KEY_SET_PROGRAMMED:
 		KEY_MANAGER_WRITE_PARAM(OTP_4TH_KEY_PROGRAMMED);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_4TH_KEY_SET_PROGRAMMED)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_5TH_KEY_SET_PROGRAMMED:
 		KEY_MANAGER_WRITE_PARAM(OTP_5TH_KEY_PROGRAMMED);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_5TH_KEY_SET_PROGRAMMED)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_1ST_KEY_SET_READ_LOCK:
 		KEY_MANAGER_WRITE_PARAM(OTP_1ST_KEY_READ_LOCK);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_1ST_KEY_SET_READ_LOCK)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_4TH_KEY_SET_READ_LOCK:
 		KEY_MANAGER_WRITE_PARAM(OTP_4TH_KEY_READ_LOCK);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_4TH_KEY_SET_READ_LOCK)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
 	case SECUREBOOT_5TH_KEY_SET_READ_LOCK:
 		KEY_MANAGER_WRITE_PARAM(OTP_5TH_KEY_READ_LOCK);
-		result = TRUE;
+		if(quary_secure_boot(SECUREBOOT_5TH_KEY_SET_READ_LOCK)) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
 		break;
 
-#if (0)
-	case SECUREBOOT_DSP1_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_DSP1_DISABLE);
-		result = TRUE;
+	case SECUREBOOT_HEADER_SIGNATURE:
+		if(chip_id == CHIP_NS02402) {
+			KEY_MANAGER_WRITE_2ND_PARAM(OTP_HEADER_SIGNATURE_EN);
+			if(quary_secure_boot(SECUREBOOT_HEADER_SIGNATURE)) {
+				result = TRUE;
+			} else {
+				result = FALSE;
+			}
+		} else {
+			result = FALSE;
+		}
 		break;
 
-	case SECUREBOOT_DSP2_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_DSP2_DISABLE);
-		result = TRUE;
-		break;
-
-	case SECUREBOOT_GPU_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_GPU_DISABLE);
-		result = TRUE;
-		break;
-
-	case SECUREBOOT_MCU_DISABLE:
-		KEY_MANAGER_WRITE_2ND_PARAM(OTP_MCU_DISABLE);
-		result = TRUE;
-		break;
-#endif
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");

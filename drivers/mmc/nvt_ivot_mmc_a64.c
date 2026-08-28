@@ -1978,6 +1978,21 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 		}
 #endif
 
+#if defined(TOP_SDIO2_2_EN_REG)
+		if (host->pinmux_value & PIN_SDIO_CFG_SDIO2_2) {
+			reg_value = readl(TOP_SDIO2_2_EN_REG);
+			reg_value &= ~(TOP_SDIO2_2_EN_MASK);
+			reg_value |= (TOP_SDIO2_2_EN_MASK);
+			writel(reg_value, TOP_SDIO2_2_EN_REG);
+			udelay(10);
+
+			reg_value = readl(TOP_SDIO2_2_EN_GPIO_REG);
+			reg_value &= ~(TOP_SDIO2_2_EN_GPIO_MASK);
+			writel(reg_value, TOP_SDIO2_2_EN_GPIO_REG);
+			udelay(10);
+		}
+#endif
+
 		/* RSTN */
 		reg_value = readl(CG_SDIO2_RSTN_REG);
 		reg_value &= ~(CG_SDIO2_RSTN_MASK);

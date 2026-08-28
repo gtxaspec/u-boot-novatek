@@ -180,6 +180,7 @@ config NVT_BOARD
 	default y
 
 # To inculde basic arch config
+source "arch/arm/mach-novatek/nvt_na51055_a32/Kconfig"
 source "arch/arm/mach-novatek/nvt_na51089_a32/Kconfig"
 source "arch/arm/mach-novatek/nvt_na51090_a32/Kconfig"
 source "arch/arm/mach-novatek/nvt_na51090_a64/Kconfig"

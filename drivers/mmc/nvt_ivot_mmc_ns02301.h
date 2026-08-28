@@ -85,8 +85,7 @@
 #define PIN_SDIO_CFG_SDIO_1             (0x1)
 
 #define PIN_SDIO_CFG_SDIO2_1            (0x10)
-#define PIN_SDIO_CFG_SDIO2_BUS_WIDTH    (0x20)
-#define PIN_SDIO_CFG_SDIO2_DS           (0x40)
+#define PIN_SDIO_CFG_SDIO2_2            (0x20)
 
 #define PIN_SDIO_CFG_SDIO3_1            (0x100)
 #define PIN_SDIO_CFG_SDIO3_BUS_WIDTH    (0x200)
@@ -102,6 +101,11 @@
 #define TOP_SDIO2_EN_MASK               BIT(18)
 #define TOP_SDIO2_EN_GPIO_REG           (IOADDR_TOP_REG_BASE + 0xA0)
 #define TOP_SDIO2_EN_GPIO_MASK          BIT(19) | BIT(20) | BIT(21) | BIT(22) | BIT(23) | BIT(24)
+
+#define TOP_SDIO2_2_EN_REG              (IOADDR_TOP_REG_BASE + 0x04)
+#define TOP_SDIO2_2_EN_MASK             BIT(19)
+#define TOP_SDIO2_2_EN_GPIO_REG         (IOADDR_TOP_REG_BASE + 0xA8)
+#define TOP_SDIO2_2_EN_GPIO_MASK        BIT(2) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7)
 
 #define TOP_SDIO3_EN_REG                (IOADDR_TOP_REG_BASE + 0x04)
 #define TOP_SDIO3_EN_MASK               BIT(20)

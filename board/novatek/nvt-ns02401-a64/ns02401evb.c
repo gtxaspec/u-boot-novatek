@@ -45,7 +45,7 @@ static struct mm_region evb_mem_map[] = {
 		.phys = 0x200000000UL,
 		.size = 0x200000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
-			 PTE_BLOCK_INNER_SHARE
+			PTE_BLOCK_INNER_SHARE
 	}, {
 	    .virt = 0x400000000UL, /* For Peripheral */
 		.phys = 0x400000000UL,
@@ -56,26 +56,26 @@ static struct mm_region evb_mem_map[] = {
 	    .virt = 0x800000000UL, /* For ACP for MAU1 */
 		.phys = 0x800000000UL,
 		.size = 0x200000000UL,
-		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
-			 PTE_BLOCK_NON_SHARE
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			PTE_BLOCK_INNER_SHARE
 	}, {
 	    .virt = 0xA00000000UL, /* For ACP for MAU2 */
 		.phys = 0xA00000000UL,
 		.size = 0x200000000UL,
-		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
-			 PTE_BLOCK_NON_SHARE
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			PTE_BLOCK_INNER_SHARE
 	}, {
 	    .virt = 0xC00000000UL, /* For ACP */
 		.phys = 0xC00000000UL,
 		.size = 0x400000000UL,
-		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
-			 PTE_BLOCK_NON_SHARE
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			PTE_BLOCK_INNER_SHARE
 	}, {
 	    .virt = 0x1000000000UL, /* TBD*/
 		.phys = 0x1000000000UL,
 		.size = 0x7000000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
-			 PTE_BLOCK_NON_SHARE
+			PTE_BLOCK_NON_SHARE
 	}, {
 
 		/* List terminator */

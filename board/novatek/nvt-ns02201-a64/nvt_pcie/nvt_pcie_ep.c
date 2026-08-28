@@ -16,7 +16,7 @@
 
 //#include "nvt_pcie_fdt.h"
 
-#define DRV_VER	"1.00"
+#define DRV_VER	"1.01"
 
 enum nvt_pcie_phy_id {
 	NVT_PHY_PCIE0 = 0,
@@ -175,6 +175,10 @@ static int config_pcie_ep(void) {
 	phy0.dev = dev;
 
 	bootstrap = readl(IOADDR_TOP_REG_BASE);
+	if (! (bootstrap & BOOT_SOURCE_PCIE_MODE_MSK)) {
+		printf("%s: EP flow, but bootstrap is RC\r\n", __func__);
+		return -1;
+	}
 	if (bootstrap & BOOT_SOURCE_PCIE_LANE_MSK) {
 		printf("%s: bootstrap: two x1\r\n", __func__);
 		mode = NVT_PHY_TWO_x1;
