@@ -8,7 +8,7 @@
 
 typedef uint32_t u32;
 
-#define DRV_VERSION "1.00.08"
+#define DRV_VERSION "1.00.09"
 
 #define TOP_SETREG(info, ofs,value)    OUTW(info->top_base+(ofs),(value))
 #define TOP_GETREG(info, ofs)          INW(info->top_base+(ofs))

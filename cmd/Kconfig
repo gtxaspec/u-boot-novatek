@@ -1224,8 +1224,8 @@ config CMD_PINMUX
 
 config CMD_NVT_PINMUX
 	bool "nvt_pinmux - verify pins."
-	depends on PINCTRL_NS02501
-	default y if PINCTRL_NS02501
+	depends on PINCTRL_NTK
+	default y if PINCTRL_NTK
 	help
 		This is useful for debug purpoer to check the pin muxing and to
 		 know if a pin is configured as a GPIO or as an alternate

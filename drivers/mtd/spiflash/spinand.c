@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.35"
+#define NAND_VERSION "1.0.36"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {

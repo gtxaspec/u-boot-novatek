@@ -239,6 +239,7 @@ static int pcie_phy_init(struct phy *phy)
 		case NVT_PHY_ONE_x4:
 			switch (idx) {
 			case NVT_PHY_PCIE0:
+			default:
 				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x00D0, 0x78, 0, 9); // CT 8G initial value for lane0 only
 				break;
 			case NVT_PHY_PCIE1:
@@ -247,22 +248,19 @@ static int pcie_phy_init(struct phy *phy)
 				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 2, 1); //5G/8G recal AFC for lane1/2/3 only
 				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 4, 1); //5G/8G recal AFC for lane1/2/3 only
 				break;
-			default:
-				break;
 			}
 			break;
 		case NVT_PHY_TWO_x2:
 			switch (idx) {
 			case NVT_PHY_PCIE0:
 			case NVT_PHY_PCIE2:
+			default:
 				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x00D0, 0x78, 0, 9); // CT 8G initial value for lane0/2 only
 				break;
 			case NVT_PHY_PCIE1:
 			case NVT_PHY_PCIE3:
 				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 2, 1); //5G/8G recal AFC for lane1/3 only
 				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 4, 1); //5G/8G recal AFC for lane1/3 only
-				break;
-			default:
 				break;
 			}
 			break;

@@ -119,7 +119,7 @@ typedef struct _NVTPACK_BININFO_HDR {
 
 typedef struct _NVTPACK_MEM {
 	void *p_data;
-	unsigned int len;
+	ulong len;
 } NVTPACK_MEM;
 
 typedef struct _NVTPACK_VERIFY_OUTPUT {

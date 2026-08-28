@@ -612,12 +612,21 @@ void nand_dll_reset(void)
 {
 	union T_NAND_DLL_PHASE_DLY_REG1 phy_dly;
 
+	const unsigned int max_poll = 10000; 
+	unsigned int poll_cnt = max_poll;
+
 	phy_dly.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS);
 	phy_dly.Bit.PHY_SW_RESET = 1;
 	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, phy_dly.Reg);
 
 	do {
 		phy_dly.Reg = NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS);
+
+		if (--poll_cnt == 0) {
+            printf("%s: timeout while waiting for NAND DLL reset(chk CKG or pinmux)\n",
+                   __func__);
+            return;      
+        }
 	} while(phy_dly.Bit.PHY_SW_RESET == 1);
 }
 

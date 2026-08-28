@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.27"
+#define NOR_VERSION "1.0.28"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;

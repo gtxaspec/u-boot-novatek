@@ -14,89 +14,52 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 
-#define GPIO_VERSION "1.0.00"
+#define GPIO_VERSION "1.0.01"
 
 struct nvt_gpio_bank {
 	phys_addr_t base;
 };
 
-#define GPIO_GETREG(ofs)	         INW(IOADDR_GPIO_REG_BASE+(ofs))
-#define GPIO_SETREG(ofs, value)	     OUTW(IOADDR_GPIO_REG_BASE+(ofs),(value))
-#define PRGPIO_GETREG(ofs)	         INW(IOADDR_PRGPIO_REG_BASE+(ofs))
-#define PRGPIO_SETREG(ofs, value)	 OUTW(IOADDR_PRGPIO_REG_BASE+(ofs),(value))
+#define GPIO_GETREG(ofs)	    INW(IOADDR_GPIO_REG_BASE+(ofs))
+#define GPIO_SETREG(ofs, value)	OUTW(IOADDR_GPIO_REG_BASE +(ofs),(value))
 
 #define NVT_GPIO_STG_DATA_0		(0)
 #define NVT_GPIO_STG_DIR_0		(0x20)
 #define NVT_GPIO_STG_SET_0		(0x40)
 #define NVT_GPIO_STG_CLR_0		(0x60)
 
-#define NVT_PRGPIO_STG_DATA_0   (0)
-#define NVT_PRGPIO_STG_DIR_0	(0x0C)
-#define NVT_PRGPIO_STG_SET_0    (0x18)
-#define NVT_PRGPIO_STG_CLR_0    (0x24)
-
-static int gpio_validation(unsigned pin)
+int gpio_validation(unsigned pin)
 {
-	if (pin >= NVT_GPIO_BASE_NUM) {
-		//pre-roll gpio check
-		if ((pin > P_GPIO(38) && pin < S_GPIO(0)) || \
-		(pin > S_GPIO(16) && pin < A_GPIO(0)) || \
-		(pin > A_GPIO(3))) {
-			printf("The pre-roll gpio number is out of range: pin = %d\n", pin);
-			return E_NOSPT;
-		} else {
-			return 0;
-		}
-	} else {
-		//main part gpio check
-		if (pin == 0x39) {
-			//pgpio39 case
-			return 0;
-		} else {
-			if ((pin < C_GPIO(0)) || \
-			(pin > C_GPIO(24) && pin < P_GPIO(0))  || \
-			(pin > P_GPIO(24) && pin < HSI_GPIO(0))  || \
-			(pin > HSI_GPIO(11) && pin < D_GPIO(0))  || \
-			(pin > D_GPIO(7))) {
-				printf("The main gpio number is out of range: pin = %d\n", pin);
-				return E_NOSPT;
-			} else {
-				return 0;
-			}
-		}
-	}
+	if ((pin > C_GPIO(24) && pin < HSI_GPIO(0)) || \
+	(pin > HSI_GPIO(11) && pin < S_GPIO(0)) || \
+	(pin > S_GPIO(8) && pin < P_GPIO(0)) || \
+	(pin > P_GPIO(25) && pin < DSI_GPIO(0)) || \
+	(pin > DSI_GPIO(10) && pin < L_GPIO(0)) || \
+	(pin > L_GPIO(9) && pin < D_GPIO(0)) || \
+	(pin > D_GPIO(7) && pin < A_GPIO(0)) || \
+	 (pin > A_GPIO(3))) {
+		printf("The gpio number is out of range\n");
+		return E_NOSPT;
+	} else
+		return 0;
 }
 
 static int nvt_gpio_direction_input(struct udevice *dev, unsigned offset)
 {
 	unsigned long reg_data;
 	unsigned long ofs;
-	BOOL          pre_roll = FALSE;
 
-	if (gpio_validation(offset) < 0) {
+	if (gpio_validation(offset) < 0)
 		return E_NOSPT;
-	}
-		
-	if (offset >= NVT_GPIO_BASE_NUM) {
-		offset -= NVT_GPIO_BASE_NUM;
-		pre_roll = TRUE;
-	}
+
 	ofs = (offset >> 5) << 2;
 	offset &= (32 - 1);
 
-	if (pre_roll) {
-		reg_data = PRGPIO_GETREG(NVT_PRGPIO_STG_DIR_0 + ofs);
-	} else {
-		reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
-	}
+	reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
 
 	reg_data &= ~(1 << offset);   /*input*/
 
-	if (pre_roll) {
-		PRGPIO_SETREG(NVT_PRGPIO_STG_DIR_0 + ofs, reg_data);
-	} else {
-		GPIO_SETREG(NVT_GPIO_STG_DIR_0 + ofs, reg_data);
-	}
+	GPIO_SETREG(NVT_GPIO_STG_DIR_0 + ofs, reg_data);
 
 	return 0;
 }
@@ -105,43 +68,24 @@ static int nvt_gpio_direction_output(struct udevice *dev, unsigned offset, int v
 {
 	unsigned long reg_data, tmp;
 	unsigned long ofs;
-	BOOL          pre_roll = FALSE;
 
-	if (gpio_validation(offset) < 0) {
+	if (gpio_validation(offset) < 0)
 		return E_NOSPT;
-	}
-		
-	if (offset >= NVT_GPIO_BASE_NUM) {
-		offset -= NVT_GPIO_BASE_NUM;
-		pre_roll = TRUE;
-	}
+
 	ofs = (offset >> 5) << 2;
 	offset &= (32 - 1);
 	tmp = (1 << offset);
 
-	if (pre_roll) {
-		reg_data = PRGPIO_GETREG(NVT_PRGPIO_STG_DIR_0 + ofs);
-	} else {
-		reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
-	}
+	reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
 
 	reg_data |= (1 << offset);    /*output*/
 
-	if (pre_roll) {
-		PRGPIO_SETREG(NVT_PRGPIO_STG_DIR_0 + ofs, reg_data);
-		if (value) {
-			PRGPIO_SETREG(NVT_PRGPIO_STG_SET_0 + ofs, tmp);
-		} else {
-			PRGPIO_SETREG(NVT_PRGPIO_STG_CLR_0 + ofs, tmp);
-		}
-	} else {
-		GPIO_SETREG(NVT_GPIO_STG_DIR_0 + ofs, reg_data);
-		if (value) {
-			GPIO_SETREG(NVT_GPIO_STG_SET_0 + ofs, tmp);
-		} else {
-			GPIO_SETREG(NVT_GPIO_STG_CLR_0 + ofs, tmp);
-		}
-	}
+	GPIO_SETREG(NVT_GPIO_STG_DIR_0 + ofs, reg_data);
+
+	if (value)
+		GPIO_SETREG(NVT_GPIO_STG_SET_0 + ofs, tmp);
+	else
+		GPIO_SETREG(NVT_GPIO_STG_CLR_0 + ofs, tmp);
 
 	return 0;
 }
@@ -150,58 +94,33 @@ static int nvt_gpio_get_value(struct udevice *dev, unsigned offset)
 {
 	unsigned long tmp;
 	unsigned long ofs;
-	BOOL          pre_roll = FALSE;
 
-	if (gpio_validation(offset) < 0) {
+	if (gpio_validation(offset) < 0)
 		return E_NOSPT;
-	}
-		
-	if (offset >= NVT_GPIO_BASE_NUM) {
-		offset -= NVT_GPIO_BASE_NUM;
-		pre_roll = TRUE;
-	}
+
 	ofs = (offset >> 5) << 2;
 	offset &= (32 - 1);
 	tmp = (1 << offset);
 
-	if (pre_roll) {
-		return (PRGPIO_GETREG(NVT_PRGPIO_STG_DATA_0 + ofs) & tmp) != 0;
-	} else {
-		return (GPIO_GETREG(NVT_GPIO_STG_DATA_0 + ofs) & tmp) != 0;
-	}
+	return (GPIO_GETREG(NVT_GPIO_STG_DATA_0 + ofs) & tmp) != 0;
 }
 
 static int nvt_gpio_set_value(struct udevice *dev, unsigned offset, int value)
 {
 	unsigned long tmp;
 	unsigned long ofs;
-	BOOL          pre_roll = FALSE;
 
-	if (gpio_validation(offset) < 0) {
+	if (gpio_validation(offset) < 0)
 		return E_NOSPT;
-	}
-		
-	if (offset >= NVT_GPIO_BASE_NUM) {
-		offset -= NVT_GPIO_BASE_NUM;
-		pre_roll = TRUE;
-	}
+
 	ofs = (offset >> 5) << 2;
 	offset &= (32 - 1);
 	tmp = (1 << offset);
 
-	if (pre_roll) {
-		if (value) {
-			PRGPIO_SETREG(NVT_PRGPIO_STG_SET_0 + ofs, tmp);
-		} else {
-			PRGPIO_SETREG(NVT_PRGPIO_STG_CLR_0 + ofs, tmp);
-		}
-	} else {
-		if (value) {
-			GPIO_SETREG(NVT_GPIO_STG_SET_0 + ofs, tmp);
-		} else {
-			GPIO_SETREG(NVT_GPIO_STG_CLR_0 + ofs, tmp);
-		}
-	}
+	if (value)
+		GPIO_SETREG(NVT_GPIO_STG_SET_0 + ofs, tmp);
+	else
+		GPIO_SETREG(NVT_GPIO_STG_CLR_0 + ofs, tmp);
 
 	return 0;
 }
@@ -210,29 +129,18 @@ static int nvt_gpio_get_function(struct udevice *dev, unsigned offset)
 {
 	unsigned long reg_data;
 	unsigned long ofs;
-	BOOL          pre_roll = FALSE;
 
-	if (gpio_validation(offset) < 0) {
+	if (gpio_validation(offset) < 0)
 		return E_NOSPT;
-	}
 
-	if (offset >= NVT_GPIO_BASE_NUM) {
-		offset -= NVT_GPIO_BASE_NUM;
-		pre_roll = TRUE;
-	}
 	ofs = (offset >> 5) << 2;
 	offset &= (32 - 1);
 
-	if (pre_roll) {
-		reg_data = PRGPIO_GETREG(NVT_PRGPIO_STG_DIR_0 + ofs);
-	} else {
-		reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
-	}
-	
-	if (reg_data & (1 << offset)) {
+	reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
+
+	if (reg_data & (1 << offset))
 		return GPIOF_OUTPUT;
-	}
-	
+
 	return GPIOF_INPUT;
 }
 

@@ -184,9 +184,9 @@ typedef struct _FASTBOOTPSTORE
 } FASTBOOTPSTORE, *PFASTBOOTPSTORE;
 
 int nvt_fw_update(bool firm_upd_firm);
-int nvt_chk_all_in_one_valid(unsigned short EmbType, unsigned int addr, unsigned int size, unsigned int id);
+int nvt_chk_all_in_one_valid(unsigned short EmbType, ulong addr, ulong size, unsigned int id);
 int nvt_fw_load_tbin(void);
-int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm);
+int nvt_process_all_in_one(ulong addr, ulong size, int firm_upd_firm);
 int nvt_fdt_init(bool reload);
 int nvt_check_isfdt(ulong addr);
 int nvt_chk_mtd_fdt_is_null(void);

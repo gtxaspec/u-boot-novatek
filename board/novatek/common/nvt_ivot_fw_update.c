@@ -136,8 +136,8 @@ static int nvt_update_partitions(nvt_flash_type_t FlashType, u64 addr, u64 size,
 	u64 align_off = 0; // for emmc
 	int ret = 0;
 
-	if (size > (unsigned int)PartitionSize) {
-		printf("%s partition size is too small (0x%08llx > 0x%08llx) %s\r\n", ANSI_COLOR_RED, size, PartitionSize, ANSI_COLOR_RESET);
+	if (size > PartitionSize) {
+		printf("%s partition size is too small (0x%llx > 0x%llx) %s\r\n", ANSI_COLOR_RED, size, PartitionSize, ANSI_COLOR_RESET);
 		return -1;
 	}
 
@@ -815,7 +815,7 @@ static int nvt_chk_rootfs(ulong addr, unsigned int size, unsigned int pat_id)
 	return 0;
 }
 
-int nvt_chk_all_in_one_valid(unsigned short EmbType, unsigned int addr, unsigned int size, unsigned int id)
+int nvt_chk_all_in_one_valid(unsigned short EmbType, ulong addr, ulong size, unsigned int id)
 {
 	switch(EmbType)
 	{
@@ -1400,7 +1400,7 @@ static int nvt_checkfdt_part_is_match(const void *fdt_old, const void *fdt_new)
 	return 0;
 }
 
-int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm)
+int nvt_process_all_in_one(ulong addr, ulong size, int firm_upd_firm)
 {
 	u32 i;
 	int ret = 0;

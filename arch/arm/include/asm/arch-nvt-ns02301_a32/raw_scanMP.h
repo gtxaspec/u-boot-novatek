@@ -5,7 +5,7 @@
 //Reading '../output/LD98567A.bin'...
 //file size = 45056
 //../output/LD98567A.bin to function = ddr_scan data width[4] total size[45056]
-//DR[2024-11-6-10]:LD[3.3.1]
+//DR[2025-11-28-11]:LD[3.3.1]
 unsigned int ddr_scan[] = {
 0xf07c0028,
 0xf07c0000,
@@ -19,7 +19,7 @@ unsigned int ddr_scan[] = {
 0x0000b000,
 0xea000182,
 0xffffffff,
-0xe75eaa55,
+0xcc5daa55,
 0x02370000,
 0x09040006,
 0x00000000,
@@ -37,7 +37,7 @@ unsigned int ddr_scan[] = {
 0x0000003e,
 0x48210000,
 0x33010000,
-0x0000a35c,
+0x0000be5d,
 0x00027ffe,
 0x00000000,
 0x00000000,

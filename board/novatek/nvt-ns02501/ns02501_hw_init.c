@@ -467,14 +467,21 @@ int nvt_ivot_hw_init(void)
 
 int nvt_ivot_hw_init_early(void)
 {
+	ofnode root = ofnode_path("/");
+	ofnode top_node = ofnode_by_compatible(root, "nvt,nvt_top");
+	const char *top_node_name = ofnode_get_name(top_node);
+	if (!ofnode_valid(top_node))
+		printf("Failed to find top_node");
+
 	otp_init();
 
 #ifdef CONFIG_PINCTRL_NS02501
 {
+	printf("nvt_pinctrl_probe\r\n");
 	struct udevice *pinctrl_dev;
 	int ret;
 
-	ret = uclass_get_device_by_name(UCLASS_PINCTRL, "top@f0010000", &pinctrl_dev);
+	ret = uclass_get_device_by_name(UCLASS_PINCTRL, top_node_name, &pinctrl_dev);
 	if (ret) {
 		printf("Failed to probe nvt_pinctrl: %d\n", ret);
 	}

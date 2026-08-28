@@ -47,7 +47,7 @@
 #include <linux/delay.h>
 #include <asm/arch/efuse_protected.h>
 
-#define ETHVERSION "1.0.0.8"
+#define ETHVERSION "1.0.0.10"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
@@ -1168,7 +1168,7 @@ static int eqos_recv(struct udevice *dev, int flags, uchar **packetp)
 static int eqos_probe_resources_core(struct udevice *dev)
 {
 	struct eqos_priv *eqos = dev_get_priv(dev);
-	int ret;
+	int ret = 0;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -1212,7 +1212,7 @@ static int eqos_probe_resources_core(struct udevice *dev)
 	}
 	debug("%s: rx_dma_buf=%p, size:%d\n", __func__, eqos->rx_dma_buf, EQOS_RX_BUFFER_SIZE);
 
-	if ((ulong)eqos->tx_dma_buf > REG32_MASK) {
+	if ((ulong)eqos->rx_dma_buf > REG32_MASK) {
 		pr_err("<---------fail Rx Buffer alloc over 32 bit -------------> %p \r\n", eqos->rx_dma_buf);
 		goto err_free_rx_dma_buf;
 	}
@@ -1298,23 +1298,24 @@ static void set_eth_phy_trim(unsigned long base_addr)
 		printk("%s: trim data 0x%04x \r\n", __func__, trim_val);
 		if(is_found) {
 			tx_trim_rout = trim_val & 0x7;              // bit[2..0]
-			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x7, tx_trim_rout)) {
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x7, (INT16)tx_trim_rout)) {
+				// coverity[dead_error_line]
 				tx_trim_rout = NVT_ETH_TX_TRIM_ROUT;
 			}
 
 			tx_trim_dac = (trim_val >> 3) & 0x1F;       // bit[7..3]
-			if (!NVT_TRIM_RANGE_CHECK(0x0, 0xc, tx_trim_dac) &&
-					!NVT_TRIM_RANGE_CHECK(0x14, 0x1f, tx_trim_dac)) {
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0xc, (INT16)tx_trim_dac) &&
+					!NVT_TRIM_RANGE_CHECK(0x14, 0x1f, (INT16)tx_trim_dac)) {
 				tx_trim_dac = NVT_ETH_TX_TRIM_DAC;
 			}
 
 			tx_trim_sel_rx = (trim_val >> 8) & 0x7;     // bit[10..8]
-			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x6, tx_trim_sel_rx)) {
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x6, (INT16)tx_trim_sel_rx)) {
 				tx_trim_sel_rx = NVT_ETH_TX_TRIM_SEL_RX;
 			}
 
 			tx_trim_sel_tx = (trim_val >> 11) & 0x7;    // bit[13..11]
-			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x6, tx_trim_sel_tx)) {
+			if (!NVT_TRIM_RANGE_CHECK(0x0, 0x6, (INT16)tx_trim_sel_tx)) {
 				tx_trim_sel_tx = NVT_ETH_TX_TRIM_SEL_TX;
 			}
 		}
@@ -2239,7 +2240,7 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	}
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
-	if (len == 0) {
+	if (!cell || len < (int)sizeof(u32)) {
 		printf("%s(%d) len = 0\n", __func__, __LINE__);
 		return -1;
 	}
@@ -2254,13 +2255,17 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	}
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
-	if (len != 0) {
+	if (cell && len >= (int)sizeof(u32)) {
 		phy_clk = __be32_to_cpu(cell[0]);
+	} else {
+		phy_clk = 0;
 	}
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "ref-clk-out", &len);
-	if (len != 0) {
+	if (cell && len >= (int)sizeof(u32)) {
 		ref_clk_out = __be32_to_cpu(cell[0]);
+	} else {
+		ref_clk_out = 0;
 	}
 	printf("%s: ref-clk-out %d\r\n", __func__, ref_clk_out);
 
@@ -2371,7 +2376,7 @@ static int eqos_initialize(struct udevice *dev, unsigned long base_addr)
 	eqos->mii->read = eqos_mdio_read;
 	eqos->mii->write = eqos_mdio_write;
 	eqos->mii->priv = eqos;
-	strcpy(eqos->mii->name, dev->name);
+	snprintf(eqos->mii->name, sizeof(eqos->mii->name), "%s", dev->name);
 
 	ret = mdio_register(eqos->mii);
 	if (ret < 0) {
@@ -2432,10 +2437,11 @@ int eqos_probe(struct udevice *dev)
 {
 	struct eqos_priv *eqos = dev_get_priv(dev);
 	int ret = 0;
+	const void *fdt_addr = gd->fdt_blob;
 
 	printf("%s %s\n", __func__, ETHVERSION);
 
-	eqos->regs = fdtdec_get_addr(nvt_fdt_buffer, dev_of_offset(dev), "reg");
+	eqos->regs = fdtdec_get_addr(fdt_addr, dev_of_offset(dev), "reg");
 
 	if (eqos->regs == FDT_ADDR_T_NONE) {
 		pr_err("fdtdec_get_addr() failed");

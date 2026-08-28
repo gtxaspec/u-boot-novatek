@@ -78,7 +78,7 @@ int nvt_on_rtos_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_mem,
 	case EMBTYPE_RTOS:
 		/* Boot compressed rtos or non-compressed rtos */
 		if (pBFC->uiFourCC == MAKEFOURCC('B', 'C', 'L', '1')) {
-			printf("RUNFW: Boot compressed rtos at 0x%08lx with length %d bytes\r\n",
+			printf("RUNFW: Boot compressed rtos at 0x%08lx with length %lu bytes\r\n",
 				   (ulong)p_mem->p_data, p_mem->len);
 
 			size_t Compsz = cpu_to_be32(pBFC->uiSizeComp);
@@ -110,7 +110,7 @@ int nvt_on_rtos_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_mem,
 			dram_addr = nvt_memory_cfg[MEMTYPE_DRAM].addr;
 			dram_size = nvt_memory_cfg[MEMTYPE_DRAM].size;
 
-			printf("RUNFW: Copy rtos from 0x%lx to 0x%lx with length %d bytes\r\n",
+			printf("RUNFW: Copy rtos from 0x%lx to 0x%lx with length %lu bytes\r\n",
 				   (ulong)p_mem->p_data, (ulong)rtos_addr, p_mem->len);
 			memcpy((void *)rtos_addr, (void *)p_mem->p_data, p_mem->len);
 			flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + p_mem->len));

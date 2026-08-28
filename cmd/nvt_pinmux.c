@@ -2,7 +2,12 @@
 /*
 * Copyright (C) 2018, STMicroelectronics - All Rights Reserved
 */
+
+#if (defined(CONFIG_TARGET_NS02302_A64))
+#else
 #include <asm/arch/pad.h>
+#endif
+
 #include <command.h>
 #include <dm.h>
 #include <errno.h>
@@ -13,9 +18,36 @@
 #include <asm/arch/IOAddress.h>
 
 #define LIMIT_DEVNAME	30
-#define TOP_DTS_MAX 25
 
 static char *pinmux_table[] = {
+	#if  defined(CONFIG_TARGET_NS02302_A64)
+	"sdio",
+	"nand",
+	"eth",
+	"i2c",
+	"pwm",
+	"pwmII",
+	"pwmIII",
+	"ccnt",
+	"sensor",
+	"sensor2",
+	"sensor3",
+	"sensormisc",
+	"sensorsync",
+	"audio",
+	"uart",
+	"uartII",
+	"csi",
+	"remote",
+	"sdp",
+	"spi",
+	"sif",
+	"misc",
+	"lcd",
+	"tv",
+	"sel_lcd",
+
+	#elif defined(CONFIG_TARGET_NS02501)
 	"sdio",
 	"nand",
 	"eth",
@@ -40,6 +72,30 @@ static char *pinmux_table[] = {
 	"tv",
 	"sel_lcd",
 	"weigand",
+
+#else
+	"sdio",
+	"sdio2",
+	"sdio3",
+	"nand",
+	"sensor",
+	"sensor2",
+	"mipi_lvds",
+	"i2c",
+	"sif",
+	"uart",
+	"spi",
+	"sdp",
+	"remote",
+	"pwm",
+	"pwm2",
+	"ccnt",
+	"audio",
+	"lcd",
+	"tv",
+	"eth",
+	"misc"
+#endif
 };
 
 static int do_pinmux_set(struct cmd_tbl *cmdtp, int flag, int argc,
@@ -93,9 +149,13 @@ static int do_pinmux_show(struct cmd_tbl *cmdtp, int flag, int argc,
 static int do_pinmux_check(struct cmd_tbl *cmdtp, int flag, int argc,
     char *const argv[])
 {
-    if (pinmux_conflict_check() == E_OK){
-		printf("pinmux_conflict_check == E_OK\n");
-	}
+	#if (defined(CONFIG_TARGET_NS02302_A64))
+		printf("not support\n");
+	#else
+		if (pinmux_conflict_check() == E_OK){
+			printf("pinmux_conflict_check == E_OK\n");
+		}
+	#endif
     return CMD_RET_SUCCESS;
 }
 
@@ -103,14 +163,14 @@ static int do_pinmux_summary_open(struct cmd_tbl *cmdtp, int flag, int argc,
     char *const argv[])
 {
 	u32 top_reg_addr = 0xf0010000;
-
+	int ret = E_OK;
 	struct nvt_pinctrl_info *info ;
     int i = 0, nr_pinmux = 0;
 	u8 count;
 	/* Enable it after dts parsing ready*/
     int nodeoffset;
     u32 *cell = NULL;
-	char path[TOP_DTS_MAX] = {0};
+	char path[PIN_FUNC_MAX] = {0};
 
     info = malloc(sizeof(struct nvt_pinctrl_info));
 	if (!info) {
@@ -118,30 +178,39 @@ static int do_pinmux_summary_open(struct cmd_tbl *cmdtp, int flag, int argc,
 		free(info);
 		return -ENOMEM;
 	}
+	memset(info, 0, sizeof(*info));
 
 	info->top_base = (void*) IOADDR_TOP_REG_BASE;
-	top_reg_addr = (u32) info->top_base;
+	top_reg_addr = (uintptr_t) info->top_base;
 
-	for (i = 0; i < PIN_FUNC_MAX; i++)
+	for (nr_pinmux = 0; nr_pinmux < PIN_FUNC_MAX; nr_pinmux++)
     {
-        sprintf(path,"/top@%x/%s",IOADDR_TOP_REG_BASE, pinmux_table[i]);
+		if (!pinmux_table[nr_pinmux]){
+			pr_err("pinmux_dts_name not found! \n");
+			goto err_out;
+		}
+
+		if (nr_pinmux >= ARRAY_SIZE(info->top_pinmux)) {
+            pr_err("top_pinmux array overflow (max %zu)\n",
+                   ARRAY_SIZE(info->top_pinmux));
+            ret = -EOVERFLOW;
+            goto err_out;
+        }
+
+        sprintf(path,"/top/%s", pinmux_table[nr_pinmux]);
     	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 		if (nodeoffset < 0) {
 			pr_err("FDT: node path %s not found!\n", path);
-			nr_pinmux++;
-			continue;
 		}
+		info->top_pinmux[nr_pinmux].pin_function = nr_pinmux;
 
     	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
 		if (cell == NULL) {
 			pr_err("FDT: property pinmux not found in %s!\n", path);
-			nr_pinmux++;
-			continue;
+			info->top_pinmux[nr_pinmux].config = 0x0;
+		} else {
+			info->top_pinmux[nr_pinmux].config = __be32_to_cpu(cell[0]);
 		}
-
-        info->top_pinmux[nr_pinmux].config = __be32_to_cpu(cell[0]);
-        info->top_pinmux[nr_pinmux].pin_function = nr_pinmux;
-        nr_pinmux++;
 	}
 
 	pr_err("\n&top {\n");
@@ -152,12 +221,20 @@ static int do_pinmux_summary_open(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	free(info);
 	return CMD_RET_SUCCESS;
+
+err_out:
+	free(info);
+	return ret;
 }
 
 static int do_pad_show(struct cmd_tbl *cmdtp, int flag, int argc,
     char *const argv[])
 {
-	pad_show();
+	#if (defined(CONFIG_TARGET_NS02302_A64))
+		printf("not support\n");
+	#else
+		pad_show();
+	#endif
     return CMD_RET_SUCCESS;
 }
 

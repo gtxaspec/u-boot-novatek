@@ -2441,10 +2441,11 @@ int eqos_probe(struct udevice *dev)
 {
 	struct eqos_priv *eqos = dev_get_priv(dev);
 	int ret = 0;
+	const void *fdt_addr = gd->fdt_blob;
 
 	printf("%s %s\n", __func__, ETHVERSION);
 
-	eqos->regs = fdtdec_get_addr(nvt_fdt_buffer, dev_of_offset(dev), "reg");
+	eqos->regs = fdtdec_get_addr(fdt_addr, dev_of_offset(dev), "reg");
 
 	if (eqos->regs == FDT_ADDR_T_NONE) {
 		pr_err("fdtdec_get_addr() failed");

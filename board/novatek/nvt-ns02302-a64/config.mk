@@ -2,7 +2,11 @@
 # Include related setting
 #
 
+ifeq ($(NVT_PRJCFG_MODEL_CFG),)
+include $(PWD)/ModelConfig.mk
+else
 include $(NVT_PRJCFG_MODEL_CFG)
+endif
 
 C_DEFINE_EXT = -D_BOARD_FDT_ADDR_=$(BOARD_FDT_ADDR) \
 				-D_BIN_NAME_='"$(BIN_NAME)"' \

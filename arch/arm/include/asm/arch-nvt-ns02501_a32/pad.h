@@ -44,7 +44,7 @@
 #define PAD_DS11_REG_OFS                    0x90
 
 //0x78 PAD Power Control Register 0
-#define PAD_PWR0_REG_OFS                     0x78
+#define PAD_PWR0_REG_OFS                     0x64
 
 #define PAD_REG_TO_BASE(reg) (((reg)/(4))*(32))
 

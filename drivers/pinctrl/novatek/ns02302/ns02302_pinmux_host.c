@@ -11,17 +11,7 @@
 */
 
 #include "ns02302_pinmux.h"
-// #include <plat/pad.h>
-
-
-static DEFINE_SPINLOCK(top_lock);
-#if 0
-#define loc_cpu(flags) spin_lock_irqsave(&top_lock, flags)
-#define unl_cpu(flags) spin_unlock_irqrestore(&top_lock, flags)
-#else
-#define loc_cpu(flags)
-#define unl_cpu(flags)
-#endif
+#include <malloc.h>
 
 union TOP_REG0         top_reg0;
 union TOP_REG1         top_reg1;
@@ -158,74 +148,9 @@ static int logo_determination(u32 *lcd_type)
 	return m_logo;
 }
 */
-static void gpio_info_show(struct nvt_pinctrl_info *info, unsigned long gpio_number, unsigned long start_offset)
-{
-	int i = 0, j = 0;
-	unsigned long reg_value;
-	char *gpio_name[] = {"C_GPIO", "P_GPIO", "D_GPIO", "L_GPIO", "S_GPIO", "DSI_GPIO", "A_GPIO"};
-	char name[10];
-
-	if (start_offset == TOP_REGCGPIO0_OFS) {
-		strcpy(name, gpio_name[0]);
-	} else if (start_offset == TOP_REGPGPIO0_OFS) {
-		strcpy(name, gpio_name[1]);
-	} else if (start_offset == TOP_REGDGPIO0_OFS) {
-		strcpy(name, gpio_name[2]);
-	} else if (start_offset == TOP_REGLGPIO0_OFS) {
-		strcpy(name, gpio_name[3]);
-	} else if (start_offset == TOP_REGSGPIO0_OFS) {
-		strcpy(name, gpio_name[4]);
-	} else if (start_offset == TOP_REGHSIGPIO0_OFS) {
-		strcpy(name, gpio_name[5]);
-	} else if (start_offset == TOP_REGAGPIO0_OFS) {
-		strcpy(name, gpio_name[6]);
-	}
-
-	if (gpio_number > 0x20) {
-		reg_value = TOP_GETREG(info, start_offset);
-
-		for (i = 0; i < 0x20; i++) {
-			if (reg_value & (1 << i)) {
-				pr_info("%-12s%-4d      GPIO\n", name, i);
-			} else {
-				pr_info("%-12s%-4d      FUNCTION\n", name, i);
-			}
-		}
-
-		reg_value = TOP_GETREG(info, start_offset + 0x4);
-
-		for (j = 0; j < (gpio_number - 0x20); j++) {
-			if (reg_value & (1 << j)) {
-				pr_info("%-12s%-4d      GPIO\n", name, i);
-			} else {
-				pr_info("%-12s%-4d      FUNCTION\n", name, i);
-			}
-			i++;
-		}
-	} else {
-		reg_value = TOP_GETREG(info, start_offset);
-		for (i = 0; i < gpio_number; i++) {
-			if (reg_value & (1 << i)) {
-				pr_info("%-12s%-4d      GPIO\n", name, i);
-			} else {
-				pr_info("%-12s%-4d      FUNCTION\n", name, i);
-			}
-		}
-	}
-}
-
 void pinmux_gpio_parsing(struct nvt_pinctrl_info *info)
 {
-	pr_info("\n[PIN]       [NO]      [STATUS]\n");
-/*
-	gpio_info_show(info, C_GPIO_NUM, TOP_REGCGPIO0_OFS);
-	gpio_info_show(info, P_GPIO_NUM, TOP_REGPGPIO0_OFS);
-	gpio_info_show(info, D_GPIO_NUM, TOP_REGDGPIO0_OFS);
-	gpio_info_show(info, L_GPIO_NUM, TOP_REGLGPIO0_OFS);
-	gpio_info_show(info, S_GPIO_NUM, TOP_REGSGPIO0_OFS);
-	gpio_info_show(info, HSI_GPIO_NUM, TOP_REGHSIGPIO0_OFS);
-	gpio_info_show(info, A_GPIO_NUM, TOP_REGAGPIO0_OFS);
-*/
+
 }
 
 static uint32_t disp_pinmux_config[] = {
@@ -275,7 +200,6 @@ PINMUX_LCDINIT pinmux_get_dispmode(PINMUX_FUNC_ID id)
 void pinmux_parsing(struct nvt_pinctrl_info *info)
 {
 	u32 value;
-	unsigned long flags = 0;
 	//union TOP_REG0 local_top_reg0;
 	union TOP_REG1 local_top_reg1;
 	union TOP_REG2 local_top_reg2;
@@ -300,7 +224,7 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 //	union TOP_REGHSIGPIO0 local_top_reg_hgpio0;
 
 	/* Enter critical section */
-	loc_cpu(flags);
+	loc_cpu();
 
 	//local_top_reg0.reg = TOP_GETREG(info, TOP_REG0_OFS);
 	local_top_reg1.reg = TOP_GETREG(info, TOP_REG1_OFS);
@@ -1151,7 +1075,7 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 	info->top_pinmux[PIN_FUNC_SEL_LCD].pin_function = PIN_FUNC_SEL_LCD;
 
 	/* Leave critical section */
-	unl_cpu(flags);
+	unl_cpu();
 }
 
 void gpio_func_keep(int start, int count, int func)
@@ -5050,10 +4974,10 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 {
 	uint32_t i;
 	int err;
-	unsigned long flags = 0;
-	u32 lcd_type = 0x0;
+	// unsigned long flags = 0;
+	// u32 lcd_type = 0x0;
 	// int logoboot = logo_determination(&lcd_type);
-	static int boot_hint = 1;
+	// static int boot_hint = 1;
 
 	//pr_info("%s, %s\r\n", __func__, DRV_VERSION);
 
@@ -5103,7 +5027,7 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 	}
 
 	/* Enter critical section */
-	loc_cpu(flags);
+	loc_cpu();
 
 	/* Clean software record */
 	adc_en = MUX_0;
@@ -5113,7 +5037,7 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 		if (info->top_pinmux[i].pin_function != i) {
 			pr_err("top_config[%d].pinFunction context error\n", i);
 			/*Leave critical section*/
-			unl_cpu(flags);
+			unl_cpu();
 			return E_CTX;
 		}
 
@@ -5121,7 +5045,7 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 		if (err != E_OK) {
 			pr_err("top_config[%d].config config error\n", i);
 			/*Leave critical section*/
-			unl_cpu(flags);
+			unl_cpu();
 			return err;
 		}
 	}
@@ -5153,7 +5077,7 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 	TOP_SETREG(info, TOP_REGAGPIO0_OFS, top_reg_agpio0.reg);
 
 	/* Leave critical section */
-	unl_cpu(flags);
+	unl_cpu();
 
     // if (boot_hint && logoboot) {
     //     pr_info("logoboot enable, lcd_type = %08x\r\n",lcd_type);

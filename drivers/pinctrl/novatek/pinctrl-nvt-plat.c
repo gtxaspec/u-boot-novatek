@@ -34,53 +34,17 @@
 #include <asm/nvt_pinmux.h>
 
 
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51090_A64)
-u64 top_reg_addr = 0x2f0010000;
-extern u64 top_reg_addr;
+uintptr_t top_reg_addr = 0xf0010000;
+extern uintptr_t top_reg_addr;
+uintptr_t pad_reg_addr = 0xf0030000;
+extern uintptr_t pad_reg_addr;
+uintptr_t gpio_reg_addr = 0xf0030000;
+extern uintptr_t gpio_reg_addr;
 
-#else
-u32 top_reg_addr = 0xf0010000;
-extern u32 top_reg_addr;
-u32 pad_reg_addr = 0xf0030000;
-extern u32 pad_reg_addr;
-u32 gpio_reg_addr = 0xf0030000;
-extern u32 gpio_reg_addr;
-#endif
 
-#define TOP_DTS_MAX 25
-
-const char *pinmux_dts_name[] =
+const char *pinmux_dts_name[PIN_FUNC_MAX] =
 {
-#if defined(CONFIG_TARGET_NA51102_A64)
-	"sdio",
-	"nand",
-	"eth",
-	"i2c",
-	"i2cII",
-	"pwm",
-	"pwmII",
-	"ccnt",
-	"sensor",
-	"sensor2",
-	"sensor3",
-	"sensormisc",
-	"sensorsync",
-	"mipi_lvds",
-	"audio",
-	"uart",
-	"uartII",
-	"remote",
-	"sdp",
-	"spi",
-	"sif",
-	"misc",
-	"lcd",
-	"lcd2",
-	"tv",
-	"sel_lcd",
-	"sel_lcd2",
-
-#elif defined(CONFIG_TARGET_NS02302_A64)
+#if  defined(CONFIG_TARGET_NS02302_A64)
 	"sdio",
 	"nand",
 	"eth",
@@ -106,44 +70,6 @@ const char *pinmux_dts_name[] =
 	"lcd",
 	"tv",
 	"sel_lcd",
-
-#elif defined(CONFIG_TARGET_NS02201_A64)
-
-	"sdio",
-	"nand",
-	"eth",
-	"i2c",
-	"i2cII",
-	"i2cIII",
-	"i2cIV",
-	"pwm",
-	"pwmII",
-	"ccnt",
-	"sensor",
-	"sensor2",
-	"sensormisc",
-	"sensormiscii",
-	"sensorsync",
-	"sensorsyncII",
-	"sensorsyncIII",
-	"sensorsyncIV",
-	"audio",
-	"uart",
-	"uartII",
-	"remote",
-	"sdp",
-	"spi",
-	"sif",
-	"misc",
-	"lcd",
-	"lcd2",
-	"lcd3",
-	"tv",
-	"lcd_pinout",
-	"sel_lcd",
-	"sel_lcd2",
-	"pcie",
-	"sel_pcie",
 
 	#elif defined(CONFIG_TARGET_NS02501)
 	"sdio",
@@ -287,7 +213,7 @@ int nvt_pinmux_update(PIN_GROUP_CONFIG *pinmux_config, int count)
 		}
 
 		ret = pinmux_init(info);
-#if !(defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64))
+#if !(defined(CONFIG_TARGET_NS02302_A64))
 		if (ret == E_OK){
 			ret = pinmux_set_config(id_restore, pinmux_restore);
 		} else {
@@ -315,7 +241,7 @@ EXPORT_SYMBOL(nvt_pinmux_update);
 #endif
 int pinmux_set_config(PINMUX_FUNC_ID id, u32 pinmux)
 {
-#if (defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64))
+#if (defined(CONFIG_TARGET_NS02302_A64))
 	PIN_GROUP_CONFIG pinmux_cfg[1] = {0};
 	int ret = E_OK;
 
@@ -383,20 +309,21 @@ int nvt_pinmux_probe(struct udevice *dev)
 {
     struct nvt_pinctrl_info *info ;
 	int ret = E_OK;
-	//struct nvt_gpio_info *gpio;
-	//struct resource *nvt_mem_base;
-	//struct device_node *top_np;
-	//u32 value;
-	// u32 pad_config[4] = {0, 0, 0, 0};
-	//u32 gpio_config[2] = {0, 0};
-	//int nr_pinmux = 0, nr_pad = 0, nr_gpio = 0 ;
     int i = 0, nr_pinmux = 0, nr_pad = 0;
 	const fdt32_t *pad_cfg;
 	/* Enable it after dts parsing ready*/
-    int nodeoffset, len, subnode;
+    int nodeoffset = 0, len = 0, subnode = 0;
     u32 *cell = NULL;
-    char path[TOP_DTS_MAX] = {0};
+    char func_node[PIN_FUNC_MAX] = {0};
 
+	/* find top node name. (e.g. top@10,f0010000)*/
+	ofnode root = ofnode_path("/");
+	ofnode top_node = ofnode_by_compatible(root, "nvt,nvt_top");
+	const char *top_node_name = ofnode_get_name(top_node);
+	if (!ofnode_valid(top_node)){
+		pr_err("Failed to find top_node");
+		return -ENODEV;
+	}
 	printf("%s: version[%s] \n", __func__, DRV_VERSION);
 
     info = malloc(sizeof(struct nvt_pinctrl_info));
@@ -404,108 +331,64 @@ int nvt_pinmux_probe(struct udevice *dev)
 		pr_err("nvt pinmux mem alloc fail\n");
 		return -ENOMEM;
 	}
-#if 0
-	for_each_child_of_node(pdev->dev.of_node,  top_np) {
-		if (!of_get_property(top_np, "gpio_config", NULL))
-			continue;
+	memset(info, 0, sizeof(*info));
 
-		nr_gpio++;
-	}
-
-	gpio = devm_kzalloc(&pdev->dev, nr_gpio * sizeof(struct nvt_gpio_info), GFP_KERNEL);
-	if (!gpio) {
-		dev_err(&pdev->dev, "nvt gpio mem alloc fail\n");
-		return -ENOMEM;
-	}
-
-	nr_gpio = 0;
-#endif
-
-/*
-	nvt_mem_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->top_base = devm_ioremap_resource(&pdev->dev, nvt_mem_base);
-	if (IS_ERR(info->top_base)) {
-		dev_err(&pdev->dev, "fail to get pinmux mem base\n");
-		return -ENOMEM;
-	}
-	*/
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64)
-    info->top_base = (void*) IOADDR_TOP_REG_BASE;
-	top_reg_addr = (u64) info->top_base;
-    pr_debug("%s(pinmux= top_base=%p, length=%p):\n", __func__ , info->top_base,
-	      (void*)IOADDR_TOP_REG_BASE);
-#else
 	info->top_base = (void*) IOADDR_TOP_REG_BASE;
-	top_reg_addr = (u32) info->top_base;
-
-#if defined(CONFIG_TARGET_NS02501)
 	info->pad_base = (void*) IOADDR_PAD_REG_BASE;
 	info->gpio_base = (void*) IOADDR_GPIO_REG_BASE;
-	pad_reg_addr = (u32) info->pad_base;
-	gpio_reg_addr = (u32) info->gpio_base;
-#endif
-    pr_debug("%s(pinmux= top_base=%p, length=%x):\n", __func__ , info->top_base,
-	      IOADDR_TOP_REG_BASE);
-#endif
-#if 0
-	nvt_mem_base = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	info->pad_base = devm_ioremap_resource(&pdev->dev, nvt_mem_base);
-	if (IS_ERR(info->pad_base)) {
-		dev_err(&pdev->dev, "fail to get pad mem base\n");
-		return -ENOMEM;
-	}
+	top_reg_addr = (uintptr_t) info->top_base;
+	pad_reg_addr = (uintptr_t) info->pad_base;
+	gpio_reg_addr = (uintptr_t) info->gpio_base;
 
-	nvt_mem_base = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	info->gpio_base = devm_ioremap_resource(&pdev->dev, nvt_mem_base);
-	if (IS_ERR(info->gpio_base)) {
-		dev_err(&pdev->dev, "fail to get gpio mem base\n");
-		return -ENOMEM;
-	}
-#endif
-
-
-
-	for (i = 0; i < PIN_FUNC_MAX; i++)
+	/* find top.dtsi module node */
+	for (nr_pinmux = 0; nr_pinmux < PIN_FUNC_MAX; nr_pinmux++)
     {
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64)
-        sprintf(path,"/top/%s",pinmux_dts_name[i]);
-#else
-        sprintf(path,"/top@%x/%s",IOADDR_TOP_REG_BASE, pinmux_dts_name[i]);
-#endif
+		if (!pinmux_dts_name[nr_pinmux]){
+			pr_err("pinmux_dts_name not found! \n");
+			goto err_out;
+		}
 
-    	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+		if (nr_pinmux >= ARRAY_SIZE(info->top_pinmux)) {
+            pr_err("top_pinmux array overflow (max %zu)\n",
+                   ARRAY_SIZE(info->top_pinmux));
+            ret = -EOVERFLOW;
+            goto err_out;
+        }
+
+		sprintf(func_node,"/top/%s",pinmux_dts_name[nr_pinmux]);
+		nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, func_node);
 		if (nodeoffset < 0) {
-			pr_err("FDT: node path %s not found!\n", path);
-			nr_pinmux++;
-			continue;
+			pr_err("FDT: func_node %s not found!\n", func_node);
 		}
+		info->top_pinmux[nr_pinmux].pin_function = nr_pinmux;
 
-    	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
+		cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
 		if (cell == NULL) {
-			pr_err("FDT: property pinmux not found in %s!\n", path);
-			nr_pinmux++;
-			continue;
+			pr_err("FDT: property pinmux not found in %s!\n", func_node);
+			info->top_pinmux[nr_pinmux].config = 0x0;
+		} else {
+			info->top_pinmux[nr_pinmux].config = __be32_to_cpu(cell[0]);
 		}
-        info->top_pinmux[nr_pinmux].config = __be32_to_cpu(cell[0]);
-        info->top_pinmux[nr_pinmux].pin_function = nr_pinmux;
-
-        nr_pinmux++;
 	}
 
-	if (nr_pinmux == 0)
-		return -ENOMEM;
-
-
-#if defined(CONFIG_TARGET_NS02501)
-	sprintf(path,"/top@%x",IOADDR_TOP_REG_BASE);
-	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	/* find pad config*/
+	snprintf(func_node, sizeof(func_node), "/%s", top_node_name);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, func_node);
 	if (nodeoffset < 0) {
 		pr_err("FDT: top node not found!\n");
+		goto err_out;
 	}
 
 	for (subnode = fdt_first_subnode(nvt_fdt_buffer, nodeoffset);
 		subnode >= 0;
 		subnode = fdt_next_subnode(nvt_fdt_buffer, subnode)) {
+
+		if (nr_pad >= ARRAY_SIZE(info->pad)) {
+			pr_err("pad array overflow (max %zu)\n",
+					ARRAY_SIZE(info->pad));
+			ret = -EOVERFLOW;
+			goto err_out;
+		}
 
 		pad_cfg = (const fdt32_t *)fdt_getprop(nvt_fdt_buffer, subnode, "pad_config", &len);
 		if (pad_cfg && len >= 4 * sizeof(fdt32_t)) {
@@ -516,40 +399,34 @@ int nvt_pinmux_probe(struct udevice *dev)
 			nr_pad++;
 		}
 	}
+#if (defined(CONFIG_TARGET_NS02302_A64))
+
+#else
 	pad_preset(info);
 	ret = pad_init(info, nr_pad);
-
-	if (ret != E_OK)
-		return ret;
+	if (ret != E_OK){
+		goto err_out;
+	}
 #endif
-
-	// pinmux_preset(info);
-	//pad_preset(info);
-
 	ret = pinmux_init(info);
+	if (ret != E_OK){
+		nvt_pinmux_show_conflict(info);
+		goto err_out;
+	}
 
-	if (ret != E_OK)
-		return ret;
+	ret = pinmux_set_config(id_restore, pinmux_restore);
+	if (ret != E_OK){
+		goto err_out;
+	}
 
-	#if !(defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64))
-			if (ret == E_OK){
-				ret = pinmux_set_config(id_restore, pinmux_restore);
-			} else {
-				nvt_pinmux_show_conflict(info);
-			}
-	#endif
-
+	free(info);
 	return 0;
+
+err_out:
+	free(info);
+	return ret;
 }
 EXPORT_SYMBOL(nvt_pinmux_probe);
-
-#if !defined(CONFIG_TARGET_NS02501)
-static int nvt_pinctrl_remove(struct udevice *pdev)
-{
-
-	return 0;
-}
-#endif
 
 /*
 static const struct udevice_id nvt_pinctrl_ids[] = {
