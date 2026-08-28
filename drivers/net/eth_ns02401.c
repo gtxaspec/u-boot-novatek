@@ -78,7 +78,6 @@
 #define IOADDR_XPCS1_REG_BASE       (IOADDR_GLOBAL_BASE+0x005C0000)
 
 //#define debug(fmt, args...)   printf(fmt, ##args)
-#define E_GPIO(pin)         (pin + 0x60)
 #define REG32_MASK          0x00000000FFFFFFFF
 #define DEFAULT_MAC_ADDRESS {0x00, 0x80, 0x48, 0xBA, 0xD1, 0x30}
 #define CH_DIS 3

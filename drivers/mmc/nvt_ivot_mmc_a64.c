@@ -17,6 +17,7 @@
 #include "nvt_ivot_mmc_a64.h"
 #include "nvt_ivot_mmc_power_seq.h"
 #include <cpu_func.h>
+#include "mmc_private.h"
 
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>

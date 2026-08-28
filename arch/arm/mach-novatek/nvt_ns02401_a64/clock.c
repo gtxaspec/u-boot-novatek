@@ -342,7 +342,7 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 #if defined(CONFIG_NVT_FPGA_EMULATION) || defined(CONFIG_NVT_IVOT_QEMU_SIM)
 #else
 	int code;
-	code = otp_key_manager(4);
+	code = otp_key_manager(EFUSE_ID_0, 4);
 	if (code == 0) {
 		printf("[InHs][CPU clk =@%dMHz]\n", value);
 	} else {

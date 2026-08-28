@@ -2299,7 +2299,7 @@ int do_nvt_mmc_erase_all_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *co
 	printf("User Capacity: 0x%lx\n", ((u64)mmc->capacity_user));
 	cnt = (u32)(mmc->capacity_user/mmc->erase_grp_size);
 	printf("Erase User Partition ...\n");
-	sprintf(cmd, "mmc partconf 2 1 1 0");
+	sprintf(cmd, "mmc partconf %d 1 1 0", curr_device);
 	printf("%s\n", cmd);
 	run_command(cmd, 0);
 	sprintf(cmd, "mmc erase 0x0 0x%x", cnt);
@@ -2308,14 +2308,14 @@ int do_nvt_mmc_erase_all_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *co
 	printf("Boot Capacity: 0x%lx\n", ((u64)mmc->capacity_boot));
 	cnt = (u32)(mmc->capacity_boot/mmc->erase_grp_size);
 	printf("Erase Boot Partition #0 ...\n");
-	sprintf(cmd, "mmc partconf 2 1 1 1");
+	sprintf(cmd, "mmc partconf %d 1 1 1", curr_device);
 	printf("%s\n", cmd);
 	run_command(cmd, 0);
 	sprintf(cmd, "mmc erase 0x0 0x%x", cnt);
 	run_command(cmd, 0);
 
 	printf("Erase Boot Partition #1 ...\n");
-	sprintf(cmd, "mmc partconf 2 1 1 2");
+	sprintf(cmd, "mmc partconf %d 1 1 2", curr_device);
 	printf("%s\n", cmd);
 	run_command(cmd, 0);
 	sprintf(cmd, "mmc erase 0x0 0x%x", cnt);
