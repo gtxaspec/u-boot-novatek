@@ -44,7 +44,7 @@
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.09"
+#define DRV_VERSION                     "1.00.08"
 
 struct nvt_udc_chip;
 
@@ -482,22 +482,6 @@ static void nvtim_init_usbhc(void)
 	}
 #endif
 #endif // #ifndef CONFIG_NVT_FPGA_EMULATION
-}
-
-static void nvtim_remove_power_save(void)
-{
-	printf("nvt_udc: Enter powerdown script\r\n");
-
-	// IP provided to make PHY deeply sleeping
-	U2PHY_SETREG(MAP_PHY(0xD4), 0xB4);   // Port0 dmpulldown = 1, dppulldown = 0, suspendm = 1, termselect = 1, xcvrselect = 01, opmode = 00
-	U2PHY_SETREG(MAP_PHY(0xD0), 0xFF);   // Enable port0 sw reg 0xF060_10D4
-	U2PHY_SETREG(MAP_PHY(0x08), 0x14);   // Port0 pll_pdn = 0, pll_rstn = 0
-	U2PHY_SETREG(MAP_PHY(0x00), 0x8A);   // Port0 bias_pdn = 0, ldo_pdn = 0
-	U2PHY_SETREG(MAP_PHY(0x30), 0x13);   // Port0 datarpu1 = 0, datarpu2 = 1, spsel = 0, datarpusel = 0, datarpdp = 1, datarpdm = 1
-	U2PHY_SETREG(MAP_PHY(0x2C), 0xFF);   // Enable port0 sw reg 0x0030
-	U2PHY_SETREG(MAP_PHY(0x28), 0x20);   // Port0 usb_pwr_ok = 0
-	U2PHY_SETREG(MAP_PHY(0x24), 0xB3);   // Port0 u11_rx_pwd = 1
-	U2PHY_SETREG(MAP_PHY(0x34), 0x90);   // Port0 tx_pdn = 0
 }
 
 static inline int fifo_to_ep(struct nvt_udc_chip *chip, int id, int in)
@@ -1428,10 +1412,5 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		//do nothing.
 	}
 #endif
-
-	if (nvt_get_chip_id() == CHIP_NS02301) {
-		nvtim_remove_power_save();
-	}
-
 	return 0;
 }

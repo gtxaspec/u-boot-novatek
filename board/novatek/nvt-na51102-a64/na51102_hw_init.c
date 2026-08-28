@@ -391,14 +391,14 @@ void nvt_ddr_scan(u32 type)
 			printf("LP4/LP4X\r\n");
 			if ((readl(0x2F00D0000)&0x3000000) == 0x3000000) { //dual rank
 				printf("dual rank\r\n");
-				writel(0x40460e1e, 0x2f0050084);
+				writel(0x40460e1c, 0x2f0050084);
 			} else { // single rank
 				printf("single rank\r\n");
-				writel(0x40060e1e, 0x2f0050084);
+				writel(0x40060e1c, 0x2f0050084);
 			}
 		} else { // D4
 			printf("D4\r\n");
-			writel(0x40050e1e, 0x2f0050084);
+			writel(0x40050e1c, 0x2f0050084);
 		}
 		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");

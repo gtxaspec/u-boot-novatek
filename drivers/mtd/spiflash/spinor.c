@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.16"
+#define NOR_VERSION "1.0.14"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;
@@ -1287,32 +1287,6 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 		(info->flash_info->dtr_read), \
 		(info->flash_info->dtr_dummy), \
 		(info->flash_info->dqs_en));
-
-#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
-	if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ || \
-		info->flash_info->nor_write_mode == SPI_NOR_QUAD_WRITE) {
-		uint32_t reg = INW(IOADDR_TOP_REG_BASE + 0x4);
-
-		OUTW(IOADDR_TOP_REG_BASE + 0x4, (reg | 0x2));
-
-		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
-		OUTW(IOADDR_TOP_REG_BASE + 0xA0, (reg & ~0x30));
-	} else {
-		uint32_t reg = INW(IOADDR_TOP_REG_BASE + 0x4);
-
-		OUTW(IOADDR_TOP_REG_BASE + 0x4, (reg& ~0x2));
-
-		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
-		OUTW(IOADDR_TOP_REG_BASE + 0xA0, (reg | 0x30));
-
-		reg = INW(IOADDR_GPIO_REG_BASE + 0x30);
-		OUTW(IOADDR_GPIO_REG_BASE + 0x30, (reg | 0x30));
-
-		reg = INW(IOADDR_GPIO_REG_BASE);
-		OUTW(IOADDR_GPIO_REG_BASE, (reg | 0x30));
-		printf("(331) single/dual mode: WP/HOLD force output high\n");
-	}
-#endif
 
 	return flash;
 }

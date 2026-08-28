@@ -28,58 +28,34 @@
 #include <command.h>
 
 #define RAM_SRC_SELECT_OFFSET 0x20
-#define RAM_SIZE_OFFSET 0x4388
 
-enum {
-	DDR4GB = 0x1000,
-	DDR2GB = 0x800,
-	DDR1GB = 0x400,
-	DDR512MB = 0x200,
-};
+static char nvt_ddr_remap_help_text[] =
+"\n"
+"nvt_ddr_remap 2 - DDR1 base address on 4G bits\n"
+"nvt_ddr_remap 3 - DDR1 base address on 8G bits\n"
+"nvt_ddr_remap 4 - DDR1 base address on 16G bits\n"
+"";
 
 static int do_nvt_ddr_remap(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-	unsigned int dram_size;
-	unsigned int reg, val;
+	unsigned int reg;
+	unsigned int val;
 
-	dram_size = readl(IOADDR_DRAM_REG_BASE + RAM_SIZE_OFFSET);
-	if (!dram_size) {
-		printf("Can not get DDR0 size, please check Loader settings\n");
+	if (argc < 2) {
 		return -1;
 	}
-
-	switch (dram_size) {
-		case DDR4GB:
-			printf("DDR1 base remap to 4GB(0x1_0000_0000)\n");
-			return 0;
-		case DDR2GB:
-			val = 4;
-			printf("DDR1 base remap to 2GB(0x8000_0000)\n");
-			break;
-		case DDR1GB:
-			val = 3;
-			printf("DDR1 base remap to 1GB(0x4000_0000)\n");
-			break;
-		case DDR512MB:
-			val = 2;
-			printf("DDR1 base remap to 512MB(0x2000_0000)\n");
-			break;
-		default:
-			printf("DDR size is not support on DDR remap\n");
-			return -1;
-	}
+	val = (unsigned int)simple_strtoul(argv[1], NULL, 16);
 
 	reg = readl(IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
-	reg &= 0xFFFFFF0F;
 	reg |= 1 << (val + 3);
 	writel(reg, IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
 	return 0;
 }
 
 U_BOOT_CMD(
-	nvt_ddr_remap, 1, 1, do_nvt_ddr_remap,
-	"nvt_ddr_remap - Automatically remap DDR1 base addresses next to DDR0\n",
-	""
+	nvt_ddr_remap, 2, 1, do_nvt_ddr_remap,
+	"Represent DRAMx select",
+	nvt_ddr_remap_help_text
 );
 
 #ifdef CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT

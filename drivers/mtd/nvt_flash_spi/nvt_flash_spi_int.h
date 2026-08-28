@@ -51,12 +51,7 @@
 #define ECC_CORRECTED               0xB0
 #define NVT_INDLY_STEP              128
 
-#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
-#define NVT_BCH_ECC_SUPPORT         (0)
-#else
 #define NVT_BCH_ECC_SUPPORT         (1)
-#endif
-
 
 #if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64) || \
 	 defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64))
