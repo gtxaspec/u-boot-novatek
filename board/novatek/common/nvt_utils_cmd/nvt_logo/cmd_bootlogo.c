@@ -536,7 +536,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	_W_LOG("do_bootlogo, layer = %d\r\n",layer);
 
 
-#if (!CONFIG_TARGET_NS02302_A64 && !CONFIG_TARGET_NS02401_A64)
+#if (!CONFIG_TARGET_NS02302_A64)
 	//TODO
 	_W_LOG("set tog reg go\r\n");
 	nvt_pinmux_probe();
@@ -750,6 +750,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		p_emu_disp_obj->dev_ctrl(DISPDEV_OPEN_DEVICE, &emu_disp_dev);
 #endif
 
+
 		/*hdmi2p1 init flow*/
 				
 #if ( CONFIG_DISP_VIDEO_HDMITX_IDE && CONFIG_TARGET_NS02401_A64)
@@ -894,36 +895,10 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 			//disp3 flow start
 			p_emu_disp_obj3 = disp_get_display_object(DISP_3);
 			p_emu_disp_obj3->open();			
-
-#if ( CONFIG_DISP_VIDEO_HDMITX_IDE && CONFIG_TARGET_NS02401_A64)// 635 used hdmi3 + lcd3
-			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.dev_id		   = DISPDEV_ID_TVHDMI;
-			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj	 = dispdev_get_hdmi2_dev_obj();
-			if(p_emu_disp_obj3->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev3)!=0){
-				printf("hook hdmi3 dev error \n");
-			} else {
-				_Y_LOG("hook hdmi3 dev done \n");
-			}
-
-			emu_disp_dev3.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;
-			config.audio_fmt = HDMI_AUDIO48KHZ;
-			config.output_mode = 0;//2; //HDMI_MODE_RGB444 = 0, //	 HDMI_MODE_YCBCR422,  //	HDMI_MODE_YCBCR444,  //
-			config.vid	= HDMI_1920X1080P60;//HDMI_720X480P60;
-			config.source = HDMI_IDE_2;
-
-			phdmi_disp_obj= dispdev_get_hdmi2_dev_obj();
-			phdmi_disp_obj->presetconfig((PDISP_HDMI_CFG)&config);
-			emu_disp_dev3.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P60;
-			emu_disp_dev3.SEL.SET_HDMIMODE.audio_id = HDMI_AUDIO48KHZ;
-			p_emu_disp_obj3->dev_ctrl(DISPDEV_SET_HDMIMODE, &emu_disp_dev3);
-			emu_disp_dev3.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;	
-
-			_Y_LOG("preset hdmi3 done\r\n");
-
-#else
+			
 			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.dev_id		    = DISPDEV_ID_PANEL;
 			emu_disp_dev3.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj	 = dispdev_get_lcd3_dev_obj();
-			p_emu_disp_obj3->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev3);
-#endif			
+			p_emu_disp_obj3->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev3);		
 			_Y_LOG("hook disp3 dev done \n");
 			
 			p_emu_disp_obj3->dev_ctrl(DISPDEV_OPEN_DEVICE, &emu_disp_dev3);
@@ -970,6 +945,81 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 			
 			_W_LOG("DISPCTRL3_SET_ALL_LYR_EN\r\n");
 #endif
+
+#if ( CONFIG_DISP_VIDEO_HDMITX_IDE && CONFIG_TARGET_NS02401_A64) // 635 used hdmi3 + lcd2
+		if(tohdmi == 1){
+			p_emu_disp_obj2 = disp_get_display_object(DISP_2);
+			p_emu_disp_obj2->open();
+			
+			emu_disp_dev2.SEL.HOOK_DEVICE_OBJECT.dev_id		   = DISPDEV_ID_TVHDMI;
+			emu_disp_dev2.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj	 = dispdev_get_hdmi2_dev_obj();
+			if(p_emu_disp_obj2->dev_ctrl(DISPDEV_HOOK_DEVICE_OBJECT, &emu_disp_dev2)!=0){
+				printf("hook hdmi3 dev error \n");
+			} else {
+				_Y_LOG("hook hdmi3 dev done \n");
+			}
+		
+			emu_disp_dev2.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;
+			config.audio_fmt = HDMI_AUDIO48KHZ;
+			config.output_mode = 0;//2; //HDMI_MODE_RGB444 = 0, //	 HDMI_MODE_YCBCR422,  //	HDMI_MODE_YCBCR444,  //
+			config.vid	= HDMI_1920X1080P60;//HDMI_720X480P60;
+			config.source = HDMI_IDE_1;
+		
+			phdmi_disp_obj= dispdev_get_hdmi2_dev_obj();
+			phdmi_disp_obj->presetconfig((PDISP_HDMI_CFG)&config);
+			emu_disp_dev2.SEL.SET_HDMIMODE.video_id = HDMI_1920X1080P60;
+			emu_disp_dev2.SEL.SET_HDMIMODE.audio_id = HDMI_AUDIO48KHZ;
+			p_emu_disp_obj2->dev_ctrl(DISPDEV_SET_HDMIMODE, &emu_disp_dev2);
+			emu_disp_dev2.SEL.OPEN_DEVICE.dev_id = DISPDEV_ID_TVHDMI;	
+		
+			_Y_LOG("preset hdmi3 done\r\n");			
+			}
+		
+			p_emu_disp_obj2->dev_ctrl(DISPDEV_OPEN_DEVICE, &emu_disp_dev2);
+
+			p_emu_disp_obj2->dev_ctrl(DISPDEV_GET_DISPSIZE, &emu_disp_dev2);
+			
+			emu_disp_lyr2.SEL.SET_WINSIZE.ui_win_width	  = emu_disp_dev2.SEL.GET_DISPSIZE.ui_buf_width;
+			emu_disp_lyr2.SEL.SET_WINSIZE.ui_win_height		= emu_disp_dev2.SEL.GET_DISPSIZE.ui_buf_height;
+			emu_disp_lyr2.SEL.SET_WINSIZE.i_win_ofs_x	  = 0;
+			emu_disp_lyr2.SEL.SET_WINSIZE.i_win_ofs_y	  = 0;
+			p_emu_disp_obj2->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_WINSIZE, &emu_disp_lyr2);
+
+
+			emu_disp_lyr2.SEL.SET_MODE.buf_format   = DISPBUFFORMAT_YUV422PACK;
+			emu_disp_lyr2.SEL.SET_MODE.buf_mode	   = DISPBUFMODE_BUFFER_REPEAT;
+			emu_disp_lyr2.SEL.SET_MODE.buf_number   = DISPBUFNUM_3;
+			p_emu_disp_obj2->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_MODE, &emu_disp_lyr2);
+			_W_LOG("DISPLAYER2_OP_SET_MODE\r\n");
+	
+			emu_disp_lyr2.SEL.SET_BUFSIZE.ui_buf_width	=  buf_w;
+			emu_disp_lyr2.SEL.SET_BUFSIZE.ui_buf_height	=  buf_h;
+			emu_disp_lyr2.SEL.SET_BUFSIZE.ui_buf_line_ofs = buf_w;
+			p_emu_disp_obj2->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_BUFSIZE, &emu_disp_lyr2);
+						
+			_W_LOG("DISPLAYER2_OP_SET_BUFSIZE %d %d\r\n", emu_disp_lyr2.SEL.SET_BUFSIZE.ui_buf_line_ofs, buf_h);
+			
+
+			memset((void *)&emu_disp_lyr2, 0, sizeof(DISPLAYER_PARAM));
+
+			emu_disp_lyr2.SEL.SET_VDOBUFADDR.buf_sel = DISPBUFADR_0;
+			emu_disp_lyr2.SEL.SET_VDOBUFADDR.ui_addr_y0 = uiVDO_YAddr;
+			emu_disp_lyr2.SEL.SET_VDOBUFADDR.ui_addr_cb0 = uiVDO_UVAddr;
+			emu_disp_lyr2.SEL.SET_VDOBUFADDR.ui_addr_cr0 = uiVDO_UVAddr;
+			p_emu_disp_obj2->disp_lyr_ctrl(DISPLAYER_VDO1, DISPLAYER_OP_SET_VDOBUFADDR, &emu_disp_lyr2);
+			
+			_W_LOG("DISPLAYER2_OP_SET_VDOBUFADDR\r\n");
+			
+			emu_disp_ctrl2.SEL.SET_ALL_LYR_EN.b_en	   = TRUE;
+			emu_disp_ctrl2.SEL.SET_ALL_LYR_EN.disp_lyr  = DISPLAYER_VDO1;
+
+			p_emu_disp_obj2->disp_ctrl(DISPCTRL_SET_ALL_LYR_EN, &emu_disp_ctrl2);
+			p_emu_disp_obj2->load(TRUE);
+			p_emu_disp_obj2->wait_frm_end(TRUE);
+			
+			_W_LOG("DISPCTRL2_SET_ALL_LYR_EN\r\n");			
+#endif
+
 
 
 

@@ -401,6 +401,9 @@ int nvt_boot_rtos_bin_auto(void)
 					return -1;
 				}
 				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + Uncompsz));
+			} else if ((cpu_to_be32(pbfc->uiAlgorithm) & 0xFF) == 12) {
+				gz_uncompress((unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, Compsz, cpu_to_be32(pbfc->uiSizeUnComp));
+				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + rtos_size));
 			} else {
 				/* lz77 compressed image*/
 				lz_uncompress((unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, Compsz);
@@ -481,6 +484,14 @@ int nvt_boot_rtos_bin_auto(void)
 					printf("Decompressed lzma fail\n");
 				}
 				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + Uncompsz));
+			} else if ((cpu_to_be32(pbfc->uiAlgorithm) & 0xFF) == 12) {
+				int decoded_size = gz_uncompress((unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, Compsz, cpu_to_be32(pbfc->uiSizeUnComp));
+
+				if (decoded_size == 0) {
+					printf("Decompressed gzip fail\n");
+					return -1;
+				}
+				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + rtos_size));
 			} else {
 				/* lz77 compressed image*/
 				lz_uncompress((unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, Compsz);

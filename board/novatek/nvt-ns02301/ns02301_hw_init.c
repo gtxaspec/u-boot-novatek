@@ -54,6 +54,10 @@
 #define TOP_GETREG(ofs)         INW(TOP_REG_ADDR(ofs))
 #define TOP_SETREG(ofs,value)   OUTW(TOP_REG_ADDR(ofs), (value))
 
+#define TRNG_REG_ADDR(ofs)       (IOADDR_TRNG_REG_BASE+(ofs))
+#define TRNG_GETREG(ofs)         INW(TRNG_REG_ADDR(ofs))
+#define TRNG_SETREG(ofs,value)   OUTW(TRNG_REG_ADDR(ofs), (value))
+
 #define CG_PLL_ENABLE_OFS 0x20 + 0x100000 // WDT in Pre-roll part
 #define STBC_ENABLE_OFS 0x140
 #define CG_RESET_OFS 0x28 + 0x100000 // WDT in Pre-roll part
@@ -464,6 +468,26 @@ int nvt_ivot_hw_init_early(void)
 {
 	otp_init();
 	return 0;
+}
+
+static u32 g_trng_init=0;
+u32 nvt_get_random(void)
+{
+	u32 reg_value;
+
+	if(!g_trng_init){
+		reg_value = CG_GETREG(0x78);
+		CG_SETREG(0x78, reg_value | (1<<25));
+		reg_value = CG_GETREG(CG_PLL_ENABLE_OFS);
+		CG_SETREG(CG_PLL_ENABLE_OFS, reg_value | (1<<2));
+
+		reg_value = TRNG_GETREG(0x00);
+		TRNG_SETREG(0x00, reg_value | (0x300));
+		g_trng_init = 1;
+	}
+
+	reg_value = TRNG_GETREG(0x0C);
+	return reg_value;
 }
 
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT

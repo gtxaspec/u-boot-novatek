@@ -12,7 +12,7 @@
 #include <nand.h>
 #include "../nvt_flash_spi/nvt_flash_spi_int.h"
 
-#define NAND_VERSION "1.0.32"
+#define NAND_VERSION "1.0.34"
 
 #ifdef CONFIG_CMD_NAND
 typedef struct nand_2plane_id {
@@ -308,6 +308,11 @@ static int nvt_scan_nand_type(struct drv_nand_dev_info *info, int32_t *id)
 static int drv_nand_readpage(struct drv_nand_dev_info *info,
 							 int column, int page_addr)
 {
+    if (info->data_buff == NULL) {
+        printf("Error: info->data_buff is NULL\n");
+        return -1; 
+    }
+
 	return nand_cmd_read_operation(info, (int8_t *)info->data_buff,
 								   page_addr * info->flash_info->page_size, 1);
 }
@@ -346,6 +351,12 @@ static int drv_nand_read_page_ecc(struct mtd_info *mtd, struct nand_chip *chip,
 	u8 dev_id = (info->flash_info->chip_id >> 8) & 0xFF;
 	u32 full_id = info->flash_info->chip_id;
 	int ret = 0, count = 0, i = 0;
+
+	//CID 412336
+	if (chip->read_buf == NULL) {
+        printf("Error: chip->read_buf is NULL\n");
+        return -1; 
+    }
 
 	chip->read_buf(mtd, buf, eccsize * eccsteps);
 
@@ -411,6 +422,11 @@ static int drv_nand_write_page_ecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsize = chip->ecc.size;
 	int eccsteps = chip->ecc.steps;
 
+	if (chip->write_buf == NULL) {
+        printf("Error: chip->write_buf func is NULL\n");
+        return -1;
+    }
+
 	chip->write_buf(mtd, buf, eccsize * eccsteps);
 
 	return 0;
@@ -439,6 +455,11 @@ static uint8_t drv_nand_read_byte(struct mtd_info *mtd)
 
 	char retval = 0xFF;
 
+	if (info->data_buff == NULL) {
+        printf("Error: info->data_buff is NULL\n");
+        return retval; 
+    }
+
 	if (info->buf_start < info->buf_count) {
 		retval = info->data_buff[info->buf_start++];
 	}
@@ -453,6 +474,11 @@ static u16 drv_nand_read_word(struct mtd_info *mtd)
 
 	u16 retval = 0xFFFF;
 
+	if (info->data_buff == NULL) {
+        printf("Error: info->data_buff is NULL\n");
+        return retval;
+    }
+
 	if (!(info->buf_start & 0x01) && info->buf_start < info->buf_count) {
 		retval = *((u16 *)(info->data_buff + info->buf_start));
 		info->buf_start += 2;
@@ -464,6 +490,11 @@ static void drv_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct nand_chip *this = mtd_to_nand(mtd);
 	struct drv_nand_dev_info *info = this->priv;
+
+	if (info->data_buff == NULL) {
+        printf("Error: info->data_buff is NULL\n");
+        return;
+    }
 
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
@@ -479,6 +510,12 @@ static void drv_nand_write_buf(struct mtd_info *mtd,
 	struct drv_nand_dev_info *info = this->priv;
 
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
+	
+	//CID 411625
+	if (info->data_buff == NULL) {
+        printf("Error: info->data_buff is NULL\n");
+        return;
+    }
 
 	memcpy(info->data_buff + info->buf_start, buf, real_len);
 
@@ -503,10 +540,15 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		info->buf_start = mtd->writesize + column;
 
+		if (info->data_buff == NULL) {
+            printf("Error: info->data_buff is NULL\n");
+            return;
+		}
+
 		ptr = info->data_buff + info->buf_start;
 		if (info->buf_start != info->flash_info->page_size) {
 			printf("info->buf_start = %d, != 0\n", info->buf_start);
-		}
+		}		
 
 		nand_cmd_read_page_spare_data(info, (int8_t *)ptr,
 									  info->flash_info->page_size * page_addr);
@@ -515,6 +557,12 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 	case NAND_CMD_READ0:
 		info->retcode = ERR_NONE;
+
+		if (info->data_buff == NULL) {
+            printf("Error: info->data_buff is NULL\n");
+            return;
+		}
+
 		if (((unsigned long)(info->data_buff)) % CACHE_LINE_SIZE) {
 			printf("NAND_CMD_READ0 : is not Cache_Line_Size alignment!\n");
 		}
@@ -538,6 +586,12 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->retcode = ERR_NONE;
 		info->buf_start = column;
 		info->buf_count = mtd->writesize + mtd->oobsize;
+
+		if (info->data_buff == NULL) {
+            printf("Error: info->data_buff is NULL\n");
+            return;
+		}
+
 		memset(info->data_buff, 0xff, info->buf_count);
 
 		/* save column/page_addr for next CMD_PAGEPROG */
@@ -547,9 +601,15 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 	case NAND_CMD_PAGEPROG:
 		info->retcode = ERR_NONE;
+
+		if (info->data_buff == NULL) {
+            printf("Error: info->data_buff is NULL\n");
+            return;
+		}
+
 		if (((unsigned long)(info->data_buff)) % CACHE_LINE_SIZE) {
 			printf("not MIPS_Cache_Line_Size alignment!\n");
-		}
+		}	
 
 		ret = drv_nand_write_page(info, info->seqin_column, info->seqin_page_addr);
 		if (ret) {
@@ -572,6 +632,10 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->retcode = ERR_NONE;
 		info->buf_start = 0;
 		info->buf_count = 4;
+		if (info->data_buff == NULL) {
+            printf("Error: info->data_buff is NULL\n");
+            return;
+		}
 		if (info->flash_info->chip_id) {
 			memcpy((uint32_t *)info->data_buff, &info->flash_info->chip_id, 4);
 		} else {
@@ -585,6 +649,12 @@ static void drv_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->retcode = ERR_NONE;
 		info->buf_start = 0;
 		info->buf_count = 1;
+
+		if (info->data_buff == NULL) {
+            printf("Error: info->data_buff is NULL\n");
+            return;
+		}
+
 		nand_cmd_read_status(info, NAND_SPI_STS_FEATURE_2);
 		if (!(info->data_buff[0] & 0x80)) {
 			info->data_buff[0] = 0x80;

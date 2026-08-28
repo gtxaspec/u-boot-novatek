@@ -19,7 +19,7 @@
 
 
 
-#define HDMI_VERSION "1.05.01"
+#define HDMI_VERSION "1.05.02"
 
 
 #define PLATFORM_MAX_CHIP_CNT 1

@@ -140,14 +140,14 @@ void otp_init(void)
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
 {
-	return local_store(rol | (col << 5) | (macro_AB<<11));
+	return local_store(rol | (col << 5) | (macro_AB << 11));
 }
 
 static s32 key_write_data(u32 addr, u32 data)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -190,7 +190,7 @@ static s32 key_write_data_timing(u32 addr, u32 data, u32 timing)
 {
 	u32 ui_bits;
 	u32 ui_data;
-	u32	ui_data_macro_B;
+	u32 ui_data_macro_B;
 
 	if (addr < 8) {
 		DBG_ERR("key_write_data addr = 0x%08x error(need < 8)\r\n", (int)addr);
@@ -660,8 +660,56 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		break;
 
 	case SECUREBOOT_SIGN_RSA:
-		if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
-			result = TRUE;
+		//addr[8] bit[1] == 1
+		//RSA or RSA-PSS or PSAPKCS1.5
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = FALSE;
+		} else {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
+				if (sec2 & OTP_SIGNATURE_RSA_OTHERS) {
+					result = FALSE;
+				} else {
+					result = TRUE;
+				}
+			}
+		}
+		break;
+
+	case SECUREBOOT_SIGN_RSA_PSS:
+		//addr[8] bit[1] == 1
+		//RSA or RSA-PSS or PSAPKCS1.5
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = FALSE;
+		} else {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
+				if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) == OTP_SIGNATURE_RSA_OTHERS) {
+					if ((sec2 & OTP_SIGNATURE_RSAPKCS1P5) == OTP_SIGNATURE_RSAPKCS1P5) {
+						result = FALSE;
+					} else {
+						result = TRUE;
+					}
+				} else {
+					result = FALSE;
+				}
+			}
+		}
+		break;
+
+	case SECUREBOOT_SIGN_RSA_PKCS1P5:
+		if ((sec2 & OTP_SIGNATURE_ECDSA) == OTP_SIGNATURE_ECDSA) {
+			result = FALSE;
+		} else {
+			if ((sec & OTP_SIGNATURE_RSA) == OTP_SIGNATURE_RSA) {
+				if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) == OTP_SIGNATURE_RSA_OTHERS) {
+					if ((sec2 & OTP_SIGNATURE_RSAPKCS1P5) == OTP_SIGNATURE_RSAPKCS1P5) {
+						result = TRUE;
+					} else {
+						result = FALSE;
+					}
+				} else {
+					result = FALSE;
+				}
+			}
 		}
 		break;
 
@@ -676,6 +724,15 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		if ((sec & OTP_SIGNATURE_RSA_CHK_EN) == OTP_SIGNATURE_RSA_CHK_EN) {
 			result = TRUE;
 		}
+		break;
+
+	case SECUREBOOT_HEADER_SIGNATURE:
+		if ((sec2 & OTP_HEADER_SIGNATURE_EN) == OTP_HEADER_SIGNATURE_EN) {
+			result = TRUE;
+		} else {
+			result = FALSE;
+		}
+
 		break;
 
 	case SECUREBOOT_JTAG_DISABLE_EN:
@@ -744,45 +801,6 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
-#if (0)
-	case SECUREBOOT_HDMI_AVAILABLE:
-		if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_1ST_AVAILABLE) {
-			result = TRUE;
-		} else if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_2ND_AVAILABLE) {
-			result = TRUE;
-		} else if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_1ST_DISABLE) {
-			result = FALSE;
-		} else if ((sec & EFUSE_HDMI_USAGE_BIT_MASK) == HDMI_2ND_DISABLE) {
-			result = FALSE;
-		} else {
-			result = FALSE;
-		}
-		break;
-
-	case SECUREBOOT_DSP1_DISABLE:
-		if ((sec & OTP_DSP1_DISABLE) == OTP_DSP1_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_DSP2_DISABLE:
-		if ((sec & OTP_DSP2_DISABLE) == OTP_DSP2_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_GPU_DISABLE:
-		if ((sec & OTP_GPU_DISABLE) == OTP_GPU_DISABLE) {
-			result = TRUE;
-		}
-		break;
-
-	case SECUREBOOT_MCU_DISABLE:
-		if ((sec2 & OTP_MCU_DISABLE) == OTP_MCU_DISABLE) {
-			result = TRUE;
-		}
-		break;
-#endif
 	default:
 		break;
 	}
@@ -803,9 +821,11 @@ BOOL quary_secure_boot(SECUREBOOT_STATUS scu_status)
 */
 BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 {
-	u32  sec;
+	u32     sec;
+	u32     sec2;
 	BOOL    result = FALSE;
 	sec = KEY_MANAGER_READ_PARAM();
+	sec2 = KEY_MANAGER_READ_2ND_PARAM();
 
 	poweron_efuse();
 
@@ -837,13 +857,62 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		}
 		break;
 
+	case SECUREBOOT_SIGN_RSA_PSS:
+		//addr[8] bit[1] == 1
+		//RSA or RSA-PSS or PSAPKCS1.5
+		if ((sec & OTP_SIGNATURE_RSA) != 0x0) {
+			DBG_ERR("Signature use RSA bit[1] already set ...");
+		} else {
+			if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) != 0x0) {
+				DBG_ERR("Signature use RSA others bit[19] already set ...");
+			} else {
+				//addr[8] bit[1] = 1
+				KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+				//addr[9] bit[19] = 1
+				//addr[9] bit[16] = 0
+				KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_RSA_OTHERS);
+			}
+		}
+		break;
+
+	case SECUREBOOT_SIGN_RSA_PKCS1P5:
+		if ((sec & OTP_SIGNATURE_RSA) != 0x0) {
+			DBG_ERR("Signature use RSA bit[1] already set ...");
+		} else {
+			if ((sec2 & OTP_SIGNATURE_RSA_OTHERS) != 0x0) {
+				DBG_ERR("Signature use RSA others bit[19] already set ...");
+			} else {
+				if ((sec2 & OTP_SIGNATURE_RSAPKCS1P5) != 0x0) {
+					DBG_ERR("Signature use RSAPKCS1.5 bit[16] already set ...");
+				} else {
+					//addr[8] bit[1] = 1
+					KEY_MANAGER_WRITE_PARAM(OTP_SIGNATURE_RSA);
+					//addr[9] bit[19] = 1
+					//addr[9] bit[16] = 1
+					KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_RSA_OTHERS);
+					KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_RSAPKCS1P5);
+				}
+			}
+		}
+		break;
+
 	case SECUREBOOT_SIGN_ECDSA:
-		if ((sec & OTP_SIGNATURE_ECDSA) != 0x0) {
+		if ((sec2 & OTP_SIGNATURE_ECDSA) != 0x0) {
 			DBG_ERR("Signature use ECDSA bit already set ...");
 		} else {
 			result = TRUE;
 			KEY_MANAGER_WRITE_2ND_PARAM(OTP_SIGNATURE_ECDSA);
 		}
+		break;
+
+	case SECUREBOOT_HEADER_SIGNATURE:
+		if ((sec2 & OTP_HEADER_SIGNATURE_EN) != 0x0) {
+			DBG_ERR("Header signature bit already set ...");
+		} else {
+			result = TRUE;
+			KEY_MANAGER_WRITE_2ND_PARAM(OTP_HEADER_SIGNATURE_EN);
+		}
+
 		break;
 
 	case SECUREBOOT_SIGN_RSA_CHK:
@@ -901,27 +970,6 @@ BOOL enable_secure_boot(SECUREBOOT_STATUS scu_status)
 		result = TRUE;
 		break;
 
-#if (0)
-	case SECUREBOOT_DSP1_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_DSP1_DISABLE);
-		result = TRUE;
-		break;
-
-	case SECUREBOOT_DSP2_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_DSP2_DISABLE);
-		result = TRUE;
-		break;
-
-	case SECUREBOOT_GPU_DISABLE:
-		KEY_MANAGER_WRITE_PARAM(OTP_GPU_DISABLE);
-		result = TRUE;
-		break;
-
-	case SECUREBOOT_MCU_DISABLE:
-		KEY_MANAGER_WRITE_2ND_PARAM(OTP_MCU_DISABLE);
-		result = TRUE;
-		break;
-#endif
 	case SECUREBOOT_2ND_KEY_SET_READ_LOCK:
 	case SECUREBOOT_3RD_KEY_SET_READ_LOCK:
 		DBG_ERR("2ND & 3RD key set can not configured as read lock(RSA checksum)");
@@ -997,39 +1045,3 @@ BOOL extract_trim_valid(u32 code, u32 *pData)
 }
 
 
-/*
-     otp_get_pkg_Version
-
-     efuse get IC package version
-
-     @return IC revision of specific package revision
-        - @b   NT98336_PKG      NT98336 package version
-        - @b   NT98633_PKG      NT98633 package version
-        - @b   UNKNOWN_PKG_VER  Unknown IC package version(system must halt)
-*/
-INT32 otp_get_pkg_version(void)
-{
-	u32     trim;
-//	u32     remap_data;
-	int     code;
-	BOOL    is_found;
-	u32		pkgUID;
-
-
-	code = otp_key_manager(OTP_PKGUID_FIELD);
-	if (code == -33) {
-		printf("Read pkgUID error\r\n");
-		return -1;
-	} else {
-		is_found = extract_trim_valid(code, (u32 *)&trim);
-		printf("[UID] = 0x%08x\r\n", (int)trim);
-		if(trim == OTP_690_TRIM) {
-			pkgUID = NT98690_PKG;
-		} else if(trim == OTP_692_TRIM) {
-			pkgUID = NT98692_PKG;
-		} else {
-			pkgUID = UNKNOWN_PKG_VER;
-		}
-	}
-	return pkgUID;
-}

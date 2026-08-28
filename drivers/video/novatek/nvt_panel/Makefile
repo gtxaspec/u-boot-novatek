@@ -13,6 +13,7 @@ ifeq ($(CONFIG_TARGET_NS02302_A64),y)
 obj-$(CONFIG_VIDEO_LOGO) += dispdev_panlcomn.o dispdev_platform.o
 else
 obj-$(CONFIG_DISP_IFPA_LCD3_RGB8888) += disp_ifpa_lcd3_rgb888/
+obj-$(CONFIG_DISP_IFPA_LCD3_BT1120) += disp_ifpa_lcd3_bt1120_4k_clkinv0/
 obj-$(CONFIG_VIDEO_LOGO) += pinctrl-nvt-plat.o dispdev_panlcomn.o dispdev_platform.o
 endif
 endif

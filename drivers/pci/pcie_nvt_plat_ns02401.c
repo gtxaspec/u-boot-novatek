@@ -266,6 +266,9 @@ static int pcie_power_on(struct pcie_nvt *pci)
 	val = readl(IOADDR_TOP_REG_BASE + TOP_CTRL_REG14_OFS);
 	val |= TOP_PCIE_RSTN_HIGHZ;
 	writel(val, IOADDR_TOP_REG_BASE + TOP_CTRL_REG14_OFS);
+	if (pci->pe_rst) {
+		dm_gpio_set_value(pci->pe_rst, 0);     // 0: release reset
+	}
 
 	mdelay(200);
 

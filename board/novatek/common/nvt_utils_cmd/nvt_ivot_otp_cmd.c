@@ -53,7 +53,7 @@
 
 #define SAMPLE_CODE_ENC_TYPE_EBC    0
 #define SAMPLE_CODE_ENC_TYPE_CBC    1
-#define SAMPLE_CODE_ENC_TYPE        SAMPLE_CODE_ENC_TYPE_EBC
+#define SAMPLE_CODE_ENC_TYPE        SAMPLE_CODE_ENC_TYPE_CBC
 
 static UINT8  car_in[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
 static UINT8  iv_in[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
@@ -69,7 +69,7 @@ static UINT8  cpu_key[16] = {0x04, 0x03, 0x02, 0x01, 0x08, 0x07, 0x06, 0x05, 0x1
 
 int do_nvt_encrypt_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-#if defined(CONFIG_NVT_CRYPTO)	
+#if defined(CONFIG_NVT_CRYPTO)
 	int index_cnt;
 
 	unsigned long test_buf;
@@ -488,7 +488,7 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 			efuse_signature_rsapss_en();
 			printf("is_signature_rsapss_enable()=%d\r\n", is_signature_rsapss());
 		}
-#elif defined(CONFIG_TARGET_NS02401_A64)
+#elif defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501)
 		printf("=>[rsa_pss(pkcs2.1) enable]\r\n");
 		efuse_signature_rsapss_en();
 		printf("is_signature_rsapss_enable()=%d\r\n", is_signature_rsapss());
@@ -500,7 +500,7 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 			efuse_signature_rsapkcs1p5_en();
 			printf("is_signature_rsa_pkcs1.5_enable()=%d\r\n", is_signature_rsapkcs1p5());
 		}
-#elif defined(CONFIG_TARGET_NS02401_A64)
+#elif defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501)
 		printf("=>[rsa_pkcs1.5 enable]\r\n");
 		efuse_signature_rsapkcs1p5_en();
 		printf("is_signature_rsa_pkcs1.5_enable()=%d\r\n", is_signature_rsapkcs1p5());
@@ -512,7 +512,7 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 			efuse_header_signature_en();
 			printf("is_header_signature_en()=%d\r\n", is_header_signature_en());
 		}
-#elif defined(CONFIG_TARGET_NS02401_A64)
+#elif defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501)
 		printf("=>[header signature enable]\r\n");
 		efuse_header_signature_en();
 		printf("is_header_signature_en()=%d\r\n", is_header_signature_en());
@@ -2014,19 +2014,30 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 			}
 		}
 #elif defined(CONFIG_TARGET_NS02401_A64)
-		u32 	trim_field;
-		u32 	trim_value;
-		for(trim_field = 0; trim_field < 64; trim_field++) {
+		u32     trim_field;
+		u32     trim_value;
+		for (trim_field = 0; trim_field < 64; trim_field++) {
 			trim_value = otp_key_manager(EFUSE_ID_1, trim_field);
 			printf("addr[%02d]=[0x%08x]\r\n", trim_field, trim_value);
-		}		
+		}
 		printf("[0]addr[04]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 4));
 		printf("[0]addr[08]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 8));
-		printf("[0]addr[09]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 9));	
+		printf("[0]addr[09]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 9));
 		printf("[0]addr[10]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 10));
-		printf("[0]addr[11]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 11));		
+		printf("[0]addr[11]=[0x%08x]\r\n", otp_key_manager(EFUSE_ID_0, 11));
+#elif defined(CONFIG_TARGET_NS02501)
+		u32     trim_field;
+		u32     trim_value;
+		for (trim_field = 0; trim_field < 32; trim_field++) {
+			trim_value = otp_key_manager(trim_field);
+			printf("addr[%02d]=[0x%08x]\r\n", trim_field, trim_value);
+		}
 #endif
 	} else if (!strncmp(argv[1], "quary", 5)) {
+#if defined(CONFIG_TARGET_NS02501)
+		UINT32  uiConfig_addr_8 = 0;
+		UINT32  uiConfig_addr_9 = 0;
+#endif
 		printf("=>[quary]\r\n");
 		printf("             is_secure_enable()=%d\r\n", is_secure_enable());
 		printf("       is_data_area_encrypted()=%d\r\n", is_data_area_encrypted());
@@ -2070,6 +2081,69 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		printf("             is_ep_signature_rsa()=%d\r\n", is_ep_signature_rsa());
 		printf("is_ep_signature_rsa_chsum_enable()=%d\r\n", is_ep_signature_rsa_chsum_enable());
 #endif
+#if defined(CONFIG_TARGET_NS02501)
+		printf("====================================================================\r\n");
+		printf("===                        Secure boot Info                      ===\r\n");
+		printf("====================================================================\r\n");
+		uiConfig_addr_8 = otp_key_manager(8);
+		uiConfig_addr_9 = otp_key_manager(9);
+		if (uiConfig_addr_8 & ROM_SECURE_MASK) {
+			printf("	=>[Secure boot enabled]\r\n");
+			printf(" 	|\r\n");
+			if (uiConfig_addr_8 & ROM_SECURE_CONTENT_MASK) {
+				if (uiConfig_addr_9 & ROM_2ND_SIGNATURE_EN) {
+					printf(" 	+--->Content [Cypher-Text] header signature[ ON]\r\n");
+				} else {
+					printf(" 	+--->Content [Cypher-Text] header signature[OFF]\r\n");
+				}
+			} else {
+				if (uiConfig_addr_9 & ROM_2ND_SIGNATURE_EN) {
+					printf(" 	+--->Content [Plan-Text] header signature[ ON]\r\n");
+				} else {
+					printf(" 	+--->Content [Plan-Text] header signature[OFF]\r\n");
+				}
+			}
+			printf(" 		|\r\n");
+			if (uiConfig_addr_9 & ROM_SIGN_METHOD_ECDSA_MASK) {
+				printf(" 		+---> SIGNATURE[ECDSA]\r\n");
+				printf(" 			|\r\n");
+				if (uiConfig_addr_8 & ROM_SIGN_RSA_CRC32_MASK) {
+					printf(" 			+--->Public key SHA256 CHK[ ON]\r\n");
+				} else {
+					printf(" 			+--->Public key SHA256 CHK[OFF]\r\n");
+				}
+			} else {
+				if (uiConfig_addr_8 & ROM_SIGN_METHOD_MASK) {
+					if (uiConfig_addr_9 & ROM_RSA_METHOD_MASK) {    //addr[9] bit[19] == 0 -> Depend on addr[9] bit[16]
+						if (uiConfig_addr_9 & ROM_SIGN_METHOD_RSA_PKCS_V15_MASK) {  //addr[9] bit[16] = 0
+							printf(" 		+---> SIGNATURE[RSA-PKCS1.5]\r\n");      //addr[9] bit[16] = 1
+						} else {
+							printf(" 		+---> SIGNATURE[RSA-PSS]\r\n");
+						}
+					} else {                                        //addr[9] bit[19] == 1
+						printf(" 		+---> SIGNATURE[RSA]\r\n");
+					}
+					printf(" 			|\r\n");
+
+					if (uiConfig_addr_8 & ROM_SIGN_RSA_CRC32_MASK) {
+						printf(" 			+--->Public key SHA256 CHK[ ON]\r\n");
+					} else {
+						printf(" 			+--->Public key SHA256 CHK[OFF]\r\n");
+					}
+				} else {
+					printf(" 		+---> SIGNATURE[AES]\r\n");
+				}
+
+			}
+		} else {
+			printf("	=>[Normal boot]\r\n");
+		}
+
+		printf("====================================================================\r\n");
+		printf("===                        Secure boot Info                      ===\r\n");
+		printf("====================================================================\r\n");
+#endif
+
 	}
 #if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64)
 	else if (!strncmp(argv[1], "DSP1_disable", 12)) {
@@ -2105,7 +2179,7 @@ U_BOOT_CMD(
 	"              [data_encrypt]\n"
 	"              [rsa_en]\n"
 #if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501)
-#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64)
+#if defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501)
 	"              [rsapss_en](=>pkcs2.1)\n"
 	"              [rsapkcs1p5_en]\n"
 	"              [header_signature_en]\n"
@@ -2123,7 +2197,7 @@ U_BOOT_CMD(
 #endif
 	"              [quary]\n"
 	"              [uniqueue_id]\n"
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02401_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02401_A64) || defined(CONFIG_TARGET_NS02501))
 	"              [trim]\n"
 #endif
 );

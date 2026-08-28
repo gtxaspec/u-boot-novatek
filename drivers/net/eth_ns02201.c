@@ -602,6 +602,11 @@ static int eqos_adjust_link(struct udevice *dev)
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
+	if (eqos->phy == NULL) {
+		pr_err("eqos->phy poonter to NULL\n");
+		return -1;
+	}
+	
 	if (eqos->phy->duplex)
 		ret = eqos_set_full_duplex(dev);
 	else
@@ -903,7 +908,11 @@ static int eqos_start(struct udevice *dev)
 	writel(val, &eqos->dma_regs->sysbus_mode);
 
 	/* Set up descriptors */
-
+	if (eqos->descs == NULL) {
+		pr_err("eqos->descs pointer to NULL\n");
+		ret = -1;
+		goto err;
+	}
 	memset(eqos->descs, 0, EQOS_DESCRIPTORS_SIZE);
 	for (i = 0; i < EQOS_DESCRIPTORS_RX; i++) {
 		struct eqos_desc *rx_desc = &(eqos->rx_descs[i]);
@@ -1013,6 +1022,10 @@ static int eqos_send(struct udevice *dev, void *packet, int length)
 	debug("%s(dev=%p, packet=%p, length=%d):\n", __func__, dev, packet,
 	      length);
 
+	if (eqos->tx_dma_buf == NULL) {
+		pr_err("eqos->tx_dma_buf pointer to NULL\n");
+		return -ETIMEDOUT;
+	}
 	memcpy(eqos->tx_dma_buf, packet, length);
 	eqos_flush_buffer(eqos->tx_dma_buf, length);
 

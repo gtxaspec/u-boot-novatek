@@ -1212,6 +1212,13 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		reg |= 0x110055;	// fixed driving = 0x1
 		OUTW(IOADDR_PAD_REG_BASE + 0x40, reg);
 		NAND_DBG_GLOBAL("dbg pad driving: 0x%x \n", reg);
+	} else if (info->chip_id == CHIP_NS02501) {
+		OUTW(IOADDR_PAD_REG_BASE + 0x50, 0x33333333);// D7 ~ D0
+		reg = INW(IOADDR_PAD_REG_BASE + 0x54);
+		reg &= ~(0xF0F00);	// cs0/clk
+		reg |= 0x30500;
+		OUTW(IOADDR_PAD_REG_BASE + 0x54, reg);
+		printf("flash driving: clk lv5, other lv3 (best setting: TBD)\n");
 	} else {
 		/* Release SRAM */
 		printf("Release sram: skip (TODO)\r\n");
@@ -1699,6 +1706,12 @@ int nand_host_create_edge_detect_pattern(struct drv_nand_dev_info *info, NAND_TY
 
 		// read back & verify pattern
 		rBuf = info->data_buff;
+
+		if (rBuf == NULL) {
+			printf("Error: data_buff is NULL\r\n");
+			free(flash);
+			return -1;
+		}
 		NAND_AUTOK_DBG(info, "rBuf: %p\r\n", rBuf);
 
 		flush_dcache_range((unsigned long)rBuf, (unsigned long)((unsigned long)rBuf + pageSize));
@@ -1745,6 +1758,7 @@ int nand_host_create_edge_detect_pattern(struct drv_nand_dev_info *info, NAND_TY
 
 		// read back & verify pattern
 		rBuf = info->data_buff;
+
 		nand_cmd_read_operation(info, rBuf, pattern_addr, 1);
 		NAND_AUTOK_DBG(info, "rBuf: %p\r\n", rBuf);
 
@@ -1808,6 +1822,11 @@ void nand_host_indly_scan(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType
 	}
 
 	printf("autok tuning pattern addr: 0x%x\r\n", addr);
+
+	if (info->data_buff == NULL) {
+        printf("Error: info->data_buff is NULL\n");
+        return;
+    }
 
 	rBuf = info->data_buff;
 	NAND_AUTOK_DBG(info, "rBuf: %p\r\n", rBuf);

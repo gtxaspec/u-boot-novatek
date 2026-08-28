@@ -5,9 +5,9 @@
 
 	@file       top.h
 	@ingroup    mIDrvSys_TOP
-	@note       Refer NS02401 data sheet for PIN/PAD naming
+	@note       Refer NS02302 data sheet for PIN/PAD naming
 
-	Copyright   Novatek Microelectronics Corp. 2021.  All rights reserved
+	Copyright   Novatek Microelectronics Corp. 2023.  All rights reserved
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License version 2 as
 	published by the Free Software Foundation.
@@ -32,124 +32,149 @@ typedef u32  PINMUX_LCD_SEL;            ///< For panel driver reference
     Debug port select value for pinmux_select_debugport().
 */
 typedef enum {
-	PINMUX_DEBUGPORT_CKG =          0x0000,     ///< CKGen
-	PINMUX_DEBUGPORT_MAU =          0x0001,     ///< MAU
-	PINMUX_DEBUGPORT_GPIO =         0x0002,     ///< GPIO
-	PINMUX_DEBUGPORT_CPU =          0x0003,     ///< CPU
+	PINMUX_DEBUGPORT_GPIO =         0x0000,     ///< GPIO
+	PINMUX_DEBUGPORT_CKG =          0x0001,     ///< CKGen
+	PINMUX_DEBUGPORT_CPU =          0x0002,     ///< CPU
+	PINMUX_DEBUGPORT_PAD =          0x0003,     ///< PAD
 	PINMUX_DEBUGPORT_TIMER =        0x0004,     ///< Timer
-	PINMUX_DEBUGPORT_TIMER2 =       0x0005,     ///< Timer2
-	PINMUX_DEBUGPORT_TIMER3 =       0x0006,     ///< Timer3
-	PINMUX_DEBUGPORT_CC =           0x0007,     ///< CC
-	PINMUX_DEBUGPORT_WDT =          0x0008,     ///< WDT
-	PINMUX_DEBUGPORT_INTC =         0x0009,     ///< INTC
-	PINMUX_DEBUGPORT_PWM =          0x000A,     ///< PWM
-	PINMUX_DEBUGPORT_REMOTE =       0x000B,     ///< Remote
-	PINMUX_DEBUGPORT_TRNG =         0x000C,     ///< TRNG
-	PINMUX_DEBUGPORT_SDIO =         0x000D,     ///< SDIO
-	PINMUX_DEBUGPORT_SDIO2 =        0x000E,     ///< SDIO2
-	PINMUX_DEBUGPORT_SDIO3 =        0x000F,     ///< SDIO3
-	PINMUX_DEBUGPORT_SMC =          0x0010,     ///< NAND/SMC
-	PINMUX_DEBUGPORT_DAI =          0x0011,     ///< DAI
-	PINMUX_DEBUGPORT_DAI2 =         0x0012,     ///< DAI2
-	PINMUX_DEBUGPORT_AUDIO =        0x0013,     ///< AUDIO
-	PINMUX_DEBUGPORT_TSE =          0x0014,     ///< TSE
-	PINMUX_DEBUGPORT_IFE =          0x0015,     ///< IFE
-	PINMUX_DEBUGPORT_UART2 =        0x0016,     ///< UART2
-	PINMUX_DEBUGPORT_UART3 =        0x0017,     ///< UART3
-	PINMUX_DEBUGPORT_UART4 =        0x0018,     ///< UART4
-	PINMUX_DEBUGPORT_UART5 =        0x0019,     ///< UART5
-	PINMUX_DEBUGPORT_UART6 =        0x001A,     ///< UART6
-	PINMUX_DEBUGPORT_UART7 =        0x001B,     ///< UART7
-	PINMUX_DEBUGPORT_UART8 =        0x001C,     ///< UART8
-	PINMUX_DEBUGPORT_UART9 =        0x001D,     ///< UART9
-	PINMUX_DEBUGPORT_I2C =     	    0x001E,     ///< I2C
-	PINMUX_DEBUGPORT_I2C2 =         0x001F,     ///< I2C2
-	PINMUX_DEBUGPORT_I2C3 =         0x0020,     ///< I2C3
-	PINMUX_DEBUGPORT_I2C4 =         0x0021,     ///< I2C4
-	PINMUX_DEBUGPORT_I2C5 =         0x0022,     ///< I2C5
-	PINMUX_DEBUGPORT_I2C6 =         0x0023,     ///< I2C6
-	PINMUX_DEBUGPORT_I2C7 =         0x0024,     ///< I2C7
-	PINMUX_DEBUGPORT_I2C8 =         0x0025,     ///< I2C8
-	PINMUX_DEBUGPORT_I2C9 =         0x0026,     ///< I2C9
-	PINMUX_DEBUGPORT_I2C10 =        0x0027,     ///< I2C10
-	PINMUX_DEBUGPORT_I2C11 =        0x0028,     ///< I2C11
-	PINMUX_DEBUGPORT_SPI =          0x0029,     ///< SPI
-	PINMUX_DEBUGPORT_SPI2 =         0x002A,     ///< SPI2
-	PINMUX_DEBUGPORT_SPI3 =         0x002B,     ///< SPI3
-	PINMUX_DEBUGPORT_SPI4 =         0x002C,     ///< SPI4
-	PINMUX_DEBUGPORT_SPI5 =         0x002D,     ///< SPI5
-	PINMUX_DEBUGPORT_SIF =          0x002E,     ///< SIF
-	PINMUX_DEBUGPORT_DRTC =         0x002F,     ///< DRTC
-	PINMUX_DEBUGPORT_SDP =          0x0030,     ///< SDP
-	PINMUX_DEBUGPORT_ADM =          0x0031,     ///< ADM
-	PINMUX_DEBUGPORT_TSEN =         0x0032,     ///< TSEN
-	PINMUX_DEBUGPORT_HASH =         0x0033,     ///< HASH
-	PINMUX_DEBUGPORT_SCE =          0x0034,     ///< SCE
-	PINMUX_DEBUGPORT_HWCP =         0x0035,     ///< HWCP
-	PINMUX_DEBUGPORT_RSA =          0x0036,     ///< RSA
-	PINMUX_DEBUGPORT_DSI =          0x0037,     ///< DSI
-	PINMUX_DEBUGPORT_CSITX =        0x0038,     ///< CSITX
-	PINMUX_DEBUGPORT_MPU =          0x0039,     ///< MPU
-	PINMUX_DEBUGPORT_USB =          0x003A,     ///< USB
-	PINMUX_DEBUGPORT_USB3 =         0x003B,     ///< USB3
-	PINMUX_DEBUGPORT_ETH =          0x003C,     ///< ETH
-	PINMUX_DEBUGPORT_HVYLD =        0x003D,     ///< HVYLD
-	PINMUX_DEBUGPORT_UVCP =         0x003E,     ///< UVCP
-	PINMUX_DEBUGPORT_UVCP2 =        0x003F,     ///< UVCP2
-	PINMUX_DEBUGPORT_EFUSE =        0x0040,     ///< EFUSE
-	PINMUX_DEBUGPORT_SATA =         0x0041,     ///< SATA
-	PINMUX_DEBUGPORT_IDE =          0x0042,     ///< IDE
-	PINMUX_DEBUGPORT_IDE2 =         0x0043,     ///< IDE2
-	PINMUX_DEBUGPORT_HVYLD2 =       0x0044,     ///< HVYLD2
-	PINMUX_DEBUGPORT_CSIRX =        0x0045,     ///< CSIRX
-	PINMUX_DEBUGPORT_CSIRX2 =       0x0046,     ///< CSIRX2
-	PINMUX_DEBUGPORT_CSIRX3 =       0x0047,     ///< CSIRX3
-	PINMUX_DEBUGPORT_CSIRX4 =       0x0048,     ///< CSIRX4
-	PINMUX_DEBUGPORT_CSIRX5 =       0x0049,     ///< CSIRX5
-	PINMUX_DEBUGPORT_SIE =          0x004A,     ///< SIE
-	PINMUX_DEBUGPORT_SIE2 =         0x004B,     ///< SIE2
-	PINMUX_DEBUGPORT_SIE3 =         0x004C,     ///< SIE3
-	PINMUX_DEBUGPORT_SIE4 =         0x004D,     ///< SIE4
-	PINMUX_DEBUGPORT_SIE5 =         0x004E,     ///< SIE5
-	PINMUX_DEBUGPORT_SIE6 =         0x004F,     ///< SIE6
-	PINMUX_DEBUGPORT_VIE =          0x0050,     ///< VIE
-	PINMUX_DEBUGPORT_VIE2 =         0x0051,     ///< VIE2
-	PINMUX_DEBUGPORT_TGE =          0x0052,     ///< TGE
-	PINMUX_DEBUGPORT_VPE =          0x0053,     ///< VPE
-	PINMUX_DEBUGPORT_VPEL =         0x0054,     ///< VPEL
-	PINMUX_DEBUGPORT_JPEG =         0x0055,     ///< JPEG
-	PINMUX_DEBUGPORT_JPEG2 =        0x0056,     ///< JPEG2
-	PINMUX_DEBUGPORT_GRAPHIC =      0x0057,     ///< GRAPHIC
-	PINMUX_DEBUGPORT_GRAPHIC2 =     0x0058,     ///< GRAPHIC2
-	PINMUX_DEBUGPORT_GRAPHIC3 =     0x0059,     ///< GRAPHIC3
-	PINMUX_DEBUGPORT_ISE =          0x005A,     ///< ISE
-	/// < 005B Reserved
-	PINMUX_DEBUGPORT_MDBC =         0x005C,     ///< MDBC
-	PINMUX_DEBUGPORT_DIS =          0x005D,     ///< DIS
-	PINMUX_DEBUGPORT_DRE =          0x005E,     ///< DRE
-	PINMUX_DEBUGPORT_IVE =          0x005F,     ///< IVE
-	PINMUX_DEBUGPORT_SDE =          0x0060,     ///< SDE
-	PINMUX_DEBUGPORT_TRKE =         0x0061,     ///< TRKE
-	PINMUX_DEBUGPORT_CNN =          0x0062,     ///< CNN
-	PINMUX_DEBUGPORT_CNN2 =         0x0063,     ///< CNN2
-	PINMUX_DEBUGPORT_DCE =          0x0064,     ///< DCE
-	PINMUX_DEBUGPORT_NUE =          0x0065,     ///< NUE
-	PINMUX_DEBUGPORT_NUE2 =         0x0066,     ///< NUE2
-	PINMUX_DEBUGPORT_IPE =          0x0067,     ///< IPE
-	PINMUX_DEBUGPORT_IME =          0x0068,     ///< IME
-	PINMUX_DEBUGPORT_HVYLD3 =       0x0069,     ///< HVYLD3
-	PINMUX_DEBUGPORT_HDMI =         0x006A,     ///< HDMI
-	PINMUX_DEBUGPORT_DSP =          0x006B,     ///< DSP
-	PINMUX_DEBUGPORT_PMC =          0x006C,     ///< PMC
-	PINMUX_DEBUGPORT_ETH2 =         0x006D,     ///< ETH2
-	PINMUX_DEBUGPORT_STBCG =        0x006E,     ///< STBCG
-	PINMUX_DEBUGPORT_VDEC =         0x006F,     ///< VDEC
-	PINMUX_DEBUGPORT_PAD =          0x0070,     ///< PAD
-	PINMUX_DEBUGPORT_JPEGL =        0x0071,     ///< JPEGL
+	PINMUX_DEBUGPORT_HRTIMER  =     0x0005,     ///< HR timer
+	PINMUX_DEBUGPORT_HRTIMER2 =     0x0006,     ///< HR timer 2
+	PINMUX_DEBUGPORT_HRTIMER3 =     0x0007,     ///< HR timer 3
+
+	PINMUX_DEBUGPORT_HRTIMER4 =     0x0008,     ///< HR timer 4
+	PINMUX_DEBUGPORT_HRTIMER5 =     0x0009,     ///< HR timer 5
+	PINMUX_DEBUGPORT_HRTIMER6 =     0x000A,     ///< HR timer 6
+	PINMUX_DEBUGPORT_HRTIMER7 =     0x000B,     ///< HR timer 7
+	PINMUX_DEBUGPORT_HRTIMER8 =     0x000C,     ///< HR timer 8
+	PINMUX_DEBUGPORT_HRTIMER9 =     0x000D,     ///< HR timer 9
+	PINMUX_DEBUGPORT_HRTIMER10 =    0x000E,     ///< HR timer 10
+	PINMUX_DEBUGPORT_CC =           0x000F,     ///< CC
+
+	PINMUX_DEBUGPORT_DRTC =         0x0010,     ///< DRTC
+	PINMUX_DEBUGPORT_DOORBELL =     0x0011,     ///< Doorbell
+	PINMUX_DEBUGPORT_MSI =          0x0012,     ///< MSI
+	PINMUX_DEBUGPORT_TRNG =         0x0013,     ///< TRNG
+	PINMUX_DEBUGPORT_PWM =          0x0014,     ///< PWM
+	PINMUX_DEBUGPORT_RMT =          0x0015,     ///< RMT
+	PINMUX_DEBUGPORT_UART =         0x0016,     ///< UART
+	PINMUX_DEBUGPORT_UART2 =        0x0017,     ///< UART2
+
+	PINMUX_DEBUGPORT_UART3 =        0x0018,     ///< UART3
+	PINMUX_DEBUGPORT_UART4 =        0x0019,     ///< UART4
+	PINMUX_DEBUGPORT_UART5 =        0x001A,     ///< UART5
+	PINMUX_DEBUGPORT_UART6 =        0x001B,     ///< UART6
+	PINMUX_DEBUGPORT_I2C =          0x001C,     ///< I2C
+	PINMUX_DEBUGPORT_I2C2 =         0x001D,     ///< I2C2
+	PINMUX_DEBUGPORT_I2C3 =         0x001E,     ///< I2C3
+	PINMUX_DEBUGPORT_I2C4 =         0x001F,     ///< I2C4
+
+	PINMUX_DEBUGPORT_I2C5 =         0x0020,     ///< I2C5
+	PINMUX_DEBUGPORT_I2C6 =         0x0021,     ///< I2C6
+	PINMUX_DEBUGPORT_I2C7 =         0x0022,     ///< I2C7
+	PINMUX_DEBUGPORT_I2C8 =         0x0023,     ///< I2C8
+	PINMUX_DEBUGPORT_SPI =          0x0024,     ///< SPI
+	PINMUX_DEBUGPORT_SPI2 =         0x0025,     ///< SPI2
+	PINMUX_DEBUGPORT_SPI3 =         0x0026,     ///< SPI3
+	PINMUX_DEBUGPORT_SDP =          0x0027,     ///< SDP
+
+	PINMUX_DEBUGPORT_DAI =          0x0028,     ///< DAI
+	PINMUX_DEBUGPORT_DAI2 =         0x0029,     ///< DAI2
+	PINMUX_DEBUGPORT_DAI3 =         0x002A,     ///< DAI3
+	PINMUX_DEBUGPORT_DAI4 =         0x002B,     ///< DAI4
+	PINMUX_DEBUGPORT_DAI5 =         0x002C,     ///< DAI5
+	PINMUX_DEBUGPORT_GRAPHIC =      0x002D,     ///< GRAPHIC
+	PINMUX_DEBUGPORT_GRAPHIC2 =     0x002E,     ///< GRAPHIC2
+	PINMUX_DEBUGPORT_GRAPHIC3 =     0x002F,     ///< GRAPHIC3
+
+	PINMUX_DEBUGPORT_GPE =          0x0030,     ///< GPENG
+	PINMUX_DEBUGPORT_GPE2 =         0x0031,     ///< GPENG2
+	PINMUX_DEBUGPORT_GPE3 =         0x0032,     ///< GPENG3
+	PINMUX_DEBUGPORT_AGE =          0x0033,     ///< AGE
+	PINMUX_DEBUGPORT_JPG =          0x0034,     ///< JPG
+	PINMUX_DEBUGPORT_JPG2 =         0x0035,     ///< JPG2
+	PINMUX_DEBUGPORT_MAU =          0x0036,     ///< MAU
+	PINMUX_DEBUGPORT_MAU2 =         0x0037,     ///< MAU2
+
+	PINMUX_DEBUGPORT_TZASC =        0x0038,     ///< TZASC
+	PINMUX_DEBUGPORT_EFUSE =        0x0039,     ///< EFUSE
+	PINMUX_DEBUGPORT_SCE =          0x003A,     ///< SCE
+	PINMUX_DEBUGPORT_HASH =         0x003B,     ///< HASH
+	PINMUX_DEBUGPORT_RSA =          0x003C,     ///< RSA
+	PINMUX_DEBUGPORT_ECDSA =        0x003D,     ///< ECDSA
+	PINMUX_DEBUGPORT_HVYLD =        0x003E,     ///< HVYLD
+	PINMUX_DEBUGPORT_HVYLD2 =       0x003F,     ///< HVYLD2
+
+	PINMUX_DEBUGPORT_HVYLD3 =       0x0040,     ///< HVYLD3
+	PINMUX_DEBUGPORT_HWCP =         0x0041,     ///< HWCP
+	PINMUX_DEBUGPORT_NUE2 =        	0x0042,     ///< NUE2
+	PINMUX_DEBUGPORT_IVE =          0x0043,     ///< IVE
+	PINMUX_DEBUGPORT_MDBC =         0x0044,     ///< MDBC
+	PINMUX_DEBUGPORT_ISE =          0x0045,     ///< ISE
+	PINMUX_DEBUGPORT_TSEN =         0x0046,     ///< TSEN
+	PINMUX_DEBUGPORT_VENC =         0x0047,     ///< VENC
+
+	PINMUX_DEBUGPORT_PCIE =         0x0048,     ///< PCIE
+	PINMUX_DEBUGPORT_PCIE2 =        0x0049,     ///< PCIE2
+	PINMUX_DEBUGPORT_PCIE3 =        0x004A,     ///< PCIE3
+	PINMUX_DEBUGPORT_PCIE4 =        0x004B,     ///< PCIE4
+	PINMUX_DEBUGPORT_LCD =          0x004C,     ///< LCD
+	PINMUX_DEBUGPORT_LCD2 =         0x004D,     ///< LCD2
+	PINMUX_DEBUGPORT_LCD3 =         0x004E,     ///< LCD3
+	PINMUX_DEBUGPORT_DSC =          0x004F,     ///< DSC
+
+	PINMUX_DEBUGPORT_HDMI =        	0x0050,     ///< HDMI
+	PINMUX_DEBUGPORT_HDMI2 =        0x0051,     ///< HDMI2
+	PINMUX_DEBUGPORT_HDMI3 =        0x0052,     ///< HDMI3
+	PINMUX_DEBUGPORT_USB2 =         0x0053,     ///< USB2
+	PINMUX_DEBUGPORT_USB3 =         0x0054,     ///< USB3
+	PINMUX_DEBUGPORT_SATA =         0x0055,     ///< SATA
+	PINMUX_DEBUGPORT_VPEL2 =        0x0056,     ///< VPEL2
+	PINMUX_DEBUGPORT_XGMAC =        0x0057,     ///< XGMAC
+
+	PINMUX_DEBUGPORT_XGMAC2 =       0x0058,     ///< XGMAC2
+	PINMUX_DEBUGPORT_SATA2 =        0x0059,     ///< SATA2
+	PINMUX_DEBUGPORT_SATA3 =        0x005A,     ///< SATA3
+	PINMUX_DEBUGPORT_SDIO =         0x005B,     ///< SDIO
+	PINMUX_DEBUGPORT_SDIO2 =        0x005C,     ///< SDIO2
+	PINMUX_DEBUGPORT_SMC =          0x005D,     ///< SMC
+	PINMUX_DEBUGPORT_RS =           0x005E,     ///< RS
+	PINMUX_DEBUGPORT_RS2 =          0x005F,     ///< RS2
+
+	PINMUX_DEBUGPORT_MALI =         0x0060,     ///< MALI
+	PINMUX_DEBUGPORT_JM =           0x0061,     ///< JM
+	PINMUX_DEBUGPORT_JMISP =        0x0062,     ///< JMISP
+	PINMUX_DEBUGPORT_UTL =          0x0063,     ///< UTL
+	PINMUX_DEBUGPORT_CAL =          0x0064,     ///< CAL
+	PINMUX_DEBUGPORT_ROU =          0x0065,     ///< ROU
+	PINMUX_DEBUGPORT_PPU =          0x0066,     ///< PPU
+	PINMUX_DEBUGPORT_LSU =          0x0067,     ///< LSU
+
+	PINMUX_DEBUGPORT_ROU2 =         0x0068,     ///< ROU2
+	PINMUX_DEBUGPORT_CONV =         0x0069,     ///< CONV
+	PINMUX_DEBUGPORT_VPE =          0x006A,     ///< VPE
+	PINMUX_DEBUGPORT_USB2_2 =       0x006B,     ///< USB2_2
+	PINMUX_DEBUGPORT_USB3_2 =       0x006C,     ///< USB3_2
+	PINMUX_DEBUGPORT_SATA4 =        0x006D,     ///< SATA4
+	PINMUX_DEBUGPORT_SATA5 =        0x006E,     ///< SATA5
+	PINMUX_DEBUGPORT_SATA6 =        0x006F,     ///< SATA6
+
+	PINMUX_DEBUGPORT_ADM =          0x0070,     ///< ADM
+	PINMUX_DEBUGPORT_RTC =          0x0071,     ///< RTC
+	PINMUX_DEBUGPORT_VPEL =         0x0072,     ///< VPEL
+	PINMUX_DEBUGPORT_VDEC =         0x0073,     ///< VDEC
+	PINMUX_DEBUGPORT_VDEC2 =        0x0074,     ///< VDEC2
+	PINMUX_DEBUGPORT_VDEC3 =        0x0075,     ///< VDEC3
+	PINMUX_DEBUGPORT_RS_2 =         0x0076,     ///< RS_2
+	PINMUX_DEBUGPORT_RS_3 =         0x0077,     ///< RS_3
+
+	PINMUX_DEBUGPORT_LSU2 =         0x0078,     ///< LSU2
+	PINMUX_DEBUGPORT_WDT =          0x0079,     ///< WDT
+	PINMUX_DEBUGPORT_EFUSE2 =       0x007A,     ///< EFUSE2
+	PINMUX_DEBUGPORT_DEI =          0x007B,     ///< DEI
 
 	PINMUX_DEBUGPORT_GROUP_NONE =   0x0000,     ///< No debug port is output
-	PINMUX_DEBUGPORT_GROUP1 =       0x0100,     ///< Output debug port to MC[18..0]
-	PINMUX_DEBUGPORT_GROUP2 =       0x0200,     ///< Output debug port to LCD[18..0]
+	PINMUX_DEBUGPORT_GROUP1 =       0x0100,     ///< Output debug port to B_GPIO[0..16], D_GPIO[6..7]
+	PINMUX_DEBUGPORT_GROUP2 =       0x0200,     ///< Output debug port to E_GPIO[0..15], P_GPIO[22..24]
 
 	ENUM_DUMMY4WORD(PINMUX_DEBUGPORT)
 } PINMUX_DEBUGPORT;
@@ -376,39 +401,14 @@ typedef enum {
 	///< - @b PINMUX_LCD_SEL_CCIR656_16BITS
 	///< - @b PINMUX_LCD_SEL_CCIR601
 	///< - @b PINMUX_LCD_SEL_CCIR601_16BITS
-	///< - @b PINMUX_LCD_SEL_SERIAL_RGB_6BITS
-	///< - @b PINMUX_LCD_SEL_SERIAL_RGB_8BITS
-	///< - @b PINMUX_LCD_SEL_SERIAL_YCbCr_8BITS
 	///< - @b PINMUX_LCD_SEL_PARALLE_RGB565
 	///< - @b PINMUX_LCD_SEL_PARALLE_RGB666
 	///< - @b PINMUX_LCD_SEL_PARALLE_RGB888
-	///< - @b PINMUX_LCD_SEL_RGB_16BITS
-	///< - @b PINMUX_LCD_SEL_MIPI
-	///< - @b PINMUX_LCD_SEL_PARALLE_MI_8BITS
-	///< - @b PINMUX_LCD_SEL_PARALLE_MI_9BITS
-	///< - @b PINMUX_LCD_SEL_PARALLE_MI_16BITS
-	///< - @b PINMUX_LCD_SEL_PARALLE_MI_18BITS
-	///< - @b PINMUX_LCD_SEL_SERIAL_MI_SDIO
-	///< - @b PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO
 	///< ORed with
 	///< - @b PINMUX_LCD_SEL_DE_ENABLE
-	///< - @b PINMUX_LCD_SEL_TE_ENABLE
-	///< - @b PINMUX_LCD_SEL_HVLD_VVLD
 	///< - @b PINMUX_LCD_SEL_FIELD
-	PINMUX_FUNC_ID_LCD2,                            ///< 2nd Panel (LCD), pinmux can be:
-	///< - @b PINMUX_LCD_SEL_GPIO
-	///< - @b PINMUX_LCD_SEL_CCIR656
-	///< - @b PINMUX_LCD_SEL_CCIR601
-	///< - @b PINMUX_LCD_SEL_SERIAL_RGB_6BITS
-	///< - @b PINMUX_LCD_SEL_SERIAL_RGB_8BITS
-	///< - @b PINMUX_LCD_SEL_SERIAL_YCbCr_8BITS
-	///< - @b PINMUX_LCD_SEL_PARALLE_MI_8BITS
-	///< - @b PINMUX_LCD_SEL_PARALLE_MI_9BITS
-	///< - @b PINMUX_LCD_SEL_SERIAL_MI_SDIO
-	///< - @b PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO
-	///< ORed with
-	///< - @b PINMUX_LCD_SEL_DE_ENABLE
-	PINMUX_FUNC_ID_LCD3,                            ///< 3nd Panel (LCD), pinmux can be:
+	///< - @b PINMUX_LCD_SEL_NO_HVSYNC
+	PINMUX_FUNC_ID_LCD2,                            ///< LCD2 not support.
 	PINMUX_FUNC_ID_TV,                              ///< TV, pinmux can be:
 	///< - @b PINMUX_LCD_SEL_GPIO
 	PINMUX_FUNC_ID_HDMI,                            ///< HDMI, pinmux can be:
@@ -640,17 +640,19 @@ typedef enum
 	BOOT_SRC_EMMC_8BIT,                 //< Boot from eMMC 8-bit
 	BOOT_SRC_SPINAND_RS_4K,             //< Boot from SPI NAND (Reed Solomon ECC) (4K page)
 	BOOT_SRC_USB_FS,                    //< Boot from USB (Full Speed)
-	BOOT_PCIE_EP,
-	BOOT_ETH_RMII_OUT,
-	BOOT_ETH_RMII_IN,
 	ENUM_DUMMY4WORD(BOOT_SRC_ENUM)
 } BOOT_SRC_ENUM;
 
+
+/**
+    Pinmux group
+
+    @note For pinmux_init()
+*/
 typedef struct {
 	PIN_FUNC    pin_function;           ///< PIN Function group
 	UINT32      config;                 ///< Configuration for pinFunction
 } PIN_GROUP_CONFIG;
-
 
 /*
 enum CHIP_ID {
@@ -659,18 +661,33 @@ enum CHIP_ID {
 	CHIP_NA51089 = 0x7021,
 	CHIP_NA51090 = 0xBC21,
 	CHIP_NA51102 = 0x5221,
-};*/
+	CHIP_NA51103 = 0x8B20,
+	CHIP_NS02201 = 0xF221,
+	CHIP_NS02301 = 0x7721,
+	CHIP_NS02302 = 0x5A21,
+	CHIP_NS02401 = 0xBB21,
+	CHIP_NS02402 = 0x5B21,
+};
 
+enum CHIP_VER {
+	CHIPVER_A,
+	CHIPVER_B
+};
+*/
 int nvt_pinmux_capture(PIN_GROUP_CONFIG *pinmux_config, int count);
 int nvt_pinmux_update(PIN_GROUP_CONFIG *pinmux_config, int count);
-int pinmux_set_config(PINMUX_FUNC_ID id, uint32_t pinmux);
-extern void gpio_func_show(void);
+int pinmux_set_config(PINMUX_FUNC_ID id, u32 pinmux);
 int nvt_pinmux_probe(void);
-//UINT32 nvt_get_chip_id(void);
+
+/*
+#ifdef CONFIG_PINCTRL_NS02401
+UINT32 nvt_get_chip_id(void);
+#else
+static unsigned int inline nvt_get_chip_id(void) {
+	return CHIP_NS02401;
+}
+#endif
+*/
+UINT32 nvt_get_chip_ver(void);
 PINMUX_LCDINIT pinmux_get_dispmode(PINMUX_FUNC_ID id);
-
-int nvt_pinmux_init(void);
-int pinmux_select_debugport(PINMUX_DEBUGPORT uiDebug);
-UINT32 top_get_bs(void);
-
 #endif

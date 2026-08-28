@@ -305,34 +305,34 @@ typedef enum {
 
 	// DSIGPIO group
 	PAD_DS_DSIGPIO0      = (PAD_4L_DS_DSIGPIO_BASE + 0),        ///< DSI_GPIO_0
-	PAD_DS_DSIGPIO1      = (PAD_4L_DS_DSIGPIO_BASE + 1),        ///< DSI_GPIO_1
-	PAD_DS_DSIGPIO2      = (PAD_4L_DS_DSIGPIO_BASE + 2),        ///< DSI_GPIO_2
-	PAD_DS_DSIGPIO3      = (PAD_4L_DS_DSIGPIO_BASE + 3),        ///< DSI_GPIO_3
-	PAD_DS_DSIGPIO4      = (PAD_4L_DS_DSIGPIO_BASE + 4),        ///< DSI_GPIO_4
-	PAD_DS_DSIGPIO5      = (PAD_4L_DS_DSIGPIO_BASE + 5),        ///< DSI_GPIO_5
-	PAD_DS_DSIGPIO6      = (PAD_4L_DS_DSIGPIO_BASE + 6),        ///< DSI_GPIO_6
-	PAD_DS_DSIGPIO7      = (PAD_4L_DS_DSIGPIO_BASE + 7),        ///< DSI_GPIO_7
-	PAD_DS_DSIGPIO8      = (PAD_4L_DS_DSIGPIO_BASE + 8),        ///< DSI_GPIO_8
-	PAD_DS_DSIGPIO9      = (PAD_4L_DS_DSIGPIO_BASE + 9),        ///< DSI_GPIO_9
+	PAD_DS_DSIGPIO1      = (PAD_4L_DS_DSIGPIO_BASE + 2),        ///< DSI_GPIO_1
+	PAD_DS_DSIGPIO2      = (PAD_4L_DS_DSIGPIO_BASE + 4),        ///< DSI_GPIO_2
+	PAD_DS_DSIGPIO3      = (PAD_4L_DS_DSIGPIO_BASE + 6),        ///< DSI_GPIO_3
+	PAD_DS_DSIGPIO4      = (PAD_4L_DS_DSIGPIO_BASE + 8),        ///< DSI_GPIO_4
+	PAD_DS_DSIGPIO5      = (PAD_4L_DS_DSIGPIO_BASE + 10),        ///< DSI_GPIO_5
+	PAD_DS_DSIGPIO6      = (PAD_4L_DS_DSIGPIO_BASE + 12),        ///< DSI_GPIO_6
+	PAD_DS_DSIGPIO7      = (PAD_4L_DS_DSIGPIO_BASE + 14),        ///< DSI_GPIO_7
+	PAD_DS_DSIGPIO8      = (PAD_4L_DS_DSIGPIO_BASE + 16),        ///< DSI_GPIO_8
+	PAD_DS_DSIGPIO9      = (PAD_4L_DS_DSIGPIO_BASE + 18),        ///< DSI_GPIO_9
 	PAD_DS_DSIGPIO10     = (PAD_4L_DS_DSIGPIO_BASE + 20),       ///< DSI_GPIO_10
 
 	// LGPIO group
 	PAD_DS_LGPIO0      = (PAD_4L_DS_LGPIO_BASE + 0),        ///< L_GPIO_0
-	PAD_DS_LGPIO1      = (PAD_4L_DS_LGPIO_BASE + 1),        ///< L_GPIO_1
-	PAD_DS_LGPIO2      = (PAD_4L_DS_LGPIO_BASE + 2),        ///< L_GPIO_2
-	PAD_DS_LGPIO3      = (PAD_4L_DS_LGPIO_BASE + 3),        ///< L_GPIO_3
-	PAD_DS_LGPIO4      = (PAD_4L_DS_LGPIO_BASE + 4),        ///< L_GPIO_4
-	PAD_DS_LGPIO5      = (PAD_4L_DS_LGPIO_BASE + 5),        ///< L_GPIO_5
-	PAD_DS_LGPIO6      = (PAD_4L_DS_LGPIO_BASE + 6),        ///< L_GPIO_6
-	PAD_DS_LGPIO7      = (PAD_4L_DS_LGPIO_BASE + 7),        ///< L_GPIO_7
-	PAD_DS_LGPIO8      = (PAD_4L_DS_LGPIO_BASE + 8),        ///< L_GPIO_8
-	PAD_DS_LGPIO9      = (PAD_4L_DS_LGPIO_BASE + 9),        ///< L_GPIO_9
+	PAD_DS_LGPIO1      = (PAD_4L_DS_LGPIO_BASE + 2),        ///< L_GPIO_1
+	PAD_DS_LGPIO2      = (PAD_4L_DS_LGPIO_BASE + 4),        ///< L_GPIO_2
+	PAD_DS_LGPIO3      = (PAD_4L_DS_LGPIO_BASE + 6),        ///< L_GPIO_3
+	PAD_DS_LGPIO4      = (PAD_4L_DS_LGPIO_BASE + 8),        ///< L_GPIO_4
+	PAD_DS_LGPIO5      = (PAD_4L_DS_LGPIO_BASE + 10),        ///< L_GPIO_5
+	PAD_DS_LGPIO6      = (PAD_4L_DS_LGPIO_BASE + 12),        ///< L_GPIO_6
+	PAD_DS_LGPIO7      = (PAD_4L_DS_LGPIO_BASE + 14),        ///< L_GPIO_7
+	PAD_DS_LGPIO8      = (PAD_4L_DS_LGPIO_BASE + 16),        ///< L_GPIO_8
+	PAD_DS_LGPIO9      = (PAD_4L_DS_LGPIO_BASE + 18),        ///< L_GPIO_9
 
 	// AGPIO group
 	PAD_DS_AGPIO0      = (PAD_4L_DS_AGPIO_BASE + 0),        ///< A_GPIO_0
-	PAD_DS_AGPIO1      = (PAD_4L_DS_AGPIO_BASE + 1),        ///< A_GPIO_1
-	PAD_DS_AGPIO2      = (PAD_4L_DS_AGPIO_BASE + 2),        ///< A_GPIO_2
-	PAD_DS_AGPIO3      = (PAD_4L_DS_AGPIO_BASE + 3),        ///< A_GPIO_3
+	PAD_DS_AGPIO1      = (PAD_4L_DS_AGPIO_BASE + 2),        ///< A_GPIO_1
+	PAD_DS_AGPIO2      = (PAD_4L_DS_AGPIO_BASE + 4),        ///< A_GPIO_2
+	PAD_DS_AGPIO3      = (PAD_4L_DS_AGPIO_BASE + 6),        ///< A_GPIO_3
 
 	PAD_DS_MAX = PAD_DS_SGPIO0,
 

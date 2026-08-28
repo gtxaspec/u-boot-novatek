@@ -160,7 +160,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 
 	uint32_t uiNandSectionCountPerPage = (info->flash_info->page_size / 0x200);
 
-	ER ret = E_OK;
+	NVTRET ret = E_OK;
 	static int ecc_page_count = 0;
 
 	NAND_DEBUG_MSG("readPage: row: 0x%x, col: 0x%x, size: 0x%x \n", uiRowAddr, uiColAddr, uiBufSize);
@@ -440,6 +440,11 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				nand_host_send_command(info, uiCmdCycle.Reg, TRUE);
 
 				ret = nand_cmd_wait_complete(info);
+				
+				if (ret < 0) {
+					printf("nand_cmd_wait_complete failed with error code: %d\n", ret);
+					return ret; 
+				}
 
 				nand_host_set_cpu_access_spare(info, TRUE);
 
@@ -570,6 +575,11 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				nand_host_send_command(info, uiCmdCycle.Reg, TRUE);
 
 				ret = nand_cmd_wait_complete(info);
+
+				if (ret < 0) {
+					printf("nand_cmd_wait_complete failed with error code: %d\n", ret);
+					return ret; 
+				}
 
 				invalidate_dcache_range((uintptr_t)pulBuf & ~(CACHELINE_SIZE - 1), ALIGN( (uintptr_t)(pulBuf + (info->flash_info->page_size + info->flash_info->oob_size) / 4), CACHELINE_SIZE));
 
@@ -1060,7 +1070,11 @@ int nand_cmd_read_status(struct drv_nand_dev_info *info, uint32_t set)
 
 	if (ret == E_OK) {
 		status = NAND_GETREG(info, NAND_CTRL_STS_REG_OFS) & 0xFF;
-		memcpy(info->data_buff + info->buf_start, &status, 1);
+		if (info->data_buff != NULL) {
+			memcpy(info->data_buff + info->buf_start, &status, 1);
+		} else {
+			return -1;
+		}
 	}
 	return status;
 }
@@ -1145,6 +1159,11 @@ int nand_cmd_read_config(struct drv_nand_dev_info *info, u32 config)
 	nand_host_send_command(info, config, 0);
 
 	ret = nand_cmd_wait_complete(info);
+
+	if (info->data_buff == NULL) {
+		printf("Error: info->data_buff is NULL\n");
+		return E_SYS;
+	}
 
 	*(info->data_buff) = (UINT8)NAND_GETREG(info, NAND_CTRL_STS_REG_OFS);
 
@@ -1484,6 +1503,11 @@ void nand_store_cache(void *pbuf, u32 len)
 void nand_cmd_write_spare_sram(struct drv_nand_dev_info *info)
 {
 	unsigned long spare_area_addr;
+
+	if (info->data_buff == NULL) {
+        printf("Error: info->data_buff is NULL\n");
+        return;
+    }
 	uint32_t *pul_buf = (uint32_t *)(info->data_buff + info->flash_info->page_size);
 	uint32_t section_count_per_page = (info->flash_info->page_size / 0x200);
 	int j = 0;

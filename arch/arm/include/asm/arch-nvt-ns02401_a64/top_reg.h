@@ -5,7 +5,7 @@
 	@ingroup
 	@note		Nothing
 
-	Copyright   Novatek Microelectronics Corp. 2021.  All rights reserved
+	Copyright   Novatek Microelectronics Corp. 2024.  All rights reserved
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License version 2 as
 	published by the Free Software Foundation.
@@ -46,17 +46,18 @@ union TOP_REG0 {
 	uint32_t reg;
 	struct {
 	unsigned int BOOT_SRC:4;                // Boot Source Selection
-	unsigned int EJTAG_CH_SEL:1;            // EJTAG channel select (EJTAG_1 or EJTAG_2)
-	unsigned int EJTAG_SEL:1;               // EJTAG select
 	unsigned int MPLL_CLKSELL:1;            // PLL clock output mux
-	unsigned int DSI_PROT_EN:1;
+	unsigned int EJTAG_SEL:1;               // EJTAG select
+	unsigned int ETH_MODE_SEL:2;            // Ethernet mode select
 	unsigned int DEBUG_MODE_SEL:2;          // MIPS debug mode select
 	unsigned int WDT_FAIL_RESET_EN:1;       // WDT fail reset function enable
-	unsigned int reserved0:3;
-	unsigned int PCIE_BOOT_SEL:1;
-	unsigned int LANE_MODE_SEL:1;
-	unsigned int PCIE_REFCLK_BOOT_SEL:1;
-	unsigned int reserved1:15;
+	unsigned int VDD33_AUD_SEL:1;           // AUD power voltage select
+	unsigned int VDD33_EMMC_SEL:1;          // EMMC power voltage select
+	unsigned int PCIE_BOOT_SEL:1;           // PCIE boot select
+	unsigned int LANE_MODE_SEL:2;           // PCIE Lane mode select
+	unsigned int PCIE_REFCLK_BOOT_SEL:1;    // PCIE reference clock select
+	unsigned int SD_MUX_SEL:1;              // SDIO mux select
+	unsigned int reserved0:14;
 	} bit;
 };
 
@@ -65,21 +66,19 @@ union TOP_REG0 {
 union TOP_REG1 {
 	uint32_t reg;
 	struct {
-	unsigned int FSPI_EN:1;                 // FSPI enable control
+	unsigned int FSPI_EN:2;                 // FSPI enable control
+	unsigned int FSPI_CS1_EN:1;             // FSPI CS1 enable control
 	unsigned int reserved0:1;
-	unsigned int FSPI_CS1_EN:1;
-	unsigned int reserved1:1;
-	unsigned int SDIO_EN:1;                 // SDIO enable control
-	unsigned int reserved2:3;
+	unsigned int SDIO_EN:2;                 // SDIO enable control
+	unsigned int reserved1:2;
 	unsigned int SDIO2_EN:1;                // SDIO2 enable control
-	unsigned int reserved3:3;
-	unsigned int SDIO3_EN:1;                // SDIO3 enable control
-	unsigned int reserved4:1;
-	unsigned int SDIO3_BUS_WIDTH:1;         // Select SDIO3 bus width
-	unsigned int SDIO3_DS_EN:1;             // Select SDIO3 data strobe
+	unsigned int reserved2:1;
+	unsigned int SDIO2_BUS_WIDTH:1;         // Select SDIO2 bus width
+	unsigned int SDIO2_DS_EN:1;             // Select SDIO2 data strobe
+	unsigned int reserved3:4;
 	unsigned int EJTAG_EN:1;                // EJTAG enable control
 	unsigned int EXTROM_EN:1;		        // EXTROM enable control
-	unsigned int reserved5:14;
+	unsigned int reserved4:14;
 	} bit;
 };
 
@@ -91,24 +90,9 @@ union TOP_REG2 {
 	unsigned int LCD_TYPE:4;                // Pinmux of LCD interface
 	unsigned int PLCD_DE:1;                 // Pinmux of DE (for parallel LCD)
 	unsigned int CCIR_DATA_WIDTH:1;         // CCIR data width
-	unsigned int CCIR_HVLD_VVLD:1;          // CCIR VVLD, HVLD select
+	unsigned int LCD_HS_VS:1;               // LCD H_sync / V_sync select
 	unsigned int CCIR_FIELD:1;              // CCIR FIELD select
-	unsigned int TE_SEL:1;                  // Memory Interface TE select
-	unsigned int TE2_SEL:1;                 // Memory Interface TE2 select
-	unsigned int reserved0:2;
-	unsigned int LCD2_TYPE:4;
-	unsigned int PLCD2_DE:1;
-	unsigned int MIPI_MODE_SEL:1;
-	unsigned int MIPI_CK0_SEL:1;
-	unsigned int MIPI_CK1_SEL:1;
-	unsigned int MEMIF_TYPE:2;
-	unsigned int MEMIF_SEL:1;
-	unsigned int SMEMIF_DATA_WIDTH:1;
-	unsigned int PMEMIF_DATA_WIDTH:2;
-	unsigned int MEMIF_TE_SEL:1;
-	unsigned int reserved1:1;
-	unsigned int LCD_PINOUT_SEL:2;
-	unsigned int LCD2_PINOUT_SEL:2;
+	unsigned int reserved0:24;
 	} bit;
 };
 
@@ -120,16 +104,13 @@ union TOP_REG3 {
 	unsigned int ETH:4;
 	unsigned int ETH2:4;
 	unsigned int ETH_EXT_PHY_CLK:1;
-	unsigned int reserved0:1;
+	unsigned int reserved0:7;
 	unsigned int ETH2_EXT_PHY_CLK:1;
-	unsigned int reserved1:3;
-	unsigned int ETH_PTP:2;
-	unsigned int ETH2_PTP:2;
-	unsigned int reserved2:14;
+	unsigned int reserved1:15;
 	} bit;
 };
 
-// 0x10 TOP Control Register 4 (I2C[1/3])
+// 0x10 TOP Control Register 4 (I2C)
 #define TOP_REG4_OFS                        0x10
 union TOP_REG4 {
 	uint32_t reg;
@@ -145,155 +126,74 @@ union TOP_REG4 {
 	} bit;
 };
 
-// 0x14 TOP Control Register 5 (I2C[2/3])
+// 0x14 TOP Control Register 5 (EXT_CLK)
 #define TOP_REG5_OFS                        0x14
 union TOP_REG5 {
 	uint32_t reg;
 	struct {
-	unsigned int I2C9:4;
-	unsigned int I2C10:4;
-	unsigned int I2C11:4;
-	unsigned int I2C12:4;
-	unsigned int I2C13:4;
-	unsigned int I2C14:4;
-	unsigned int I2C15:4;
-	unsigned int I2C16:4;
+	unsigned int EXT_CLK:4;
+	unsigned int EXT2_CLK:4;
+	unsigned int reserved0:8;
+	unsigned int RTC_CLK:2;
+	unsigned int RTC_DIV_OUT:1;
+	unsigned int RTC_EXT_CLK:1;
+	unsigned int reserved1:12;
 	} bit;
 };
 
-// 0x18 TOP Control Register 6 (PWM[1/2])
+// 0x18 TOP Control Register 6 (PWM)
 #define TOP_REG6_OFS                        0x18
 union TOP_REG6 {
 	uint32_t reg;
 	struct {
-	unsigned int PWM0:4;
-	unsigned int PWM1:4;
+	unsigned int PWM:4;
 	unsigned int PWM2:4;
 	unsigned int PWM3:4;
 	unsigned int PWM4:4;
 	unsigned int PWM5:4;
 	unsigned int PWM6:4;
-	unsigned int PWM7:4;
+	unsigned int reserved0:8;
 	} bit;
 };
 
-// 0x1C TOP Control Register 7 (PWM[2/2])
-#define TOP_REG7_OFS                        0x1C
+//0x20 TOP Control Register 7 (System)
+#define TOP_REG7_OFS                        0x20
 union TOP_REG7 {
-	uint32_t reg;
-	struct {
-	unsigned int PWM8:4;
-	unsigned int PWM9:4;
-	unsigned int PWM10:4;
-	unsigned int PWM11:4;
-	unsigned int PWM12:4;
-	unsigned int PICNT:4;
-	unsigned int PICNT2:4;
-	unsigned int PICNT3:4;
-	} bit;
-};
-
-//0x20 TOP Control Register 8 (System)
-#define TOP_REG8_OFS                        0x20
-union TOP_REG8 {
 	uint32_t reg;
 	struct {
 	unsigned int RAM_SRC_SELECT:1;          // RAM SRC Select
 	unsigned int reserved0:3;
 	unsigned int RAM_SELECT:4;
-	unsigned int reserved1:1;
-	unsigned int EJTAG_DSP_DC_SEL:2;
-	unsigned int DSP_EJTAG_EN:1;
-	unsigned int MCU_ALARM_EN:1;
-	unsigned int reserved2:19;
+	unsigned int reserved1:20;
+	unsigned int CLKOUT_12M:1;
+	unsigned int reserved2:3;
 	} bit;
 };
 
-// 0x24 TOP Control Register 9 (Sensor[1/5])
-#define TOP_REG9_OFS                        0x24
-union TOP_REG9 {
-	uint32_t reg;
-	struct {
-	unsigned int SENSOR:4;                  // Pinmux of SN interface
-	unsigned int SENSOR2:4;                 // Pinmux of SN2 interface
-	unsigned int reserved0:4;
-	unsigned int SN_CCIR_VSHS:2;           // Pinmux of SN2 CCIR VS/HS/FIELD
-	unsigned int SN2_CCIR_VSHS:2;           // Pinmux of SN3 CCIR VS/HS/FIELD
-	unsigned int FLASH_TRIG_IN:2;
-	unsigned int FLASH_TRIG_OUT:2;
-	unsigned int ME_SHUT_A_IN:2;
-	unsigned int ME_SHUT_A_OUT:2;
-	unsigned int ME_SHUT_B_IN:2;
-	unsigned int ME_SHUT_B_OUT:2;
-	unsigned int reserved1:12;
-	} bit;
-};
-
-// 0x28 TOP Control Register 10 (Sensor[2/5])
-#define TOP_REG10_OFS                       0x28
-union TOP_REG10 {
-	uint32_t reg;
-	struct {
-	unsigned int SN_MCLK:2;                 // Pinmux of SN MCLK
-	unsigned int SN_XVSXHS:2;               // Pinmux of SN XVS/XHS
-	unsigned int SN2_MCLK:2;                // Pinmux of SN2 MCLK
-	unsigned int SN2_XVSXHS:2;              // Pinmux of SN2 XVS/XHS
-	unsigned int SN3_MCLK:2;                // Pinmux of SN3 MCLK
-	unsigned int SN3_XVSXHS:2;              // Pinmux of SN3 XVS/XHS
-	unsigned int SN4_MCLK:2;                // Pinmux of SN4 MCLK
-	unsigned int SN4_XVSXHS:2;              // Pinmux of SN4 XVS/XHS
-	unsigned int SN5_MCLK:2;                // Pinmux of SN5 MCLK
-	unsigned int SN5_XVSXHS:2;              // Pinmux of SN5 XVS/XHS
-	unsigned int SN6_MCLK:2;
-	unsigned int SN6_XVSXHS:2;
-	unsigned int SN7_MCLK:2;
-	unsigned int SN7_XVSXHS:2;
-	unsigned int SN8_MCLK:2;
-	unsigned int SN8_XVSXHS:2;
-	} bit;
-};
-
-// 0x2C TOP Control Register 11 (Sensor[3/5])
-#define TOP_REG11_OFS                       0x2C
-union TOP_REG11 {
-	uint32_t reg;
-	struct {
-	unsigned int SN2_MCLK_SRC:4;            // Pinmux of SN2_MCLK_SRC (from CG)
-	unsigned int SN2_XVSHS_SRC:4;           // Pinmux of SN2_XVSHS_SRC (TG)
-	unsigned int SN3_MCLK_SRC:4;
-	unsigned int SN3_XVSHS_SRC:4;
-	unsigned int SN4_MCLK_SRC:4;
-	unsigned int SN4_XVSHS_SRC:4;
-	unsigned int SN5_MCLK_SRC:4;
-	unsigned int SN5_XVSHS_SRC:4;
-	} bit;
-};
-
-// 0x30 TOP Control Register 12 (Audio)
-#define TOP_REG12_OFS                       0x30
-union TOP_REG12 {
+// 0x30 TOP Control Register 8 (Audio)
+#define TOP_REG8_OFS                       0x30
+union TOP_REG8 {
 	uint32_t reg;
 	struct {
 	unsigned int I2S:2;
 	unsigned int I2S_MCLK:2;
-	unsigned int DMIC_DATA0:1;
-	unsigned int DMIC_DATA1:1;
-	unsigned int DMIC:2;
-	unsigned int reserved0:8;
 	unsigned int I2S2:2;
 	unsigned int I2S2_MCLK:2;
-	unsigned int EXT_EAC_MCLK:1;
 	unsigned int I2S3:2;
 	unsigned int I2S3_MCLK:2;
 	unsigned int I2S4:2;
 	unsigned int I2S4_MCLK:2;
-	unsigned int reserved1:3;
+	unsigned int reserved0:8;
+	unsigned int HDMI_CEC:2;
+	unsigned int HDMI2_CEC:2;
+	unsigned int HDMI3_CEC:2;
+	unsigned int reserved1:2;
 	} bit;
 };
 
-// 0x34 TOP Control Register 13 (UART[1/2])
-#define TOP_REG13_OFS                       0x34
-union TOP_REG13 {
+// 0x34 TOP Control Register 9 (UART)
+#define TOP_REG9_OFS                       0x34
+union TOP_REG9 {
 	uint32_t reg;
 	struct {
 	unsigned int UART:4;
@@ -301,172 +201,75 @@ union TOP_REG13 {
 	unsigned int UART3:4;
 	unsigned int UART4:4;
 	unsigned int UART5:4;
-	unsigned int UART6:4;
-	unsigned int UART7:4;
-	unsigned int UART8:4;
-	} bit;
-};
-
-// 0x38 TOP Control Register 14 (UART[2/2])
-#define TOP_REG14_OFS                       0x38
-union TOP_REG14 {
-	uint32_t reg;
-	struct {
-	unsigned int UART9:4;
-	unsigned int reserved0:2;
+	unsigned int UART_RTSCTS:2;
 	unsigned int UART2_RTSCTS:2;
 	unsigned int UART3_RTSCTS:2;
-	unsigned int UART4_RTSCTS:2;
-	unsigned int UART5_RTSCTS:2;
-	unsigned int UART6_RTSCTS:2;
-	unsigned int UART7_RTSCTS:2;
-	unsigned int UART8_RTSCTS:2;
-	unsigned int UART9_RTSCTS:2;
-	unsigned int reserved1:10;
+	unsigned int reserved0:6;
 	} bit;
 };
 
-// 0x3C Reserved
-
-// 0x40 TOP Control Register 15 (Remote/SDP)
-#define TOP_REG15_OFS                       0x40
-union TOP_REG15 {
+// 0x40 TOP Control Register 10 (Remote/SDP)
+#define TOP_REG10_OFS                       0x40
+union TOP_REG10 {
 	uint32_t reg;
 	struct {
 	unsigned int REMOTE:8;
-	unsigned int REMOTE_EXT:4;
-	unsigned int reserved0:4;
+	unsigned int reserved0:8;
 	unsigned int SDP:2;
-	unsigned int reserved1:14;
+	unsigned int reserved1:2;
+	unsigned int SDP_RDY:2;
+	unsigned int reserved2:10;
 	} bit;
 };
 
-// 0x44 TOP Control Register 16 (SPI)
-#define TOP_REG16_OFS                       0x44
-union TOP_REG16 {
+// 0x44 TOP Control Register 11 (SPI)
+#define TOP_REG11_OFS                       0x44
+union TOP_REG11 {
 	uint32_t reg;
 	struct {
 	unsigned int SPI:4;
 	unsigned int SPI2:4;
-	unsigned int SPI3:4;
-	unsigned int SPI4:4;
-	unsigned int SPI5:4;
+	unsigned int reserved0:12;
 	unsigned int SPI_BUS_WIDTH:1;
 	unsigned int SPI2_BUS_WIDTH:1;
-	unsigned int SPI3_BUS_WIDTH:1;
-	unsigned int SPI4_BUS_WIDTH:1;
-	unsigned int SPI5_BUS_WIDTH:1;
-	unsigned int reserved0:3;
-	unsigned int SPI3_RDY:4;
+	unsigned int reserved1:2;
+	unsigned int SPI_RDY:1;
+	unsigned int SPI2_RDY:1;
+	unsigned int reserved2:6;
 	} bit;
 };
 
-// 0x48 TOP Control Register 17 (SIF)
-#define TOP_REG17_OFS                       0x48
-union TOP_REG17 {
+// 0x54 TOP Control Register 13 (SATA)
+#define TOP_REG13_OFS                       0x54
+union TOP_REG13 {
 	uint32_t reg;
 	struct {
-	unsigned int SIF0:4;
-	unsigned int SIF1:4;
-	unsigned int SIF2:4;
-	unsigned int SIF3:4;
-	unsigned int SIF4:4;
-	unsigned int SIF5:4;
+	unsigned int SATA4_LED:4;
+	unsigned int SATA5_LED:4;
+	unsigned int SATA6_LED:4;
+	unsigned int SATA3_LED:4;
+	unsigned int SATA_LED:4;
+	unsigned int SATA2_LED:4;
 	unsigned int reserved0:8;
 	} bit;
 };
 
-// 0x4C Reserved
-
-// 0x50 TOP Control Register 18 (SP_CLK/RTC)
-#define TOP_REG18_OFS                       0x50
-union TOP_REG18 {
-	uint32_t reg;
-	struct {
-	unsigned int SP_CLK:2;
-	unsigned int SP_CLK2:2;
-	unsigned int reserved0:12;
-	unsigned int RTC_CLK:2;
-	unsigned int RTC_EXT_CLK:1;
-	unsigned int RTC_DIV_OUT:1;
-	unsigned int reserved1:12;
-	} bit;
-};
-
-// 0x54 TOP Control Register 19 (SATA)
-#define TOP_REG19_OFS                       0x54
-union TOP_REG19 {
-	uint32_t reg;
-	struct {
-	unsigned int SATA_LED:4;
-	unsigned int SATA2_LED:4;
-	unsigned int reserved0:24;
-	} bit;
-};
-
-// 0x58 TOP Control Register 20 (I2C[3/3])
-#define TOP_REG20_OFS                       0x58
-union TOP_REG20 {
-	uint32_t reg;
-	struct {
-	unsigned int I2C17:4;
-	unsigned int I2C18:4;
-	unsigned int I2C19:4;
-	unsigned int I2C20:4;
-	unsigned int reserved0:16;
-	} bit;
-};
-
-// 0x5C TOP Control Register 21 (Sensor[4/5])
-#define TOP_REG21_OFS                       0x5C
-union TOP_REG21 {
-	uint32_t reg;
-	struct {
-	unsigned int SN_MCLK_SRC:4;
-	unsigned int SN_XVSHS_SRC:4;
-	unsigned int SN6_MCLK_SRC:4;
-	unsigned int SN6_XVSHS_SRC:4;
-	unsigned int SN7_MCLK_SRC:4;
-	unsigned int SN7_XVSHS_SRC:4;
-	unsigned int SN8_MCLK_SRC:4;
-	unsigned int SN8_XVSHS_SRC:4;
-	} bit;
-};
-
-// 0x60 TOP Control Register 22 (PCIE)
-#define TOP_REG22_OFS                       0x60
-union TOP_REG22 {
+// 0x60 TOP Control Register 14 (PCIE)
+#define TOP_REG14_OFS                       0x60
+union TOP_REG14 {
 	uint32_t reg;
 	struct {
 	unsigned int PCIE_MODE_SEL:1;
 	unsigned int PCIE2_MODE_SEL:1;
-	unsigned int reserved0:2;
+	unsigned int PCIE3_MODE_SEL:1;
+	unsigned int PCIE4_MODE_SEL:1;
 	unsigned int PCIE_RESETN_RELEASE:1;
-	unsigned int reserved1:1;
-	unsigned int reserved2:2;
+	unsigned int reserved0:3;
 	unsigned int PCIE_REFCLK_SRC:1;
 	unsigned int PCIE_REFCLK_PAD_OUT_EN:1;
-	unsigned int reserved3:22;
+	unsigned int reserved1:22;
 	} bit;
 };
-
-// 0x64 TOP Control Register 23 (SENSOR[5/5])
-#define TOP_REG23_OFS                       0x64
-union TOP_REG23 {
-       uint32_t reg;
-       struct {
-       unsigned int FLASH_TRIGA2_OUT:2;
-       unsigned int FLASH_TRIGA3_OUT:2;
-       unsigned int FLASH_TRIGA4_OUT:2;
-       unsigned int FLASH_TRIGB_IN:2;
-       unsigned int FLASH_TRIGB1_OUT:2;
-       unsigned int FLASH_TRIGB2_OUT:2;
-       unsigned int FLASH_TRIGB3_OUT:2;
-       unsigned int FLASH_TRIGB4_OUT:2;
-       unsigned int reserved2:16;
-       } bit;
-};
-
 
 // 0xA0 CGPIO Control Register 0 (C_GPIO)
 #define TOP_REGCGPIO0_OFS                   0xA0
@@ -491,19 +294,24 @@ union TOP_REGCGPIO0 {
 	unsigned int CGPIO_15:1;
 	unsigned int CGPIO_16:1;
 	unsigned int CGPIO_17:1;
-	unsigned int CGPIO_18:1;
-	unsigned int CGPIO_19:1;
-	unsigned int CGPIO_20:1;
-	unsigned int CGPIO_21:1;
-	unsigned int CGPIO_22:1;
-	unsigned int CGPIO_23:1;
-	unsigned int CGPIO_24:1;
-	unsigned int CGPIO_25:1;
-	unsigned int reserved0:6;
+	unsigned int reserved0:14;
 	} bit;
 };
 
-// 0xA4 Reserved
+// 0xA4 JPGPIO Control Register 0 (J_GPIO)
+#define TOP_REGJGPIO0_OFS                   0xA4
+union TOP_REGJGPIO0 {
+	uint32_t reg;
+	struct {
+	unsigned int JGPIO_0:1;
+	unsigned int JGPIO_1:1;
+	unsigned int JGPIO_2:1;
+	unsigned int JGPIO_3:1;
+	unsigned int JGPIO_4:1;
+	unsigned int JGPIO_5:1;
+	unsigned int reserved0:26;
+	} bit;
+};
 
 // 0xA8 PGPIO Control Register 0 (P_GPIO[1/2])
 #define TOP_REGPGPIO0_OFS                   0xA8
@@ -565,11 +373,50 @@ union TOP_REGPGPIO1 {
 	unsigned int PGPIO_44:1;
 	unsigned int PGPIO_45:1;
 	unsigned int PGPIO_46:1;
-	unsigned int reserved0:17;
+	unsigned int PGPIO_47:1;
+	unsigned int reserved0:16;
 	} bit;
 };
 
-// 0xB0 Reserved
+// 0xB0 EGPIO Control Register 0 (E_GPIO)
+#define TOP_REGEGPIO0_OFS                   0xB0
+union TOP_REGEGPIO0 {
+	uint32_t reg;
+	struct {
+	unsigned int EGPIO_0:1;
+	unsigned int EGPIO_1:1;
+	unsigned int EGPIO_2:1;
+	unsigned int EGPIO_3:1;
+	unsigned int EGPIO_4:1;
+	unsigned int EGPIO_5:1;
+	unsigned int EGPIO_6:1;
+	unsigned int EGPIO_7:1;
+	unsigned int EGPIO_8:1;
+	unsigned int EGPIO_9:1;
+	unsigned int EGPIO_10:1;
+	unsigned int EGPIO_11:1;
+	unsigned int EGPIO_12:1;
+	unsigned int EGPIO_13:1;
+	unsigned int EGPIO_14:1;
+	unsigned int EGPIO_15:1;
+	unsigned int EGPIO_16:1;
+	unsigned int EGPIO_17:1;
+	unsigned int EGPIO_18:1;
+	unsigned int EGPIO_19:1;
+	unsigned int EGPIO_20:1;
+	unsigned int EGPIO_21:1;
+	unsigned int EGPIO_22:1;
+	unsigned int EGPIO_23:1;
+	unsigned int EGPIO_24:1;
+	unsigned int EGPIO_25:1;
+	unsigned int EGPIO_26:1;
+	unsigned int EGPIO_27:1;
+	unsigned int EGPIO_28:1;
+	unsigned int EGPIO_29:1;
+	unsigned int EGPIO_30:1;
+	unsigned int EGPIO_31:1;
+	} bit;
+};
 
 // 0xB4 DGPIO Control Register 0 (D_GPIO)
 #define TOP_REGDGPIO0_OFS                   0xB4
@@ -588,122 +435,37 @@ union TOP_REGDGPIO0 {
 	unsigned int DGPIO_9:1;
 	unsigned int DGPIO_10:1;
 	unsigned int DGPIO_11:1;
-	unsigned int DGPIO_12:1;
-	unsigned int DGPIO_13:1;
-	unsigned int DGPIO_14:1;
-	unsigned int reserved0:17;
+	unsigned int reserved0:20;
 	} bit;
 };
 
-// 0xB8 LGPIO Control Register 0 (L_GPIO)
-#define TOP_REGLGPIO0_OFS                    0xB8
-union TOP_REGLGPIO0 {
+// 0xB8 ~ 0xDC Reserved
+
+// 0xE0 BGPIO Control Register 0 (B_GPIO)
+#define TOP_REGBGPIO0_OFS                    0xE0
+union TOP_REGBGPIO0 {
 	uint32_t reg;
 	struct {
-	unsigned int LGPIO_0:1;
-	unsigned int LGPIO_1:1;
-	unsigned int LGPIO_2:1;
-	unsigned int LGPIO_3:1;
-	unsigned int LGPIO_4:1;
-	unsigned int LGPIO_5:1;
-	unsigned int LGPIO_6:1;
-	unsigned int LGPIO_7:1;
-	unsigned int LGPIO_8:1;
-	unsigned int LGPIO_9:1;
-	unsigned int LGPIO_10:1;
-	unsigned int LGPIO_11:1;
-	unsigned int LGPIO_12:1;
-	unsigned int LGPIO_13:1;
-	unsigned int LGPIO_14:1;
-	unsigned int LGPIO_15:1;
-	unsigned int LGPIO_16:1;
-	unsigned int LGPIO_17:1;
-	unsigned int LGPIO_18:1;
-	unsigned int LGPIO_19:1;
-	unsigned int LGPIO_20:1;
-	unsigned int LGPIO_21:1;
-	unsigned int LGPIO_22:1;
-	unsigned int LGPIO_23:1;
-	unsigned int LGPIO_24:1;
-	unsigned int LGPIO_25:1;
-	unsigned int LGPIO_26:1;
-	unsigned int LGPIO_27:1;
-	unsigned int LGPIO_28:1;
-	unsigned int LGPIO_29:1;
-	unsigned int LGPIO_30:1;
-	unsigned int reserved0:1;
+	unsigned int BGPIO_0:1;
+	unsigned int BGPIO_1:1;
+	unsigned int BGPIO_2:1;
+	unsigned int BGPIO_3:1;
+	unsigned int BGPIO_4:1;
+	unsigned int BGPIO_5:1;
+	unsigned int BGPIO_6:1;
+	unsigned int BGPIO_7:1;
+	unsigned int BGPIO_8:1;
+	unsigned int BGPIO_9:1;
+	unsigned int BGPIO_10:1;
+	unsigned int BGPIO_11:1;
+	unsigned int BGPIO_12:1;
+	unsigned int BGPIO_13:1;
+	unsigned int BGPIO_14:1;
+	unsigned int BGPIO_15:1;
+	unsigned int BGPIO_16:1;
+	unsigned int reserved0:15;
 	} bit;
 };
-
-// 0xBC Reserved
-
-// 0xC0 SGPIO Control Register 0 (S_GPIO)
-#define TOP_REGSGPIO0_OFS                    0xC0
-union TOP_REGSGPIO0 {
-	uint32_t reg;
-	struct {
-	unsigned int SGPIO_0:1;
-	unsigned int SGPIO_1:1;
-	unsigned int SGPIO_2:1;
-	unsigned int SGPIO_3:1;
-	unsigned int SGPIO_4:1;
-	unsigned int SGPIO_5:1;
-	unsigned int SGPIO_6:1;
-	unsigned int SGPIO_7:1;
-	unsigned int SGPIO_8:1;
-	unsigned int SGPIO_9:1;
-	unsigned int SGPIO_10:1;
-	unsigned int SGPIO_11:1;
-	unsigned int SGPIO_12:1;
-	unsigned int SGPIO_13:1;
-	unsigned int SGPIO_14:1;
-	unsigned int SGPIO_15:1;
-	unsigned int SGPIO_16:1;
-	unsigned int SGPIO_17:1;
-	unsigned int SGPIO_18:1;
-	unsigned int SGPIO_19:1;
-	unsigned int SGPIO_20:1;
-	unsigned int SGPIO_21:1;
-	unsigned int SGPIO_22:1;
-	unsigned int SGPIO_23:1;
-	unsigned int SGPIO_24:1;
-	unsigned int SGPIO_25:1;
-	unsigned int SGPIO_26:1;
-	unsigned int SGPIO_27:1;
-	unsigned int SGPIO_28:1;
-	unsigned int SGPIO_29:1;
-	unsigned int SGPIO_30:1;
-	unsigned int SGPIO_31:1;
-	} bit;
-};
-
-// 0xC4~0xD4 Reserved
-
-// 0xD8 DSIGPIO Control Register 0 (DSI_GPIO)
-#define TOP_REGDSIGPIO0_OFS                  0xD8
-union TOP_REGDSIGPIO0 {
-	uint32_t reg;
-	struct {
-	unsigned int DSIGPIO_0:1;
-	unsigned int DSIGPIO_1:1;
-	unsigned int DSIGPIO_2:1;
-	unsigned int DSIGPIO_3:1;
-	unsigned int DSIGPIO_4:1;
-	unsigned int DSIGPIO_5:1;
-	unsigned int DSIGPIO_6:1;
-	unsigned int DSIGPIO_7:1;
-	unsigned int DSIGPIO_8:1;
-	unsigned int DSIGPIO_9:1;
-	unsigned int DSIGPIO_10:1;
-	unsigned int DSIGPIO_11:1;
-	unsigned int DSIGPIO_12:1;
-	unsigned int DSIGPIO_13:1;
-	unsigned int DSIGPIO_14:1;
-	unsigned int reserved0:17;
-	} bit;
-};
-
-// 0xDC~0xE4 Reserved
 
 // 0xE8 AGPIO Control Register 0 (A_GPIO)
 #define TOP_REGAGPIO0_OFS                    0xE8

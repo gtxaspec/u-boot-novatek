@@ -346,13 +346,13 @@ int pinmux_set_config(PINMUX_FUNC_ID id, u32 pinmux)
 		pinmux_cfg[0].config = pinmux;
 		ret = nvt_pinmux_update(pinmux_cfg, 1);
 		break;
-
+#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
 	case PINMUX_FUNC_ID_LCD2:
 		pinmux_cfg[0].pin_function = PIN_FUNC_SEL_LCD2;
 		pinmux_cfg[0].config = pinmux;
 		ret = nvt_pinmux_update(pinmux_cfg, 1);
 		break;
-
+#endif
 	case PINMUX_FUNC_ID_TV:
 		break;
 
@@ -488,7 +488,7 @@ int nvt_pinmux_probe(void)
 #else
         sprintf(path,"/top@%x/%s",IOADDR_TOP_REG_BASE, pinmux_dts_name[i]);
 #endif
-		//printf("[%d]\r\n",i);
+		printf("[%d]\r\n",i);
     	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
     	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
         info->top_pinmux[nr_pinmux].config = __be32_to_cpu(cell[0]);

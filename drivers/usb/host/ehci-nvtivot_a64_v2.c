@@ -74,7 +74,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.14"
+#define DRV_VERSION                     "1.00.15"
 
 static REGVALUE usb_getreg(unsigned long usbbase, unsigned long offset)
 {
@@ -667,6 +667,57 @@ static void nvtim_init_usbhc(int index)
 
 		// r45 cali unlock
 		U2PHY_SETREG(MAP_PHY(0x144), 0x00);
+	}
+#elif defined(CONFIG_TARGET_NS02501)
+	{
+		u8 u2_trim_swctrl = 6, u2_trim_sqsel = 4, u2_trim_resint = 8;
+		u8 u2_trim_rsel_45 = 0xd;
+
+		// Get trim value of usb column
+		{
+		}
+
+		/************************
+		 *    Best setting      *
+		 ************************/
+		// Port0 PLL CP current [2:0]=000
+		tmpval = U2PHY_GETREG(MAP_PHY(0x08));
+		tmpval &= ~(0x7 << 3);
+		U2PHY_SETREG(MAP_PHY(0x08), tmpval);
+		U2PHY_SETREG(MAP_PHY(0x180), 0x01);  // sw datarpusel = 0
+		U2PHY_SETREG(MAP_PHY(0x30), 0x20);   // Port0 datarpu1 = 1
+		U2PHY_SETREG(MAP_PHY(0x2c), 0x20);   // sw set enable of reg_datarpu1 = 1
+		U2PHY_SETREG(MAP_PHY(0x18c), 0x60);  // sw reg_tx_cs_pdn = 1
+
+		udelay(30);
+
+		// Make sure power on
+		tmpval = U2PHY_GETREG(MAP_PHY(0x00));
+		if (tmpval != 0x49) {
+			printf("%s: power not ready, 0x00 = 0x%x\r\n", __func__, (u32)tmpval);
+		}
+
+		/************************
+		 *    Trim value        *
+		 ************************/
+		// tx swing
+		tmpval = U2PHY_GETREG(MAP_PHY(0x18));
+		tmpval &= ~(0x7 << 1);
+		tmpval |= (u2_trim_swctrl << 0x1);
+		U2PHY_SETREG(MAP_PHY(0x18), tmpval);
+
+		// squelch
+		tmpval = U2PHY_GETREG(MAP_PHY(0x14));
+		tmpval &= ~(0x7 << 0x2);
+		tmpval |= (u2_trim_sqsel << 0x2);
+		U2PHY_SETREG(MAP_PHY(0x14), tmpval);
+
+		// 12K trim value [4:0]
+		U2PHY_SETREG(MAP_PHY(0x140), 0x30);
+		U2PHY_SETREG(MAP_PHY(0x148), 0x60 + u2_trim_resint);
+
+		// 45 ohm trim value [4:0]
+		U2PHY_SETREG(MAP_PHY(0x0C), 0x40 + u2_trim_rsel_45);
 	}
 #elif defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
 	{

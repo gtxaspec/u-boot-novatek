@@ -10,7 +10,7 @@
 #include <asm/arch/efuse_protected.h>
 #include <linux/bitops.h>
 
-#define DRV_VERSION                     "1.00.04"
+#define DRV_VERSION                     "1.00.05"
 
 enum nvt_pcie_phy_id {
 	NVT_PHY_PCIE0 = 0,
@@ -234,6 +234,57 @@ static int pcie_phy_init(struct phy *phy)
 
 		// vref = 3 for TXDETRX fail issue
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x081C, 0x03, 24, 2);	// TX_CTL_VREF_DET
+
+		switch (core->mode) {
+		case NVT_PHY_ONE_x4:
+			switch (idx) {
+			case NVT_PHY_PCIE0:
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x00D0, 0x78, 0, 9); // CT 8G initial value for lane0 only
+				break;
+			case NVT_PHY_PCIE1:
+			case NVT_PHY_PCIE3:
+			case NVT_PHY_PCIE2:
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 2, 1); //5G/8G recal AFC for lane1/2/3 only
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 4, 1); //5G/8G recal AFC for lane1/2/3 only
+				break;
+			default:
+				break;
+			}
+			break;
+		case NVT_PHY_TWO_x2:
+			switch (idx) {
+			case NVT_PHY_PCIE0:
+			case NVT_PHY_PCIE2:
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x00D0, 0x78, 0, 9); // CT 8G initial value for lane0/2 only
+				break;
+			case NVT_PHY_PCIE1:
+			case NVT_PHY_PCIE3:
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 2, 1); //5G/8G recal AFC for lane1/3 only
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 4, 1); //5G/8G recal AFC for lane1/3 only
+				break;
+			default:
+				break;
+			}
+			break;
+		case NVT_PHY_ONE_x2_TWO_x1:
+			switch (idx) {
+			case NVT_PHY_PCIE0:
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x00D0, 0x78, 0, 9); // CT 8G initial value for lane0 only
+				break;
+			case NVT_PHY_PCIE1:
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 2, 1); //5G/8G recal AFC for lane1 only
+				rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0844, 0x1, 4, 1); //5G/8G recal AFC for lane1 only
+				break;
+			case NVT_PHY_PCIE2:
+			case NVT_PHY_PCIE3:
+			default:
+				break;
+			}
+			break;
+		case NVT_PHY_FOUR_x1:
+		default:
+			break;
+		}
 
 		// TX EIOS align TX_ELECIDLE
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x874, 0x3, 0, 2);

@@ -2589,7 +2589,7 @@ static ER dispdev_open_hdmi2(void)
 		
 		hdmitx2_set_config(HDMI_CONFIG_ID_VIDEO, g_dispdev_hdmi_vid[id]);
 		hdmitx2_set_config(HDMI_CONFIG_ID_AUDIO, g_dispdev_aud_fmt[id]);
-		hdmitx2_set_config(HDMI_CONFIG_ID_SOURCE, 0x1);//g_dispdev_src_fmt[id]
+		hdmitx2_set_config(HDMI_CONFIG_ID_SOURCE, 0x0);//g_dispdev_src_fmt[id]
 
 		// Configure VID content
 		if (dispdev_init_hdmi_vid_format(id, g_dispdev_hdmi_vid[id]) == FALSE) {

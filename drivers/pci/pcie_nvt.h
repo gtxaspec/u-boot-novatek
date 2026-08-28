@@ -28,6 +28,10 @@ struct pcie_nvt {
 
 	int is_phy_init_done;		// record if phy ever inited
 
+	struct gpio_desc *pe_rst;	// pcie_rstn:
+					// if null, use dedicated pcie_rstn hw
+					// if no null, use this gpio
+
 	const struct nvt_pcie_plat *p_nvt_plat;
 };
 

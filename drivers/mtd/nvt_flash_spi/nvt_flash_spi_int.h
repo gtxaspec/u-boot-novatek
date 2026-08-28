@@ -1148,7 +1148,7 @@ struct drv_nand_dev_info {
 // ------------------------------------------------------------------------
 // FIFO Status register (0x108)
 // ------------------------------------------------------------------------
-#define _FIFO_CNT_MASK  0x0000001F  // bit[12]
+#define _FIFO_CNT_MASK  0x0000003F  // bit[5:0]
 #define _FIFO_EMPTY     0x00000100  // bit[12]
 #define _FIFO_FULL      0x00000200  // bit[13]
 

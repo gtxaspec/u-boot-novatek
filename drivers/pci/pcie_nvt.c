@@ -25,7 +25,7 @@
 #include "pcie_dw_common.h"
 #include "pcie_nvt.h"
 
-#define DRV_VERSION                     "1.01.03"
+#define DRV_VERSION                     "1.01.04"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -318,6 +318,9 @@ static int pcie_power_on(struct pcie_nvt *pci)
 	val = readl(pci->top_base + NVT_PCIE_TOP_CTRL0_OFS);
 	val |= NVT_PCIE_TOP_RESET_MSK;
 	writel(val, pci->top_base + NVT_PCIE_TOP_CTRL0_OFS);
+	if (pci->pe_rst) {
+		dm_gpio_set_value(pci->pe_rst, 0);     // 0: release reset
+	}
 
 	// Force EQ preset
 	val = readl(pci->dw.dbi_base + GEN3_EQ_CONTROL_OFS);
@@ -604,6 +607,13 @@ static int pcie_nvt_of_to_plat(struct udevice *dev)
 	}
 	pcie->link_gen = link_gen;
 	printf("%s: max link gen %d\r\n", __func__, link_gen);
+
+	pcie->pe_rst = devm_gpiod_get_optional(dev, "reset", GPIOD_IS_OUT|GPIOD_IS_OUT_ACTIVE);
+	if (pcie->pe_rst) {
+		dm_gpio_set_value(pcie->pe_rst, 1);	// 1: assert reset
+	} else {
+		printf("reset-gpio not found: use dedicate PCIE_RST hw\n");
+	}
 
 #if defined(CONFIG_TARGET_NS02401_A64)
 	pcie->p_nvt_plat = &nvt_plat_ns02401;

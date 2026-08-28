@@ -1078,6 +1078,8 @@ static int pinmux_config_sdio(uint32_t config)
 {
 	if (config == PIN_SDIO_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_SDIO_CFG_SDIO_1) {
 
 			confl_detect += gpio_conflict_detect(CGPIO_13, 6, func_SDIO);
@@ -1112,20 +1114,22 @@ static int pinmux_config_sdio(uint32_t config)
 			}
 			gpio_func_keep(CGPIO_19, 6, func_SDIO2);
 		} else if (config & PIN_SDIO_CFG_SDIO2_2) {
-			confl_detect += gpio_conflict_detect(PGPIO_2, 6, func_SDIO2);
+			confl_detect += gpio_conflict_detect(SGPIO_0, 4, func_SDIO2);
+			confl_detect += gpio_conflict_detect(SGPIO_7, 2, func_SDIO2);
 			if (confl_detect > 0) {
 				return E_PAR;
 			}
 			if(!check_flag){
 				top_reg1.bit.SDIO2_EN = MUX_2;
-				top_reg_pgpio0.bit.PGPIO_2 = GPIO_ID_EMUM_FUNC;
-				top_reg_pgpio0.bit.PGPIO_3 = GPIO_ID_EMUM_FUNC;
-				top_reg_pgpio0.bit.PGPIO_4 = GPIO_ID_EMUM_FUNC;
-				top_reg_pgpio0.bit.PGPIO_5 = GPIO_ID_EMUM_FUNC;
-				top_reg_pgpio0.bit.PGPIO_6 = GPIO_ID_EMUM_FUNC;
-				top_reg_pgpio0.bit.PGPIO_7 = GPIO_ID_EMUM_FUNC;
+				top_reg_sgpio0.bit.SGPIO_0 = GPIO_ID_EMUM_FUNC;
+				top_reg_sgpio0.bit.SGPIO_1 = GPIO_ID_EMUM_FUNC;
+				top_reg_sgpio0.bit.SGPIO_2 = GPIO_ID_EMUM_FUNC;
+				top_reg_sgpio0.bit.SGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_sgpio0.bit.SGPIO_7 = GPIO_ID_EMUM_FUNC;
+				top_reg_sgpio0.bit.SGPIO_8 = GPIO_ID_EMUM_FUNC;
 			}
-			gpio_func_keep(PGPIO_2, 6, func_SDIO2);
+			gpio_func_keep(SGPIO_0, 4, func_SDIO2);
+			gpio_func_keep(SGPIO_7, 2, func_SDIO2);
 		} else if (config & PIN_SDIO_CFG_SDIO2_3) {
 			confl_detect += gpio_conflict_detect(DSIGPIO_2, 6, func_SDIO2);
 			if (confl_detect > 0) {
@@ -1197,6 +1201,8 @@ static int pinmux_config_nand(uint32_t config)
 {
 	if (config == PIN_NAND_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_NAND_CFG_NAND_1) {
 
 			confl_detect += gpio_conflict_detect(CGPIO_0, 4, func_FSPI);
@@ -1306,6 +1312,8 @@ static int pinmux_config_eth(uint32_t config)
 {
 	if (config == PIN_ETH_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_ETH_CFG_ETH_RMII_1) {
 
 			confl_detect += gpio_conflict_detect(DSIGPIO_2, 4, func_ETH);
@@ -1330,14 +1338,14 @@ static int pinmux_config_eth(uint32_t config)
 			if (config & PIN_ETH_CFG_ETH_EXTPHYCLK) {
 				top_reg6.bit.ETH_EXT_PHY_CLK = MUX_1;
 
-				confl_detect += gpio_conflict_detect(DSIGPIO_7, 1, func_ETH);
+				confl_detect += gpio_conflict_detect(DSIGPIO_10, 1, func_ETH);
 				if (confl_detect > 0) {
 					return E_PAR;
 				}
 				if(!check_flag){
-					top_reg_dsigpio0.bit.DSIGPIO_7 = GPIO_ID_EMUM_FUNC;
+					top_reg_dsigpio0.bit.DSIGPIO_10 = GPIO_ID_EMUM_FUNC;
 				}
-				gpio_func_keep(DSIGPIO_7, 1, func_ETH);
+				gpio_func_keep(DSIGPIO_10, 1, func_ETH);
 			}
 		} else if (config & PIN_ETH_CFG_ETH_RMII_2) {
 
@@ -1347,7 +1355,7 @@ static int pinmux_config_eth(uint32_t config)
 				return E_PAR;
 			}
 			if(!check_flag){
-				top_reg5.bit.ETH = MUX_1;
+				top_reg5.bit.ETH = MUX_2;
 				top_reg_pgpio0.bit.PGPIO_0 = GPIO_ID_EMUM_FUNC;
 				top_reg_pgpio0.bit.PGPIO_1 = GPIO_ID_EMUM_FUNC;
 				top_reg_pgpio0.bit.PGPIO_2 = GPIO_ID_EMUM_FUNC;
@@ -1437,6 +1445,8 @@ static int pinmux_config_i2c(uint32_t config)
 {
 	if (config == PIN_I2C_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_I2C_CFG_I2C_1) {
 			confl_detect += gpio_conflict_detect(SGPIO_7, 2, func_I2C_1);
 			if (confl_detect > 0) {
@@ -1615,6 +1625,8 @@ static int pinmux_config_pwm(uint32_t config)
 {
 	if (config == PIN_PWM_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_PWM_CFG_PWM0_1) {
 
 			confl_detect += gpio_conflict_detect(PGPIO_0, 1, func_PWM_1);
@@ -1874,6 +1886,8 @@ static int pinmux_config_pwmII(uint32_t config)
 {
 	if (config == PIN_PWMII_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_PWMII_CFG_PWM4_1) {
 
 			confl_detect += gpio_conflict_detect(PGPIO_4, 1, func_PWM4_1);
@@ -2110,6 +2124,8 @@ static int pinmux_config_pwmIII(uint32_t config)
 {
 	if (config == PIN_PWMII_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_PWMIII_CFG_PWM8_1) {
 
 			confl_detect += gpio_conflict_detect(PGPIO_8, 1, func_PWM8_1);
@@ -2324,6 +2340,8 @@ static int pinmux_config_ccnt(uint32_t config)
 {
 	if (config == PIN_CCNT_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_CCNT_CFG_CCNT_1) {
 
 			confl_detect += gpio_conflict_detect(PGPIO_12, 1, func_CCNT_1);
@@ -2409,6 +2427,8 @@ static int pinmux_config_sensor(uint32_t config)
 {
 	if (config == PIN_SENSOR_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_SENSOR_CFG_12BITS) {
 
 			confl_detect += gpio_conflict_detect(HSIGPIO_0, 12, func_SENSOR);
@@ -2609,6 +2629,8 @@ static int pinmux_config_sensor2(uint32_t config)
 {
 	if (config == PIN_SENSOR2_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_SENSOR2_CFG_12BITS) {
 
 			confl_detect += gpio_conflict_detect(PGPIO_0, 13, func_SENSOR2);
@@ -2680,6 +2702,8 @@ static int pinmux_config_sensormisc(uint32_t config)
 {
 	if (config == PIN_SENSORMISC_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		/* MCLK */
 		if (config & PIN_SENSORMISC_CFG_SN_MCLK_1) {
 
@@ -2967,6 +2991,8 @@ static int pinmux_config_audio(uint32_t config)
 {
 	if (config & PIN_AUDIO_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		/* I2S */
 		if (config & PIN_AUDIO_CFG_I2S_1) {
 
@@ -3096,40 +3122,40 @@ static int pinmux_config_audio(uint32_t config)
 			/* DMIC_2 */
 		} else if (config & PIN_AUDIO_CFG_DMIC_2) {
 
-			confl_detect += gpio_conflict_detect(PGPIO_10, 1, func_AUDIO_DMIC);
+			confl_detect += gpio_conflict_detect(DSIGPIO_10, 1, func_AUDIO_DMIC);
 			if (confl_detect > 0) {
 				return E_PAR;
 			}
 			if(!check_flag){
 				top_reg6.bit.DMIC = MUX_2;
-				top_reg_pgpio0.bit.PGPIO_10 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_10 = GPIO_ID_EMUM_FUNC;
 			}
-			gpio_func_keep(PGPIO_10, 1, func_AUDIO_DMIC);
+			gpio_func_keep(DSIGPIO_10, 1, func_AUDIO_DMIC);
 
 			if (config & PIN_AUDIO_CFG_DMIC_DATA0) {
 
-				confl_detect += gpio_conflict_detect(PGPIO_9, 1, func_AUDIO_DMIC);
+				confl_detect += gpio_conflict_detect(DSIGPIO_9, 1, func_AUDIO_DMIC);
 				if (confl_detect > 0) {
 					return E_PAR;
 				}
 				if(!check_flag){
 					top_reg6.bit.DMIC_DATA0 = MUX_1;
-					top_reg_pgpio0.bit.PGPIO_9 = GPIO_ID_EMUM_FUNC;
+					top_reg_dsigpio0.bit.DSIGPIO_9 = GPIO_ID_EMUM_FUNC;
 				}
-				gpio_func_keep(PGPIO_9, 1, func_AUDIO_DMIC);
+				gpio_func_keep(DSIGPIO_9, 1, func_AUDIO_DMIC);
 			}
 
 			if (config & PIN_AUDIO_CFG_DMIC_DATA1) {
 
-				confl_detect += gpio_conflict_detect(PGPIO_8, 1, func_AUDIO_DMIC);
+				confl_detect += gpio_conflict_detect(DSIGPIO_8, 1, func_AUDIO_DMIC);
 				if (confl_detect > 0) {
 					return E_PAR;
 				}
 				if(!check_flag){
 					top_reg6.bit.DMIC_DATA1 = MUX_1;
-					top_reg_pgpio0.bit.PGPIO_8 = GPIO_ID_EMUM_FUNC;
+					top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
 				}
-				gpio_func_keep(PGPIO_8, 1, func_AUDIO_DMIC);
+				gpio_func_keep(DSIGPIO_8, 1, func_AUDIO_DMIC);
 			}
 			/* DMIC_3 */
 		} else if (config & PIN_AUDIO_CFG_DMIC_3) {
@@ -3228,10 +3254,10 @@ static int pinmux_config_audio(uint32_t config)
 
 static int pinmux_config_uart(uint32_t config)
 {
-	//printf("pinmux_config_uart = 0x%08x\r\n", config);
-
 	if (config == PIN_UART_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		//UART_1
 		if (config & PIN_UART_CFG_UART_1) {
 
@@ -3550,6 +3576,8 @@ static int pinmux_config_csi(uint32_t config)
 {
 	if (config == PIN_CSI_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_CSI_CFG_CSI_1C4D) {
 
 			confl_detect += gpio_conflict_detect(HSIGPIO_0, 10, func_SENSOR);
@@ -3681,6 +3709,8 @@ static int pinmux_config_remote(uint32_t config)
 {
 	if (config == PIN_REMOTE_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_REMOTE_CFG_REMOTE_1) {
 
 			confl_detect += gpio_conflict_detect(PGPIO_17, 1, func_Remote);
@@ -3737,6 +3767,8 @@ static int pinmux_config_sdp(uint32_t config)
 {
 	if (config == PIN_SDP_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_SDP_CFG_SDP_1) {
 
 			confl_detect += gpio_conflict_detect(CGPIO_13, 5, func_SDP_1);
@@ -3777,6 +3809,8 @@ static int pinmux_config_spi(uint32_t config)
 {
 	if (config == PIN_SPI_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_SPI_CFG_SPI_1) {
 
 			confl_detect += gpio_conflict_detect(CGPIO_19, 3, func_SPI_1);
@@ -4028,6 +4062,8 @@ static int pinmux_config_sif(uint32_t config)
 {
 	if (config == PIN_SIF_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_SIF_CFG_SIF0_1) {
 
 			confl_detect += gpio_conflict_detect(SGPIO_3, 1, func_SIF_1);
@@ -4163,6 +4199,8 @@ static int pinmux_config_misc(uint32_t config)
 {
 	if (config == PIN_MISC_CFG_NONE) {
 	} else {
+		confl_detect = 0;
+
 		if (config & PIN_MISC_CFG_RTC_CLK_1) {
 
 			confl_detect += gpio_conflict_detect(PGPIO_19, 1, func_MISC);
@@ -4374,6 +4412,8 @@ static int pinmux_select_primary_lcd(uint32_t config)
 	if (pinmux_type == PINMUX_LCD_SEL_GPIO) {
 	} else if (pinmux_type == PINMUX_LCD_SEL_MIPI) {
 	} else {
+		confl_detect = 0;
+
 		if (pinmux_type == PINMUX_LCD_SEL_CCIR656) {
 
 			confl_detect += gpio_conflict_detect(DSIGPIO_0, 8, func_LCD);
@@ -5266,6 +5306,7 @@ static int pinmux_config_weigand(uint32_t config)
 {
 	if (config == PIN_WG_CFG_NONE) {
 	} else {
+		confl_detect = 0;
 
 		if (config & PIN_WG_CFG_WG_1) {
 
@@ -5384,7 +5425,7 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 	int err;
 	// unsigned long flags = 0;
 
-	pr_info("%s, %s\r\n", __func__, DRV_VERSION);
+	// pr_info("%s, %s\r\n", __func__, DRV_VERSION);
 
 	top_reg0.reg = TOP_GETREG(info, TOP_REG0_OFS);
 #if 0
