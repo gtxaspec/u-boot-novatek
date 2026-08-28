@@ -669,14 +669,326 @@ void nand_phy_config(struct drv_nand_dev_info *info)
 		} else {	// ~ 120MHz
 			phy_dly2.Bit.INDLY_SEL = 0x1E;
 		}
+	} else if ((chip_id == CHIP_NS02301) || (chip_id == CHIP_NS02302)) {
+		phy_dly2.Bit.INDLY_SEL = 0x0;
+
+		if (info->ops_freq <= 120000000) {
+			phy_dly2.Bit.OUTDLY_SEL = 6;
+		} else {
+			phy_dly2.Bit.OUTDLY_SEL = 0;
+		}
 	} else {
 		phy_dly.Bit.PHY_SRC_CLK_SEL = 0;
 		phy_dly.Bit.PHY_PAD_CLK_SEL = 1;
-		phy_dly2.Bit.INDLY_SEL = 0x8;
+		if (info->ops_freq >= 80000000) {
+			phy_dly2.Bit.INDLY_SEL = 0x28;
+		} else {
+			phy_dly2.Bit.INDLY_SEL = 0x8;
+		}
 	}
 
 	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, phy_dly2.Reg);
 	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, phy_dly.Reg);
+}
+
+static void nvt_parse_frequency(u32 *freq, NAND_TYPE_SEL type)
+{
+	/* Enable it after dts parsing ready*/
+	int nodeoffset;
+	u32 *cell = NULL;
+
+	if (type == NANDCTRL_SPI_NOR_TYPE) {
+		nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, "/nor");
+	} else {
+		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nand");
+	}
+
+	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "clock-frequency", NULL);
+
+	if (cell > 0) {
+		*freq = __be32_to_cpu(cell[0]);
+	} else {
+		*freq = 12000000;
+	}
+}
+
+int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
+{
+	uint32_t reg, clk_div, freq = 0x0;
+	u32 *cell = NULL;
+	int len;
+	u32 flash_pinmux = 0x03;
+	u32 fdt_pinmux = 0x0;
+
+	int nodeoffset;
+
+	info->chip_id = nvt_get_chip_id();
+	NAND_DBG_GLOBAL("dbg CHID: 0x%x\r\n", info->chip_id);
+
+	/* Get fdt pinmux config */
+	do {
+		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/top/nand");
+		if (nodeoffset < 0) {
+			printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
+			printf("%s: path %s not found\n", __func__, "/top/nand");
+			break;
+		}
+
+		cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
+		if (len == 0) {
+			printf("%s(%d) len = 0\n", __func__, __LINE__);
+			break;
+		}
+		if (cell > 0) {
+			fdt_pinmux = __be32_to_cpu(cell[0]);
+			printf("%s: spi flash pinmux 0x%x\r\n", __func__, fdt_pinmux);
+		} else {
+			printf("%s: get spi flash pinmux fail \r\n", __func__);
+		}
+	} while (0);
+
+	NAND_DBG_GLOBAL("dbg nand base addr: 0x%p\r\n", (void *)CONFIG_SYS_NAND_BASE);
+	NAND_DBG_GLOBAL("dbg cg base addr: 0x%p\r\n", (void *)IOADDR_CG_REG_BASE);
+
+	/* Config NAND module CLKEN */
+	reg = INW(IOADDR_CG_REG_BASE + 0x74);
+	if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302)) {
+		reg |= (1);
+	} else {
+		reg |= (1 << 10);
+	}
+	NAND_DBG_GLOBAL("dbg clken: 0x%x\r\n", reg);
+	OUTW(IOADDR_CG_REG_BASE + 0x74, reg);
+
+	/* Config NAND module RSTN */
+	if (info->chip_id == CHIP_NS02301) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x84);
+		reg |= (1);
+		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
+		OUTW(IOADDR_CG_REG_BASE + 0x84, reg);
+	} else {
+		reg = INW(IOADDR_CG_REG_BASE + 0x94);
+		if (info->chip_id == CHIP_NS02302) {
+			reg |= (1);
+		} else {
+			reg |= (1 << 10);
+		}
+		NAND_DBG_GLOBAL("dbg rstn: 0x%x\r\n", reg);
+		OUTW(IOADDR_CG_REG_BASE + 0x94, reg);
+	}
+
+	//NAND_SETREG(info, NAND_TIME0_REG_OFS, 0x06002222);
+	//NAND_SETREG(info, NAND_TIME1_REG_OFS, 0x7f0f);
+
+	/* Need use PinCtrl framework */
+	reg = INW(IOADDR_TOP_REG_BASE + 0x4);
+	if (info->chip_id == CHIP_NS02302) {
+		reg &= ~0x3;
+		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
+			reg |= 0x1;
+		} else if ((fdt_pinmux&0x3) == 0x2) {   // PIN_NAND_CFG_NAND_2, Octal mode
+			reg |= 0x2;
+		} else {
+			printf("%s: nand fdt_pinmux 0x%x not support\r\n", __func__, fdt_pinmux);
+		}
+		if (fdt_pinmux & 0x4) { // PIN_NAND_CFG_NAND_CS1
+			reg |= 0x4;
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
+			reg &= ~(0x0000090F);              // 4-bit
+		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
+			reg &= ~(0x00000DFF);              // 8-bit + DQS
+		}
+		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
+			reg &= ~(0x200);                   // CS1
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+	} else if (info->chip_id == CHIP_NS02301) {
+		reg &= ~0xC;
+		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
+			reg |= 0x4;
+		} else if ((fdt_pinmux&0x3) == 0x2) {   // PIN_NAND_CFG_NAND_2, Octal mode
+			reg |= 0x8;
+		} else {
+			printf("%s: nand fdt_pinmux 0x%x not support\r\n", __func__, fdt_pinmux);
+		}
+		if (fdt_pinmux & 0x4) { // PIN_NAND_CFG_NAND_CS1
+			reg |= 0x40;
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
+			reg &= ~(0x0000140F);              // 4-bit
+		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
+			reg &= ~(0x000015FF);              // 8-bit + DQS
+		}
+		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
+			reg &= ~(0x200);                   // CS1
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+	} else {
+		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
+			flash_pinmux |= (1 << 2);
+		}
+		reg |= flash_pinmux;
+
+		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
+		NAND_DBG_GLOBAL("dbg pinmux: 0x%x\r\n", reg);
+
+		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
+		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
+			reg &= ~(0x0000070F);
+		} else {
+			reg &= ~(0x0000030F);
+		}
+		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
+	}
+
+	/* reset NAND Config NAND module configuration */
+
+	/* Config clock div */
+	nvt_parse_frequency(&freq, type);
+	if (info->chip_id == CHIP_NA51090 || info->chip_id == CHIP_NA51103) {
+		if (freq > 80000000) {
+			printf("freq %d out of range, fix to 80MHz\n", freq);
+			freq = 80000000;
+		}
+	}
+	clk_div = NVT_FLASH_SOURCE_CLK / freq - 1;
+	NAND_DBG_GLOBAL("dbg freq %d, div=0x%x \n", freq, clk_div);
+
+	if (info->chip_id == CHIP_NA51090 || info->chip_id == CHIP_NA51102 || info->chip_id == CHIP_NS02201) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x48);
+		reg &= ~(0x3F0000);
+		reg |= (clk_div << 16);
+		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
+	} else if (info->chip_id == CHIP_NS02301 || info->chip_id == CHIP_NS02302) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x40);
+		printf("get reg: 0x%x \n", reg);
+		reg &= ~(0x3F000);
+		reg |= (clk_div << 12);
+		OUTW(IOADDR_CG_REG_BASE + 0x40, reg);
+		printf("dbg clkdiv: 0x%x \n", reg);
+	} else {
+		printf("clkdiv: skip (todo) \n");
+	}
+
+	/* Config driving */
+	if ((info->chip_id == CHIP_NA51090)) {
+		reg = INW(IOADDR_PAD_REG_BASE + 0x50);
+		reg &= ~(0xFFFFFFF);
+
+		if (freq <= 24000000) {
+			reg |= 0x0111101;    // data,clk,cs = 6mA
+		} else if (freq <= 60000000) {
+			reg |= 0x0222202;    // data,clk = 9mA, cs = 6mA
+		} else { // freq > 60MHz
+			reg |= 0x0222203;    // data = 9mA, clk = 12mA, cs = 6mA
+		}
+
+		OUTW(IOADDR_PAD_REG_BASE + 0x50, reg);
+	} else if (info->chip_id == CHIP_NA51103) {
+		reg = INW(IOADDR_PAD_REG_BASE + 0x50);
+		reg &= ~(0xFFFFFFF);
+
+		if (freq <= 48000000) {
+			reg |= 0x0000000;
+		} else { // freq > 48MHz
+			reg |= 0x0111101;    // clk&data = 8mA
+		}
+
+		OUTW(IOADDR_PAD_REG_BASE + 0x50, reg);
+
+		OUTW(IOADDR_PAD_REG_BASE, 0x6AA9);
+
+	} else if ((info->chip_id == CHIP_NA51102) || (info->chip_id == CHIP_NS02201)) {
+		// D0 ~ D3
+		reg = INW(IOADDR_PAD_REG_BASE + 0x100);
+		reg &= ~(0xFFFF);
+		if (freq < 24000000) {
+			reg |= 0x4444;
+		} else if (freq < 48000000) {
+			reg |= 0x6666;
+		} else { // freq >= 48MHz
+			reg |= 0x8888;
+		}
+		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
+
+		// CLK, CS0&CS1
+		reg = INW(IOADDR_PAD_REG_BASE + 0x104);
+		reg &= ~(0xFFF);
+		if (freq < 24000000) {
+			reg |= 0x444;
+		} else if (freq < 48000000) {
+			reg |= 0x666;
+		} else { // freq >= 48MHz
+			reg |= 0x888;
+		}
+		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg);
+	} else if (info->chip_id == CHIP_NS02301) {
+		reg = INW(IOADDR_PAD_REG_BASE + 0x24);
+
+		// 3.3v SDR (TODO: 1.8v & DTR)
+		reg &= ~(0x0333FFFF);
+
+		if (freq < 48000000) {
+			// CLK: 0x0, Data: 0x0, CS: 0x0
+		} else if (freq < 96000000) {
+			reg |= 0x1105555; // CLK: 0x1, Data: 0x1, CS: 0x1
+		} else {
+			reg |= 0x1205555; // CLK: 0x2, Data: 0x1, CS: 0x1
+		}
+		OUTW(IOADDR_PAD_REG_BASE + 0x24, reg);
+	} else if (info->chip_id == CHIP_NS02302) {
+		UINT32 reg1;
+
+		reg = INW(IOADDR_PAD_REG_BASE + 0x100);		// Data 0~7
+		reg1 = INW(IOADDR_PAD_REG_BASE + 0x104);	// clk, cs1, dqs, cs0
+
+		// 3.3v SDR (TODO: 1.8v & DTR)
+		reg &= ~(0xFFFFFFFF);
+		reg1 &= ~(0x0000FFFF);
+
+		if (freq < 48000000) {
+			// CLK: 0x0, Data: 0x0, CS: 0x0
+		} else if (freq < 96000000) {
+			reg |= 0x11111111;	// Data: 0x1
+			reg1 |= 0x1111;		// CLK: 0x1, CS: 0x1
+		} else {
+			reg |= 0x11111111;	// Data: 0x1
+			reg1 |= 0x1112;		// CLK: 0x2, CS: 0x1
+		}
+		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
+		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg1);
+	} else {
+		/* Release SRAM */
+		printf("Release sram: skip (TODO)\r\n");
+		//reg = INW(IOADDR_TOP_REG_BASE + 0x1000);
+		//reg &= ~(0x20000);
+		//OUTW(IOADDR_TOP_REG_BASE + 0x1000, reg);
+
+		/* Config driving */
+		printf("pad driving: skip (TODO)\r\n");
+	}
+
+	if (type == NANDCTRL_SPI_NAND_TYPE || type == NANDCTRL_SPI_NOR_TYPE) {
+		nand_hostSetNandType(info, type);
+	} else {
+		printf("flash type[%d] no support \r\n", type);
+		return -1;
+	}
+
+	nand_host_settiming2(info, 0x9F51);
+
+	info->ops_freq = freq;
+
+	return nand_cmd_reset(info);
 }
 
 /*
@@ -1092,6 +1404,11 @@ int nand_host_create_edge_detect_pattern(struct drv_nand_dev_info *info, NAND_TY
 	if (nandType == NANDCTRL_SPI_NOR_TYPE) {
 		struct spi_flash *flash = malloc(sizeof(struct spi_flash));
 
+		if (!flash) {
+			printf("alloc spi_flash failed!\n");
+			return -ENOMEM;
+		}
+
 		if (info->autok_addr && \
 			((info->autok_addr & 0xFF) == 0) && \
 			(info->flash_info->device_size>info->autok_addr)) {
@@ -1209,7 +1526,7 @@ void nand_host_indly_scan(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType
 	union T_NAND_DLL_PHASE_DLY_REG1 phy_dly;
 	union T_NAND_DLL_PHASE_DLY_REG2 phy_dly2;
 	UINT32 pageSize, i;
-	UINT32 PsZoneLen, PsZoneStart, PsZoneEnd;
+	UINT32 PsZoneLen, PsZoneStart = 0, PsZoneEnd = 0;
 	BOOL PsZoneStartFlg = 0, PsZoneEndFlg = 0, errFlg = 0;
 	u8 *rBuf;
 	u32 addr;
@@ -1329,7 +1646,7 @@ void nand_host_indly_scan(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandType
 		printf("ERR: search pass zone fail\r\n");
 		nand_phy_config(info);
 		nand_dll_reset();
-	} else if ((PsZoneStart>NVT_INDLY_STEP) || (PsZoneEnd>NVT_INDLY_STEP)) {
+	} else if ((PsZoneStart > NVT_INDLY_STEP) || (PsZoneEnd > NVT_INDLY_STEP)) {
 		printf("ERR: abnormal scan result, Start[%d] End[%d] \r\n", PsZoneStart, PsZoneEnd);
 		nand_phy_config(info);
 		nand_dll_reset();
@@ -1390,6 +1707,9 @@ int nand_host_1t_edge_detect(struct drv_nand_dev_info *info, NAND_TYPE_SEL nandT
 		printf("NAND type: TODO \r\n");
 		return E_PAR;
 	}
+
+	// clear indly
+	NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS, NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG2_OFS) & 0x00FFFFFF);
 
 	if (info->ops_freq < 80000000) {
 		printf("err: auto tuning 1t detect freq(%d) need >= 80MHz \r\n", info->ops_freq);
@@ -1573,6 +1893,11 @@ int nand_host_dll_auto_tuning(struct drv_nand_dev_info *info, NAND_TYPE_SEL nand
 	}
 
 	wBuf = malloc(pageSize);
+	if (!wBuf) {
+		printf("alloc write buf failed!\n");
+		return -ENOMEM;
+	}
+
 	printf("Pattern size: 0x%x\r\n", pageSize);
 	NAND_AUTOK_DBG(info, "wBuf: %p\r\n", wBuf);
 	NAND_AUTOK_MSG(info, "bitMode: %d-bit \r\n", (1<<bitMode));

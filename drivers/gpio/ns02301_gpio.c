@@ -85,7 +85,7 @@ static int nvt_gpio_direction_input(struct udevice *dev, unsigned offset)
 	offset &= (32 - 1);
 
 	if (pre_roll) {
-		reg_data = PRGPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
+		reg_data = PRGPIO_GETREG(NVT_PRGPIO_STG_DIR_0 + ofs);
 	} else {
 		reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
 	}
@@ -120,7 +120,7 @@ static int nvt_gpio_direction_output(struct udevice *dev, unsigned offset, int v
 	tmp = (1 << offset);
 
 	if (pre_roll) {
-		reg_data = PRGPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
+		reg_data = PRGPIO_GETREG(NVT_PRGPIO_STG_DIR_0 + ofs);
 	} else {
 		reg_data = GPIO_GETREG(NVT_GPIO_STG_DIR_0 + ofs);
 	}

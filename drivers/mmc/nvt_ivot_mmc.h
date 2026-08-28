@@ -161,6 +161,7 @@ struct mmc_nvt_host {
 	struct mmc_data *data;
 	u32 mmc_input_clk;
 	u32 mmc_default_clk;
+	u32 mmc_default_width;
 	void __iomem *base;
 	struct resource *mem_res;
 	int id;

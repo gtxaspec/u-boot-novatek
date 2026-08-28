@@ -26,7 +26,7 @@
 #include <asm/arch/efuse_protected.h>
 #endif
 
-#define DRV_VERSION                     "1.00.12"
+#define DRV_VERSION                     "1.00.13"
 #ifdef CONFIG_DM_USB
 /* Declare global data pointer */
 DECLARE_GLOBAL_DATA_PTR;
@@ -1275,8 +1275,135 @@ static int xhci_usb_remove(struct udevice *dev)
 	} else {
 		//do nothing.
 	}
-#endif
 
+	/* Reset u2/u3 phy */
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+	tmpval2 &= ~(0x5<<5);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+
+	udelay(10);
+
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+	tmpval2 |= (0x5<<5);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+
+        /* Reset U3 controller */
+        tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+        tmpval2 &= ~(0x1<<26);
+        writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+
+        udelay(10);
+
+        tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+        tmpval2 |= (0x1<<26);
+        writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+
+#elif (defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
+	unsigned long tmpval2 = 0;
+	unsigned long base_addr = dev_read_addr(dev);
+	u32 u3_ch = 0;
+
+	if ((unsigned int)base_addr == (unsigned int)IOADDR_USB3_REG_BASE) {
+		u3_ch = 0;
+	}else {
+		u3_ch = 1;
+	}
+
+	if(u3_ch == 1) {
+		/* Reset u2/u3 phy */
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+		tmpval2 &= ~(0x1<<15);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+
+		udelay(10);
+
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+		tmpval2 |= (0x1<<15);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+
+		/* Reset U3_2 controller */
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+		tmpval2 &= ~(0x1<<6);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+
+		udelay(10);
+
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+		tmpval2 |= (0x1<<6);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+	} else {
+		/* Reset u2/u3 phy */
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+		tmpval2 &= ~(0x1<<14);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+
+		udelay(10);
+
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+		tmpval2 |= (0x1<<14);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0xA0));
+
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+		tmpval2 &= ~(0x1<<7);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+
+		udelay(10);
+
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+		tmpval2 |= (0x1<<7);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x9C));
+
+		/* Reset U3_1 controller */
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+		tmpval2 &= ~(0x1<<26);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+
+		udelay(10);
+
+		tmpval2 = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+		tmpval2 |= (0x1<<26);
+		writel(tmpval2, (volatile unsigned long *)(IOADDR_CG_REG_BASE+0x94));
+	}
+
+#elif defined(CONFIG_TARGET_NS02302_A64)
+	unsigned long tmpval2 = 0;
+
+	/* Reset u2/u3 phy */
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+	tmpval2 &= ~(0xD<<16);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+
+	udelay(10);
+
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+	tmpval2 |= (0xD<<16);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+
+	/* Reset glue logic */
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+	tmpval2 &= ~(0x1<<17);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+
+	udelay(10);
+
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+	tmpval2 |= (0x1<<17);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+
+
+	/* Reset U3 controller */
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+	tmpval2 &= ~(0x1<<15);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+
+	udelay(10);
+
+	tmpval2 = readl((volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+	tmpval2 |= (0x1<<15);
+	writel(tmpval2, (volatile unsigned long *)(IOADDR_STBC_CG_REG_BASE+0x90));
+#else
+
+#endif
 	ret = xhci_deregister(dev);
 	if (ret)
 		return ret;

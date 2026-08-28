@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.12"
+#define NOR_VERSION "1.0.13"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;
@@ -61,7 +61,7 @@ const struct spi_flash_params spi_flash_params_table[] = {
 	{"MX25L3205D",     0xc22016, 0x0,       64 * 1024,    64,       0, 0},
 	{"MX25L6405D",     0xc22017, 0x0,       64 * 1024,   128, RD_EXTN, 0},
 	{"MX25L12835F",    0xc22018, 0x0,       64 * 1024,   256, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
-	{"MX25L25645G",    0xc22019, 0x0,       64 * 1024,   512, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
+	{"MX25L25645G",    0xc22019, 0x0,       64 * 1024,   512, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 6},
 	{"MX25L51235F",    0xc2201a, 0x0,       64 * 1024,  1024, RD_FULL, SECT_4K | SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
 	{"MX25L12855E",    0xc22618, 0x0,       64 * 1024,   256, RD_FULL, SPI_FLASH_BUSWIDTH_QUAD_TYPE1},
 	{"MX66L1G45G",     0xc2201b, 0x0,       64 * 1024,  2048, RD_FULL, SECT_4K | SPI_FLASH_BUSWIDTH_QUAD_TYPE1 | SPI_FLASH_BUSWIDTH_DTR_READ, 6},
@@ -362,7 +362,7 @@ static NOR_PROTECT_ID nor_protect_id_list[] = {
 
 #define NUM_OF_NOR_PROTECT_ID (sizeof(nor_protect_id_list) / sizeof(NOR_PROTECT_ID))
 
-
+#if 0
 static void nvt_parse_frequency(u32 *freq)
 {
 	/* Enable it after dts parsing ready*/
@@ -377,6 +377,7 @@ static void nvt_parse_frequency(u32 *freq)
 	else
 		*freq = 12000000;
 }
+#endif
 
 static void nvt_parse_parameter(u32 *trace_stdtable)
 {
@@ -1061,246 +1062,6 @@ int spi_flash_mtd_register(struct spi_flash *flash)
 }
 #endif
 
-static int nvt_spinor_reset(struct drv_nand_dev_info *info)
-{
-	uint32_t reg, clk_div, freq = 0x0, chid;
-	int len;
-	u32 *cell = NULL;
-	u32 flash_pinmux = 0x03;
-	u32	fdt_pinmux = 0x0;
-	int nodeoffset;
-
-	chid = nvt_get_chip_id();
-	if ((chid != CHIP_NA51102) && \
-		(chid != CHIP_NS02201) && \
-		(chid != CHIP_NS02301) && \
-		(chid != CHIP_NS02302)) {
-		printf("%s: chip id 0x%x not support \n",__func__, chid);
-		return -1;
-	}
-	info->chip_id = chid;
-	log_debug("%s CHID: 0x%x\r\n", __func__, chid);
-
-	/* Config NAND module clock */
-	do {
-		nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, "/top/nand");
-		if (nodeoffset < 0) {
-			printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
-			printf("%s: path %s not found\n", __func__, "/top/nand");
-			break;
-		}
-
-		cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
-		if (len == 0) {
-			printf("%s(%d) len = 0\n",__func__, __LINE__);
-			break;
-		}
-		fdt_pinmux = __be32_to_cpu(cell[0]);
-		printf("%s: spi flash pinmux 0x%x\r\n", __func__, fdt_pinmux);
-	} while (0);
-
-	log_debug("dbg nand base addr: 0x%lx\r\n", (ulong)CONFIG_SYS_NAND_BASE);
-	log_debug("dbg cg base addr: 0x%lx\r\n", (ulong)IOADDR_CG_REG_BASE);
-
-	/* Config NAND module clock */
-	reg = INW(IOADDR_CG_REG_BASE + 0x74);
-	if ((chid == CHIP_NS02301) || (chid == CHIP_NS02302)) {
-		reg |= (1);
-	} else {
-		reg |= (1 << 10);
-	}
-	log_debug("dbg clken: 0x%x\r\n", reg);
-	OUTW(IOADDR_CG_REG_BASE + 0x74, reg);
-
-	/* Config NAND module RSTN */
-	if (chid == CHIP_NS02301) {
-		reg = INW(IOADDR_CG_REG_BASE + 0x84);
-		reg |= (1);
-		log_debug("dbg rstn: 0x%x\r\n", reg);
-		OUTW(IOADDR_CG_REG_BASE + 0x84, reg);
-	} else {
-		reg = INW(IOADDR_CG_REG_BASE + 0x94);
-		if (chid == CHIP_NS02302) {
-			reg |= (1);
-		} else {
-			reg |= (1 << 10);
-		}
-		log_debug("dbg rstn: 0x%x\r\n", reg);
-		OUTW(IOADDR_CG_REG_BASE + 0x94, reg);
-	}
-
-	NAND_SETREG(info, NAND_TIME0_REG_OFS, 0x06002222);
-	NAND_SETREG(info, NAND_TIME1_REG_OFS, 0x7f0f);
-
-	/* Need use PinCtrl framework */
-	reg = INW(IOADDR_TOP_REG_BASE + 0x4);
-	if (chid == CHIP_NS02302) {
-		reg &= ~0x3;
-		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
-			reg |= 0x1;
-		} else if ((fdt_pinmux&0x3) == 0x2) {   // PIN_NAND_CFG_NAND_2, Octal mode
-			reg |= 0x2;
-		} else {
-			printf("%s: nand fdt_pinmux 0x%x not support\r\n", __func__, fdt_pinmux);
-		}
-		if (fdt_pinmux & 0x4) { // PIN_NAND_CFG_NAND_CS1
-			reg |= 0x4;
-		}
-		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-		log_debug("dbg pinmux: 0x%x\r\n", reg);
-
-		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
-		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
-			reg &= ~(0x0000090F);              // 4-bit
-		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
-			reg &= ~(0x00000DFF);              // 8-bit + DQS
-		}
-		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
-			reg &= ~(0x200);                   // CS1
-		}
-		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
-
-	} else if (chid == CHIP_NS02301) {
-		reg &= ~0xC;
-		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
-			reg |= 0x4;
-		} else if ((fdt_pinmux&0x3) == 0x2) {   // PIN_NAND_CFG_NAND_2, Octal mode
-			reg |= 0x8;
-			if (reg&0x10000) {
-				printf("%s warn: Conflict with SDIO3 (0x04: 0x%x)\r\n", __func__, reg);
-				//printf("force disable SDIO3 mux  \r\n");
-				//reg &= ~0x10000;
-			}
-		} else {
-			printf("%s: nand fdt_pinmux 0x%x not support\r\n", __func__, fdt_pinmux);
-		}
-		if (fdt_pinmux & 0x4) { // PIN_NAND_CFG_NAND_CS1
-			reg |= 0x40;
-		}
-		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-		log_debug("dbg pinmux: 0x%x\r\n", reg);
-
-		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
-		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
-			reg &= ~(0x0000140F);              // 4-bit
-		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
-			reg &= ~(0x000015FF);              // 8-bit + DQS
-			reg |= 0x800;                      // reset pin
-		}
-		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
-			reg &= ~(0x200);                   // CS1
-		}
-		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
-
-	} else {
-		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
-			flash_pinmux |= (1 << 2);
-		}
-		reg |= flash_pinmux;
-
-		OUTW(IOADDR_TOP_REG_BASE + 0x4, reg);
-		log_debug("dbg pinmux: 0x%x\r\n", reg);
-
-		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
-		if (fdt_pinmux & 0x2) {                // PIN_NAND_CFG_NAND_CS1 = 0x2
-			reg &= ~(0x0000070F);
-		} else {
-			reg &= ~(0x0000030F);
-		}
-		OUTW(IOADDR_TOP_REG_BASE + 0xA0, reg);
-	}
-
-	/* reset NAND Config NAND module configuration */
-
-	/* Config clock div */
-	nvt_parse_frequency(&freq);
-#if 0	// TODO: Max freq check
-	if (nvt_get_chip_id() == CHIP_NA51090) {
-		if (freq > 80000000) {
-			printf("freq %d out of range, fix to 80MHz\n", freq);
-			freq = 80000000;
-		}
-	}
-#endif
-
-	clk_div = NVT_FLASH_SOURCE_CLK/freq - 1;
-	log_debug("dbg freq %d, div=0x%x \n", freq, clk_div);
-	if (chid == CHIP_NA51090 || chid == CHIP_NA51102 || \
-		chid == CHIP_NA51103 || chid == CHIP_NS02201) {
-		reg = INW(IOADDR_CG_REG_BASE + 0x48);
-		reg &= ~(0x3F0000);
-		reg |= (clk_div << 16);
-		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
-	} else if (chid == CHIP_NS02301 || chid == CHIP_NS02302) {
-		reg = INW(IOADDR_CG_REG_BASE + 0x40);
-		printf("get reg: 0x%x \n", reg);
-		reg &= ~(0x3F000);
-		reg |= (clk_div << 12);
-		OUTW(IOADDR_CG_REG_BASE + 0x40, reg);
-		printf("dbg clkdiv: 0x%x \n", reg);
-	} else {
-		printf("clkdiv: skip (todo) \n");
-	}
-
-	/* Config driving */
-	if (chid == CHIP_NA51090) {
-		reg = INW(IOADDR_PAD_REG_BASE + 0x50);
-		reg &= ~(0xFFFFFFF);
-
-		if (freq <= 24000000)
-			reg |= 0x0111101;	// data,clk,cs = 6mA
-		else if (freq <= 60000000)
-			reg |= 0x0222202;	// data,clk = 9mA, cs = 6mA
-		else // freq > 60MHz
-			reg |= 0x0222203;	// data = 9mA, clk = 12mA, cs = 6mA
-
-		OUTW(IOADDR_PAD_REG_BASE + 0x50, reg);
-	} else if (chid == CHIP_NA51103) {
-		reg = INW(IOADDR_PAD_REG_BASE + 0x50);
-		reg &= ~(0xFFFFFFF);
-
-		if (freq <= 48000000)
-			reg |= 0x0000000;
-		else // freq > 48MHz
-			reg |= 0x0111101;	// clk&data = 8mA
-
-		OUTW(IOADDR_PAD_REG_BASE + 0x50, reg);
-	} else if ((chid == CHIP_NA51102) || (chid == CHIP_NS02201)) {
-		// D0 ~ D3
-		reg = INW(IOADDR_PAD_REG_BASE + 0x100);
-		reg &= ~(0xFFFF);
-		if (freq < 24000000)
-			reg |= 0x4444;
-		else if (freq < 48000000)
-			reg |= 0x6666;
-		else	// freq >= 48MHz
-			reg |= 0x8888;
-		OUTW(IOADDR_PAD_REG_BASE + 0x100, reg);
-
-		// CLK, CS0&CS1
-		reg = INW(IOADDR_PAD_REG_BASE + 0x104);
-		reg &= ~(0xFFF);
-		if (freq < 24000000)
-			reg |= 0x444;
-		else if (freq < 48000000)
-			reg |= 0x666;
-		else	// freq >= 48MHz
-			reg |= 0x888;
-		OUTW(IOADDR_PAD_REG_BASE + 0x104, reg);
-	} else {
-		printf("config nor pad driving: todo\n");
-	}
-
-	nand_hostSetNandType(info, NANDCTRL_SPI_NOR_TYPE);
-
-	nand_host_settiming2(info, 0x5F51);
-
-	info->ops_freq = freq;
-
-	return 0;
-
-}
-
 static int nvt_read_sfdp(struct drv_nand_dev_info *info)
 {
 	int ret;
@@ -1357,7 +1118,7 @@ static int nvt_spinor_probe_slave(struct spi_flash *flash)
 	u8 idcode[5] = {0};
 	int ret;
 
-	nvt_spinor_reset(info);
+	nand_pad_reset(info, NANDCTRL_SPI_NOR_TYPE);
 	nand_phy_config(info);
 	nand_dll_reset();
 

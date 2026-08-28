@@ -751,8 +751,8 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 	uint32_t i, part_num, pst_part_num, ro_attr;
 	int exist_linux = 0;
 	int ret = 0;
-	char cmd[512];
-	char buf[40];
+	char cmd[512] = {0};
+	char buf[40] = {0};
 
 #if defined(CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT)
 #if defined(CONFIG_NVT_SPI_NAND) || defined(CONFIG_NVT_SPI_NOR_NAND)
@@ -860,7 +860,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					sprintf(buf, env_get("mtdids"));
 				}
 				strcat(buf, ",nor0=spi_nor.0");
-				ret = env_set("mtdids", buf);
+				env_set("mtdids", buf);
 
 				sprintf(buf, ";spi_nor.0:");
 				break;
@@ -869,7 +869,7 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					sprintf(buf, env_get("mtdids"));
 				}
 				strcat(buf, ",nand0=spi_nand.0");
-				ret = env_set("mtdids", buf);
+				env_set("mtdids", buf);
 
 				sprintf(buf, ";spi_nand.0:");
 
@@ -1071,6 +1071,17 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 					strcat(cmd, buf);
 				}
 				break;
+			case EMBTYPE_MCU:
+				if(FlashType == FLASHTYPE_EMMC) {
+					if (p_cmdline != NULL) {
+						sprintf(buf, "0x%llx@0x%llx(mcu)ro,", PartitionSize, PartitionOffset);
+						strcat(p_cmdline, buf);
+					}
+				} else {
+					sprintf(buf, "0x%llx@0x%llx(mcu),", PartitionSize, PartitionOffset);
+					strcat(cmd, buf);
+				}
+				break;
 			default:
 				break;
 		}
@@ -1212,6 +1223,7 @@ static int nvt_on_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_me
 	case EMBTYPE_DSP:
 	case EMBTYPE_RTOS:
 	case EMBTYPE_AI:
+	case EMBTYPE_MCU:
 		break;
 	case EMBTYPE_LINUX:
 		dst_addr = nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr;
@@ -1465,7 +1477,7 @@ static int nvt_ker_img_ungzip_linux(unsigned long linux_addr,
 	gzip_image_size = UINT32_SWAP(bfc->uiSizeComp);
 	image_size      = UINT32_SWAP(bfc->uiSizeUnComp);
 
-	if (gzip_image_size + sizeof(NVTPACK_BFC_HDR) > nvt_memory_cfg[MEMTYPE_KERNEL_IMG].size) {
+	if (gzip_image_size + sizeof(NVTPACK_BFC_HDR) > nvt_memory_cfg[MEMTYPE_LINUXTMP].addr) {
 		nvt_dbg(ERR, "fail to gz_uncompress linux, gzip image over size (%lu)\n", image_size);
 		return -1;
 	}
@@ -1476,7 +1488,7 @@ static int nvt_ker_img_ungzip_linux(unsigned long linux_addr,
 
 	//uncompress linux
 	nvt_dbg(IND, "gz_uncompress linux\n");
-	if (image_size > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size) {
+	if (image_size > nvt_memory_cfg[MEMTYPE_KERNEL_IMG].size) {
 		nvt_dbg(ERR, "fail to gz_uncompress linux, image over size (%lu)\n", image_size);
 		return -1;
 	}
@@ -1520,12 +1532,17 @@ static int nvt_ramdisk_img_ungzip_linux(unsigned long ramdisk_addr,
 	image_size = UINT32_SWAP(bfc->uiSizeUnComp);
 
 	//copy gzipped ramdisk to a working buffer
+	if ((gzip_image_size + sizeof(NVTPACK_BFC_HDR)) > nvt_memory_cfg[MEMTYPE_LINUXTMP].addr) {
+		nvt_dbg(ERR, "fail to gz_uncompress linux, gzip image over linux tmp (%lu)\n", image_size);
+		return -1;
+	}
+
 	memcpy((char *)workbuf, (char *)ramdisk_addr,
 		   gzip_image_size + sizeof(NVTPACK_BFC_HDR));
 
 	//uncompress ramdisk
 	nvt_dbg(IND, "gz_uncompress ramdisk\n");
-	if (image_size > nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].size) {
+	if (image_size > nvt_memory_cfg[MEMTYPE_LINUX].size) {
 		nvt_dbg(ERR, "fail to gz_uncompress linux, image over size (%lu)\n", image_size);
 		return -1;
 	}
@@ -1587,11 +1604,11 @@ static int nvt_boot_linux_bin_auto(void)
 		switch(flash_type) {
 			case FLASHTYPE_NOR:
 				align_size = ALIGN_CEIL(sizeof(image_header_t), ARCH_DMA_MINALIGN);
-				sprintf(cmd, "sf read 0x%lx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, part_off, is_secure == 0 ? align_size : sizeof(HEADINFO));
+				sprintf(cmd, "sf read 0x%lx 0x%llx 0x%x", nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, part_off, is_secure == 0 ? align_size : sizeof(HEADINFO));
 				run_command(cmd, 0);
 				break;
 			case FLASHTYPE_NAND:
-				sprintf(cmd, "nand read 0x%lx linux 0x%lx", nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, is_secure == 0 ? sizeof(image_header_t) : sizeof(HEADINFO));
+				sprintf(cmd, "nand read 0x%lx linux 0x%x", nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, is_secure == 0 ? sizeof(image_header_t) : sizeof(HEADINFO));
 				run_command(cmd, 0);
 				break;
 			case FLASHTYPE_EMMC:
@@ -1614,7 +1631,7 @@ static int nvt_boot_linux_bin_auto(void)
 		switch(flash_type) {
 			case FLASHTYPE_NOR:
 				align_size = ALIGN_CEIL(sizeof(image_header_t), ARCH_DMA_MINALIGN);
-				sprintf(cmd, "sf read 0x%lx 0x%llx 0x%lx", nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, part_off, align_size);
+				sprintf(cmd, "sf read 0x%lx 0x%llx 0x%x", nvt_memory_cfg[MEMTYPE_KERNEL_IMG].addr, part_off, align_size);
 				run_command(cmd, 0);
 				break;
 			case FLASHTYPE_NAND:

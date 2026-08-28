@@ -22,7 +22,7 @@
 
 #include <usb/fotg330.h>
 
-#define DRV_VERSION                     "1.00.13"
+#define DRV_VERSION                     "1.00.14"
 
 // result of setup packet
 #define CX_IDLE		0
@@ -82,12 +82,12 @@ static struct usb_endpoint_descriptor ep0_desc = {
 
 /* NA51102 */
 #if defined(CONFIG_TARGET_NA51102_A64)
-
 #define USB3PHY_SETREG(ofs,value)   writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE+0x2000+((ofs)<<2)))
 #define USB3PHY_GETREG(ofs)         readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE+0x2000+((ofs)<<2)))
 #define USB3U2PHY_SETREG(ofs,value) writel((value), (volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE+0x1000+((ofs)<<2)))
 #define USB3U2PHY_GETREG(ofs)       readl((volatile void __iomem *)(IOADDR_USB3PHY_REG_BASE+0x1000+((ofs)<<2)))
 
+#define  IOADDR_USB3CTL_REG_BASE     IOADDR_USB3PHY_REG_BASE
 #define  IOADDR_USB3_DEVMODE_BASE    (IOADDR_USB3_REG_BASE + 0x2000)
 
 /* NS02201 */
@@ -146,7 +146,8 @@ static void nvt_phyinit(void)
 
 	if(fotg330_dbg)
 		printf("nvt_udc: na51102_phyinit - start\n");
-	code = -33;//otp_key_manager(EFUSE_USB_SATA_TRIM_DATA);
+	//code = -33;
+	otp_key_manager(EFUSE_USB_SATA_TRIM_DATA);
 	if (code == -33) {
 		printf("Read usb trim error\n");
 		printf("[%d] data = NULL\n", 5);

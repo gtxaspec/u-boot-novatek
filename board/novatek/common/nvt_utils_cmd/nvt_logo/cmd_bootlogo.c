@@ -16,7 +16,9 @@
 #include <asm/arch/gpio.h>
 #include <linux/libfdt.h>
 #include <linux/delay.h>
-
+#if defined(CONFIG_TARGET_NS02301)
+#include <cpu_func.h>
+#endif
 
 #include "logo.dat"   //jpg bitstream binary
 #include "logo2.dat"
@@ -127,6 +129,13 @@ extern uint8_t *nvt_fdt_buffer;
 #define PLL9_OFFSET 0x2F0234760
 #define DSI_RSTN_OFFSET 0x2F0020090
 
+#elif defined(CONFIG_TARGET_NS02301)
+#define PLL_CLKSEL_IDE_CLKSRC_480   (0x00)    //< Select IDE clock source as 480 MHz
+#define PLL_CLKSEL_IDE_CLKSRC_PLL6  (0x01)    //< Select IDE clock source as PLL6 (for IDE/ETH)
+#define PLL_CLKSEL_IDE_CLKSRC_PLL9  (0x03)    //< Select IDE clock source as PLL9 (for IDE backup)
+
+#define PLL6_OFFSET 0xF00244E0
+#define PLL9_OFFSET 0xF0024520
 #endif
 
 
@@ -156,7 +165,6 @@ void _boot_dump_reg(UINT64 ofs, int cnt, char *log)
 	}
 #endif	
 }
-
 
 
 /**
@@ -520,6 +528,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 
 #if !CONFIG_TARGET_NS02302_A64
 	//TODO
+	_W_LOG("set tog reg go\r\n");
 	nvt_pinmux_probe();
 #endif
 
@@ -531,7 +540,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 	udelay(1000);
 	reg_data |= 0x1000;
 	OUTW(DSI_RSTN_OFFSET, reg_data);
-#else
+#elif !CONFIG_TARGET_NS02301
 	reg_data = INREG32(DSI_RSTN_OFFSET);
 	reg_data &= 0xFFFFFFF7;
 	OUTW(DSI_RSTN_OFFSET, reg_data);
@@ -545,7 +554,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		p_emu_disp_obj = disp_get_display_object(DISP_1);
 		p_emu_disp_obj->open();
 
-#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64
+#if CONFIG_TARGET_NA51102 || CONFIG_TARGET_NA51102_A64 || CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64 || CONFIG_TARGET_NS02302_A64 || CONFIG_TARGET_NS02301
 		nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, "/nvt-clk/clk_ide_src");
 		if (nodeoffset < 0) {
 			printf("no find node clk_ide_src\n");
@@ -608,7 +617,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		}
 
 		_Y_LOG("clock_source = %d clock_freq = %d\n",clock_source ,clock_freq);
-#ifndef CONFIG_TARGET_NS02302_A64
+#if !(CONFIG_TARGET_NS02302_A64||CONFIG_TARGET_NS02301)
 		pll_set_ideclock_rate(clock_source, clock_freq);
 #endif
 
@@ -647,6 +656,10 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = L_GPIO(22);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = L_GPIO(23);
 		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = L_GPIO(24); 
+#elif CONFIG_TARGET_NS02301
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_sen   = P_GPIO(25);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_clk   = P_GPIO(26);
+		emu_disp_dev.SEL.SET_REG_IF.ui_gpio_data  = P_GPIO(27); 		
 
 #endif
 	}
@@ -695,7 +708,7 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 
 		/*hdmi2 init flow*/
 		
-#if ( CONFIG_DISP_VIDEO_HDMITX_IDE)
+#if ( CONFIG_DISP_VIDEO_HDMITX_IDE && (CONFIG_TARGET_NS02201 || CONFIG_TARGET_NS02201_A64))
 		if(tohdmi == 1){
 			emu_disp_dev.SEL.HOOK_DEVICE_OBJECT.dev_id         = DISPDEV_ID_TVHDMI;
 			emu_disp_dev.SEL.HOOK_DEVICE_OBJECT.p_disp_dev_obj   = dispdev_get_hdmi2_dev_obj();
@@ -825,14 +838,12 @@ static int do_bootlogo(struct cmd_tbl *cmdtp, int flag, int argc, char *const ar
 				emu_disp_ctrl.SEL.SET_ALL_LYR_EN.disp_lyr  = DISPLAYER_VDO1;
 			else
 				emu_disp_ctrl.SEL.SET_ALL_LYR_EN.disp_lyr  = DISPLAYER_OSD1;
-
 			
 			p_emu_disp_obj->disp_ctrl(DISPCTRL_SET_ALL_LYR_EN, &emu_disp_ctrl);
 			p_emu_disp_obj->load(TRUE);
 			p_emu_disp_obj->wait_frm_end(TRUE);
 
 			_W_LOG("DISPCTRL_SET_ALL_LYR_EN\r\n");
-
 			
 #if CONFIG_TARGET_NS02201_A64
 			//disp3 flow start

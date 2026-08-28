@@ -202,4 +202,16 @@ config RTC_ZYNQMP
 	  Say "yes" here to support the on chip real time clock
 	  present on Xilinx ZynqMP SoC.
 
+config NVT_NA51102_RTC
+	bool "Enable NVT NA51102 RTC driver"
+	depends on NVT_IVOT_SOC
+	help
+	  Support for NVT NA51102 and NS02201 Real Time Clock devices.
+
+config NVT_NS02201_RTC
+	bool "Enable NVT NS02201 RTC driver"
+	depends on NVT_IVOT_SOC
+	help
+	  Support for NVT NA51102 and NS02201 Real Time Clock devices.
+	  
 endmenu

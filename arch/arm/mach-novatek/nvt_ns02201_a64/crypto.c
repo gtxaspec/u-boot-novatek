@@ -156,11 +156,9 @@ static void crypto_dma_enable(u32 uiMode, u32 uiOPMode, u32 uiType, u32 SrcAddr,
 
 	vuiSCE_DesTab[SCE_DES_HAEDER_OFS] = (u32)header_config;
 
-	block_config = 0;
     vuiSCE_DesTab[SCE_DES_BLOCK_CFG_OFS]    = dma_getPhyAddr(SrcAddr);
     vuiSCE_DesTab[SCE_DES_BLOCK_CFG_OFS+1]  = dma_getPhyAddr(DstAddr);
     vuiSCE_DesTab[SCE_DES_BLOCK_CFG_OFS+2]  = Len;
-
     block_config = (u32)(1);
 
     vuiSCE_DesTab[SCE_DES_BLOCK_CFG_OFS+3]  = block_config;

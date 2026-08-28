@@ -21,6 +21,8 @@ else ifneq ($(CONFIG_TARGET_NS02201)$(CONFIG_TARGET_NS02201_A64),)
 obj-$(CONFIG_PWM_NVT)		+= nvt_pwm.o nvt_pwm_ns02201.o
 else ifneq ($(CONFIG_TARGET_NS02301)$(CONFIG_TARGET_NS02301_A64),)
 obj-$(CONFIG_PWM_NVT)		+= nvt_pwm.o nvt_pwm_ns02301.o
+else ifneq ($(CONFIG_TARGET_NS02302)$(CONFIG_TARGET_NS02302_A64),)
+obj-$(CONFIG_PWM_NVT)		+= nvt_pwm.o nvt_pwm_ns02302.o
 endif
 obj-$(CONFIG_PWM_ROCKCHIP)	+= rk_pwm.o
 obj-$(CONFIG_PWM_SANDBOX)	+= sandbox_pwm.o

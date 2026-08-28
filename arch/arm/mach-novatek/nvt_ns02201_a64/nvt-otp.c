@@ -541,23 +541,23 @@ s32 otp_set_key_destination(EFUSE_OTP_KEY_SET_FIELD key_set_index)
 		return EFUSE_OPS_ERR;
 	}
 	//Return value dont care
-	//Coverity[check_return]
+	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 0);
-	//Coverity[check_return]
+	//coverity[check_return]
 	otp_key_manager(key_field_start_index);
-	//Coverity[check_return]
+	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 1);
-	//Coverity[check_return]
+	//coverity[check_return]
 	otp_key_manager(key_field_start_index + 1);
-	//Coverity[check_return]
+	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 2);
-	//Coverity[check_return]
+	//coverity[check_return]
 	otp_key_manager(key_field_start_index + 2);
-	//Coverity[check_return]
+	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_CRYPTO, 3);
-	//Coverity[check_return]
+	//coverity[check_return]
 	otp_key_manager(key_field_start_index + 3);
-	//Coverity[check_return]
+	//coverity[check_return]
 	set_key_destination(OTP_KEY_MANAGER_NONE, 0);
 	return E_OK;
 }

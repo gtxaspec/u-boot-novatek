@@ -1227,6 +1227,7 @@ ER      nand_hostConfigChipSelOperationMode(struct drv_nand_dev_info *info, NAND
 /* --	NAND command --*/
 void 	nand_dll_reset(void);
 void    nand_phy_config(struct drv_nand_dev_info *info);
+int     nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type);
 int 	nvt_nand_read_id(struct drv_nand_dev_info *info, uint32_t *id);
 
 int	nand_cmd_reset(struct drv_nand_dev_info *info);

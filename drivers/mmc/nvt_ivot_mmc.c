@@ -100,9 +100,13 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "max-frequency", NULL);
-
 	if (cell > 0) {
 		host->mmc_default_clk = __be32_to_cpu(cell[0]);
+	}
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "bus-width", NULL);
+	if (cell > 0) {
+		host->mmc_default_width = __be32_to_cpu(cell[0]);
 	}
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "driving", NULL);
@@ -532,7 +536,7 @@ BOOL sdiohost_getrdy(struct mmc_nvt_host *host)
 
 	stsreg.reg = sdiohost_getreg(host, SDIO_BUS_STATUS_REG_OFS);
 
-	return stsreg.bit.CARD_BUSY;
+	return stsreg.bit.BUS_STS_D0;
 }
 
 /*
@@ -2327,6 +2331,8 @@ int nvt_mmc_init(int id)
 
 	host->mmc_default_clk = 48000000;
 
+	host->mmc_default_width = 4;	// default 4bit: max compatibility (not all SOC package has 8 bit data bus)
+
 	mmc_nvt_parse_driving(host);
 
 	nvt_emmc_arch_host_preinit(host);
@@ -2343,8 +2349,13 @@ int nvt_mmc_init(int id)
 	cfg->b_max = (32*1024);
 	cfg->host_caps = MMC_MODE_4BIT | MMC_MODE_HS_52MHz | MMC_MODE_HS;
 
-	if(host->enable_8bits)
+	if(host->enable_8bits && (host->mmc_default_width == 8)) {
 		cfg->host_caps |= MMC_MODE_8BIT;
+	} else if(host->enable_8bits && (host->mmc_default_width != 8)) {
+		printf("%s: pinmux 8 bit, but dts not 8 bits => assume 4 bits\r\n", cfg->name);
+	} else if((host->enable_8bits==0) && (host->mmc_default_width == 8)) {
+		printf("%s: dts 8 bit, but pinmux not 8 bits => assume 4 bits\r\n", cfg->name);
+	}
 
 	cfg->ops = &nvt_hsmmc_ops;
 
@@ -2602,6 +2613,8 @@ static int nvt_mmc_probe(struct udevice *dev)
 
 	host->mmc_default_clk = 48000000;
 
+	host->mmc_default_width = 4;	// default 4bit: max compatibility (not all SOC package has 8 bit data bus)
+
 	host->ext_caps = 0;
 
 	host->do_dma = 1;
@@ -2624,8 +2637,13 @@ static int nvt_mmc_probe(struct udevice *dev)
 	cfg->b_max = (32*1024);
 	cfg->host_caps = MMC_MODE_4BIT | MMC_MODE_HS_52MHz | MMC_MODE_HS;
 
-	if (host->enable_8bits)
+	if (host->enable_8bits && (host->mmc_default_width == 8)) {
 		cfg->host_caps |= MMC_MODE_8BIT;
+	} else if(host->enable_8bits && (host->mmc_default_width != 8)) {
+		printf("%s: pinmux 8 bit, but dts not 8 bits => assume 4 bits\r\n", cfg->name);
+	} else if((host->enable_8bits==0) && (host->mmc_default_width == 8)) {
+		printf("%s: dts 8 bit, but pinmux not 8 bits => assume 4 bits\r\n", cfg->name);
+	}
 
 	if (host->ext_caps) {
 		cfg->host_caps |= host->ext_caps;

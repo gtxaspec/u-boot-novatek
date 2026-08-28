@@ -241,9 +241,7 @@
 			"fdt part 0 1;" \
 			"uboot part 0 2;" \
 			"linux part 0 4;" \
-			"rootfs part 0 5;" \
-			"rootfs1 partubi 0 6;" \
-			"app partubi 0 7"
+			"rootfs partubi 0 5"
 #endif
 #endif
 #endif

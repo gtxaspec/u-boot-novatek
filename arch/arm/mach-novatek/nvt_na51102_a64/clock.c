@@ -479,8 +479,8 @@ int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 				writel(0x28, (IOADDR_STBC_CG_REG_BASE + 0xB0));
 			}
 			//CPU 1000 MHz -> CPU-MPLL-125Mhz = 0x14D555
-			writel(0x85, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
-			writel(0x53, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
+			writel(0x55, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO0_OFS); // B0
+			writel(0x35, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO1_OFS); // B1
 			writel(0x05, IOADDR_CG_REG_BASE + CPU_CLOCK_RATE_RATIO2_OFS); // B2
 			printf("Set CPU clk 1000MHz\n");
 			break;

@@ -27,3 +27,4 @@ obj-$(CONFIG_NVT_IVOT_TZPC_SUPPORT) += nvt_utils_cmd/tzpc/nvt_ivot_tzpc_utils.o	
 obj-$(CONFIG_VIDEO_LOGO) += nvt_utils_cmd/nvt_logo/cmd_bootlogo.o
 
 obj-$(CONFIG_NVT_PCIE_DAUGHTER_BRD) += nvt_pcie_boot_utils.o
+obj-$(CONFIG_NVT_SWITCH_SECURE) += nvt_utils_cmd/nvt_switch_secure_cmd.o

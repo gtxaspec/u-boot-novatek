@@ -38,13 +38,7 @@ static struct mm_region evb_mem_map[] = {
 	{
 	    .virt = 0x0UL,
 		.phys = 0x0UL,
-		.size = 0x1F00000UL,
-		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
-			 PTE_BLOCK_INNER_SHARE
-	}, {
-	    .virt = 0x2000000UL,
-		.phys = 0x2000000UL,
-		.size = 0xEE000000UL,
+		.size = 0xF0000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 			 PTE_BLOCK_INNER_SHARE
 	}, {

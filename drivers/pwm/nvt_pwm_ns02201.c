@@ -239,13 +239,18 @@ int do_nvt_pwm_set_pinmux(int pwm_id)
 
 	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
-		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
+		printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
 		return -1;
 	}
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
+	if (cell == NULL) {
+		printf("%s(%d) cell = NULL\n", __func__, __LINE__);
+		return -1;
+	}
+
 	if (len == 0) {
-		printf("%s(%d) len = 0\n",__func__, __LINE__);
+		printf("%s(%d) len = 0\n", __func__, __LINE__);
 		return -1;
 	}
 

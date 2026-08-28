@@ -14,6 +14,8 @@
 #define _ALIGNED(x)         __attribute__((aligned(x)))
 #define CACHE_LINE_SIZE     CONFIG_SYS_CACHELINE_SIZE
 
+static uint8_t _ALIGNED(CACHE_LINE_SIZE) input[4096] = {0xFF};
+
 static uint8_t _ALIGNED(CACHE_LINE_SIZE) PLAINTEXT[] = {      ///< 56 bytes
 	0x61, 0x62, 0x63, 0x64, 0x62, 0x63, 0x64, 0x65, 0x63, 0x64, 0x65, 0x66, 0x64, 0x65, 0x66, 0x67,
 	0x65, 0x66, 0x67, 0x68, 0x66, 0x67, 0x68, 0x69, 0x67, 0x68, 0x69, 0x6A, 0x68, 0x69, 0x6A, 0x6B,
@@ -135,14 +137,6 @@ static int perf_nvt_hash(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 	struct nvt_hash_pio_t hash;
 	uint32_t start, end;
 
-	unsigned long test_buf,test_buf_align;
-	uint8_t* input;
-
-	test_buf = (unsigned long)malloc(4 * 1024);
-	test_buf_align = (unsigned long)((test_buf + 63) & 0xFFFFFFC0);
-	input = (uint8_t *)test_buf_align;
-	memset(input, 0xFF, 4096);
-
 	/* Check argument */
 	if (argc < 4)
 		return CMD_RET_USAGE;
@@ -170,7 +164,7 @@ static int perf_nvt_hash(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		return CMD_RET_USAGE;
 
 	/* Command */
-	if (strncmp(argv[3], "perf", 6))
+	if (strncmp(argv[3], "perf", 4))
 		return CMD_RET_USAGE;
 
 	/* Open Hash Device */
@@ -194,14 +188,12 @@ static int perf_nvt_hash(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 	ret = (dma_mode) ? nvt_hash_dma_sha(&hash) : nvt_hash_pio_sha(&hash);
 	end = timer_get_us();
 
-	printf("nvt hash %d us \n", (end-start)); 
+	printf("nvt hash %d us \n", (end-start));
+	ret = CMD_RET_SUCCESS; 
 
 exit:
 	/* Close Hash Device */
 	nvt_hash_close();
-
-	if (input)
-		free(input);
 
 	return ret;
 }

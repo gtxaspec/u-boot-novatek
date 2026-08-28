@@ -630,7 +630,8 @@ ER disp_close_disp1(void)
 {
 	if (gui_disp_obj_opened[DISP_1]) {
 		gui_disp_obj_opened[DISP_1]--;
-		if (gui_disp_obj_opened[DISP_1]) {
+		if (!gui_disp_obj_opened[DISP_1]) {
+			ide_close();
 			return E_OK;
 		}
 	}
@@ -771,7 +772,7 @@ ER dispdev1_ioctrl(DISPDEV_IOCTRL_OP disp_dev_ctrl, PDISPDEV_IOCTRL_PARAM p_disp
 			case DISPDEV_TYPE_CCIR656_16BIT:
 				ide_set_device(DISPLAY_DEVICE_CCIR656_16BIT);
 				break;
-#if 0
+#if CONFIG_TARGET_NA51102_A64
 
 			case DISPDEV_TYPE_EMBD_HDMI: {
 				PDISP_OBJ p_disp_obj;

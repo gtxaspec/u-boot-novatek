@@ -12,6 +12,11 @@
 
 #include <linux/sizes.h>
 
+/* #define CONFIG_DEBUG 1 */
+
+#ifdef CONFIG_DEBUG
+#define DEBUG                       1
+#endif
 /*
  * High Level Configuration Options
  */
@@ -156,8 +161,11 @@
 #define CONFIG_SYS_BARGSIZE				CONFIG_SYS_CBSIZE
 										/* even with bootdelay=0 */
 /* MTD */
-#define CONFIG_CMD_MTDPARTS
 #define CONFIG_SYS_BOOTM_LEN				(25 << 20)
+
+/* DFU */
+#define CONFIG_SET_DFU_ALT_BUF_LEN      (SZ_1K)
+
 #if (defined(CONFIG_CMD_DFU) && defined(_EMBMEM_EMMC_))
 #define CONFIG_DFU_MMC  1
 #ifndef CONFIG_FS_EXT4
@@ -166,7 +174,6 @@
 #ifndef CONFIG_EXT4_WRITE
 #define CONFIG_EXT4_WRITE   1
 #endif
-#define CONFIG_SYS_DFU_MAX_FILE_SIZE CONFIG_LINUX_SDRAM_SIZE
 
 /* EMMC partition */
 #if defined(_NVT_ROOTFS_TYPE_RAMDISK_)

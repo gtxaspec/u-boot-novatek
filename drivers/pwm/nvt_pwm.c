@@ -279,7 +279,9 @@ static int get_pwr_id(void)
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pwm_id", NULL);
 
-	if (cell >= 0) {
+	if (cell == NULL) {
+		printf("%s: get null pwr id\n", __func__);
+	} else {
 		pwm_id = __be32_to_cpu(cell[0]);
 	}
 

@@ -52,6 +52,7 @@ enum {
 	EMBTYPE_AI        = 0x13, /* for fastboot-ai*/
 	EMBTYPE_ATF       = 0x14, /* for ATF */
 	EMBTYPE_BANK      = 0x15, /* for dual rtos, extra partition called bank */
+	EMBTYPE_MCU       = 0x16, /* MCU firmware, such as 8051, andes */
 	EMBTYPE_SIZE,
 };
 /**

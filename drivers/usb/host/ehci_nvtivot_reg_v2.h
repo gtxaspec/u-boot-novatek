@@ -1189,6 +1189,8 @@ union USB_PHYCTRL52_REG {
 #define CG_U2_0_RST_BIT 19
 #define TOP_U2_0_SRAMSD 0x1000
 #define TOP_U2_0_SRAMSD_BIT 26
+#define CG_U2_0_PHYRST 0x88
+#define CG_U2_0_PHYRST_BIT 19
 
 #else
 //TODO: other project follow the macro pattern

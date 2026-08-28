@@ -50,7 +50,12 @@
 #include <asm/arch/ns02201_regs.h>
 #include <asm/arch/ns02201_pinmux.h>
 #else
+#if (defined(CONFIG_TARGET_NS02301))
+#include <asm/arch/ns02301_regs.h>
+#include <asm/arch/ns02301_pinmux.h>
+#else
 #include <asm/arch/na51000_regs.h>
+#endif
 #endif
 #endif
 #endif
@@ -137,8 +142,39 @@ const char *pinmux_dts_name[] =
 	"sel_lcd2",
 	"pcie",
 	"sel_pcie",
-
-
+	
+#elif defined(CONFIG_TARGET_NS02301)
+	
+	"sdio",
+	"nand",
+	"eth",
+	"i2c",
+	"pwm",
+	"pwmII",
+	"pwmIII",
+	"ccnt",
+	"sensor",
+	"sensor2",
+	"sensormisc",
+	"sensorsync",
+	"audio",
+	"uart",
+	"csi",
+	"remote",
+	"sdp",
+	"spi",
+	"sif",
+	"misc",
+	"lcd",
+	"tv",
+	"sel_lcd",
+	"pr_i2c",
+	"pr_uart",
+	"pr_sensor",
+	"pr_sensormisc",
+	"pr_spi",
+	"pr_pwm",
+	"pr_audio",
 
 #else
 	"sdio",
@@ -415,7 +451,7 @@ int nvt_pinmux_probe(void)
 
     for(i=0;i < PIN_FUNC_MAX; i++)
     {
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
+#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301)
         sprintf(path,"/top/%s",pinmux_dts_name[i]);
 #else
         sprintf(path,"/top@%x/%s",IOADDR_TOP_REG_BASE, pinmux_dts_name[i]);

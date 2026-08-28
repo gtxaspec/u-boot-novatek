@@ -331,7 +331,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 						}
 					}
 				} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC) {
-					if (ucStatus & NAND_PRI_ECC_STS) {
+					if (NAND_GETREG(info, NAND_CTRL_STS_REG_OFS) & NAND_PRI_ECC_STS) {
 						NAND_DEBUG_MSG("Primary BCH ECC procedure\n");
 						NAND_SETREG(info, NAND_CTRL_STS_REG_OFS, NAND_PRI_ECC_STS);
 
@@ -349,7 +349,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 					}
 
 				} else {
-					if (ucStatus & NAND_PRI_ECC_STS) {
+					if (NAND_GETREG(info, NAND_CTRL_STS_REG_OFS) & NAND_PRI_ECC_STS) {
 						printf("Primary RS ECC procedure\n");
 						NAND_SETREG(info, NAND_CTRL_STS_REG_OFS, NAND_PRI_ECC_STS);
 
@@ -696,7 +696,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 						}
 					}
 				} else {
-					if (ucStatus & NAND_PRI_ECC_STS) {
+					if (NAND_GETREG(info, NAND_CTRL_STS_REG_OFS) & NAND_PRI_ECC_STS) {
 						printf("Primary RS ECC procedure\n");
 						NAND_SETREG(info, NAND_CTRL_STS_REG_OFS, NAND_PRI_ECC_STS);
 

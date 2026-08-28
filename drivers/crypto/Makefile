@@ -7,6 +7,7 @@ obj-$(CONFIG_EXYNOS_ACE_SHA)	+= ace_sha.o
 obj-y += rsa_mod_exp/
 obj-y += fsl/
 
+obj-$(CONFIG_TARGET_NA51102_A64) += /nvt/na51102/
 obj-$(CONFIG_TARGET_NS02201_A64) += /nvt/ns02201/
 obj-$(CONFIG_TARGET_NS02302_A64) += /nvt/ns02302/
 obj-$(CONFIG_TARGET_NS02301) += /nvt/ns02301/

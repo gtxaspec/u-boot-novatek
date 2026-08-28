@@ -14,7 +14,7 @@
 #include "nvt_ivot_mmcplat.h"
 #include <linux/bitops.h>
 
-#define NVT_MMC_UBOOT_DRV_VERSION  "0.00.002"
+#define NVT_MMC_UBOOT_DRV_VERSION  "0.00.003"
 
 /************************
  *        Common        *
@@ -54,6 +54,7 @@ struct mmc_nvt_host {
 	struct mmc_data *data;
 	u32 mmc_input_clk;
 	u32 mmc_default_clk;
+	u32 mmc_default_width;
 	void __iomem *base;
 	struct resource *mem_res;
 	int id;

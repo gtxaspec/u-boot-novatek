@@ -44,7 +44,7 @@
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.06"
+#define DRV_VERSION                     "1.00.07"
 
 struct nvt_udc_chip;
 
@@ -154,6 +154,20 @@ static void nvtim_init_usbhc(void)
 			writel(tmpval2, (volatile unsigned long *)(IOADDR_USB3PHY_REG_BASE+0x28));
 		}
 	}
+#else
+	#if defined(USB_CG_PHYRST_OFS)
+		// enable phy reset
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
+		tmpval &= ~(USB_PHYRST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
+
+		udelay(10);
+
+		// disable phy reset
+		tmpval = readl((volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
+		tmpval |= (USB_PHYRST_BIT);
+		writel(tmpval, (volatile unsigned long *)(IOADDR_CG_REG_BASE + USB_CG_PHYRST_OFS));
+	#endif
 #endif
 
 	usbbase = IOADDR_USB_REG_BASE;
@@ -349,7 +363,33 @@ static void nvtim_init_usbhc(void)
 	{
 		u8 u2_trim_swctrl = 4, u2_trim_sqsel = 4, u2_trim_resint = 8;
 
-		// TODO: Wait trim ready
+		// Get trim value of usb column
+		{
+			int code;
+			bool is_found;
+			u32 trim;
+
+			code = otp_key_manager(1);
+			if (code == -33) {
+				//!!!Please apply default value here!!!
+				printf("%s: Read USB trim error, use default value\r\n", __func__);
+			} else {
+				// check if usb trim value is valid
+				is_found = extract_trim_valid(code, (u32 *)&trim);
+				if (is_found) {
+					if ((TRIM_RESINT_LOWER <= (trim & 0x1F)) && ((trim & 0x1F) <= TRIM_RESINT_UPPER)) {
+						u2_trim_resint = trim & 0x1F;
+						printf("%s: [is_found(%d) code(%d)] [trim(0x%04x) 12K_resistor(0x%04x)]\r\n", __func__, code, is_found, (int)trim, (int)u2_trim_resint);
+					} else {
+						//!!!Please apply default value here!!!
+						printf("%s: [is_found(%d) code(%d)] [trim(0x%04x)], trim out of range!!!\r\n", __func__, code, is_found, (int)trim);
+					}
+				} else {
+					//!!!Please apply default value here!!!
+					printf("%s: [is_found(%d) code(%d)] [trim(0x%04x)], trim not found!!!\r\n", __func__, code, is_found, (int)trim);
+				}
+			}
+		}
 
 		// best setting
 		U2PHY_SETREG(MAP_PHY(0x14), 0xd3);   // Port0 VCHSEL = 11

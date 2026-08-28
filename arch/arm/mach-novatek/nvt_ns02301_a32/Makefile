@@ -11,3 +11,4 @@ obj-y	+= clock.o
 obj-y	+= crypto.o
 obj-y	+= nvt-otp.o
 obj-$(CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT)	+= ddr_slow_down.o
+obj-$(CONFIG_VIDEO_LOGO) += ns02301_pinmux_host.o

@@ -47,14 +47,18 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "max-frequency", NULL);
-
 	if (cell > 0) {
 		host->mmc_default_clk = __be32_to_cpu(cell[0]);
 	}
 
-	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "driving", NULL);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "bus-width", NULL);
+	if (cell > 0) {
+		host->mmc_default_width = __be32_to_cpu(cell[0]);
+	}
 
-	if (cell < 0) {
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "driving", NULL);
+	// null use default driving
+	if (cell == NULL) {
 		for (i = 0; i < SDIO_MAX_MODE_DRIVING; i++) {
 			host->pad_driving[i] = default_pad_driving[i];
 		}
@@ -88,9 +92,10 @@ static void mmc_nvt_parse_driving(struct mmc_nvt_host *host)
 
 	nodeoffset = fdt_path_offset((const void *)nvt_fdt_buffer, path);
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
-	host->pinmux_value = __be32_to_cpu(cell[0]);
-
-	printf("sdio pinmux(0x%x)\n", host->pinmux_value);
+	if (cell > 0) {
+		host->pinmux_value = __be32_to_cpu(cell[0]);
+		printf("sdio pinmux(0x%x)\n", host->pinmux_value);
+	}
 }
 
 //=============================================================================================================
@@ -135,7 +140,7 @@ static void sdiohost_setblkfifoen(struct mmc_nvt_host *host, bool enable)
 static void sdiohost_setphyrst(struct mmc_nvt_host *host)
 {
 	union SDIO_PHY_REG phyreg, phyreg_read;
-	u8 i;
+	u32 i = 0;
 
 	phyreg.reg = sdiohost_getreg(host, SDIO_PHY_REG_OFS);
 	phyreg.bit.PHY_SW_RST = 1;
@@ -1279,7 +1284,11 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 	}
 
 	if (qstatus & MMCST_DATA_TIMEOUT) {
-		printf("data timeout (CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
+		
+		if (host->cmd) {
+			printf("data timeout (CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
+		}
+
 		if (host->data) {
 			sdiohost_resetdata(host);
 		}
@@ -1297,12 +1306,17 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 
 	if (qstatus & MMCST_DATA_CRC_FAIL) {
 		/* Data CRC error */
-		printf("data %s error\n", \
+		if (host->data) {
+			printf("data %s error\n", \
 			   (host->data->flags & MMC_DATA_WRITE) ? "write" : "read");
-		printf("(CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
-		sdiohost_resetdata(host);
-		//printf("MMCST_DATA_CRC_FAIL\r\n");
-		sdiohost_setstatus(host, MMCST_DATA_CRC_FAIL);
+			printf("(CMD%d), status 0x%x\n", host->cmd->cmdidx, qstatus);
+			sdiohost_resetdata(host);
+			//printf("MMCST_DATA_CRC_FAIL\r\n");
+			sdiohost_setstatus(host, MMCST_DATA_CRC_FAIL);	
+		} else {
+			printf("MMCST_DATA_CRC_FAIL & DATA IS NULL\r\n");
+		}
+		
 	}
 
 	if (((qstatus & MMCST_RSP_CRC_OK) || (qstatus & MMCST_CMD_SENT)) && !timeout) {
@@ -1348,7 +1362,8 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 
 	if ((qstatus & MMCST_DATA_END) || (qstatus & MMCST_DATA_CRC_OK)) {
 		end_transfer = 1;
-		data->dest += data->blocksize;
+		if (data)
+			data->dest += data->blocksize;
 		if (!sdiohost_getfifodir(host)) {
 			if (qstatus & MMCST_DATA_END) {
 				if ((qstatus & MMCST_DMA_ERROR)
@@ -1369,6 +1384,8 @@ static ER sdiohost_transfer(struct mmc_nvt_host *host)
 
 	if (end_command) {
 		mmc_nvt_cmd_done(host);
+	} else {
+		printf("end_command IS NULL\r\n");
 	}
 
 	if (end_transfer && (!host->cmd)) {
@@ -1636,6 +1653,11 @@ static int host_request(struct udevice *udev,
 	host->cmd = cmd;
 	static int cur_clk = 0;
 
+	if (!dev) {
+		printf("get mmc device fail\n");
+		return -1;
+	}
+
 #ifdef CONFIG_NVT_IVOT_EMMC
 	if (data || (host->id == SDIO_HOST_ID_2)) {
 #else
@@ -1808,8 +1830,66 @@ static int nvt_emmc_arch_host_preinit(struct mmc_nvt_host *host)
 	}
 #if (SDIO_HOST_ID_COUNT > 1)
 	else if (host->id == SDIO_HOST_ID_2) {
+
+		// set gpio input
+		if (host->pinmux_value & 0x80) {
+			
+#if defined(CONFIG_TARGET_NS02302_A64)
+			/* Set as GPIO */
+			gpio_request(GPIO_SDIO2_CLK, "sdio2_clk");
+			gpio_request(GPIO_SDIO2_CMD, "sdio2_cmd");
+			gpio_request(GPIO_SDIO2_D0, "sdio2_d0");
+			gpio_request(GPIO_SDIO2_D1, "sdio2_d1");
+			gpio_request(GPIO_SDIO2_D2, "sdio2_d2");
+			gpio_request(GPIO_SDIO2_D3, "sdio2_d3");
+
+			reg_value = readl(TOP_SDIO2_EN_GPIO_REG);
+			reg_value |= (TOP_SDIO2_EN_GPIO_MASK);
+			writel(reg_value, TOP_SDIO2_EN_GPIO_REG);
+
+			/* Set PAD pull down */
+			reg_value = readl(PAD_PUPD_SDIO2_CLK_REG);
+			reg_value &= ~(PAD_PUPD_SDIO2_CLK_MASK);
+			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CLK_SHIFT);
+			writel(reg_value, PAD_PUPD_SDIO2_CLK_REG);
+
+			reg_value = readl(PAD_PUPD_SDIO2_CMD_REG);
+			reg_value &= ~(PAD_PUPD_SDIO2_CMD_MASK);
+			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_CMD_SHIFT);
+			writel(reg_value, PAD_PUPD_SDIO2_CMD_REG);
+
+			reg_value = readl(PAD_PUPD_SDIO2_D0_REG);
+			reg_value &= ~(PAD_PUPD_SDIO2_D0_MASK);
+			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D0_SHIFT);
+			writel(reg_value, PAD_PUPD_SDIO2_D0_REG);
+
+			reg_value = readl(PAD_PUPD_SDIO2_D1_REG);
+			reg_value &= ~(PAD_PUPD_SDIO2_D1_MASK);
+			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D1_SHIFT);
+			writel(reg_value, PAD_PUPD_SDIO2_D1_REG);
+
+			reg_value = readl(PAD_PUPD_SDIO2_D2_REG);
+			reg_value &= ~(PAD_PUPD_SDIO2_D2_MASK);
+			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D2_SHIFT);
+			writel(reg_value, PAD_PUPD_SDIO2_D2_REG);
+
+			reg_value = readl(PAD_PUPD_SDIO2_D3_REG);
+			reg_value &= ~(PAD_PUPD_SDIO2_D3_MASK);
+			reg_value |= (PAD_PULLDOWN << PAD_PUPD_SDIO2_D3_SHIFT);
+			writel(reg_value, PAD_PUPD_SDIO2_D3_REG);
+
+			/* Set GPIO input */
+			gpio_direction_input(GPIO_SDIO2_CLK);
+			gpio_direction_input(GPIO_SDIO2_CMD);
+			gpio_direction_input(GPIO_SDIO2_D0);
+			gpio_direction_input(GPIO_SDIO2_D1);
+			gpio_direction_input(GPIO_SDIO2_D2);
+			gpio_direction_input(GPIO_SDIO2_D3);
+#endif
+
+		}
 		/* TOP */
-		if (host->pinmux_value & PIN_SDIO_CFG_SDIO2_1) {
+		else if (host->pinmux_value & PIN_SDIO_CFG_SDIO2_1) {
 			reg_value = readl(TOP_SDIO2_EN_REG);
 			reg_value &= ~(TOP_SDIO2_EN_MASK);
 			reg_value |= (TOP_SDIO2_EN_MASK);
@@ -1964,6 +2044,11 @@ static int host_set_ios(struct udevice *udev)
 	//kwinyee debug
 	//printf("%s called !,clk = %d, bwidth = %d\n",__func__, dev->clock, dev->bus_width);
 
+	if (!dev) {
+		printf("get mmc device fail\n");
+		return -1;
+	}
+
 	if (host->id >= 3) {
 		printf("invalid host id %d\n", host->id);
 		return -1;
@@ -2102,6 +2187,8 @@ int nvt_mmc_init(int id)
 
 	host->mmc_default_clk = 48000000;
 
+	host->mmc_default_width = 4;	// default 4bit: max compatibility (not all SOC package has 8 bit data bus)
+
 	mmc_nvt_parse_driving(host);
 
 	nvt_emmc_arch_host_preinit(host);
@@ -2118,8 +2205,12 @@ int nvt_mmc_init(int id)
 	cfg->b_max = (32 * 1024);
 	cfg->host_caps = MMC_MODE_4BIT | MMC_MODE_HS_52MHz | MMC_MODE_HS;
 
-	if (host->enable_8bits) {
+	if(host->enable_8bits && (host->mmc_default_width == 8)) {
 		cfg->host_caps |= MMC_MODE_8BIT;
+	} else if(host->enable_8bits && (host->mmc_default_width != 8)) {
+		printf("%s: pinmux 8 bit, but dts not 8 bits => assume 4 bits\r\n", cfg->name);
+	} else if((host->enable_8bits==0) && (host->mmc_default_width == 8)) {
+		printf("%s: dts 8 bit, but pinmux not 8 bits => assume 4 bits\r\n", cfg->name);
 	}
 
 	cfg->ops = &nvt_hsmmc_ops;
@@ -2388,6 +2479,8 @@ static int nvt_mmc_probe(struct udevice *dev)
 
 	host->mmc_default_clk = 48000000;
 
+	host->mmc_default_width = 4;	// default 4bit: max compatibility (not all SOC package has 8 bit data bus)
+
 	host->ext_caps = 0;
 
 	host->do_dma = 1;
@@ -2410,8 +2503,12 @@ static int nvt_mmc_probe(struct udevice *dev)
 	cfg->b_max = (32 * 1024);
 	cfg->host_caps = MMC_MODE_4BIT | MMC_MODE_HS_52MHz | MMC_MODE_HS;
 
-	if (host->enable_8bits) {
+	if (host->enable_8bits && (host->mmc_default_width == 8)) {
 		cfg->host_caps |= MMC_MODE_8BIT;
+	} else if(host->enable_8bits && (host->mmc_default_width != 8)) {
+		printf("%s: pinmux 8 bit, but dts not 8 bits => assume 4 bits\r\n", cfg->name);
+	} else if((host->enable_8bits==0) && (host->mmc_default_width == 8)) {
+		printf("%s: dts 8 bit, but pinmux not 8 bits => assume 4 bits\r\n", cfg->name);
 	}
 
 	if (host->ext_caps) {

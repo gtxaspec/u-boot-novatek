@@ -121,6 +121,17 @@ int nvt_on_rtos_partition_enum_copy_to_dest(unsigned int id, NVTPACK_MEM *p_mem,
 					UINT32 uiSizeComp = UINT32_SWAP(pBFC->uiSizeComp);
 					UINT32 uiSizeUnComp = UINT32_SWAP(pBFC->uiSizeUnComp);
 					UINT32 uiAddrCompress = ((unsigned long)pBFC) + sizeof(NVTPACK_BFC_HDR);
+
+					if (uiLength > (dram_size - sizeof(NVTPACK_BFC_HDR))) {
+						printf("%s: uiLength = 0x%08X, gz_uncompress may exceed the memory range of dram.\r\n", __func__, uiLength);
+						return -1;
+					}
+
+					if (uiSizeUnComp > (rtos_size - part1_size)) {
+						printf("%s: uiSizeUnComp = 0x%08X, gz_uncompress may exceed the memory range of rtos.\r\n", __func__, uiSizeUnComp);
+						return -1;
+					}
+
 					int decoded_size = gz_uncompress((unsigned char *)(unsigned long)(uiAddrCompress)
 													 , (unsigned char *)(rtos_addr + part1_size)
 													 , uiLength

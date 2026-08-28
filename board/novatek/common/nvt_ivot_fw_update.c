@@ -609,11 +609,10 @@ static int nvt_chk_ai(ulong addr, unsigned int size, unsigned int pat_id)
 #else
 	// ai model context is user defined.
 	printf("skip checksum of ai model.\n");
-	
+
 	return 0;
 #endif
 }
-
 
 static int nvt_chk_uboot(ulong addr, unsigned int size, unsigned int pat_id)
 {
@@ -1110,6 +1109,10 @@ static int nvt_on_partition_enum_update(unsigned int id, NVTPACK_MEM* p_mem, voi
 			printf("%s Update: user raw partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
 			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
 			break;
+		case EMBTYPE_MCU:
+			printf("%s Update: 8051 partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+			ret = nvt_update_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, PartitionSize);
+			break;
 		default:
 			printf("%s Update: skip partition %d, embtype=%d %s\r\n", ANSI_COLOR_YELLOW, id, pEmb[id].EmbType, ANSI_COLOR_RESET);
 			break;
@@ -1192,6 +1195,10 @@ static int nvt_on_partition_enum_mtd_readback(unsigned int id, NVTPACK_MEM* p_me
 			break;
 		case EMBTYPE_USERRAW:
 			printf("%s Read: user raw partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
+			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
+			break;
+		case EMBTYPE_MCU:
+			printf("%s Read: mcu partition %u %s\r\n", ANSI_COLOR_YELLOW, pEmb[id].OrderIdx, ANSI_COLOR_RESET);
 			ret = nvt_read_partitions(pEmb[id].FlashType, (ulong)p_mem->p_data, p_mem->len, PartitionOffset, id, pEmb[id].EmbType);
 			break;
 		default:
@@ -1514,6 +1521,7 @@ int nvt_process_all_in_one(ulong addr, unsigned int size, int firm_upd_firm)
 					case EMBTYPE_APP:
 					case EMBTYPE_TEEOS:
 					case EMBTYPE_AI:
+					case EMBTYPE_MCU:
 					{
 						//check this type exist in all-in-one
 						np_get_input.id = i;
@@ -1675,6 +1683,7 @@ int nvt_process_sys_recovery(void)
 						case EMBTYPE_RTOS:
 						case EMBTYPE_TEEOS:
 						case EMBTYPE_AI:
+						case EMBTYPE_MCU:
 						{
 							//check this type exist in all-in-one
 							np_get_input.id = i;

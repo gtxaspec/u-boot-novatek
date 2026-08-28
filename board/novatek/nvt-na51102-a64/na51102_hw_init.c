@@ -27,6 +27,7 @@
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 #include <asm/arch/raw_scanMP.h>
 #include <asm/arch/hardware.h>
+#include <asm/cache.h>
 #endif
 #include <linux/libfdt.h>
 
@@ -386,7 +387,19 @@ void nvt_ddr_scan(u32 type)
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	} else {
-		writel(0x20050e1c, 0x2f0050084);
+		if (readl(0x2F00D0000)&0x20) { // LP4 and LP4X
+			printf("LP4/LP4X\r\n");
+			if ((readl(0x2F00D0000)&0x3000000) == 0x3000000) { //dual rank
+				printf("dual rank\r\n");
+				writel(0x40460e1c, 0x2f0050084);
+			} else { // single rank
+				printf("single rank\r\n");
+				writel(0x40060e1c, 0x2f0050084);
+			}
+		} else { // D4
+			printf("D4\r\n");
+			writel(0x40050e1c, 0x2f0050084);
+		}
 		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));

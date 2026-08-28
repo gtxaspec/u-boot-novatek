@@ -225,4 +225,10 @@ config NVT_IVOT_DUAL_RTOS
 	help
 	  An alternate rtos mechanism only for RTOS_APP_MAIN = uvc
 
+config NVT_SWITCH_SECURE
+	bool "To support switch to novatek secure boot flow"
+	default n
+	help
+	  Novatek iVot switch to secure boot command support.
+
 endmenu		# Novatek IVOT features

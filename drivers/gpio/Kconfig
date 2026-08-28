@@ -496,6 +496,16 @@ config MT7621_GPIO
 	help
 	  Say yes here to support MediaTek MT7621 compatible GPIOs.
 
+config NA51089_GPIO
+	bool "Novatek GPIO driver"
+	depends on DM_GPIO && TARGET_NA51089
+	select GPIO_EXTRA_HEADER
+	default n
+	help
+	  Support GPIO controllers on Novatek Video Platform family of SoCs.
+	  Supported devices:
+	  - NA51089 Series
+
 config NA51102_GPIO
         bool "Novatek GPIO driver"
         depends on DM_GPIO && (TARGET_NA51102 || TARGET_NA51102_A64)
@@ -535,6 +545,16 @@ config NS02301_GPIO
           Support GPIO controllers on Novatek Video Platform family of SoCs.
           Supported devices:
           - NS02301 Series
+
+config NS02401_V0_GPIO
+        bool "Novatek GPIO driver"
+        depends on DM_GPIO && (TARGET_NS02401_V0 || TARGET_NS02401_V0_A64)
+        select GPIO_EXTRA_HEADER
+        default n
+        help
+          Support GPIO controllers on Novatek Video Platform family of SoCs.
+          Supported devices:
+          - NS02401 Series
 
 config NX_GPIO
 	bool "Nexell GPIO driver"

@@ -41,7 +41,7 @@
 #include <asm/nvt-common/nvt_ivot_aes_smc.h>
 #include <malloc.h>
 
-#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64)
+#if defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
 //This is encrypt / decrypt sample code
 #define SAMPLE_CODE_KEYMANAGER      0
 #define SAMPLE_CODE_CPUFILLKEY      1
@@ -1844,8 +1844,12 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 		BOOL    is_found;
 
 		u32     TX_TRIM_ROUT, TX_TRIM_DAC, TX_TRIM_SEL_RX, TX_TRIM_SEL_TX;
+		u32		REG_TX_TRIM_ROUT, REG_TX_TRIM_DAC, REG_TX_TRIM_SEL_RX, REG_TX_TRIM_SEL_TX;
 		u32  	USB_Int_12K_resistor;
 		u32  	USB_TX_TRIM, USB_RX_TRIM;
+
+		u32		reg_USB_Internal_12K_resistor;
+		u32		reg_USB_TX_TRIM/*, reg_USB_RX_TRIM*/;
 
 		u32		MIPI_RX_Rterm_GRP1, MIPI_RX_Rterm_GRP2, MIPI_TX_iadj;
 
@@ -1871,6 +1875,29 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 				printf("  	=>  TX_TRIM_DAC[0x%04x]\r\n", (int)TX_TRIM_DAC);
 				printf("  	=> TX_TRIM_ROUT[0x%04x]\r\n", (int)TX_TRIM_SEL_RX);
 				printf("  	=> TX_TRIM_ROUT[0x%04x]\r\n", (int)TX_TRIM_SEL_TX);
+
+				//0xF02B3B74 bit[5..3]
+				REG_TX_TRIM_ROUT    = (readl(IOADDR_ETH_REG_BASE + 0x3B74) >> 3) & 0x7;
+				//0xF02B3B78 bit[4..0]
+				REG_TX_TRIM_DAC     = (readl(IOADDR_ETH_REG_BASE + 0x3B78) >> 0) & 0x1F;
+				//0xF02B3B68 bit[7..5]
+				REG_TX_TRIM_SEL_RX  = (readl(IOADDR_ETH_REG_BASE + 0x3B68) >> 5) & 0x7;
+				//0xF02B3B68 bit[4..2]
+				REG_TX_TRIM_SEL_TX  = (readl(IOADDR_ETH_REG_BASE + 0x3B68) >> 2) & 0x7;
+
+				if ((TX_TRIM_ROUT == REG_TX_TRIM_ROUT) && (TX_TRIM_DAC == REG_TX_TRIM_DAC) && (TX_TRIM_SEL_RX == REG_TX_TRIM_SEL_RX) && (TX_TRIM_SEL_TX == REG_TX_TRIM_SEL_TX)) {
+					printf("  p[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_ROUT, (int)REG_TX_TRIM_ROUT);
+					printf("   TX_TRIM_DAC[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_DAC, (int)REG_TX_TRIM_DAC);
+					printf("TX_TRIM_SEL_RX[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_SEL_RX, (int)REG_TX_TRIM_SEL_RX);
+					printf("TX_TRIM_SEL_TX[0x%02x]=REG[0x%02x]\r\n", (int)TX_TRIM_SEL_TX, (int)REG_TX_TRIM_SEL_TX);										
+					printf("Eth trim SUCCESS\r\n");
+				} else {
+					printf("  TX_TRIM_ROUT[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_ROUT, (int)REG_TX_TRIM_ROUT);
+					printf("   TX_TRIM_DAC[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_DAC, (int)REG_TX_TRIM_DAC);
+					printf("TX_TRIM_SEL_RX[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_SEL_RX, (int)REG_TX_TRIM_SEL_RX);
+					printf("TX_TRIM_SEL_TX[0x%02x]<=>REG[0x%02x]\r\n", (int)TX_TRIM_SEL_TX, (int)REG_TX_TRIM_SEL_TX);					
+					printf("Eth trim Fail\r\n");
+				}
 			} else {
 				//!!!Please apply default value here!!!
 				printf("is found [%d][ETH] = 0x%08x\r\n", is_found, (int)code);
@@ -1892,6 +1919,27 @@ int do_nvt_secure_en_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const 
 					printf("12K_resistor Trim = 0x%04x\r\n", USB_Int_12K_resistor);
 					printf("      USB TX Trim = 0x%04x\r\n", (int)USB_TX_TRIM);
 					printf("      USB RX Trim = 0x%04x\r\n", (int)USB_RX_TRIM);
+
+					reg_USB_Internal_12K_resistor = readl(IOADDR_USB3PHY_REG_BASE + 0x2680);
+					reg_USB_Internal_12K_resistor &= 0x1F;
+					reg_USB_TX_TRIM = readl(IOADDR_USB3PHY_REG_BASE + 0x2040);
+					reg_USB_TX_TRIM = ((reg_USB_TX_TRIM >> 4) & 0xF);
+
+					if (USB_Int_12K_resistor == reg_USB_Internal_12K_resistor) {
+						printf("   u3_trim_rint_sel Trim [0x%04x] == Reg[0x%04x][O]\r\n", (int)USB_Int_12K_resistor, (int)reg_USB_Internal_12K_resistor);
+						printf("   usb trim success\r\n");
+					} else {
+						printf("   u3_trim_rint_sel Trim [0x%04x] != Reg[0x%04x][X]\r\n", (int)USB_Int_12K_resistor, (int)reg_USB_Internal_12K_resistor);
+						printf("   usb trim fail\r\n");
+					}
+					if (USB_TX_TRIM == reg_USB_TX_TRIM) {
+						printf("   USB_TX_TRIM Trim [0x%04x] == Reg[0x%04x][O]\r\n", (int)USB_TX_TRIM, (int)reg_USB_TX_TRIM);						
+						printf("   usb trim success\r\n");
+					} else {
+						printf("   USB_TX_TRIM Trim [0x%04x] != Reg[0x%04x][X]\r\n", (int)USB_TX_TRIM, (int)reg_USB_TX_TRIM);						
+						printf("   usb trim fail\r\n");
+					}
+
 				} else {
 					//!!!Please apply default value here!!!
 					printf("is found [%d][USB] = 0x%08x\r\n", is_found, (int)code);
@@ -2072,7 +2120,7 @@ U_BOOT_CMD(
 #endif
 	"              [quary]\n"
 	"              [uniqueue_id]\n"
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NS02302_A64) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
 	"              [trim]\n"
 #endif
 );

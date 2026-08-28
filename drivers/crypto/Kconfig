@@ -2,6 +2,14 @@ menu "Hardware crypto devices"
 
 source drivers/crypto/fsl/Kconfig
 
+if TARGET_NA51102 || TARGET_NA51102_A64
+source drivers/crypto/nvt/na51102/Kconfig
+endif
+
+if TARGET_NS02201 || TARGET_NS02201_A64
+source drivers/crypto/nvt/ns02201/Kconfig
+endif
+
 if TARGET_NS02201 || TARGET_NS02201_A64
 source drivers/crypto/nvt/ns02201/Kconfig
 endif
