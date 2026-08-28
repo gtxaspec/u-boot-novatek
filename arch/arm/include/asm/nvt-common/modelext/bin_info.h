@@ -62,6 +62,13 @@
 #define BOOT_FLAG_PARTLOAD_EN    0x0000001 ///< BIT 0.PARTLOAD_EN (0=no,1=yes)
 //@}
 
+/**
+ * @brief for encrypt_sign_tool bitwise to HEADINFO::BinCtrl
+ */
+#define SIGN_BINCTRL_LIMITED_SIZE 0x1      //indicate if sha_limited_size is enabled
+#define SIGN_BINCTRL_NO_ENCRYPTIONDATA 0x2 //indicate if signature only without encrypted context
+
+
 //HEADINFO::Resv field definition
 typedef enum _HEADINFO_RESV_IDX_{
 	HEADINFO_RESV_IDX_FDT_ADDR = 0,
@@ -70,6 +77,30 @@ typedef enum _HEADINFO_RESV_IDX_{
 	HEADINFO_RESV_IDX_DRAM_SIZE = 3,
 	HEADINFO_RESV_IDX_COUNTS = 19,
 } HEADINFO_RESV_IDX;
+
+//HEADINFO::Resv field definition for teeos
+typedef enum HEADINFO_TEEOS_RESV_IDX{
+  HEADINFO_TEEOS_RESV_IDX_LOAD_ADDR = 0,
+  HEADINFO_TEEOS_RESV_IDX_UBOOT_ADDR = 1, //< write by loader
+  HEADINFO_TEEOS_RESV_IDX_COUNTS = 19,
+} HEADINFO_TEEOS_RESV_IDX;
+
+//HEADINFO::Resv field definition for bl31
+typedef enum HEADINFO_BL31_RESV_IDX{
+  HEADINFO_BL31_RESV_IDX_LOAD_ADDR = 0,
+  HEADINFO_BL31_RESV_IDX_UBOOT_ADDR = 1, //< write by loader
+  HEADINFO_BL31_RESV_IDX_TEEOS_ADDR = 2, //< write by loader
+  HEADINFO_BL31_RESV_IDX_RTOS_ADDR = 3, //< write by loader
+  HEADINFO_BL31_RESV_IDX_COUNTS = 19,
+} HEADINFO_BL31_RESV_IDX;
+
+/**
+ * @brief HEADINFO::Resv1 for encrypt_sign_tool
+ */
+typedef enum HEADINFO_SIGN_RESV_IDX{
+    HEADINFO_SIGN_RESV_IDX_LIMITED_SIZE = 0, //value to sha_limited_size
+    HEADINFO_SIGN_RESV_IDX_COUNTS = 19,
+} HEADINFO_SIGN_RESV_IDX;
 
 /**
      Header information
@@ -109,6 +140,7 @@ STATIC_ASSERT(sizeof(HEADINFO) == 128);
 typedef struct _BININFO {
 	HEADINFO head;      ///< 0x00 ~ 0x80 = 128 bytes = 32 WORDS, header information
 	unsigned int Resv[64];  ///< 0x80 ~ 0x180 = 384 bytes = 64 WORDS, reserved information
+	                        ///< Resv[0]: signature size, for sha is made for part of content
 }
 BININFO;
 

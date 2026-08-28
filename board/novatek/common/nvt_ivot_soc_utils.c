@@ -248,6 +248,7 @@ int nvt_chk_signature_on_uboot(ulong addr, unsigned int size)
 	unsigned char sha256[32]={0};
 	unsigned int current_sha256[64]={0};
 	unsigned int sha256_align_size =0;
+	unsigned int sha256_size = 0;
 
 	get_bininfo_size_offset(head_info->BinInfo_1, &key_size, &key_offset);
 	key_buf = (unsigned char *)(addr + key_offset);
@@ -266,13 +267,18 @@ int nvt_chk_signature_on_uboot(ulong addr, unsigned int size)
 
 	/* Align sha256 data to 64 */
 	data_size = head_info->BinLength - crypto_offset;
-	if((data_size & 0x3f) != 0)
+	sha256_size = data_size;
+	if (head_info->BinCtrl & SIGN_BINCTRL_LIMITED_SIZE) {
+		// the sha made from part of content but rather whole content
+		sha256_size = head_info->Resv1[HEADINFO_SIGN_RESV_IDX_LIMITED_SIZE];
+	}
+	if((sha256_size & 0x3f) != 0)
 	{
-		sha256_align_size = ((data_size/0x40) + 1)*0x40;
-		memset((unsigned char *)(crypto_buf + data_size),0, sha256_align_size - data_size);
+		sha256_align_size = ((sha256_size/0x40) + 1)*0x40;
+		memset((unsigned char *)(crypto_buf + sha256_size),0, sha256_align_size - sha256_size);
 		printf("sha256 data not align 64 ,it will add padding automatically\n");
 	} else {
-		sha256_align_size = data_size;
+		sha256_align_size = sha256_size;
 	}
 
 
@@ -663,6 +669,13 @@ int nvt_decrypt_aes_on_uboot(unsigned long addr)
 	unsigned int decrypt_size = total_size - crypto_offset;
 	UINT8  iv[16];
 
+	if (headinfo->BinCtrl & SIGN_BINCTRL_NO_ENCRYPTIONDATA) {
+		// signature only flow, the content without aes
+		nvt_dbg(ERR, "skip decrypt aes\n");
+		memcpy((unsigned char *)addr, (unsigned char *)(addr + crypto_offset), decrypt_size);
+		return 0;
+	}
+
 	/* Decrypt Date By AES Key */
 	ret = nvt_crypto_open();
 	if (ret < 0) {
@@ -724,6 +737,14 @@ int nvt_decrypt_aes(unsigned long addr)
 
 	// crypto_size is alignmnet 16, so the uImage size and crypto_size may not the same
 	unsigned int decrypt_size = total_size - crypto_offset;
+
+	if (headinfo->BinCtrl & SIGN_BINCTRL_NO_ENCRYPTIONDATA) {
+		// signature only flow, the content without aes
+		nvt_dbg(ERR, "skip decrypt aes\n");
+		memcpy((unsigned char *)addr, (unsigned char *)(addr + crypto_offset), decrypt_size);
+		return 0;
+	}
+
 	NVT_SMC_AES_DATA aes_data = {0};
 	aes_data.crypto_type = NVT_SMC_AES_CRYPTO_DECRYPTION;
 	aes_data.aes_mode = NVT_SMC_AES_MODE_CBC;

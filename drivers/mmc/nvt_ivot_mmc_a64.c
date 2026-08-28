@@ -1730,30 +1730,18 @@ static int host_request(struct udevice *udev,
 		return -1;
 	}
 
-#ifdef CONFIG_NVT_IVOT_EMMC
-	if (data || (host->id == SDIO_HOST_ID_2)) {
-#else
-	if (data) {
-#endif
+	if (data && host->data_dir == SDIO_HOST_WRITE_DATA) {
 		time_start = get_timer(0);
 		while (1) {
 			mmcst = sdiohost_getrdy(host);
 			if (mmcst == true) {
 				break;
 			}
-#ifdef CONFIG_NVT_IVOT_EMMC
-			if (host->id != SDIO_HOST_ID_2) {
-				time_now = get_timer(0);
-				if ((time_now - time_start) > 1000) {
-					break;
-				}
-			}
-#else
+
 			time_now = get_timer(0);
 			if ((time_now - time_start) > 1000) {
 				break;
 			}
-#endif
 		}
 
 		if (mmcst == false) {
@@ -2199,6 +2187,25 @@ static int host_set_ios(struct udevice *udev)
 	return 0;
 }
 
+int nvt_wait_card_busy(struct udevice *dev, int state, int timeout_us)
+{
+    int ret = -ETIMEDOUT;
+    struct mmc_nvt_host *host = dev_get_priv(dev);
+    bool dat0_high;
+    bool target_dat0_high = !!state;
+    
+    timeout_us = DIV_ROUND_UP(timeout_us, 10); /* check every 10 us. */
+    while (timeout_us--) {
+        dat0_high = !!(sdiohost_getrdy(host));
+        if (dat0_high == target_dat0_high) {
+            ret = 0;
+            break;
+        }
+        udelay(10);
+    }
+    return ret;
+}
+
 #if !CONFIG_IS_ENABLED(DM_MMC)
 static int mmc_host_getcd(struct mmc *mmc)
 #else
@@ -2529,6 +2536,7 @@ static const struct dm_mmc_ops nvt_hsmmc_ops = {
 	.send_cmd = host_request,
 	.set_ios = host_set_ios,
 	.get_cd = mmc_host_getcd,
+	.wait_dat0 = nvt_wait_card_busy,
 #ifdef MMC_SUPPORTS_TUNING
 	.execute_tuning = nvt_mmc_auto_tuning,
 #endif

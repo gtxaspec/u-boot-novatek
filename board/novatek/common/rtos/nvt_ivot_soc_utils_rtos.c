@@ -255,6 +255,8 @@ int nvt_boot_rtos_bin_auto(void)
 	unsigned int tmp_addr = 0;
 	u_int32_t codesize = 0;
 	u32 align_size = 0;
+	u32 signature_size = 0; // corresponding to nvt-info.dtsi SIGNATURE_SHASIZE = 512
+	u32 is_encryptiondata_none = 0; // corresponding to nvt-info.dtsi ENCRYPTIONDATA_NONE
 	char *pCodeInfo = NULL;
 	BININFO *pbininfo = NULL;
 	SHMINFO *p_shminfo = (SHMINFO *)nvt_memory_cfg[MEMTYPE_SHMEM].addr;
@@ -323,6 +325,10 @@ int nvt_boot_rtos_bin_auto(void)
 		run_command(cmd, 0);
 #if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
 		if (is_secure_enable() != 0) {
+			if (headinfo->BinCtrl & SIGN_BINCTRL_NO_ENCRYPTIONDATA) {
+				is_encryptiondata_none = 1;
+			}
+			signature_size = nvt_get_32bits_data((ulong)&headinfo->BinInfo_3[0], 1);
 			if (nvt_chk_signature_on_uboot((ulong)rtos_addr, size)) {
 				nvt_dbg(ERR, "check rtos signature fail\n");
 				return -1;
@@ -338,6 +344,10 @@ int nvt_boot_rtos_bin_auto(void)
 		NVT_SMC_EFUSE_DATA efuse_data = {0};
 		efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
 		if (nvt_ivot_optee_efuse_operation(&efuse_data) != 0) {
+			if (headinfo->BinCtrl & SIGN_BINCTRL_NO_ENCRYPTIONDATA) {
+				is_encryptiondata_none = 1;
+			}
+			signature_size = nvt_get_32bits_data((ulong)&headinfo->BinInfo_3[0], 1);
 			if (nvt_chk_signature((ulong)rtos_addr, size)) {
 				nvt_dbg(ERR, "check rtos signature fail\n");
 				return -1;
@@ -354,14 +364,71 @@ int nvt_boot_rtos_bin_auto(void)
 
 		NVTPACK_BFC_HDR *pbfc = (NVTPACK_BFC_HDR *)rtos_addr;
 		if (pbfc->uiFourCC == MAKEFOURCC('B', 'C', 'L', '1')) {
-			nvt_dbg(ERR, "secured-rtos only support to FW_TYPE=FW_TYPE_NORMAL\r\n");
-			return -1;
+			printf("secured compressed rtos\n");
+			/* rtos image size will be put in the end of rtos region */
+			size_t firmware_size = cpu_to_be32(pbfc->uiSizeComp) + sizeof(NVTPACK_BFC_HDR);
+			tmp_addr = rtos_addr + rtos_size - firmware_size;
+			if ((firmware_size + cpu_to_be32(pbfc->uiSizeUnComp)) > rtos_size) {
+				printf("%s Attention!!! rtos starting address at 0x%lx with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08x %s\r\n",
+					   ANSI_COLOR_RED, rtos_addr, cpu_to_be32(pbfc->uiSizeUnComp), tmp_addr, ANSI_COLOR_RESET);
+				printf("%s It can't decompress %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
+				return -1;
+			}
+
+			debug("auto boot bfc UnCompsz:%d Compsz:%d Algorithm: %x \n", cpu_to_be32(pbfc->uiSizeUnComp), cpu_to_be32(pbfc->uiSizeComp), cpu_to_be32(pbfc->uiAlgorithm));
+
+			size_t Compsz = cpu_to_be32(pbfc->uiSizeComp);
+			// check Compsz before passing it to lzmaBuffToBuffDecompress and lz_uncompress as loop bound
+			if (Compsz > rtos_size) {
+				printf("Compsz > rtos_size \n");
+				return -1;
+			}
+
+			// copy compressed image from rtos_addr to tmp_addr
+			memcpy((void *)tmp_addr, (void *)rtos_addr, firmware_size);
+
+			if ((cpu_to_be32(pbfc->uiAlgorithm) & 0xFF) == 11) {
+				/* lzma compressed image*/
+				size_t Uncompsz = cpu_to_be32(pbfc->uiSizeUnComp);
+				printf("Decompressed lzma rtos\n");
+				flush_dcache_range((ulong)tmp_addr,
+								   (ulong)(tmp_addr + firmware_size));
+
+				ret = lzmaBuffToBuffDecompress((unsigned char *)rtos_addr, &Uncompsz, (unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), Compsz);
+				if (ret != 0) {
+					printf("Decompressed lzma fail\n");
+					return -1;
+				}
+				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + Uncompsz));
+			} else {
+				/* lz77 compressed image*/
+				lz_uncompress((unsigned char *)(tmp_addr + sizeof(NVTPACK_BFC_HDR)), (unsigned char *)rtos_addr, Compsz);
+				flush_dcache_range((ulong)rtos_addr, (ulong)(rtos_addr + rtos_size));
+			}
 		}
+
 		pbininfo = (BININFO *)(rtos_addr + BIN_INFO_OFFSET_RTOS);
+
 		if (pbininfo->head.Resv1[HEADINFO_RESV_IDX_BOOT_FLAG] & BOOT_FLAG_PARTLOAD_EN) {
-			nvt_dbg(ERR, "secured-rtos only support to FW_TYPE=FW_TYPE_NORMAL\r\n");
-			return -1;
+			// secure boot with partial load
+			if (is_encryptiondata_none == 0) {
+				printf(ANSI_COLOR_RED"rtos secured partial load is only allowed ENCRYPTIONDATA_NONE\n"ANSI_COLOR_RESET);
+				return -1;
+			}
+
+			u32 part1_size = *(u32 *)(rtos_addr + FW_PART1_SIZE_OFFSET);
+
+			if (signature_size > part1_size) {
+				printf(ANSI_COLOR_RED"rtos secured partial load is only allowed SIGNATURE_SHASIZE < %d\n"ANSI_COLOR_RESET, ALIGN_CEIL(part1_size, 1024)/1024);
+				return -1;
+			}
+			pbininfo->Resv[0] = signature_size;
+			size = ALIGN_CEIL(part1_size + sizeof(HEADINFO) + signature_size, _EMBMEM_BLK_SIZE_) - signature_size;
+		} else {
+			// secure boot without partial load
+			size = pbininfo->head.BinLength;
 		}
+
 		//update LdLoadSize
 		p_shminfo->boot.LdLoadSize = size;
 		flush_dcache_range((ulong)p_shminfo, (ulong)p_shminfo + sizeof(SHMINFO));
