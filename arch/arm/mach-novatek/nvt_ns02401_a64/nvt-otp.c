@@ -112,24 +112,26 @@ extern s32 local_store(u32 uiRowAddress, uintptr_t base_address);
 #define DBL_BIT_EN                  0x3
 
 static const UINT32   core_power_leakage[LEAKAGE_COUNT] = {
-	31,         //0.85
+	48,         //0.84
 
-	46,         //0.83
-	38,         //0.84
-	31,         //0.85
-	23,         //0.86
-	15,         //0.87
-	8,          //0.88
-	0,          //0.89
+	42,         //0.85
+	36,         //0.86
+	30,         //0.87
+	24,         //0.88
+	18,         //0.89
+	12,         //0.90
+	6,          //0.91
 
-	8,          //0.88
+	18,         //0.89
 
-	31,         //0.85
-	31,         //0.85
-	31,         //0.85
-	31,         //0.85
-	31,         //0.85
-	31,         //0.85
+	18,         //0.89
+	18,         //0.89
+	18,         //0.89
+	18,         //0.89
+	18,         //0.89
+	18,         //0.89
+	18,         //0.89
+	18,         //0.89
 };
 
 static UINT32 otp_timing[RETRY_CNT] = {
@@ -1283,7 +1285,7 @@ INT32 otp_get_pkg_version(void)
     @return read half-word efuse data
         - @b  UINT32: PWM dufy
 */
-#define CORE_DEFAULT_DUTY 31
+#define CORE_DEFAULT_DUTY 24
 
 u32 extract_trim_to_pwm_duty(PWM_POWER_SET power_set, UINT32 data)
 {

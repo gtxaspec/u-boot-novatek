@@ -247,10 +247,6 @@ static int pcie_power_on(struct pcie_nvt *pci)
 		val &= ~LINK_CAPABLE_MSK;
 		val |= FIELD_PREP(LINK_CAPABLE_MSK, LINK_CAPABLE_x2);
 		writel(val, pci->dw.dbi_base + PORT_LINK_CTRL_OFS);
-
-		val = readl(pci->dw.dbi_base + SD_CONTROL1_REG_OFS(pci->slot));
-		val |= FORCE_DETECT_LANE_EN_MSK | FORCE_DETECT_LANE_X2_MSK;
-		writel(val, pci->dw.dbi_base + SD_CONTROL1_REG_OFS(pci->slot));
 		break;
 	case 4:
 	default:
@@ -263,10 +259,6 @@ static int pcie_power_on(struct pcie_nvt *pci)
 		val &= ~LINK_CAPABLE_MSK;
 		val |= FIELD_PREP(LINK_CAPABLE_MSK, LINK_CAPABLE_x4);
 		writel(val, pci->dw.dbi_base + PORT_LINK_CTRL_OFS);
-
-		val = readl(pci->dw.dbi_base + SD_CONTROL1_REG_OFS(pci->slot));
-		val |= FORCE_DETECT_LANE_EN_MSK | FORCE_DETECT_LANE_X4_MSK;
-		writel(val, pci->dw.dbi_base + SD_CONTROL1_REG_OFS(pci->slot));
 		break;
 	}
 

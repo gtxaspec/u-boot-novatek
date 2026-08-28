@@ -232,6 +232,9 @@ static int pcie_phy_init(struct phy *phy)
 		// TX_EN_HIZIDLE=0 @ all mode for RA
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0B68, 0x00, 3, 1);	// tx_en_hizidle_sel
 
+		// vref = 3 for TXDETRX fail issue
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x081C, 0x03, 24, 2);	// TX_CTL_VREF_DET
+
 		// TX EIOS align TX_ELECIDLE
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x874, 0x3, 0, 2);
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x1088, 0x0, 24, 3);
@@ -408,8 +411,6 @@ static int pcie_phy_init(struct phy *phy)
 			break;
 		}
 
-		// 20250312: bypass aphy txdetectrx
-		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x135C, 0x1, 24, 1);
 	}
 #endif	// endif of 635
 

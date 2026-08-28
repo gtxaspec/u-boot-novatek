@@ -14,6 +14,7 @@
 
 #include <cpu_func.h>
 #include <common.h>
+#include <command.h>
 #include <cli.h>
 #include <env.h>
 #include <asm/mach-types.h>

@@ -36,6 +36,8 @@
 #include <asm/arch/ns02201_regs.h>
 #elif (defined(CONFIG_TARGET_NS02301))
 #include <asm/arch/ns02301_regs.h>
+#elif (defined(CONFIG_TARGET_NS02501))
+#include <asm/arch/ns02501_regs.h>
 #else
 #include <asm/arch/na51000_regs.h>
 #endif

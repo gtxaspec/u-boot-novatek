@@ -82,6 +82,14 @@
 #define DCS_CMD_SET_TE_OFF                      0x34    ///< set TE off
 #define DCS_CMD_SET_TE_ON                       0x35    ///< set TE on
 
+typedef enum {
+	DSI_ID_1,
+	DSI_ID_2,
+	DSI_ID_CNT,
+
+	ENUM_DUMMY4WORD(DSI_ID)
+} DSI_ID;
+
 #if (defined __FREERTOS)
 #define DSIDATA_TYPE	UINT32
 #else
@@ -357,6 +365,7 @@ typedef enum {
 	DSI_CONFIG_ID_PHY_LP_RX_DAT0,///< Configure DSI LP RX DAT0 enable/disable
 	DSI_CONFIG_ID_BTA_VALUE,	///< Read back SRAM value
 	DSI_CONFIG_ID_CHIP_VER,     ///< Get DSI chip version
+	DSI_CONFIG_ID_PHY_HS_CLK_INV,   ///< Configure DSI HS clock inverse
 	ENUM_DUMMY4WORD(DSI_CONFIG_ID)
 } DSI_CONFIG_ID;
 

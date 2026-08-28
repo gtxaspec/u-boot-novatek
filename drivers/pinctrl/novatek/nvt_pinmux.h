@@ -11,6 +11,8 @@
 #include "ns02302/ns02302_pinmux.h"
 #elif defined(CONFIG_PINCTRL_NS02301)
 #include "ns02301/ns02301_pinmux.h"
+#elif defined(CONFIG_PINCTRL_NS02501)
+#include "ns02501/ns02501_pinmux.h"
 #endif
 
 #endif /* __NVT_PINMUX_H__ */

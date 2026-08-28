@@ -1124,10 +1124,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 					else // sdr
 						reg1 |= 0x444400;
 				} else if (freq < 120000000) {
-					if (info->flash_info->dtr_read)	// dtr
-						reg1 |= 0x666600;
-					else // sdr
-						reg1 |= 0x666600;
+					// The driving lv of SDR and DTR is identical in this case.
+					reg1 |= 0x666600;
 				} else if (freq == 120000000) {
 					if (info->flash_info->dtr_read)	// dtr
 						reg1 |= 0xaaaa00;

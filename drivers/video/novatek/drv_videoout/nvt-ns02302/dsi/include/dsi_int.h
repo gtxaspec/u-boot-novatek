@@ -45,7 +45,7 @@
 // -----------------------------------------------------------------------------
 //  DSI register access definition
 // -----------------------------------------------------------------------------
-#ifdef __KERNEL__
+#if 0
 extern DSIDATA_TYPE _DSI_REG_BASE_ADDR;
 #define DSI_REG_ADDR(ofs)           (_DSI_REG_BASE_ADDR+(ofs))
 #define DSI_GETREG(ofs)             INW(_DSI_REG_BASE_ADDR+(ofs))

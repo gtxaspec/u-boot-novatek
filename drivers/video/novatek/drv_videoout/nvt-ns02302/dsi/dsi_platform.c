@@ -11,7 +11,7 @@
 #define OUTREG32(x, y)      			(*((volatile UINT32*)(x)) = (y))    ///< Write 32bits IO register
 #define SETREG32(x, y)      			OUTREG32((x), INREG32(x) | (y))     ///< Set 32bits IO register
 #define CLRREG32(x, y)      			OUTREG32((x), INREG32(x) & ~(y))    ///< Clear 32bits IO register
-#define PLL17_OFFSET 		0xF0020860
+#define PLL17_OFFSET					(IOADDR_STBC_CG_REG_BASE + 0x47A0)
 void dsi_platform_clk_set_freq(unsigned long ui_config)
 {
 #if 0
@@ -43,7 +43,6 @@ void dsi_platform_clk_set_freq(unsigned long ui_config)
 	OUTREG32(PLL17_OFFSET, reg_data & 0xFF);
 	OUTREG32(PLL17_OFFSET + 0x4, (reg_data >> 8) & 0xFF);
 	OUTREG32(PLL17_OFFSET + 0x8, (reg_data >> 16) & 0xFF);
-	printf("dsi freq %d\r\n", ui_config);
 #endif
 }
 
@@ -67,6 +66,7 @@ unsigned long dsi_platform_clk_get_freq(void)
 	return (dsi_src_clk / div);
 #endif
 #endif
+	return 0;
 }
 
 unsigned long dsi_platform_clk_get_lp_freq(void)
@@ -89,10 +89,12 @@ unsigned long dsi_platform_clk_get_lp_freq(void)
 	}
 #endif
 #endif
+	return 0;
 }
 
 void dsi_platform_clk_set_reset(void)
 {
+#if 0
 #ifdef __KERNEL__
 	struct clk *dsireset_clk;
 
@@ -110,9 +112,9 @@ void dsi_platform_clk_set_reset(void)
 	pll_disableSystemReset(DSI_RSTN);
 
 #endif
-
+#endif
 }
 
 #ifdef __KERNEL__
-EXPORT_SYMBOL(dsi_platform_clk_set_reset);
+// EXPORT_SYMBOL(dsi_platform_clk_set_reset);
 #endif

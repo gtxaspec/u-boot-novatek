@@ -44,6 +44,8 @@ unsigned int rtos_dsi_debug_level = NVT_DBG_WRN;
 #endif
 #endif
 
+#include "../dsiphy/include/dsiphy.h"
+
 #ifdef __KERNEL__
 #define _FPGA_EMULATION_ 0
 
@@ -129,7 +131,8 @@ static ID FLG_ID_DSI;
 
 static BOOL         b_dsi_opened = FALSE;
 static BOOL         b_lp_trans_starting = FALSE;
-//static UINT32       ui_dsi_int_sts;
+// static UINT32       ui_dsi_int_sts;
+static UINT32       ui_dsi_pixel_fmt = DSI_PIXEL_FMT_CNT;
 
 #define DSI_ESC_SET_TRIGGER(lane, ctx, en);\
 	{                                          \
@@ -244,6 +247,7 @@ void dsi_isr(void);
 		- @b E_OK:     Success
 		- @b E_SYS:    fail
 */
+/*
 static void dsi_set_phy_enable(BOOL b_en)
 {
 	T_DSI_EN_REG    reg_enable;
@@ -254,7 +258,7 @@ static void dsi_set_phy_enable(BOOL b_en)
 		DSI_SETREG(DSI_EN_REG_OFS, reg_enable.reg);
 	}
 }
-
+*/
 
 /*
     DSI ISR
@@ -462,7 +466,7 @@ ER dsi_wait_tx_done(void)
 #endif
 }
 
-#define DSI_CLKEN_OFFSET 0xF0020080
+#define DSI_CLKEN_OFFSET		(IOADDR_STBC_CG_REG_BASE + 0x70)
 
 #if 0
 ER dsi_reset(void)
@@ -530,8 +534,14 @@ ER dsi_open(void)
 #ifndef __KERNEL__
 	pll_enable_clock(DSI_CLK);
 #endif
+	// Enable PLL17
+	ui_reg = INW(IOADDR_STBC_CG_REG_BASE);
+	ui_reg |= (0x1 << 11);
+	OUTW(IOADDR_STBC_CG_REG_BASE, ui_reg);
+
+	// Enable DSI_CLK
 	ui_reg = INW(DSI_CLKEN_OFFSET);
-	ui_reg |= (1<<28);
+	ui_reg |= (1 << 3);
 	OUTW(DSI_CLKEN_OFFSET, ui_reg);
 
 	ui_reg = DSI_GETREG(DSI_INTSTS_REG_OFS);
@@ -572,13 +582,19 @@ ER dsi_open(void)
 #endif
 #endif
 
-	dsi_set_phy_enable(TRUE);
+	// dsi_set_phy_enable(TRUE);
 	// Wait PHY Stable
+	dsiphy_set_enable(DSI_ID_1, TRUE);
 
 	if(dsi_set_config(DSI_CONFIG_ID_PHY_LP_RX_DAT0, TRUE) != E_OK)
 		DBG_IND("Configure set RX_DAT0 fail\n");
 	Delay_DelayUs(10);
 
+	DSI_SETREG(DSI_DEBUG2_REG_OFS, DSI_GETREG(DSI_DEBUG2_REG_OFS)&~(0x3<<2));
+	DSI_SETREG(DSI_DEBUG2_REG_OFS, DSI_GETREG(DSI_DEBUG2_REG_OFS)|(1<<2));
+	DSI_SETREG(DSI_DEBUG4_REG_OFS, DSI_GETREG(DSI_DEBUG4_REG_OFS)|(1<<5));
+	// disable contention detect.
+	DSI_SETREG(DSI_DEBUG2_REG_OFS, DSI_GETREG(DSI_DEBUG2_REG_OFS)&~((1<<0)|(3<<4)|(3<<8)|(3<<12)|(3<<16)));
 	b_dsi_opened = TRUE;
 	return E_OK;
 }
@@ -596,7 +612,7 @@ ER dsi_close(void)
 		return E_OK;
 	}
 
-	dsi_set_phy_enable(FALSE);
+	dsiphy_set_enable(DSI_ID_1, FALSE);
 
 #ifdef __KERNEL__
 
@@ -942,7 +958,9 @@ ER dsi_set_config(DSI_CONFIG_ID cfg_id, UINT32 ui_config)
 	T_DSI_IDEHORT_CTRL0_REG dsi_ide_hort_ctrl_reg0;
 
 	T_DSI_DEBUG3_REG        dsi_debug3_reg;
-	T_DSI_DEBUG4_REG        dsi_debug4_reg;
+	// T_DSI_DEBUG4_REG        dsi_debug4_reg;
+
+	DSIPHY_ID dsiphy_ctrl_id = DSIPHY_ID_1;
 
 #ifdef __KERNEL__
 	//struct clk *dsipll_clk;
@@ -987,48 +1005,30 @@ ER dsi_set_config(DSI_CONFIG_ID cfg_id, UINT32 ui_config)
 	} else if (cfg_id >= DSI_CONFIG_ID_SYNC_POL && cfg_id <= DSI_CONFIG_ID_TE_BTA_INTERVAL) {
 		dsi_sync_ctrl_reg2.reg = DSI_GETREG(DSI_SYNC_CTRL_REG_OFS);
 	} else if (cfg_id >= DSI_CONFIG_ID_CLK_PHASE_OFS && cfg_id <= DSI_CONFIG_ID_PHASE_DELAY_ENABLE_OFS) {
-		dsi_debug3_reg.reg = DSI_GETREG(DSI_DEBUG3_REG_OFS);
+		// dsi_debug3_reg.reg = DSI_GETREG(DSI_DEBUG3_REG_OFS);
 	} else if (cfg_id == DSI_CONFIG_ID_IDEHVALID) {
 		dsi_ide_hort_ctrl_reg0.reg = DSI_GETREG(DSI_IDEHORT_CTRL0_REG_OFS);
 	} else if ((cfg_id >= DSI_CONFIG_ID_LANSEL_D0) && (cfg_id <= DSI_CONFIG_ID_LANSEL_D3)) {
+		dsi_debug3_reg.reg = DSI_GETREG(DSI_DEBUG3_REG_OFS);
+	} else if (cfg_id == DSI_CONFIG_ID_PHY_HS_CLK_INV) {
 		dsi_debug3_reg.reg = DSI_GETREG(DSI_DEBUG3_REG_OFS);
 	} else if (cfg_id == DSI_CONFIG_ID_FREQ) {
 
 	} else if (cfg_id == DSI_CONFIG_ID_LPFREQ) {
 
 	} else if (cfg_id == DSI_CONFIG_ID_PHY_LP_RX_DAT0) {
-		dsi_debug4_reg.reg = DSI_GETREG(DSI_DEBUG4_REG_OFS);
+		// dsi_debug4_reg.reg = DSI_GETREG(DSI_DEBUG4_REG_OFS);
 	} else {
 		DBG_ERR("dsi_set_config error unknow configure event[%d]\r\n", cfg_id);
 		return E_NOSPT;
 	}
 	switch (cfg_id) {
 	case DSI_CONFIG_ID_FREQ: {
-#if 0
-#ifdef __KERNEL__
-			dsipll_clk = clk_get(NULL, "pll11");
-			clk_prepare(dsipll_clk);
-			//clk_disable(dsipll_clk);
-			clk_set_rate(dsipll_clk, ui_config); //unit: Hz
-			clk_enable(dsipll_clk);
-			clk_put(dsipll_clk);
-#else
-			/*div = (UINT32) (dsi_src_clk/(ui_config/1000000));
-			if(div == 0)
-			{
-			    div++;
-			}*/
-			pll_setPLLEn(PLL_ID_11, FALSE);
-			pll_setPLL(PLL_ID_11, (ui_config / 1000000) / 12 * 131072);
-			pll_setPLLEn(PLL_ID_11, TRUE);
-			DBG_ERR("PLL11 = 0x%x\r\n", (unsigned int)(ui_config / 1000000) / 12 * 131072);
-#endif
-#else
-			dsi_platform_clk_set_freq(ui_config);
-#endif
+			DBG_ERR("dsi_set_freq:%d, line: %d\r\n", ui_config, __LINE__);
 
+			dsiphy_open(DSI_ID_1, ui_config);
+			dsiphy_set_enable(DSI_ID_1, TRUE);
 			return E_OK;
-
 		}
 		break;
 
@@ -1055,6 +1055,7 @@ ER dsi_set_config(DSI_CONFIG_ID cfg_id, UINT32 ui_config)
 				return E_SYS;
 			}
 			dsi_ctrl_reg.bit.PIXEL_FMT = ui_config;
+			ui_dsi_pixel_fmt = ui_config;
 		}
 		break;
 
@@ -1112,6 +1113,10 @@ ER dsi_set_config(DSI_CONFIG_ID cfg_id, UINT32 ui_config)
 
 	case DSI_CONFIG_ID_RGB_SWAP:
 		dsi_ctrl_reg.bit.RGB_SWAP = ui_config;
+		break;
+
+    case DSI_CONFIG_ID_RGB_BITFLIP:
+        dsi_ctrl_reg.bit.RGB_BIT_SWAP = ui_config;
 		break;
 
 	case DSI_CONFIG_ID_SYNC_WITH_SETTEON_RTY_TWICEBTA:
@@ -1283,19 +1288,19 @@ ER dsi_set_config(DSI_CONFIG_ID cfg_id, UINT32 ui_config)
 		break;
 
 	case DSI_CONFIG_ID_DAT0_PHASE_OFS:
-		dsi_debug3_reg.bit.DAT0_PHASE_OFS = ui_config;
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_DAT0_PHASE_OFS, ui_config);
 		break;
 
 	case DSI_CONFIG_ID_DAT1_PHASE_OFS:
-		dsi_debug3_reg.bit.DAT1_PHASE_OFS = ui_config;
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_DAT1_PHASE_OFS, ui_config);
 		break;
 
 	case DSI_CONFIG_ID_DAT2_PHASE_OFS:
-		dsi_debug3_reg.bit.DAT2_PHASE_OFS = ui_config;
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_DAT2_PHASE_OFS, ui_config);
 		break;
 
 	case DSI_CONFIG_ID_DAT3_PHASE_OFS:
-		dsi_debug3_reg.bit.DAT3_PHASE_OFS = ui_config;
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_DAT3_PHASE_OFS, ui_config);
 		break;
 
 	case DSI_CONFIG_ID_PHASE_DELAY_ENABLE_OFS:
@@ -1323,13 +1328,15 @@ ER dsi_set_config(DSI_CONFIG_ID cfg_id, UINT32 ui_config)
 		break;
 
 	case DSI_CONFIG_ID_PHY_LP_RX_DAT0:
-		dsi_debug4_reg.bit.PHY_LP_RX_DAT0_EN = ui_config;
+		// dsi_debug4_reg.bit.PHY_LP_RX_DAT0_EN = ui_config;
+		break;
+	case DSI_CONFIG_ID_PHY_HS_CLK_INV:
+		// dsi_debug3_reg.bit.PHY_HS_CLK_INV = ui_config;
 		break;
 
 	default:
 		DBG_ERR("dsi_set_config error unknow configure event[%d]\r\n", (int)cfg_id);
 		return E_SYS;
-		//break;
 	}
 
 	if (cfg_id <= DSI_CONFIG_ID_SRC) {
@@ -1356,14 +1363,18 @@ ER dsi_set_config(DSI_CONFIG_ID cfg_id, UINT32 ui_config)
 		DSI_SETREG(DSI_SYNCEVT_CTRL_REG_OFS, dsi_sync_ctrl_reg.reg);
 	} else if (cfg_id >= DSI_CONFIG_ID_SYNC_POL && cfg_id <= DSI_CONFIG_ID_TE_BTA_INTERVAL) {
 		DSI_SETREG(DSI_SYNC_CTRL_REG_OFS, dsi_sync_ctrl_reg2.reg);
-	} else if (cfg_id >= DSI_CONFIG_ID_CLK_PHASE_OFS && cfg_id <= DSI_CONFIG_ID_PHASE_DELAY_ENABLE_OFS) {
-		DSI_SETREG(DSI_DEBUG3_REG_OFS, dsi_debug3_reg.reg);
+	} else if (cfg_id == DSI_CONFIG_ID_CLK_PHASE_OFS) {
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_CLK_PHASE_OFS, ui_config);
+	} else if (cfg_id == DSI_CONFIG_ID_PHASE_DELAY_ENABLE_OFS) {
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_PHASE_DELAY_ENABLE, ui_config);
 	} else if (cfg_id == DSI_CONFIG_ID_IDEHVALID) {
 		DSI_SETREG(DSI_IDEHORT_CTRL0_REG_OFS, dsi_ide_hort_ctrl_reg0.reg);
 	} else if ((cfg_id >= DSI_CONFIG_ID_LANSEL_D0) && (cfg_id <= DSI_CONFIG_ID_LANSEL_D3)) {
 		DSI_SETREG(DSI_DEBUG3_REG_OFS, dsi_debug3_reg.reg);
+	} else if (cfg_id == DSI_CONFIG_ID_PHY_HS_CLK_INV) {
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_PHY_HS_CLK_INV, ui_config);
 	} else if (cfg_id == DSI_CONFIG_ID_PHY_LP_RX_DAT0) {
-		DSI_SETREG(DSI_DEBUG4_REG_OFS, dsi_debug4_reg.reg);
+		dsiphy_set_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_PHY_LP_RX_DAT0, ui_config);
 	}
 	/*else if(cfg_id == DSI_CONFIG_ID_FREQ)
 	{
@@ -1394,9 +1405,21 @@ UINT32 dsi_get_config(DSI_CONFIG_ID config_id)
 	T_DSI_BUS_TIME1_REG     dsi_bus_timing_ctrl_reg1;
 	T_DSI_BUS_TIME2_REG     dsi_bus_timing_ctrl_reg2;
 	T_DSI_BTA_CTRL_REG      dsi_bta_ctrl_reg;
-	T_DSI_DEBUG3_REG        dsi_debug3_reg;
-	T_DSI_DEBUG2_REG        dsi_debug2_reg;
-	T_DSI_DEBUG4_REG        dsi_debug4_reg;
+
+    T_DSIPHY_CURRENT_REG    dsiphy_current_reg;
+    T_DSIPHY_ENABLE_REG     dsiphy_enable_reg;
+    T_DSIPHY_DELAY_REG      dsiphy_delay_reg;
+    T_DSIPHY_CTRL_CLOCK_REG dsiphy_ctrl_clk_reg;
+    T_DSIPHY_CTRL_CONTROLLER_REG dsiphy_ctrl_controller_reg;
+
+    T_DSI_VERT_CTRL0_REG    dsi_vert_ctrl0_reg;
+    T_DSI_VERT_CTRL1_REG    dsi_vert_ctrl1_reg;
+    T_DSI_HORI_CTRL0_REG    dsi_hor_ctrl0_reg;
+    T_DSI_HORI_CTRL1_REG    dsi_hor_ctrl1_reg;
+    T_DSI_HORI_CTRL2_REG    dsi_hor_ctrl2_reg;
+	DSIPHY_ID dsiphy_ctrl_id = DSIPHY_ID_1;
+
+
 #ifdef __KERNEL__
 	//struct clk *parent;
 	//struct clk *dsipll_clk;
@@ -1423,12 +1446,30 @@ UINT32 dsi_get_config(DSI_CONFIG_ID config_id)
 		dsi_bus_timing_ctrl_reg2.reg = DSI_GETREG(DSI_BUS_TIME2_REG_OFS);
 	} else if ((config_id >= DSI_CONFIG_ID_BTA_TMOUT_VAL && config_id <= DSI_CONFIG_ID_BTA_HANDSK_TMOUT_VAL)) {
 		dsi_bta_ctrl_reg.reg = DSI_GETREG(DSI_BTA_CTRL_REG_OFS);
-	} else if (config_id >= DSI_CONFIG_ID_CLK_PHASE_OFS && config_id <= DSI_CONFIG_ID_PHASE_DELAY_ENABLE_OFS) {
-		dsi_debug3_reg.reg = DSI_GETREG(DSI_DEBUG3_REG_OFS);
+	} else if (config_id == DSI_CONFIG_ID_CLK_PHASE_OFS) {
+		dsiphy_ctrl_clk_reg.reg = dsiphy_get_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_CLK_PHASE_OFS);
+    } else if (config_id == DSI_CONFIG_ID_PHASE_DELAY_ENABLE_OFS) {
+        dsiphy_enable_reg.reg = dsiphy_get_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_PHASE_DELAY_ENABLE);
+	} else if (config_id >= DSI_CONFIG_ID_DAT0_PHASE_OFS && config_id <= DSI_CONFIG_ID_DAT3_PHASE_OFS) {
+		dsiphy_delay_reg.reg = dsiphy_get_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_DAT0_PHASE_OFS);
 	} else if (config_id >= DSI_CONFIG_ID_PHY_DRVING && config_id <= DSI_CONFIG_ID_PHY_DRVING) {
-		dsi_debug2_reg.reg = DSI_GETREG(DSI_DEBUG2_REG_OFS);
+		dsiphy_current_reg.reg = dsiphy_get_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_PHY_DRVING);
 	} else if (config_id == DSI_CONFIG_ID_PHY_LP_RX_DAT0) {
-		dsi_debug4_reg.reg = DSI_GETREG(DSI_DEBUG4_REG_OFS);
+		dsiphy_ctrl_controller_reg.reg = dsiphy_get_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_PHY_LP_RX_DAT0);
+	}else if (config_id == DSI_CONFIG_ID_PHY_HS_CLK_INV) {
+		dsiphy_ctrl_clk_reg.reg = dsiphy_get_config(dsiphy_ctrl_id, DSIPHY_CONFIG_ID_PHY_HS_CLK_INV);
+	} else if (config_id >= DSI_CONFIG_ID_VSA && config_id <= DSI_CONFIG_ID_VTOTAL) {
+		dsi_vert_ctrl0_reg.reg = dsi_get_reg(DSI_VERT_CTRL0_REG_OFS);
+	} else if (config_id >= DSI_CONFIG_ID_VVALID_START && config_id <= DSI_CONFIG_ID_VVALID_END) {
+		dsi_vert_ctrl1_reg.reg = dsi_get_reg(DSI_VERT_CTRL1_REG_OFS);
+	} else if (config_id >= DSI_CONFIG_ID_HSA && config_id <= DSI_CONFIG_ID_BLLP) {
+		dsi_hor_ctrl0_reg.reg = dsi_get_reg(DSI_HORI_CTRL0_REG_OFS);
+	} else if (config_id >= DSI_CONFIG_ID_HBP && config_id <= DSI_CONFIG_ID_HFP) {
+		dsi_hor_ctrl1_reg.reg = dsi_get_reg(DSI_HORI_CTRL1_REG_OFS);
+	} else if (config_id == DSI_CONFIG_ID_HACT) {
+		dsi_hor_ctrl2_reg.reg = dsi_get_reg(DSI_HORI_CTRL2_REG_OFS);
+	} else if (config_id == DSI_CONFIG_ID_PIXPKT_MODE || config_id == DSI_CONFIG_ID_CLK_LP_CTRL) {
+        dsi_ctrl_reg.reg = dsi_get_reg(DSI_CTRL0_REG_OFS);
 	}
 
 	switch (config_id) {
@@ -1523,30 +1564,59 @@ UINT32 dsi_get_config(DSI_CONFIG_ID config_id)
 		return dsi_bta_ctrl_reg.bit.BTA_HANDSK_TIMEOUT;
 		//break;
 	case DSI_CONFIG_ID_CLK_PHASE_OFS:
-		return dsi_debug3_reg.bit.CLK_PHASE_OFS;
-		//break;
+		return dsiphy_ctrl_clk_reg.bit.DSIPHY_CLK_PHASE_OFS;
+
 	case DSI_CONFIG_ID_DAT0_PHASE_OFS:
-		return dsi_debug3_reg.bit.DAT0_PHASE_OFS;
-		//break;
+		return dsiphy_delay_reg.bit.DSIPHY_DAT0_PHASE_OFS;
+
 	case DSI_CONFIG_ID_DAT1_PHASE_OFS:
-		return dsi_debug3_reg.bit.DAT1_PHASE_OFS;
-		//break;
+		return dsiphy_delay_reg.bit.DSIPHY_DAT1_PHASE_OFS;
+
 	case DSI_CONFIG_ID_DAT2_PHASE_OFS:
-		return dsi_debug3_reg.bit.DAT2_PHASE_OFS;
-		//break;
+		return dsiphy_delay_reg.bit.DSIPHY_DAT2_PHASE_OFS;
+
 	case DSI_CONFIG_ID_DAT3_PHASE_OFS:
-		return dsi_debug3_reg.bit.DAT3_PHASE_OFS;
-		//break;
+		return dsiphy_delay_reg.bit.DSIPHY_DAT3_PHASE_OFS;
+
 	case DSI_CONFIG_ID_PHASE_DELAY_ENABLE_OFS:
-		return dsi_debug3_reg.bit.PHY_DELAY_EN;
-		//break;
+		return dsiphy_enable_reg.bit.DSIPHY_DELAY_EN;
+
 	case DSI_CONFIG_ID_PHY_DRVING:
-		return dsi_debug2_reg.bit.PHY_DRVING;
+		return dsiphy_current_reg.bit.DSIPHY_LP_DRIVING_CURRENT;
 		//break;
 
 	case DSI_CONFIG_ID_PHY_LP_RX_DAT0:
-		return dsi_debug4_reg.bit.PHY_LP_RX_DAT0_EN;
-		//break;
+		return dsiphy_ctrl_controller_reg.bit.DSIPHY_LP_RX_DAT0_EN;
+
+	case DSI_CONFIG_ID_PHY_HS_CLK_INV:
+		return dsiphy_ctrl_clk_reg.bit.DSIPHY_HS_CLK_INVERSE;
+
+    case DSI_CONFIG_ID_VSA:
+        return dsi_vert_ctrl0_reg.bit.VSA;
+
+    case DSI_CONFIG_ID_VTOTAL:
+        return dsi_vert_ctrl0_reg.bit.VTOTAL;
+
+    case DSI_CONFIG_ID_VVALID_START:
+        return dsi_vert_ctrl1_reg.bit.VVALID_START;
+
+    case DSI_CONFIG_ID_VVALID_END:
+        return dsi_vert_ctrl1_reg.bit.VVALID_END;
+
+    case DSI_CONFIG_ID_HBP:
+        return dsi_hor_ctrl1_reg.bit.HBP;
+
+    case DSI_CONFIG_ID_HFP:
+        return dsi_hor_ctrl1_reg.bit.HFP;
+
+    case DSI_CONFIG_ID_HSA:
+        return dsi_hor_ctrl0_reg.bit.HSA;
+
+    case DSI_CONFIG_ID_HACT:
+        return dsi_hor_ctrl2_reg.bit.HACT;
+
+	case DSI_CONFIG_ID_CLK_LP_CTRL:
+		return dsi_ctrl_reg.bit.CLK_LP_CTRL;
 
 	case DSI_CONFIG_ID_BTA_VALUE:
 		{

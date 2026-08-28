@@ -18,6 +18,7 @@
 #define _NAND_REG_H
 
 #include <asm/nvt-common/rcw_macro.h>
+#include "nvt_flash_spi_plat.h"
 
 #define NAND_MODULE0_REG_OFS	0x00
 REGDEF_BEGIN(NAND_MODULE0_REG)
@@ -27,9 +28,7 @@ REGDEF_BEGIN(NAND_MODULE0_REG)
 	REGDEF_BIT(PRI_ECC_TYPE          ,2)
 	REGDEF_BIT(SEC_ECC_TYPE          ,2)
 	REGDEF_BIT(                      ,4)
-#if (defined(CONFIG_TARGET_NS02302) || defined(CONFIG_TARGET_NS02302_A64) || \
-	defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02301_A64) || \
-	defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64))
+#if (NVT_SPARE_32_SEL_2BIT == TRUE)
 	REGDEF_BIT(SPARE_32_SEL          ,2)
 	REGDEF_BIT(SPARE_ALIGN_SEL       ,1)
 #else

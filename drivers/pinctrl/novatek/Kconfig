@@ -1,4 +1,4 @@
-if ARCH_NOVATEK
+#if ARCH_NOVATEK
 
 config PINCTRL_NTK
 	depends on PINCTRL_GENERIC
@@ -6,7 +6,12 @@ config PINCTRL_NTK
 
 config PINCTRL_NS02302
 	bool "Novatek NS02302 pin control"
-	depends on TARGET_NS02302_A64
+	depends on PINCTRL_GENERIC && TARGET_NS02302_A64
 	select PINCTRL_NTK
 
-endif
+config PINCTRL_NS02501
+	bool "Novatek NS02501 pin control"
+	depends on PINCTRL_GENERIC && TARGET_NS02501
+	select PINCTRL_NTK
+
+#endif

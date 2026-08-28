@@ -26,6 +26,7 @@
 #include <asm/cache.h>
 #endif
 #include <linux/libfdt.h>
+#include <dm/uclass.h>
 
 #define WDT_REG_ADDR(ofs)       (IOADDR_WDT_REG_BASE+(ofs))
 #define WDT_GETREG(ofs)         INW(WDT_REG_ADDR(ofs))
@@ -463,7 +464,22 @@ int nvt_ivot_hw_init(void)
 int nvt_ivot_hw_init_early(void)
 {
 	otp_init();
+
+#ifdef CONFIG_PINCTRL_NS02501
+{
+	struct udevice *pinctrl_dev;
+	int ret;
+
+	ret = uclass_get_device_by_name(UCLASS_PINCTRL, "top@f0010000", &pinctrl_dev);
+	if (ret) {
+		printf("Failed to probe nvt_pinctrl: %d\n", ret);
+	}
+
+	return ret;
+}
+#else
 	return 0;
+#endif
 }
 
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT

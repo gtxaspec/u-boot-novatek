@@ -25,7 +25,7 @@
 #include "pcie_dw_common.h"
 #include "pcie_nvt.h"
 
-#define DRV_VERSION                     "1.01.00"
+#define DRV_VERSION                     "1.01.02"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -149,6 +149,22 @@ static int wait_link_up(struct pcie_nvt *pci)
 	while (!is_link_up(pci)) {
 		if (get_timer(0) > timeout)
 			return 0;
+	};
+
+	return 1;
+}
+
+static int wait_speed_change_done(struct pcie_nvt *pci)
+{
+	unsigned long timeout;
+	u32 val = 1<<27;
+
+	timeout = get_timer(0) + PCIE_LINK_UP_TIMEOUT_MS;
+	while (val & (1<<27)) {
+		if (get_timer(0) > timeout)
+			return 0;
+
+		val = readl(pci->dw.dbi_base + PCIE_LINK_STATUS_REG);
 	};
 
 	return 1;
@@ -451,6 +467,10 @@ static int pcie_nvt_probe(struct udevice *dev)
 	if (!wait_link_up(pci)) {
 		printf("PCIE-%d: Link up timeout after speed change\n", dev_seq(dev));
 		return -ENODEV;
+	}
+	if (pcie_dw_get_link_speed(&pci->dw) != pci->link_gen) {
+		mdelay(1);	// wait for speed change take effect
+		wait_speed_change_done(pci);
 	}
 
 	printf("PCIE-%d: Link up (Gen%d-x%d, Bus%d)\n", dev_seq(dev),

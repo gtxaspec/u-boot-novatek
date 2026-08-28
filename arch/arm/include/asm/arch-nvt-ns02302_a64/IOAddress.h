@@ -333,6 +333,7 @@
 
 // MIPI-DSI
 #define IOADDR_DSI_REG_BASE         (IOADDR_GLOBAL_BASE+0x002C0000)
+#define IOADDR_DSI_PHY_REG_BASE     (IOADDR_GLOBAL_BASE+0x002E0000)
 
 // ---------------------------------------------
 // Display category 1

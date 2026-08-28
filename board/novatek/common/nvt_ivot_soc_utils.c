@@ -801,12 +801,11 @@ int nvt_decrypt_aes(unsigned long addr)
 #endif /* CONFIG_NVT_IVOT_OPTEE_SUPPORT && CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT || CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
 
 #if defined(CONFIG_NVT_IVOT_EMMC)
-static int assign_remain_emmc_in_fdt(char *part_node_name)
+static int assign_remain_emmc_in_fdt(char *part_node_name, EMB_PARTITION *partition_ptr)
 {
 	int  nodeoffset, nextoffset;
 	const char *ptr = NULL;
 	char path[128] = {0};
-	u64 addr, size;
 	fdt64_t *val;
 	struct mmc *mmc;
 	bool force_init = false;
@@ -852,7 +851,8 @@ static int assign_remain_emmc_in_fdt(char *part_node_name)
 		return -1;
 	}
 
-	val[1] = cpu_to_fdt64(((u64)mmc->capacity_user - addr));
+	partition_ptr->PartitionSize = (u64)mmc->capacity_user - partition_ptr->PartitionOffset;
+	val[1] = cpu_to_fdt64(partition_ptr->PartitionSize);
 	fdt_setprop_inplace((void *)nvt_fdt_buffer, nodeoffset, "reg", val, sizeof(val));
 	return 0;
 }
@@ -1106,14 +1106,18 @@ int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr)
 							} else {
 								sprintf(buf, "partition_rootfs%d", p->OrderIdx);
 							}
-							assign_remain_emmc_in_fdt(buf);
+							PartitionSize = assign_remain_emmc_in_fdt(buf, p);
+							sprintf(buf, "0x%llx@0x%llx(rootfs%d),", p->PartitionSize, PartitionOffset, p->OrderIdx);
+							strcat(p_cmdline, buf);
 							sprintf(buf, "-@0x%llx(rootfs%d),", PartitionOffset, p->OrderIdx);
+							strcat(cmd, buf);
+						} else {
+							strcat(p_cmdline, buf);
+							strcat(cmd, buf);
 						}
-#endif
-						strcat(p_cmdline, buf);
-						strcat(cmd, buf);
 						/* Multiple rootfs partitions if OrderIdx > 0 */
 						ro_attr = p->OrderIdx;
+#endif
 					}
 				} else {
 					strcat(cmd, buf);

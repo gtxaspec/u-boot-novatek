@@ -120,6 +120,7 @@ ifdef CONFIG_PCI
 obj-$(CONFIG_CMD_PCI) += pci.o
 endif
 obj-$(CONFIG_CMD_PINMUX) += pinmux.o
+obj-$(CONFIG_CMD_NVT_PINMUX) += nvt_pinmux.o
 obj-$(CONFIG_CMD_PMC) += pmc.o
 obj-$(CONFIG_CMD_PSTORE) += pstore.o
 obj-$(CONFIG_CMD_PWM) += pwm.o

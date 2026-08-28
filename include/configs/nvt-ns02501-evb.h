@@ -100,7 +100,7 @@
 #endif
 #ifndef CONFIG_SYS_SCSI_MAX_DEVICE
 #define CONFIG_SYS_SCSI_MAX_DEVICE     (CONFIG_SYS_SCSI_MAX_SCSI_ID * \
-                                       CONFIG_SYS_SCSI_MAX_LUN)
+		CONFIG_SYS_SCSI_MAX_LUN)
 #endif
 #ifndef CONFIG_LIBATA
 #define CONFIG_LIBATA
@@ -118,7 +118,7 @@
 /*
 #define CONFIG_PARTITION_UUIDS
 #define CONFIG_CMD_PART
-*/
+ */
 #ifndef CONFIG_FS_EXT4
 #define CONFIG_FS_EXT4
 #endif
@@ -160,7 +160,7 @@
 #define CONFIG_SYS_PBSIZE				(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
 /* Boot Argument Buffer Size */
 #define CONFIG_SYS_BARGSIZE				CONFIG_SYS_CBSIZE
-										/* even with bootdelay=0 */
+/* even with bootdelay=0 */
 /* MTD */
 #define CONFIG_SYS_BOOTM_LEN				(25 << 20)
 
@@ -179,22 +179,22 @@
 /* EMMC partition */
 #if defined(_NVT_ROOTFS_TYPE_RAMDISK_)
 #define DFU_ALT_INFO \
-		"loader raw 0 0x10000 mmcpart 1;" \
-		"fdt part 2 1;" \
-		"uboot part 2 3;" \
-		"linux part 2 5;" \
-		"rootfs part 2 6;" \
-		"rootfs1 ext4 2 7;" \
-		"rootfs2 ext4 2 8"
+	"loader raw 0 0x10000 mmcpart 1;" \
+	"fdt part 2 1;" \
+	"uboot part 2 3;" \
+	"linux part 2 5;" \
+	"rootfs part 2 6;" \
+	"rootfs1 ext4 2 7;" \
+	"rootfs2 ext4 2 8"
 #else
 #define DFU_ALT_INFO \
-		"loader raw 0 0x10000 mmcpart 1;" \
-		"fdt part 2 1;" \
-		"uboot part 2 3;" \
-		"linux part 2 5;" \
-		"rootfs ext4 2 6;" \
-		"rootfs1 part 2 7;" \
-		"rootfs2 ext4 2 8"
+	"loader raw 0 0x10000 mmcpart 1;" \
+	"fdt part 2 1;" \
+	"uboot part 2 3;" \
+	"linux part 2 5;" \
+	"rootfs ext4 2 6;" \
+	"rootfs1 part 2 7;" \
+	"rootfs2 ext4 2 8"
 #endif
 #endif
 
@@ -208,40 +208,42 @@
 #if defined(CONFIG_NVT_IVOT_OPTEE_SUPPORT)
 /* For OPTEE */
 #define DFU_ALT_INFO \
-			"loader raw 0x0 0x40000;" \
-			"fdt part 0 1;" \
-			"optee part 0 2;" \
-			"uboot part 0 3;" \
-			"linux part 0 5;" \
-			"rootfs partubi 0 6;" \
-			"rootfs1 partubi 0 7;" \
-			"rootfs2 part 0 8"
+	"loader raw 0x0 0x40000;" \
+	"fdt part 0 1;" \
+	"optee part 0 2;" \
+	"uboot part 0 3;" \
+	"linux part 0 5;" \
+	"rootfs partubi 0 6;" \
+	"rootfs1 partubi 0 7;" \
+	"rootfs2 part 0 8"
 
 #else
-#if defined(_NVT_ROOTFS_TYPE_NAND_SQUASH_)
+#if defined(_NVT_ROOTFS_TYPE_NAND_SQUASH_NEW_)
 #define DFU_ALT_INFO \
-			"loader raw 0x0 0x40000;" \
-			"fdt part 0 1;" \
-			"uboot part 0 2;" \
-			"linux part 0 4;" \
-			"rootfs partubi 0 5;" \
-			"rootfs1 partubi 0 6;" \
-			"app partubi 0 7"
-#elif defined(_NVT_ROOTFS_TYPE_NAND_SQUASH_NEW_)
+	"loader raw 0x0 0x40000;" \
+	"fdt part 0 1;" \
+	"uboot part 0 2;" \
+	"linux part 0 4;" \
+	"rootfs part 0 5;" \
+	"app partubi 0 6"
+#elif defined(_NVT_ROOTFS_TYPE_RAMDISK_)
 #define DFU_ALT_INFO \
-			"loader raw 0x0 0x40000;" \
-			"fdt part 0 1;" \
-			"uboot part 0 2;" \
-			"linux part 0 4;" \
-			"rootfs part 0 5;" \
-			"app partubi 0 6"
+	"loader raw 0x0 0x40000;" \
+	"fdt part 0 1;" \
+	"uboot part 0 2;" \
+	"linux part 0 4;" \
+	"rootfs part 0 5;" \
+	"rootfs1 partubi 0 6;" \
+	"app partubi 0 7"
 #else
 #define DFU_ALT_INFO \
-			"loader raw 0x0 0x40000;" \
-			"fdt part 0 1;" \
-			"uboot part 0 2;" \
-			"linux part 0 4;" \
-			"rootfs partubi 0 5"
+	"loader raw 0x0 0x40000;" \
+	"fdt part 0 1;" \
+	"uboot part 0 2;" \
+	"linux part 0 4;" \
+	"rootfs partubi 0 5;" \
+	"rootfs1 partubi 0 6;" \
+	"app partubi 0 7"
 #endif
 #endif
 #endif
@@ -251,12 +253,12 @@
 
 /* NOR partition */
 #define DFU_ALT_INFO \
-			"loader raw 0x0 0x10000;" \
-			"fdt part 0 1;" \
-			"uboot part 0 2;" \
-			"linux part 0 4;" \
-			"rootfs part 0 5;" \
-			"app part 0 6"
+	"loader raw 0x0 0x10000;" \
+	"fdt part 0 1;" \
+	"uboot part 0 2;" \
+	"linux part 0 4;" \
+	"rootfs part 0 5;" \
+	"app part 0 6"
 
 #endif
 
@@ -268,21 +270,21 @@
 
 /* NOR partition */
 #define DFU_ALT_INFO \
-			"loader raw 0x0 0x10000;" \
-			"fdt part 0 1;" \
-			"uboot part 0 2"
+	"loader raw 0x0 0x10000;" \
+	"fdt part 0 1;" \
+	"uboot part 0 2"
 
 /* NAND partition */
 #define DFU_ALT_INFO_NAND \
-			"linux part 0 1;" \
-			"rootfs part 0 2;" \
-			"rootfs1 partubi 0 3;" \
-			"app partubi 0 4"
+	"linux part 0 1;" \
+	"rootfs part 0 2;" \
+	"rootfs1 partubi 0 3;" \
+	"app partubi 0 4"
 #endif
 
 #if (defined(CONFIG_CMD_DFU) && defined(CONFIG_DFU_RAM))
 #define DFU_ALT_INFO_RAM \
-			"all-in-one ram 0x14f00000 0x7800000"
+	"all-in-one ram 0x14f00000 0x7800000"
 
 #endif
 #ifdef CONFIG_CMD_DFU
@@ -295,7 +297,7 @@
 #define CONFIG_REVISION_TAG             1
 
 #ifndef CONFIG_SYS_LOAD_ADDR
-	#define CONFIG_SYS_LOAD_ADDR (CONFIG_SYS_TEXT_BASE - 0x1900000)
+#define CONFIG_SYS_LOAD_ADDR (CONFIG_SYS_TEXT_BASE - 0x1900000)
 #endif
 
 #define CONFIG_SYS_INIT_SP_ADDR CONFIG_SYS_TEXT_BASE

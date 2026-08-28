@@ -1,39 +1,22 @@
 #ifndef __PINMUX_DRV_H__
 #define __PINMUX_DRV_H__
-/*
-#include <plat/top_reg.h>
-#include <plat/hardware.h>
-#include <plat/top.h>
-#include <plat/nvt-gpio.h>
-#include <plat/pad.h>
-#include <linux/spinlock.h>
-#include <linux/slab.h>
-*/
-#include "top_reg.h"
-#include "top.h"
+
+#include <asm/arch-nvt-ns02501_a32/top_reg.h>
+#include <asm/arch-nvt-ns02501_a32/top.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/arch/hardware.h>
 
-#define DRV_VERSION "1.00.13"
+typedef uint32_t u32;
+
+#define DRV_VERSION "1.00.03"
 
 #define TOP_SETREG(info, ofs,value)    OUTW(info->top_base+(ofs),(value))
 #define TOP_GETREG(info, ofs)          INW(info->top_base+(ofs))
-
-#define PR_TOP_SETREG(info, ofs,value)    OUTW(info->pr_top_base+(ofs),(value))
-#define PR_TOP_GETREG(info, ofs)          INW(info->pr_top_base+(ofs))
-
-#define TGE_REG_ADDR(ofs)       (NVT_TGE_BASE_VIRT+(ofs))
-#define TGE_GETREG(ofs)         INW(TGE_REG_ADDR(ofs))
-#define TGE_SETREG(ofs,value)   OUTW(TGE_REG_ADDR(ofs), (value))
-#define TGE_CONTROL_OFS 0x0
 
 #define MAX_PAD_NUM  236
 
 #define GPIO_SETREG(info, ofs,value)       OUTW(info->gpio_base+(ofs),(value))
 #define GPIO_GETREG(info, ofs)         INW(info->gpio_base+(ofs))
-
-#define PR_GPIO_SETREG(info, ofs,value)       OUTW(info->pr_gpio_base+(ofs),(value))
-#define PR_GPIO_GETREG(info, ofs)         INW(info->pr_gpio_base+(ofs))
 
 struct nvt_pad_info {
 	unsigned long pad_ds_pin;
@@ -54,12 +37,9 @@ struct nvt_power_info {
 };
 
 struct nvt_pinctrl_info {
-        void __iomem *top_base;
-        void __iomem *pad_base;
-        void __iomem *gpio_base;
-        void __iomem *pr_top_base;
-        void __iomem *pr_pad_base;
-        void __iomem *pr_gpio_base;
+		void __iomem *top_base;
+		void __iomem *pad_base;
+		void __iomem *gpio_base;
         PIN_GROUP_CONFIG top_pinmux[PIN_FUNC_MAX];
         struct nvt_pad_info pad[MAX_PAD_NUM];
 };
@@ -116,7 +96,6 @@ typedef enum {
 	PGPIO_22,
 	PGPIO_23,
 	PGPIO_24,
-	PGPIO_39,
 	P_GPIO_all,
 	DGPIO_0,
 	DGPIO_1,
@@ -127,25 +106,6 @@ typedef enum {
 	DGPIO_6,
 	DGPIO_7,
 	D_GPIO_all,
-	HSIGPIO_0,
-	HSIGPIO_1,
-	HSIGPIO_2,
-	HSIGPIO_3,
-	HSIGPIO_4,
-	HSIGPIO_5,
-	HSIGPIO_6,
-	HSIGPIO_7,
-	HSIGPIO_8,
-	HSIGPIO_9,
-	HSIGPIO_10,
-	HSIGPIO_11,
-	HSI_GPIO_all,
-	GPIO_total,
-
-	ENUM_DUMMY4WORD(GPIO_ALL)
-} GPIO_ALL; //for gpio_func_show
-
-typedef enum {
 	SGPIO_0,
 	SGPIO_1,
 	SGPIO_2,
@@ -159,34 +119,53 @@ typedef enum {
 	SGPIO_10,
 	SGPIO_11,
 	SGPIO_12,
-	SGPIO_13,
-	SGPIO_14,
-	SGPIO_15,
-	SGPIO_16,
-	PR_S_GPIO_all,
-	PGPIO_25,
-	PGPIO_26,
-	PGPIO_27,
-	PGPIO_28,
-	PGPIO_29,
-	PGPIO_30,
-	PGPIO_31,
-	PGPIO_32,
-	PGPIO_33,
-	PGPIO_34,
-	PGPIO_35,
-	PGPIO_36,
-	PGPIO_37,
-	PGPIO_38,
-	PR_P_GPIO_all,
+	S_GPIO_all,
+	HSIGPIO_0,
+	HSIGPIO_1,
+	HSIGPIO_2,
+	HSIGPIO_3,
+	HSIGPIO_4,
+	HSIGPIO_5,
+	HSIGPIO_6,
+	HSIGPIO_7,
+	HSIGPIO_8,
+	HSIGPIO_9,
+	HSIGPIO_10,
+	HSIGPIO_11,
+	HSI_GPIO_all,
+	DSIGPIO_0,
+	DSIGPIO_1,
+	DSIGPIO_2,
+	DSIGPIO_3,
+	DSIGPIO_4,
+	DSIGPIO_5,
+	DSIGPIO_6,
+	DSIGPIO_7,
+	DSIGPIO_8,
+	DSIGPIO_9,
+	DSIGPIO_10,
+	DSI_GPIO_all,
+	LGPIO_0,
+	LGPIO_1,
+	LGPIO_2,
+	LGPIO_3,
+	LGPIO_4,
+	LGPIO_5,
+	LGPIO_6,
+	LGPIO_7,
+	LGPIO_8,
+	LGPIO_9,
+	L_GPIO_all,
 	AGPIO_0,
 	AGPIO_1,
 	AGPIO_2,
 	AGPIO_3,
-	PR_A_GPIO_all,
-	PR_GPIO_total,
+	A_GPIO_all,
+	GPIO_total,
 
-} PR_GPIO_ALL;
+	ENUM_DUMMY4WORD(GPIO_ALL)
+} GPIO_ALL; //for gpio_func_show
+
 
 typedef enum {
 	func_FSPI = 1,
@@ -207,23 +186,28 @@ typedef enum {
 	func_I2C_1,
 	func_I2C_2,
 	func_I2C_3,
-	func_I2C_4,
-	func_I2C_5,
 	func_I2C2_1,
 	func_I2C2_2,
 	func_I2C2_3,
-	func_I2C2_4,
+	func_I2C3_1,
+	func_I2C3_2,
+	func_I2C3_3,
+	func_I2C3_4,
+	func_I2C3_5,
+	func_I2C3_6,
 	/*PWM*/
 	func_PWM_1,
 	func_PWM_2,
 	func_PWM_3,
 	func_PWM_4,
 	func_PWM_5,
+	func_PWM_6,
 	func_PWM1_1,
 	func_PWM1_2,
 	func_PWM1_3,
 	func_PWM1_4,
 	func_PWM1_5,
+	func_PWM1_6,
 	func_PWM2_1,
 	func_PWM2_2,
 	func_PWM2_3,
@@ -258,26 +242,27 @@ typedef enum {
 	func_PWM8_2,
 	func_PWM8_3,
 	func_PWM8_4,
+	func_PWM8_5,
 	func_PWM9_1,
 	func_PWM9_2,
 	func_PWM9_3,
 	func_PWM9_4,
+	func_PWM9_5,
 	func_PWM10_1,
 	func_PWM10_2,
 	func_PWM10_3,
 	func_PWM10_4,
+	func_PWM10_5,
 	func_PWM11_1,
 	func_PWM11_2,
 	func_PWM11_3,
 	func_PWM11_4,
+	func_PWM11_5,
 	/*CCNT*/
 	func_CCNT_1,
 	func_CCNT_2,
-	func_CCNT_3,
 	func_CCNT2_1,
 	func_CCNT2_2,
-	func_CCNT2_3,
-	func_CCNT2_4,
 	func_CCNT3_1,
 	func_CCNT3_2,
 	/*SENSOR*/
@@ -285,8 +270,10 @@ typedef enum {
 	func_SENSOR2,
 	func_SENSORMISC,
 	func_SN1_VSHS,
+	func_SN1_VSHS_2,
 	func_SN2_VSHS,
 	func_SN1_CCIR_VSHS,
+	func_SN1_CCIR_VSHS_2,
 	func_SN1_XVSXHS,
 	func_SN2_XVSXHS,
 	func_SN1_MCLK,
@@ -307,12 +294,13 @@ typedef enum {
 	func_UART2_2,
 	func_UART2_3,
 	func_UART2_4,
+	func_UART2_5,
+	func_UART2_6,
 	func_UART3_1,
 	func_UART3_2,
 	func_UART3_3,
 	func_UART3_4,
 	func_UART3_5,
-	func_UART3_6,
 	func_UART2_CTSRTS,
 	func_UART2_DTROE,
 	func_UART3_CTSRTS,
@@ -322,57 +310,38 @@ typedef enum {
 	/*SDP*/
 	func_SDP_1,
 	func_SDP_2,
-	func_SDP_3,
 	/*SPI*/
 	func_SPI_1,
 	func_SPI_2,
+	func_SPI_3,
 	func_SPI2_1,
 	func_SPI2_2,
-	func_SPI2_3,
-	func_SPI2_4,
 	func_SPI3_1,
 	func_SPI3_2,
 	func_SPI3_3,
-	func_SPI3_4,
 	func_SPI3_RDY,
 	func_SPI3_RDY2,
 	func_SPI3_RDY3,
-	func_SPI3_RDY4,
 	/*SIF*/
 	func_SIF_1,
 	func_SIF1_1,
+	func_SIF1_2,
 	func_SIF2_1,
 	func_SIF2_2,
 	func_SIF2_3,
 	func_SIF2_4,
+	func_SIF2_5,
 	func_SIF3_1,
-	func_SIF3_2,
 	/*MISC*/
 	func_MISC,
 	/*LCD*/
 	func_LCD,
-	func_LCD2,
-	/*PR-I2C*/
-	func_PR_I2C_1,
-	func_PR_I2C_2,
-	/*PR-UART*/
-	func_PR_UART_1,
-	func_PR_UART_2,
-	func_PR_UART2_1,
-	func_PR_UART2_2,
-	/*PR-SENSOR*/
-	func_PR_SENSOR,
-	func_PR_SENSORMISC,
-	/*PR-SPI_WG*/
-	func_PR_SPI_WG_1,
-	func_PR_SPI_WG_2,
-	/*PR-PWM*/
-	func_PR_PWM_1,
-	func_PR_PWM_2,
-	func_PR_PWM1_1,
-	func_PR_PWM1_2,
-	/*PR-Audio*/
-	func_PR_AUDIO_DMIC,
+	/*Weigand*/
+	func_WG_1,
+	func_WG_2,
+	func_WG_3,
+	func_WG_4,
+	func_WG_5,
 	FUNC_total,
 
 	ENUM_DUMMY4WORD(FUNC_ALL)
@@ -385,13 +354,14 @@ ER pad_init(struct nvt_pinctrl_info *info, unsigned long nr_pad);
 void gpio_init(struct nvt_gpio_info *gpio, int nr_gpio, struct nvt_pinctrl_info *info);
 ER power_init(struct nvt_power_info *power, int nr_power, struct nvt_pinctrl_info *info);
 void pinmux_parsing(struct nvt_pinctrl_info *info);
-ER pinmux_parsing_i2c(uint32_t config);
 int nvt_pinmux_proc_init(void);
 void pinmux_preset(struct nvt_pinctrl_info *info);
 void pad_preset(struct nvt_pinctrl_info *info);
 void pinmux_gpio_parsing(struct nvt_pinctrl_info *info);
 int pinmux_set_config(PINMUX_FUNC_ID id, u32 pinmux);
-void pinmux_prgpio_parsing(struct nvt_pinctrl_info *info);
+
+int pad_suspend(struct nvt_pinctrl_info *info);
+int pad_resume(struct nvt_pinctrl_info *info);
 
 static inline int pinmux_set_host(struct nvt_pinctrl_info *info, PINMUX_FUNC_ID id, u32 pinmux)
 {

@@ -79,7 +79,7 @@ static struct mm_region evb_mem_map[] = {
 	}, {
 	    .virt = 0x4000000000UL, /* For Peripheral */
 		.phys = 0x4000000000UL,
-		.size = 0x4000000000UL,
+		.size = 0xC000000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 			 PTE_BLOCK_NON_SHARE
 	}, {

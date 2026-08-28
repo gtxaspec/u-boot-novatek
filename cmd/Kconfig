@@ -1222,6 +1222,15 @@ config CMD_PINMUX
 	  is useful for debug purpoer to check the pin muxing and to know if
 	  a pin is configured as a GPIO or as an alternate function.
 
+config CMD_NVT_PINMUX
+	bool "nvt_pinmux - verify pins."
+	depends on PINCTRL_NS02501
+	default y if PINCTRL_NS02501
+	help
+		This is useful for debug purpoer to check the pin muxing and to
+		 know if a pin is configured as a GPIO or as an alternate
+		 function.
+
 config CMD_POWEROFF
 	bool "poweroff"
 	help
