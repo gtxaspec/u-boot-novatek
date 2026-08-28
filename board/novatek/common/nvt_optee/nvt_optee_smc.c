@@ -61,17 +61,12 @@ int nvt_ivot_actlr_smp_cfg(int enable)
 int nvt_ivot_optee_efuse_operation(NVT_SMC_EFUSE_DATA *efuse_data)
 {
 
-	unsigned long shm_size=0;
-	unsigned long shm_addr=0;
-	if(nvt_dts_optee_nsmem(&shm_addr, &shm_size)!=0)
-	{
-		printf("parsing share memory fail\r\n");
-		return -1;
-	}
-	struct arm_smccc_res return_val={0};
+	unsigned long shm_addr = nvt_memory_cfg[MEMTYPE_NSMEM].addr;
+	unsigned long shm_size = nvt_memory_cfg[MEMTYPE_NSMEM].size;
+	struct arm_smccc_res return_val = {0};
 	unsigned char* share_data= (unsigned char *)shm_addr;
 	unsigned int invalidate_size = 0;
-	int ret =0;
+	int ret = 0;
 	NVT_SMC_EFUSE_DATA *smc_efuse_data = (NVT_SMC_EFUSE_DATA *)share_data;
 	memcpy(smc_efuse_data, efuse_data, sizeof(NVT_SMC_EFUSE_DATA));
 	smc_efuse_data->tag = SMC_EFUSE_TAG;
@@ -100,25 +95,20 @@ int nvt_ivot_optee_efuse_operation(NVT_SMC_EFUSE_DATA *efuse_data)
 
 int nvt_ivot_optee_sha_operation(NVT_SMC_SHA_DATA *sha_data)
 {
-	unsigned long shm_size=0;
-	unsigned long shm_addr=0;
-	if(nvt_dts_optee_nsmem(&shm_addr, &shm_size)!=0)
-	{
-		printf("parsing share memory fail\r\n");
-		return -1;
-	}
+	unsigned long shm_addr = nvt_memory_cfg[MEMTYPE_NSMEM].addr;
+	unsigned long shm_size = nvt_memory_cfg[MEMTYPE_NSMEM].size;
 	unsigned int max_sha_input_size = shm_size - sizeof(NVT_SMC_SHA_DATA);
-	struct arm_smccc_res return_val={0};
-	unsigned char* share_data= (unsigned char *)shm_addr;
+	struct arm_smccc_res return_val = {0};
+	unsigned char* share_data = (unsigned char *)shm_addr;
 	unsigned int invalidate_size = 0;
-	int ret =0;
+	int ret = 0;
 	NVT_SMC_SHA_DATA *smc_sha_data = (NVT_SMC_SHA_DATA *)share_data;
 	if(sha_data->input_data == NULL || sha_data->output_data == NULL)
 	{
 		printf("intput_data == NULL || output_data == NULl error\r\n");
 		return -1;
 	}
-	if(sha_data->input_size ==0)
+	if(sha_data->input_size == 0)
 	{
 		printf("sha_data->input_size == 0 error\r\n");
 		return -1;
@@ -149,9 +139,11 @@ int nvt_ivot_optee_sha_operation(NVT_SMC_SHA_DATA *sha_data)
 
 	//update
 	unsigned int total_intput_size = sha_data->input_size;
-	unsigned int current_intput_size=0;
-	unsigned int current_intput_offset=0;
-	sha_data->output_size =0;
+	unsigned int current_intput_size = 0;
+	unsigned int current_intput_offset = 0;
+	sha_data->output_size = 0;
+	smc_sha_data->input_data = (unsigned char*)((unsigned long)(share_data + sizeof(NVT_SMC_AES_DATA)));
+
 	while(1)
 	{
 		smc_sha_data->operation = NVT_SMC_SHA_OPERATION_UPDATE;
@@ -163,7 +155,7 @@ int nvt_ivot_optee_sha_operation(NVT_SMC_SHA_DATA *sha_data)
 		{
 			current_intput_size = max_sha_input_size;
                 }
-                smc_sha_data->input_data = (unsigned char*)( (unsigned long)share_data + sizeof(NVT_SMC_AES_DATA));
+
                 smc_sha_data->input_size = current_intput_size;
                 memcpy(smc_sha_data->input_data, (unsigned char *)(sha_data->input_data + current_intput_offset), current_intput_size);
                 __arm_smccc_smc(NVT_SHA_OPERATION, (unsigned long )share_data, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, &return_val, NULL);
@@ -222,9 +214,9 @@ sha_operation_exit:
 int nvt_ivot_optee_ecdsa_operation(NVT_SMC_ECDSA_DATA *ecdsa_data, unsigned int key_size, unsigned int signature_size)
 {
 	int i;
-	unsigned long shm_size=0;
-	unsigned long shm_addr=0;
-	struct arm_smccc_res return_val={0};
+	unsigned long shm_addr = nvt_memory_cfg[MEMTYPE_NSMEM].addr;
+	unsigned long shm_size = nvt_memory_cfg[MEMTYPE_NSMEM].size;
+	struct arm_smccc_res return_val = {0};
 	unsigned char* share_data;
 
 	if (key_size == 0 || signature_size == 0) {
@@ -241,12 +233,6 @@ int nvt_ivot_optee_ecdsa_operation(NVT_SMC_ECDSA_DATA *ecdsa_data, unsigned int 
 	if(ecdsa_data->sign_r == NULL || ecdsa_data->sign_s == NULL)
 	{
 		printf("sign_r addr== %x || sign_s addr== %x error\r\n",ecdsa_data->sign_r, ecdsa_data->sign_s);
-		return -1;
-	}
-
-	if(nvt_dts_optee_nsmem(&shm_addr, &shm_size)!=0)
-	{
-		printf("parsing share memory fail\r\n");
 		return -1;
 	}
 
@@ -284,18 +270,13 @@ int nvt_ivot_optee_ecdsa_operation(NVT_SMC_ECDSA_DATA *ecdsa_data, unsigned int 
 int nvt_ivot_optee_rsa_operation(NVT_SMC_RSA_DATA *rsa_data)
 {
 
-	unsigned long shm_size=0;
-	unsigned long shm_addr=0;
-	if(nvt_dts_optee_nsmem(&shm_addr, &shm_size)!=0)
-	{
-		printf("parsing share memory fail\r\n");
-		return -1;
-	}
-	struct arm_smccc_res return_val={0};
-	unsigned char* share_data= (unsigned char *)shm_addr;
+	unsigned long shm_addr = nvt_memory_cfg[MEMTYPE_NSMEM].addr;
+	unsigned long shm_size = nvt_memory_cfg[MEMTYPE_NSMEM].size;
+	struct arm_smccc_res return_val = {0};
+	unsigned char* share_data = (unsigned char *)shm_addr;
 	unsigned int invalidate_size = 0;
-	int ret =0;
-	NVT_SMC_RSA_DATA *smc_rsa_data= (NVT_SMC_RSA_DATA *)share_data;
+	int ret = 0;
+	NVT_SMC_RSA_DATA *smc_rsa_data = (NVT_SMC_RSA_DATA *)share_data;
 	if(rsa_data->n_key == NULL || rsa_data->ed_key== NULL)
 	{
 		printf("n_key addr == %x || ed_key addr= %x error, please check key\r\n",rsa_data->n_key,rsa_data->ed_key);
@@ -385,18 +366,13 @@ rsa_operation_exit:
 int nvt_ivot_optee_aes_operation(NVT_SMC_AES_DATA *aes_data)
 {
 
-	unsigned long shm_size=0;
-	unsigned long shm_addr=0;
-	if(nvt_dts_optee_nsmem(&shm_addr, &shm_size)!=0)
-	{
-		printf("parsing share memory fail\r\n");
-		return -1;
-	}
+	unsigned long shm_addr = nvt_memory_cfg[MEMTYPE_NSMEM].addr;
+	unsigned long shm_size = nvt_memory_cfg[MEMTYPE_NSMEM].size;
 	unsigned int max_aes_input_size = shm_size - sizeof(NVT_SMC_AES_DATA);
-	struct arm_smccc_res return_val={0};
-	unsigned char* share_data= (unsigned char *)shm_addr;
+	struct arm_smccc_res return_val ={0};
+	unsigned char* share_data = (unsigned char *)shm_addr;
 	unsigned int invalidate_size = 0;
-	int ret =0;
+	int ret = 0;
 	NVT_SMC_AES_DATA *smc_aes_data= (NVT_SMC_AES_DATA *)share_data;
 
 	if(aes_data->input_data == NULL || aes_data->output_data == NULL)
@@ -448,16 +424,19 @@ int nvt_ivot_optee_aes_operation(NVT_SMC_AES_DATA *aes_data)
 
 	// update
 	unsigned int total_intput_size = aes_data->input_size;
-	unsigned int current_intput_size=0;
-	unsigned int current_output_offset=0;
-	unsigned int current_intput_offset=0;
-	aes_data->output_size =0;
+	unsigned int current_intput_size = 0;
+	unsigned int current_output_offset = 0;
+	unsigned int current_intput_offset = 0;
+	aes_data->output_size = 0;
 	if(total_intput_size & 0xf)
 	{
 		printf("aes intput size (%d) need alignment 16\r\n",total_intput_size);
 		ret = -1;
 		goto aes_operation_exit;
 	}
+
+	smc_aes_data->input_data = (unsigned char*)((unsigned long)(share_data + sizeof(NVT_SMC_AES_DATA)));
+	smc_aes_data->output_data = (unsigned char *)((unsigned long)(share_data + sizeof(NVT_SMC_AES_DATA)));
 
 	while(1)
 	{
@@ -470,11 +449,11 @@ int nvt_ivot_optee_aes_operation(NVT_SMC_AES_DATA *aes_data)
 		{
 			current_intput_size = max_aes_input_size;
 		}
-		smc_aes_data->input_data = (unsigned char*)(current_intput_offset + (unsigned long)share_data + sizeof(NVT_SMC_AES_DATA));
+
 		smc_aes_data->input_size = current_intput_size;
 		memcpy(smc_aes_data->input_data, (unsigned char *)(aes_data->input_data + current_intput_offset), current_intput_size);
-		smc_aes_data->output_data = (unsigned char *)(current_output_offset + (unsigned long)share_data + sizeof(NVT_SMC_AES_DATA));
 		smc_aes_data->output_size = current_intput_size;//  input size should be equal to output size
+
 		__arm_smccc_smc(NVT_AES_OPERATION, (unsigned long )share_data, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, &return_val, NULL);
 		if(return_val.a0 != 0)
 		{
@@ -526,17 +505,13 @@ int nvt_get_rpmb_key(unsigned int *mmc_cid, void *keybuf)
 	struct CID_DATA {
 		uint8_t cid[64];
 	};
-	unsigned long shm_size = 0;
-	unsigned long shm_addr = 0;
+	unsigned long shm_addr = nvt_memory_cfg[MEMTYPE_NSMEM].addr;
+	unsigned long shm_size = nvt_memory_cfg[MEMTYPE_NSMEM].size;
 	int i = 0;
 	int ret = -1;
 
 	uint64_t *arr = (uint64_t *)keybuf;
 
-	if (nvt_dts_optee_nsmem(&shm_addr, &shm_size) != 0) {
-		printf("parsing share memory fail\r\n");
-		return ret;
-	}
 	struct CID_DATA *driver_data = (struct CID_DATA *)shm_addr;
 	snprintf(driver_data->cid, 63, "%x%x%x%x", mmc_cid[0], mmc_cid[1], mmc_cid[2], mmc_cid[3]);
 

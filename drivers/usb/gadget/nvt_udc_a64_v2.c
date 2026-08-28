@@ -44,7 +44,7 @@
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.16"
+#define DRV_VERSION                     "1.00.17"
 
 struct nvt_udc_chip;
 
@@ -533,6 +533,8 @@ static void nvtim_init_usbhc(void)
 		tmpval = U2PHY_GETREG(MAP_PHY(0x08));
 		tmpval &= ~(0x7 << 3);
 		U2PHY_SETREG(MAP_PHY(0x08), tmpval);
+		// Provide the optimal resistance value according to HS/FS
+		U2PHY_SETREG(MAP_PHY(0x1a8), 0x18);
 
 		udelay(30);
 

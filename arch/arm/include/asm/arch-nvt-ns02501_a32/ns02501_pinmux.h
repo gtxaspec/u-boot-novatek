@@ -8,7 +8,7 @@
 
 typedef uint32_t u32;
 
-#define DRV_VERSION "1.00.07"
+#define DRV_VERSION "1.00.08"
 
 #define TOP_SETREG(info, ofs,value)    OUTW(info->top_base+(ofs),(value))
 #define TOP_GETREG(info, ofs)          INW(info->top_base+(ofs))
@@ -360,6 +360,13 @@ void pad_show(void);
 int pad_suspend(struct nvt_pinctrl_info *info);
 int pad_resume(struct nvt_pinctrl_info *info);
 int pinmux_conflict_check(void);
+
+int top_i2c_en_bit_get(int i2c_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val);
+int top_i2c_func_bit_get(int i2c_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val);
+int top_senmisc_en_bit_get(int senmisc_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val);
+int top_senmisc_func_bit_get(int senmisc_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val);
+int top_i2c_pad_bit_get(int i2c_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val);
+INT32 top_gzip_sram_sel(GZIP_SRAM_SEL sram_sel);
 
 static inline int pinmux_set_host(struct nvt_pinctrl_info *info, PINMUX_FUNC_ID id, u32 pinmux)
 {

@@ -514,40 +514,6 @@ int nvt_ivot_set_cpuclk(void)
 }
 
 /*
-parsing non secure share memory address and size
-
-*/
-
-#ifdef CONFIG_NVT_IVOT_OPTEE_SUPPORT
-int nvt_dts_optee_nsmem(unsigned long *addr, unsigned long* size)
-{
-	char cmd[512];
-	int  nodeoffset = -1;
-	int subnode = -1;
-	const unsigned long *val = NULL;
-//	u64 addr, size;
-	memset(cmd, 0, 512);
-	sprintf(cmd, "/nvt_memory_cfg");
-
-	nodeoffset = fdt_path_offset((void*)nvt_fdt_buffer, cmd);
-	if(nodeoffset < 0)
-	{
-		printf("can not find nvt_memory_cfg in dts\r\n");
-		return -1;
-	}
-	subnode = fdt_subnode_offset(nvt_fdt_buffer,nodeoffset,"nsmem");
-	if(subnode < 0)
-	{
-		printf("can not find nsmem in dts\r\n");
-		return -1;
-	}
-	val = (const unsigned long *)fdt_getprop(nvt_fdt_buffer, subnode, "reg", NULL);
-	*addr = be32_to_cpu(val[0]);
-	*size = be32_to_cpu(val[1]);
-	return 0;
-}
-#endif
-/*
  * to parsing necessary dts info
  * format: phandle is /nand, /nor and
  *

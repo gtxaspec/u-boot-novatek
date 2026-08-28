@@ -1852,6 +1852,38 @@ static int mmc_read_and_compare_ext_csd(struct mmc *mmc)
 		   &test_csd[EXT_CSD_SEC_CNT], 4) == 0)
 		return 0;
 
+#if defined(CONFIG_TARGET_NS02401) || defined(CONFIG_TARGET_NS02401_A64)
+	if (1) {
+		#define BYTES_PER_LINE  16
+		int i, j;
+
+		printf("ext_csd dump:\n");
+		for (i = 0; i < MMC_MAX_BLOCK_LEN; i += BYTES_PER_LINE) {
+			char buf[3 * BYTES_PER_LINE + 32]; /* 2 chars per byte + space + margin */
+			char *p = buf;
+			int len = 0;
+
+			len += scnprintf(p + len, sizeof(buf) - len, "%04u: ", i);
+			for (j = 0; j < BYTES_PER_LINE && (i + j) < MMC_MAX_BLOCK_LEN; j++) {
+				len += scnprintf(p + len, sizeof(buf) - len, "%02x ", ext_csd[i + j]);
+			}
+			printf("%s\n", buf);
+		}
+
+		printf("test_csd dump:\n");
+		for (i = 0; i < MMC_MAX_BLOCK_LEN; i += BYTES_PER_LINE) {
+			char buf[3 * BYTES_PER_LINE + 32];
+			char *p = buf;
+			int len = 0;
+
+			len += scnprintf(p + len, sizeof(buf) - len, "%04u: ", i);
+			for (j = 0; j < BYTES_PER_LINE && (i + j) < MMC_MAX_BLOCK_LEN; j++) {
+				len += scnprintf(p + len, sizeof(buf) - len, "%02x ", test_csd[i + j]);
+			}
+			printf("%s\n", buf);
+		}
+	}
+#endif
 	return -EBADMSG;
 }
 

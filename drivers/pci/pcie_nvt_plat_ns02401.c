@@ -34,6 +34,7 @@
 #define TOP_BS_PCIE_LANE_MODE_ONE_X4	(0)
 #define TOP_BS_PCIE_LANE_MODE_TWO_X2	(1<<14)
 #define TOP_BS_PCIE_LANE_MODE_FOUR_X1	(2<<14)
+#define TOP_BS_PCIE_LANE_MODE_ONEx2_TWOx1 (3<<14)
 #define TOP_BS_PCIE_REFCLK_MSK		(1<<16)
 #define TOP_BS_PCIE_REFCLK_MPLL		(0)
 #define TOP_BS_PCIE_REFCLK_PAD		(1<<16)
@@ -86,12 +87,24 @@ static int bootstrap_read(struct pcie_nvt *pci)
 			return -1;
 		}
 		break;
-	default:
-		// x2 * 2
-		// x2*1 + x1*2
+	case TOP_BS_PCIE_LANE_MODE_TWO_X2:
 		if (pci->num_lanes != 2) {
 			printf("%s: DTS x%d , but bootstrap x2 ==> conflict\n", __func__, pci->num_lanes);
 			return -1;
+		}
+		break;
+	case TOP_BS_PCIE_LANE_MODE_ONEx2_TWOx1:
+	default:
+		if(pci->slot == 0){
+			if (pci->num_lanes != 2) {
+				printf("%s: DTS x%d , but bootstrap x2 ==> conflict\n", __func__, pci->num_lanes);
+				return -1;
+			}
+		}else {
+			if (pci->num_lanes != 1) {
+				printf("%s: DTS x%d , but bootstrap x1 ==> conflict\n", __func__, pci->num_lanes);
+				return -1;
+			}
 		}
 		break;
 	}
@@ -267,6 +280,7 @@ static int pcie_power_on(struct pcie_nvt *pci)
 	val |= TOP_PCIE_RSTN_HIGHZ;
 	writel(val, IOADDR_TOP_REG_BASE + TOP_CTRL_REG14_OFS);
 	if (pci->pe_rst) {
+		mdelay(200);
 		dm_gpio_set_value(pci->pe_rst, 0);     // 0: release reset
 	}
 

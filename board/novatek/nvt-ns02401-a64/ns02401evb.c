@@ -438,22 +438,39 @@ static int nvt_emmc_set_bootbus(void)
 	}
 	sprintf(command, "mmc bootbus %d %d 0 0", CONFIG_NVT_IVOT_EMMC, bus_width);
 	ret = run_command(command, 0);
-	if (ret < 0){
+	if (ret != 0) {
 		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
 	}
+
 	return ret;
 }
 
 static int nvt_emmc_init(void)
 {
 	int ret = 0;
+	int try_cnt = 0;
 	char command[128] = {0};
 
 	/* Switch to emmc bus and user partition access config */
 	sprintf(command, "mmc dev %d", CONFIG_NVT_IVOT_EMMC);
-	ret = run_command(command, 0);
-	if (ret < 0)
-		return ret;
+
+	do {
+		if (try_cnt > 20)
+			cli_loop();
+
+		ret = run_command(command, 0);
+		if (ret != 0) {
+			try_cnt++;
+			printf("command : [%s] retry %d ...\n", command, try_cnt);
+		} else {
+			break;
+		}
+
+		mdelay(100);
+	} while (1);
+
+
 
 	ret = nvt_emmc_set_bootbus();
 	if (ret < 0)
@@ -461,6 +478,25 @@ static int nvt_emmc_init(void)
 
 	sprintf(command, "mmc partconf %d 1 %d 0", CONFIG_NVT_IVOT_EMMC, CONFIG_NVT_IVOT_EMMC_BOOT_PART);
 	ret = run_command(command, 0);
+	if (ret != 0) {
+		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
+	}
+
+	sprintf(command, "mmc rst %d 1", CONFIG_NVT_IVOT_EMMC);
+	ret = run_command(command, 0);
+	if (ret != 0) {
+		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
+	}
+
+	sprintf(command, "nvt_print_ext_csd %d", CONFIG_NVT_IVOT_EMMC);
+	ret = run_command(command, 0);
+	if (ret != 0) {
+		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
+	}
+
 	return ret;
 }
 #elif defined(CONFIG_NVT_SPI_NOR)

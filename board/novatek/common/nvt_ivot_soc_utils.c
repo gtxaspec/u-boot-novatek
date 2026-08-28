@@ -21,6 +21,7 @@
 #include <mmc.h>
 #include <spi_flash.h>
 #include <command.h>
+#include <memalign.h>
 #include <lzma/LzmaTools.h>
 #include <linux/libfdt.h>
 #include <asm/nvt-common/nvt_types.h>
@@ -2416,6 +2417,48 @@ U_BOOT_CMD(
 		nvt_mmc_erase_all,   2,  0,  do_nvt_mmc_erase_all_cmd,
 		"Erase User Partition and Boot Partition in mmc dev.", "dev\n"
 	  );
+
+int do_nvt_print_ext_csd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	int dev, ret;
+	struct mmc *mmc;
+	u8 rst;
+
+	if (argc != 2)
+		return CMD_RET_USAGE;
+
+	dev = (int)hextoul(argv[1], NULL);
+	ALLOC_CACHE_ALIGN_BUFFER(u8, ext_csd, MMC_MAX_BLOCK_LEN);
+	mmc = find_mmc_device(dev);
+
+	if (!mmc) {
+		printf("no mmc device at slot %x\n", dev);
+		return CMD_RET_FAILURE;
+	}
+
+	ret = mmc_send_ext_csd(mmc, ext_csd);
+
+	if (ret) {
+		printf("mmc_send_ext_csd %x fail\n", dev);
+		return CMD_RET_FAILURE;
+	}
+
+	rst = ext_csd[EXT_CSD_RST_N_FUNCTION];
+	printf("EXT_CSD_RST = %u\n", rst);
+
+
+	return CMD_RET_SUCCESS;
+}
+
+U_BOOT_CMD(
+		nvt_print_ext_csd,   2,  0,  do_nvt_print_ext_csd,
+		"Print EXT_CSD info of mmc dev.", "dev\n"
+	  );
+
+#endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
+
+#if defined(CONFIG_NVT_LINUX_EMMC_BOOT)
+
 #endif /* CONFIG_NVT_LINUX_EMMC_BOOT */
 
 

@@ -14,36 +14,41 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 #include <malloc.h>
+#include <asm/arch/pad.h>
 
 // static DEFINE_SPINLOCK(top_lock);
 // #define loc_cpu(flags)
 // #define unl_cpu(flags)
 
-union TOP_REG0         top_reg0;
-union TOP_REG1         top_reg1;
-union TOP_REG2         top_reg2;
-union TOP_REG3         top_reg3;
-union TOP_REG4         top_reg4;
-union TOP_REG5         top_reg5;
-union TOP_REG6         top_reg6;
-union TOP_REG7         top_reg7;
-union TOP_REG8         top_reg8;
-union TOP_REG9         top_reg9;
-union TOP_REG10        top_reg10;
-union TOP_REG11        top_reg11;
+static union TOP_REG0         top_reg0;
+static union TOP_REG1         top_reg1;
+static union TOP_REG2         top_reg2;
+static union TOP_REG3         top_reg3;
+static union TOP_REG4         top_reg4;
+static union TOP_REG5         top_reg5;
+static union TOP_REG6         top_reg6;
+static union TOP_REG7         top_reg7;
+static union TOP_REG8         top_reg8;
+static union TOP_REG9         top_reg9;
+static union TOP_REG10        top_reg10;
+static union TOP_REG11        top_reg11;
 
 /* GPIO */
-union TOP_REGCGPIO0    top_reg_cgpio0;
-union TOP_REGPGPIO0    top_reg_pgpio0;
-union TOP_REGDGPIO0    top_reg_dgpio0;
-union TOP_REGSGPIO0    top_reg_sgpio0;
-union TOP_REGHSIGPIO0  top_reg_hsigpio0;
-union TOP_REGDSIGPIO0 top_reg_dsigpio0;
-union TOP_REGLGPIO0    top_reg_lgpio0;
-union TOP_REGAGPIO0    top_reg_agpio0;
+static union TOP_REGCGPIO0    top_reg_cgpio0;
+static union TOP_REGPGPIO0    top_reg_pgpio0;
+static union TOP_REGDGPIO0    top_reg_dgpio0;
+static union TOP_REGSGPIO0    top_reg_sgpio0;
+static union TOP_REGHSIGPIO0  top_reg_hsigpio0;
+static union TOP_REGDSIGPIO0  top_reg_dsigpio0;
+static union TOP_REGLGPIO0    top_reg_lgpio0;
+static union TOP_REGAGPIO0    top_reg_agpio0;
 
-int confl_detect;
+static int confl_detect;
 static bool check_flag = 0;
+static uint32_t g_i2c_config;
+static uint32_t g_senmisc_config;
+extern unsigned long top_reg_addr;
+
 static int dump_gpio_func[GPIO_total] = {0};
 static char *dump_func[FUNC_total] = {	"FSPI", "SDIO1", "SDIO2", "SDIO3", "EJTAG", "EXTROM", "ETH", "ETH2",
 										"I2C_1", "I2C_2", "I2C_3", "I2C2_1", "I2C2_2", "I2C2_3", "I2C3_1", "I2C3_2", "I2C3_3", "I2C3_4", "I2C3_5", "I2C3_6",
@@ -240,7 +245,7 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 	union TOP_REG1 local_top_reg1;
 	union TOP_REG2 local_top_reg2;
 	union TOP_REG3 local_top_reg3;
-	//union TOP_REG4 local_top_reg4;
+	union TOP_REG4 local_top_reg4;
 	union TOP_REG5 local_top_reg5;
 	union TOP_REG6 local_top_reg6;
 	union TOP_REG7 local_top_reg7;
@@ -258,7 +263,7 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 	local_top_reg1.reg = TOP_GETREG(info, TOP_REG1_OFS);
 	local_top_reg2.reg = TOP_GETREG(info, TOP_REG2_OFS);
 	local_top_reg3.reg = TOP_GETREG(info, TOP_REG3_OFS);
-	//local_top_reg4.reg = TOP_GETREG(info, TOP_REG4_OFS);
+	local_top_reg4.reg = TOP_GETREG(info, TOP_REG4_OFS);
 	local_top_reg5.reg = TOP_GETREG(info, TOP_REG5_OFS);
 	local_top_reg6.reg = TOP_GETREG(info, TOP_REG6_OFS);
 	local_top_reg7.reg = TOP_GETREG(info, TOP_REG7_OFS);
@@ -375,6 +380,7 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 
 	info->top_pinmux[PIN_FUNC_I2C].config = value;
 	info->top_pinmux[PIN_FUNC_I2C].pin_function = PIN_FUNC_I2C;
+	g_i2c_config = value;
 
 	/* Parsing PWM */
 	value = PIN_PWM_CFG_NONE;
@@ -673,6 +679,8 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 	info->top_pinmux[PIN_FUNC_SENSORMISC].config = value;
 	info->top_pinmux[PIN_FUNC_SENSORMISC].pin_function = PIN_FUNC_SENSORMISC;
 
+	g_senmisc_config = value;
+
 	/* Parsing SENSORSYNC */
 	value = PIN_SENSORSYNC_CFG_NONE;
 
@@ -954,6 +962,10 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 		value |= PIN_MISC_CFG_SP2_CLK_3;
 	}
 
+	if (adc_en == MUX_1) {
+		value |= PIN_MISC_CFG_ADC;
+	}
+
 	info->top_pinmux[PIN_FUNC_MISC].config = value;
 	info->top_pinmux[PIN_FUNC_MISC].pin_function = PIN_FUNC_MISC;
 
@@ -1030,6 +1042,59 @@ void pinmux_parsing(struct nvt_pinctrl_info *info)
 
 	if (local_top_reg2.bit.PLCD_DE == MUX_1) {
 		value |= PINMUX_LCD_SEL_DE_ENABLE;
+	}
+
+	if (local_top_reg4.bit.MEMIF_TYPE == MUX_1) {
+		if (local_top_reg4.bit.MEMIF_SEL == MUX_0) {
+			if (local_top_reg4.bit.PMEMIF_DATA_WIDTH == MUX_0) {
+				value = PINMUX_LCD_SEL_SERIAL_MI_SDIO;
+
+			} else if (local_top_reg4.bit.PMEMIF_DATA_WIDTH == MUX_1){
+				value = PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO;
+
+			}
+
+			if (local_top_reg4.bit.MEMIF_TE_SEL == MUX_1) {
+				value |= PINMUX_LCD_SEL_TE_ENABLE;
+			}
+
+		} else if (local_top_reg4.bit.MEMIF_TYPE == MUX_1){
+			value = PINMUX_LCD_SEL_SERIAL_MI_SDIO2;
+
+			if (local_top_reg4.bit.MEMIF_TE_SEL == MUX_1) {
+				value |= PINMUX_LCD_SEL_TE2_ENABLE;
+			}
+
+		} else if (local_top_reg4.bit.MEMIF_TYPE == MUX_2){
+			if (local_top_reg4.bit.PMEMIF_DATA_WIDTH == MUX_0) {
+				value = PINMUX_LCD_SEL_SERIAL_MI_SDIO3;
+
+			} else if (local_top_reg4.bit.PMEMIF_DATA_WIDTH == MUX_1){
+				value = PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO3;
+
+			}
+
+			if (local_top_reg4.bit.MEMIF_TE_SEL == MUX_1) {
+				value |= PINMUX_LCD_SEL_TE3_ENABLE;
+			}
+
+		}
+
+	} else if (local_top_reg4.bit.MEMIF_TYPE == MUX_2){
+		if (local_top_reg4.bit.PMEMIF_DATA_WIDTH == MUX_0) {
+			value = PINMUX_LCD_SEL_PARALLE_MI_8BITS;
+
+		} else if (local_top_reg4.bit.PMEMIF_DATA_WIDTH == MUX_1){
+			value = PINMUX_LCD_SEL_PARALLE_MI_9BITS;
+
+		} else if (local_top_reg4.bit.PMEMIF_DATA_WIDTH == MUX_2){
+			value = PINMUX_LCD_SEL_PARALLE_MI_16BITS;
+
+		}
+
+		if (local_top_reg4.bit.MEMIF_TE_SEL == MUX_1) {
+			value |= PINMUX_LCD_SEL_TE_ENABLE;
+		}
 	}
 
 	info->top_pinmux[PIN_FUNC_SEL_LCD].config = value;
@@ -1443,6 +1508,7 @@ static int pinmux_config_eth(uint32_t config)
 
 static int pinmux_config_i2c(uint32_t config)
 {
+	g_i2c_config = config;
 	if (config == PIN_I2C_CFG_NONE) {
 	} else {
 		confl_detect = 0;
@@ -1456,8 +1522,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C = MUX_1;
 				top_reg_sgpio0.bit.SGPIO_7 = GPIO_ID_EMUM_FUNC;
 				top_reg_sgpio0.bit.SGPIO_8 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_SGPIO7, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_SGPIO8, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_SGPIO7, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_SGPIO8, PAD_NONE);
 			}
 			gpio_func_keep(SGPIO_7, 2, func_I2C_1);
 		} else if (config & PIN_I2C_CFG_I2C_2) {
@@ -1469,8 +1535,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C = MUX_2;
 				top_reg_hsigpio0.bit.HSIGPIO_9 = GPIO_ID_EMUM_FUNC;
 				top_reg_hsigpio0.bit.HSIGPIO_10 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO10, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO10, PAD_NONE);
 			}
 			gpio_func_keep(HSIGPIO_9, 2, func_I2C_2);
 		} else if (config & PIN_I2C_CFG_I2C_3) {
@@ -1482,8 +1548,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C = MUX_3;
 				top_reg_dgpio0.bit.DGPIO_3 = GPIO_ID_EMUM_FUNC;
 				top_reg_dgpio0.bit.DGPIO_4 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_DGPIO3, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_DGPIO4, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DGPIO3, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DGPIO4, PAD_NONE);
 			}
 			gpio_func_keep(DGPIO_3, 2, func_I2C_3);
 		}
@@ -1497,8 +1563,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C2 = MUX_1;
 				top_reg_sgpio0.bit.SGPIO_4 = GPIO_ID_EMUM_FUNC;
 				top_reg_sgpio0.bit.SGPIO_5 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_SGPIO4, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_SGPIO5, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_SGPIO4, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_SGPIO5, PAD_NONE);
 			}
 			gpio_func_keep(SGPIO_4, 2, func_I2C2_1);
 		} else if (config & PIN_I2C_CFG_I2C2_2) {
@@ -1510,8 +1576,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C2 = MUX_2;
 				top_reg_cgpio0.bit.CGPIO_19 = GPIO_ID_EMUM_FUNC;
 				top_reg_cgpio0.bit.CGPIO_20 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_CGPIO19, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_CGPIO20, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_CGPIO19, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_CGPIO20, PAD_NONE);
 			}
 			gpio_func_keep(CGPIO_19, 2, func_I2C2_2);
 
@@ -1524,8 +1590,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C2 = MUX_3;
 				top_reg_dgpio0.bit.DGPIO_3 = GPIO_ID_EMUM_FUNC;
 				top_reg_dgpio0.bit.DGPIO_4 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_DGPIO3, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_DGPIO4, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DGPIO3, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DGPIO4, PAD_NONE);
 			}
 			gpio_func_keep(DGPIO_3, 2, func_I2C2_3);
 
@@ -1540,8 +1606,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C3 = MUX_1;
 				top_reg_pgpio0.bit.PGPIO_21 = GPIO_ID_EMUM_FUNC;
 				top_reg_pgpio0.bit.PGPIO_22 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_PGPIO21, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_PGPIO22, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_PGPIO21, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_PGPIO22, PAD_NONE);
 			}
 			gpio_func_keep(PGPIO_21, 2, func_I2C3_1);
 
@@ -1554,8 +1620,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C3 = MUX_2;
 				top_reg_cgpio0.bit.CGPIO_13 = GPIO_ID_EMUM_FUNC;
 				top_reg_cgpio0.bit.CGPIO_14 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_CGPIO13, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_CGPIO14, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_CGPIO13, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_CGPIO14, PAD_NONE);
 			}
 			gpio_func_keep(CGPIO_13, 2, func_I2C3_2);
 
@@ -1568,8 +1634,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C3 = MUX_3;
 				top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
 				top_reg_dsigpio0.bit.DSIGPIO_9 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_DSIGPIO8, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_DSIGPIO9, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DSIGPIO8, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DSIGPIO9, PAD_NONE);
 			}
 			gpio_func_keep(DSIGPIO_8, 2, func_I2C3_3);
 
@@ -1582,8 +1648,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C3 = MUX_4;
 				top_reg_dsigpio0.bit.DSIGPIO_0 = GPIO_ID_EMUM_FUNC;
 				top_reg_dsigpio0.bit.DSIGPIO_1 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_DSIGPIO0, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_DSIGPIO1, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DSIGPIO0, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_DSIGPIO1, PAD_NONE);
 			}
 			gpio_func_keep(DSIGPIO_0, 2, func_I2C3_4);
 
@@ -1596,8 +1662,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C3 = MUX_5;
 				top_reg_pgpio0.bit.PGPIO_0 = GPIO_ID_EMUM_FUNC;
 				top_reg_pgpio0.bit.PGPIO_1 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_PGPIO0, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_PGPIO1, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_PGPIO0, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_PGPIO1, PAD_NONE);
 			}
 			gpio_func_keep(PGPIO_0, 2, func_I2C3_5);
 
@@ -1610,8 +1676,8 @@ static int pinmux_config_i2c(uint32_t config)
 				top_reg5.bit.I2C3 = MUX_6;
 				top_reg_hsigpio0.bit.HSIGPIO_7 = GPIO_ID_EMUM_FUNC;
 				top_reg_hsigpio0.bit.HSIGPIO_8 = GPIO_ID_EMUM_FUNC;
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
 			}
 			gpio_func_keep(HSIGPIO_7, 2, func_I2C3_6);
 
@@ -2700,6 +2766,7 @@ static int pinmux_config_sensor2(uint32_t config)
 
 static int pinmux_config_sensormisc(uint32_t config)
 {
+	g_senmisc_config = config;
 	if (config == PIN_SENSORMISC_CFG_NONE) {
 	} else {
 		confl_detect = 0;
@@ -3022,7 +3089,7 @@ static int pinmux_config_audio(uint32_t config)
 				top_reg_cgpio0.bit.CGPIO_16 = GPIO_ID_EMUM_FUNC;
 				top_reg_cgpio0.bit.CGPIO_17 = GPIO_ID_EMUM_FUNC;
 			}
-			gpio_func_keep(CGPIO_13, 4, func_I2S_2);
+			gpio_func_keep(CGPIO_14, 4, func_I2S_2);
 
 		} else if (config & PIN_AUDIO_CFG_I2S_3) {
 
@@ -3598,16 +3665,16 @@ static int pinmux_config_csi(uint32_t config)
 				top_reg_hsigpio0.bit.HSIGPIO_8 = GPIO_ID_EMUM_FUNC;
 				top_reg_hsigpio0.bit.HSIGPIO_9 = GPIO_ID_EMUM_FUNC;
 
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO0, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO1, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO2, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO3, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO4, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO5, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO6, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO0, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO1, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO2, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO3, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO4, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO5, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO6, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
 			}
 
 			gpio_func_keep(HSIGPIO_0, 10, func_SENSOR);
@@ -3634,18 +3701,18 @@ static int pinmux_config_csi(uint32_t config)
 				top_reg_hsigpio0.bit.HSIGPIO_10 = GPIO_ID_EMUM_FUNC;
 				top_reg_hsigpio0.bit.HSIGPIO_11 = GPIO_ID_EMUM_FUNC;
 
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO0, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO1, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO2, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO3, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO4, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO5, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO6, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO10, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO11, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO0, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO1, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO2, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO3, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO4, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO5, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO6, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO10, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO11, PAD_NONE);
 			}
 
 			gpio_func_keep(HSIGPIO_0, 12, func_SENSOR);
@@ -3665,12 +3732,12 @@ static int pinmux_config_csi(uint32_t config)
 				top_reg_hsigpio0.bit.HSIGPIO_4 = GPIO_ID_EMUM_FUNC;
 				top_reg_hsigpio0.bit.HSIGPIO_5 = GPIO_ID_EMUM_FUNC;
 
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO0, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO1, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO2, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO3, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO4, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO5, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO0, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO1, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO2, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO3, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO4, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO5, PAD_NONE);
 			}
 
 			gpio_func_keep(HSIGPIO_0, 6, func_SENSOR);
@@ -3691,12 +3758,12 @@ static int pinmux_config_csi(uint32_t config)
 				top_reg_hsigpio0.bit.HSIGPIO_10 = GPIO_ID_EMUM_FUNC;
 				top_reg_hsigpio0.bit.HSIGPIO_11 = GPIO_ID_EMUM_FUNC;
 
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO6, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO10, PAD_NONE);
-				// pad_set_pull_updown(PAD_PIN_HSIGPIO11, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO6, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO7, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO8, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO9, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO10, PAD_NONE);
+				pad_set_pull_updown(PAD_PIN_HSIGPIO11, PAD_NONE);
 			}
 
 			gpio_func_keep(HSIGPIO_6, 6, func_SENSOR);
@@ -4101,7 +4168,7 @@ static int pinmux_config_sif(uint32_t config)
 				return E_PAR;
 			}
 			if(!check_flag){
-				top_reg5.bit.SIF1 = MUX_1;
+				top_reg5.bit.SIF1 = MUX_2;
 				top_reg_sgpio0.bit.SGPIO_0 = GPIO_ID_EMUM_FUNC;
 				top_reg_sgpio0.bit.SGPIO_1 = GPIO_ID_EMUM_FUNC;
 				top_reg_sgpio0.bit.SGPIO_2 = GPIO_ID_EMUM_FUNC;
@@ -4193,6 +4260,81 @@ static int pinmux_config_sif(uint32_t config)
 	}
 
 	return E_OK;
+}
+
+static int pinmux_config_weigand(uint32_t config)
+{
+	if (config == PIN_WG_CFG_NONE) {
+	} else {
+		confl_detect = 0;
+
+		if (config & PIN_WG_CFG_WG_1) {
+
+			confl_detect += gpio_conflict_detect(DSIGPIO_6, 2, func_WG_1);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg11.bit.SPI_WG = MUX_1;
+				top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_7 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_6, 2, func_WG_1);
+		} else if (config & PIN_WG_CFG_WG_2) {
+
+			confl_detect += gpio_conflict_detect(DGPIO_3, 2, func_WG_2);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg11.bit.SPI_WG = MUX_2;
+				top_reg_dgpio0.bit.DGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dgpio0.bit.DGPIO_4 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DGPIO_3, 2, func_WG_2);
+		} else if (config & PIN_WG_CFG_WG_3) {
+
+			confl_detect += gpio_conflict_detect(DSIGPIO_0, 2, func_WG_3);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg11.bit.SPI_WG = MUX_3;
+				top_reg_dsigpio0.bit.DSIGPIO_0 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_1 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_0, 2, func_WG_3);
+		} else if (config & PIN_WG_CFG_WG_4) {
+
+			confl_detect += gpio_conflict_detect(DSIGPIO_3, 1, func_WG_4);
+			confl_detect += gpio_conflict_detect(DSIGPIO_8, 1, func_WG_4);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg11.bit.SPI_WG = MUX_4;
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_3, 1, func_WG_4);
+			gpio_func_keep(DSIGPIO_8, 1, func_WG_4);
+		} else if (config & PIN_WG_CFG_WG_5) {
+
+			confl_detect += gpio_conflict_detect(PGPIO_21, 2, func_WG_5);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg11.bit.SPI_WG = MUX_5;
+				top_reg_pgpio0.bit.PGPIO_21 = GPIO_ID_EMUM_FUNC;
+				top_reg_pgpio0.bit.PGPIO_22 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(PGPIO_21, 2, func_WG_5);
+		}
+	}
+
+	return E_OK;
+
 }
 
 static int pinmux_config_misc(uint32_t config)
@@ -4289,6 +4431,25 @@ static int pinmux_config_misc(uint32_t config)
 			}
 			gpio_func_keep(DGPIO_4, 1, func_MISC);
 
+		}
+
+		if (config & PIN_MISC_CFG_ADC) {
+
+			confl_detect += gpio_conflict_detect(AGPIO_0, 4, func_MISC);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+
+			adc_en = MUX_1;
+			top_reg_agpio0.bit.AGPIO_0 = GPIO_ID_EMUM_FUNC;
+			top_reg_agpio0.bit.AGPIO_1 = GPIO_ID_EMUM_FUNC;
+			top_reg_agpio0.bit.AGPIO_2 = GPIO_ID_EMUM_FUNC;
+			top_reg_agpio0.bit.AGPIO_3 = GPIO_ID_EMUM_FUNC;
+			pad_set_pull_updown(PAD_PIN_AGPIO0, PAD_NONE);
+			pad_set_pull_updown(PAD_PIN_AGPIO1, PAD_NONE);
+			pad_set_pull_updown(PAD_PIN_AGPIO2, PAD_NONE);
+			pad_set_pull_updown(PAD_PIN_AGPIO3, PAD_NONE);
+			gpio_func_keep(AGPIO_0, 4, func_MISC);
 		}
 
 		if (config & PIN_MISC_CFG_CPU_ICE) {
@@ -4410,7 +4571,281 @@ static int pinmux_select_primary_lcd(uint32_t config)
 	pinmux_type = config & ~(PINMUX_LCD_SEL_FEATURE_MSK);
 
 	if (pinmux_type == PINMUX_LCD_SEL_GPIO) {
-	} else if (pinmux_type == PINMUX_LCD_SEL_MIPI) {
+	} else if (pinmux_type >= PINMUX_LCD_SEL_MIPI) {
+		top_reg2.bit.LCD_TYPE = MUX_9;
+		if (pinmux_type == PINMUX_LCD_SEL_SERIAL_MI_SDIO) {
+			confl_detect += gpio_conflict_detect(DSIGPIO_2, 4, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_1;
+				top_reg4.bit.MEMIF_SEL = MUX_0;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_0;
+				top_reg_dsigpio0.bit.DSIGPIO_2 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_5 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_2, 4, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE_ENABLE) {
+				confl_detect += gpio_conflict_detect(DSIGPIO_6, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(DSIGPIO_6, 1, func_LCD);
+			}
+
+		} else if (pinmux_type == PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO) {
+			confl_detect += gpio_conflict_detect(DSIGPIO_0, 2, func_LCD);
+			confl_detect += gpio_conflict_detect(DSIGPIO_3, 3, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_1;
+				top_reg4.bit.MEMIF_SEL = MUX_0;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_1;
+				top_reg_dsigpio0.bit.DSIGPIO_0 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_1 = GPIO_ID_EMUM_FUNC;
+
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_5 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_0, 2, func_LCD);
+			gpio_func_keep(DSIGPIO_3, 3, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE_ENABLE) {
+				confl_detect += gpio_conflict_detect(DSIGPIO_6, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(DSIGPIO_6, 1, func_LCD);
+			}
+
+		} else if (pinmux_type == PINMUX_LCD_SEL_SERIAL_MI_SDIO2) {
+			confl_detect += gpio_conflict_detect(PGPIO_6, 4, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_1;
+				top_reg4.bit.MEMIF_SEL = MUX_1;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_0;
+				top_reg_pgpio0.bit.PGPIO_6 = GPIO_ID_EMUM_FUNC;
+				top_reg_pgpio0.bit.PGPIO_7 = GPIO_ID_EMUM_FUNC;
+				top_reg_pgpio0.bit.PGPIO_8 = GPIO_ID_EMUM_FUNC;
+				top_reg_pgpio0.bit.PGPIO_9 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(PGPIO_6, 4, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE2_ENABLE) {
+				confl_detect += gpio_conflict_detect(PGPIO_10, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_pgpio0.bit.PGPIO_10 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(PGPIO_10, 1, func_LCD);
+			}
+
+		} else if (pinmux_type == PINMUX_LCD_SEL_SERIAL_MI_SDIO3) {
+			confl_detect += gpio_conflict_detect(DSIGPIO_2, 4, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_1;
+				top_reg4.bit.MEMIF_SEL = MUX_2;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_0;
+				top_reg_dsigpio0.bit.DSIGPIO_2 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_5 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_2, 4, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE3_ENABLE) {
+				confl_detect += gpio_conflict_detect(DSIGPIO_6, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(DSIGPIO_6, 1, func_LCD);
+			}
+
+
+
+		} else if (pinmux_type == PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO3) {
+			confl_detect += gpio_conflict_detect(PGPIO_21, 2, func_LCD);
+			confl_detect += gpio_conflict_detect(DSIGPIO_3, 3, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_1;
+				top_reg4.bit.MEMIF_SEL = MUX_2;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_1;
+				top_reg_pgpio0.bit.PGPIO_21 = GPIO_ID_EMUM_FUNC;
+				top_reg_pgpio0.bit.PGPIO_22 = GPIO_ID_EMUM_FUNC;
+
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_5 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(PGPIO_21, 2, func_LCD);
+			gpio_func_keep(DSIGPIO_3, 3, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE3_ENABLE) {
+				confl_detect += gpio_conflict_detect(DSIGPIO_6, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(DSIGPIO_6, 1, func_LCD);
+			}
+
+
+		} else if (pinmux_type == PINMUX_LCD_SEL_PARALLE_MI_8BITS) {
+			confl_detect += gpio_conflict_detect(DSIGPIO_0, 11, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_2;
+				top_reg4.bit.MEMIF_SEL = MUX_0;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_0;
+				top_reg_dsigpio0.bit.DSIGPIO_0 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_1 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_2 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_5 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_7 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_9 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_10 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_0, 11, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE_ENABLE) {
+				confl_detect += gpio_conflict_detect(LGPIO_9, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_lgpio0.bit.LGPIO_9 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(LGPIO_9, 1, func_LCD);
+			}
+
+
+		} else if (pinmux_type == PINMUX_LCD_SEL_PARALLE_MI_9BITS) {
+			confl_detect += gpio_conflict_detect(DSIGPIO_0, 11, func_LCD);
+			confl_detect += gpio_conflict_detect(LGPIO_1, 1, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_2;
+				top_reg4.bit.MEMIF_SEL = MUX_0;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_1;
+				top_reg_lgpio0.bit.LGPIO_1 = GPIO_ID_EMUM_FUNC;
+
+				top_reg_dsigpio0.bit.DSIGPIO_0 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_1 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_2 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_5 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_7 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_9 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_10 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(DSIGPIO_0, 11, func_LCD);
+			gpio_func_keep(LGPIO_1, 1, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE_ENABLE) {
+				confl_detect += gpio_conflict_detect(LGPIO_9, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_lgpio0.bit.LGPIO_9 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(LGPIO_9, 1, func_LCD);
+			}
+
+		} else if (pinmux_type == PINMUX_LCD_SEL_PARALLE_MI_16BITS) {
+			confl_detect += gpio_conflict_detect(DSIGPIO_0, 11, func_LCD);
+			confl_detect += gpio_conflict_detect(LGPIO_1, 8, func_LCD);
+			if (confl_detect > 0) {
+				return E_PAR;
+			}
+			if(!check_flag){
+				top_reg4.bit.MEMIF_TYPE = MUX_2;
+				top_reg4.bit.MEMIF_SEL = MUX_0;
+				top_reg4.bit.PMEMIF_DATA_WIDTH = MUX_2;
+				top_reg_dsigpio0.bit.DSIGPIO_0 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_1 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_2 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_5 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_7 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_9 = GPIO_ID_EMUM_FUNC;
+				top_reg_dsigpio0.bit.DSIGPIO_10 = GPIO_ID_EMUM_FUNC;
+
+				top_reg_lgpio0.bit.LGPIO_1 = GPIO_ID_EMUM_FUNC;
+				top_reg_lgpio0.bit.LGPIO_2 = GPIO_ID_EMUM_FUNC;
+				top_reg_lgpio0.bit.LGPIO_3 = GPIO_ID_EMUM_FUNC;
+				top_reg_lgpio0.bit.LGPIO_4 = GPIO_ID_EMUM_FUNC;
+				top_reg_lgpio0.bit.LGPIO_5 = GPIO_ID_EMUM_FUNC;
+				top_reg_lgpio0.bit.LGPIO_6 = GPIO_ID_EMUM_FUNC;
+				top_reg_lgpio0.bit.LGPIO_7 = GPIO_ID_EMUM_FUNC;
+				top_reg_lgpio0.bit.LGPIO_8 = GPIO_ID_EMUM_FUNC;
+			}
+			gpio_func_keep(LGPIO_1, 8, func_LCD);
+			gpio_func_keep(DSIGPIO_0, 11, func_LCD);
+
+			if (config & PINMUX_LCD_SEL_TE_ENABLE) {
+				confl_detect += gpio_conflict_detect(LGPIO_9, 1, func_LCD);
+				if (confl_detect > 0) {
+					return E_PAR;
+				}
+				if(!check_flag){
+					top_reg4.bit.MEMIF_TE_SEL = MUX_1;
+					top_reg_lgpio0.bit.LGPIO_9 = GPIO_ID_EMUM_FUNC;
+				}
+				gpio_func_keep(LGPIO_9, 1, func_LCD);
+			}
+		}
+
 	} else {
 		confl_detect = 0;
 
@@ -5302,83 +5737,6 @@ ER pinmux_parsing_i2c(uint32_t config)
 }
 #endif
 
-static int pinmux_config_weigand(uint32_t config)
-{
-	if (config == PIN_WG_CFG_NONE) {
-	} else {
-		confl_detect = 0;
-
-		if (config & PIN_WG_CFG_WG_1) {
-
-			confl_detect += gpio_conflict_detect(DSIGPIO_6, 2, func_WG_1);
-			if (confl_detect > 0) {
-				return E_PAR;
-			}
-			if(!check_flag){
-				top_reg11.bit.SPI_WG = MUX_1;
-				top_reg_dsigpio0.bit.DSIGPIO_6 = GPIO_ID_EMUM_FUNC;
-				top_reg_dsigpio0.bit.DSIGPIO_7 = GPIO_ID_EMUM_FUNC;
-			}
-			gpio_func_keep(DSIGPIO_6, 2, func_WG_1);
-		} else if (config & PIN_WG_CFG_WG_2) {
-
-			confl_detect += gpio_conflict_detect(DGPIO_3, 2, func_WG_2);
-			if (confl_detect > 0) {
-				return E_PAR;
-			}
-			if(!check_flag){
-				top_reg11.bit.SPI_WG = MUX_2;
-				top_reg_dgpio0.bit.DGPIO_3 = GPIO_ID_EMUM_FUNC;
-				top_reg_dgpio0.bit.DGPIO_4 = GPIO_ID_EMUM_FUNC;
-			}
-			gpio_func_keep(DGPIO_3, 2, func_WG_2);
-		} else if (config & PIN_WG_CFG_WG_3) {
-
-			confl_detect += gpio_conflict_detect(DSIGPIO_0, 2, func_WG_3);
-			if (confl_detect > 0) {
-				return E_PAR;
-			}
-			if(!check_flag){
-				top_reg11.bit.SPI_WG = MUX_3;
-				top_reg_dsigpio0.bit.DSIGPIO_0 = GPIO_ID_EMUM_FUNC;
-				top_reg_dsigpio0.bit.DSIGPIO_1 = GPIO_ID_EMUM_FUNC;
-			}
-			gpio_func_keep(DSIGPIO_0, 2, func_WG_3);
-		} else if (config & PIN_WG_CFG_WG_4) {
-
-			confl_detect += gpio_conflict_detect(DSIGPIO_3, 1, func_WG_4);
-			confl_detect += gpio_conflict_detect(DSIGPIO_8, 1, func_WG_4);
-			if (confl_detect > 0) {
-				return E_PAR;
-			}
-			if(!check_flag){
-				top_reg11.bit.SPI_WG = MUX_4;
-				top_reg_dsigpio0.bit.DSIGPIO_3 = GPIO_ID_EMUM_FUNC;
-				top_reg_dsigpio0.bit.DSIGPIO_8 = GPIO_ID_EMUM_FUNC;
-			}
-			gpio_func_keep(DSIGPIO_3, 1, func_WG_4);
-			gpio_func_keep(DSIGPIO_8, 1, func_WG_4);
-		} else if (config & PIN_WG_CFG_WG_5) {
-
-			confl_detect += gpio_conflict_detect(PGPIO_21, 2, func_WG_5);
-			if (confl_detect > 0) {
-				return E_PAR;
-			}
-			if(!check_flag){
-				top_reg11.bit.SPI_WG = MUX_5;
-				top_reg_pgpio0.bit.PGPIO_21 = GPIO_ID_EMUM_FUNC;
-				top_reg_pgpio0.bit.PGPIO_22 = GPIO_ID_EMUM_FUNC;
-			}
-			gpio_func_keep(PGPIO_21, 2, func_WG_5);
-		}
-	}
-
-	return E_OK;
-
-}
-
-
-
 typedef int (*PINMUX_CONFIG_HDL)(uint32_t);
 static PINMUX_CONFIG_HDL pinmux_config_hdl[] = {
 	pinmux_config_sdio,
@@ -5820,6 +6178,768 @@ uint32_t nvt_get_chip_id(void)
 EXPORT_SYMBOL(nvt_get_chip_id);
 #endif
 
+int top_i2c_en_bit_get(int i2c_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val)
+{
+	PIN_GROUP_CONFIG pinmux_config[1];
+	int ret = 0;
+
+	// Update current pinmux enum, but no setting
+	pinmux_config[0].pin_function = PIN_FUNC_I2C;
+	ret = nvt_pinmux_capture(pinmux_config, 1);
+	if (ret)
+		pr_err("get pinmux config failed\n");
+
+
+	printk("%s g_i2c_config is 0x%x\n", __func__, g_i2c_config);
+
+	ret = 1; // for default cnt is 1
+	//if (strcmp(name, "i2c")) {
+	if (i2c_id == 0) {
+		printk("i2c\n");
+		*p_addr = IOADDR_TOP_REG_BASE + TOP_REG5_OFS;
+		*start_bit = 0;
+		*end_bit = 1;
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C_1:
+				*p_val = 1;
+				break;
+			case  PIN_I2C_CFG_I2C_2:
+				*p_val = 2;
+				break;
+			case  PIN_I2C_CFG_I2C_3:
+				*p_val = 3;
+				break;
+			default:
+				pr_err("dtsi not setting i2c\n");
+				ret = 1;
+				break;
+		}
+
+	} else if (i2c_id == 1) {
+		printk("i2c2\n");
+		*p_addr = IOADDR_TOP_REG_BASE + TOP_REG5_OFS;
+		*start_bit = 4;
+		*end_bit = 5;
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C2_1:
+				*p_val = 1;
+				break;
+			case  PIN_I2C_CFG_I2C2_2:
+				*p_val = 2;
+				break;
+			case  PIN_I2C_CFG_I2C2_3:
+				*p_val = 3;
+				break;
+			default:
+				pr_err("dtsi not setting i2c2\n");
+				ret = 1;
+				break;
+		}
+
+	} else if (i2c_id == 2) {
+		printk("i2c3\n");
+		*p_addr = IOADDR_TOP_REG_BASE + TOP_REG5_OFS;
+		*start_bit = 27;
+		*end_bit = 29;
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C3_1:
+				*p_val = 1;
+				break;
+			case  PIN_I2C_CFG_I2C3_2:
+				*p_val = 2;
+				break;
+			case  PIN_I2C_CFG_I2C3_3:
+				*p_val = 3;
+				break;
+			case  PIN_I2C_CFG_I2C3_4:
+				*p_val = 4;
+				break;
+			case  PIN_I2C_CFG_I2C3_5:
+				*p_val = 5;
+				break;
+			case  PIN_I2C_CFG_I2C3_6:
+				*p_val = 6;
+				break;
+			default:
+				pr_err("dtsi not setting i2c3\n");
+				ret = 1;
+				break;
+		}
+
+	}  else {
+		printk("error i2c id");
+		ret = 1;
+	}
+
+	return ret;
+}
+
+int top_i2c_func_bit_get(int i2c_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val)
+{
+	PIN_GROUP_CONFIG pinmux_config[1];
+	int ret = 0;
+
+	// Update current pinmux enum, but no setting
+	pinmux_config[0].pin_function = PIN_FUNC_I2C;
+	ret = nvt_pinmux_capture(pinmux_config, 1);
+	if (ret)
+		pr_err("get pinmux config failed\n");
+
+	ret = 1; // for default cnt is 1
+
+	printk("%s g_i2c_config is 0x%x\n", __func__, g_i2c_config);
+
+	if (i2c_id == 0) {
+		printk("i2c func\n");
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 7;
+				*end_bit = 8;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGHSIGPIO0_OFS;
+				*start_bit = 9;
+				*end_bit = 10;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C_3:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDGPIO0_OFS;
+				*start_bit = 3;
+				*end_bit = 4;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("[func]dtsi not setting i2c\n");
+				ret = 1;
+				break;
+		}
+
+	} else if (i2c_id == 1) {
+		printk("i2c2_func\n");
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C2_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 4;
+				*end_bit = 5;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C2_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGCGPIO0_OFS;
+				*start_bit = 19;
+				*end_bit = 20;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C2_3:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDGPIO0_OFS;
+				*start_bit = 3;
+				*end_bit = 4;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("[func]dtsi not setting i2c2\n");
+				ret = 1;
+				break;
+		}
+
+	} else if (i2c_id == 2) {
+		printk("i2c3_func\n");
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C3_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGPGPIO0_OFS;
+				*start_bit = 21;
+				*end_bit = 22;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGCGPIO0_OFS;
+				*start_bit = 13;
+				*end_bit = 14;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_3:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDSIGPIO0_OFS;
+				*start_bit = 8;
+				*end_bit = 9;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_4:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDSIGPIO0_OFS;
+				*start_bit = 0;
+				*end_bit = 1;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_5:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGPGPIO0_OFS;
+				*start_bit = 0;
+				*end_bit = 1;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_6:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGHSIGPIO0_OFS;
+				*start_bit = 7;
+				*end_bit = 8;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("[func]dtsi not setting i2c3\n");
+				ret = 1;
+				break;
+		}
+
+	} else {
+		printk("[func]error i2c id");
+		ret = 1;
+	}
+
+	return ret;
+}
+
+int top_i2c_pad_bit_get(int i2c_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val)
+{
+	PIN_GROUP_CONFIG pinmux_config[1];
+	int ret;
+
+	// Update current pinmux enum, but no setting
+	pinmux_config[0].pin_function = PIN_FUNC_I2C;
+	ret = nvt_pinmux_capture(pinmux_config, 1);
+	if (ret)
+		pr_err("get pinmux config failed\n");
+
+	printk("%s g_i2c_config is 0x%x\n", __FUNCTION__, g_i2c_config);
+
+	ret = 1; // for default cnt is 1
+	if (i2c_id == 0) {
+		printk("[PAD] i2c\n");
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C_1:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD5_REG_OFS;
+				*start_bit = 14;
+				*end_bit = 17;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C_2:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD6_REG_OFS;
+				*start_bit = 18;
+				*end_bit = 21;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C_3:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD4_REG_OFS;
+				*start_bit = 6;
+				*end_bit = 9;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("[PAD]dtsi not setting i2c\n");
+				ret = -1;
+				break;
+		}
+
+	} else if (i2c_id == 1) {
+		printk("[PAD] i2c2\n");
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C2_1:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD5_REG_OFS;
+				*start_bit = 8;
+				*end_bit = 11;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C2_2:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD0_REG_OFS;
+				*start_bit = 6;
+				*end_bit = 9;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C2_3:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD4_REG_OFS;
+				*start_bit = 6;
+				*end_bit = 9;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("[PAD]dtsi not setting i2c2\n");
+				ret = -1;
+				break;
+		}
+
+	} else if (i2c_id == 2) {
+		printk("[PAD] i2c3\n");
+
+		switch(g_i2c_config) {
+			case  PIN_I2C_CFG_I2C3_1:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD3_REG_OFS;
+				*start_bit = 10;
+				*end_bit = 13;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_2:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD0_REG_OFS;
+				*start_bit = 26;
+				*end_bit = 29;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_3:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD7_REG_OFS;
+				*start_bit = 18;
+				*end_bit = 21;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_4:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD7_REG_OFS;
+				*start_bit = 0;
+				*end_bit = 3;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_5:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD2_REG_OFS;
+				*start_bit = 0;
+				*end_bit = 3;
+				*p_val = 0;
+				break;
+			case  PIN_I2C_CFG_I2C3_6:
+				*p_addr = IOADDR_PAD_REG_BASE + PAD_PUPD6_REG_OFS;
+				*start_bit = 14;
+				*end_bit = 17;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("[PAD]dtsi not setting i2c3\n");
+				ret = -1;
+				break;
+		}
+
+	}  else {
+		printk("[PAD]error i2c id");
+		ret = -1;
+	}
+
+	return ret;
+}
+
+#define TOP_SN_MCLK_REG_BASE IOADDR_TOP_REG_BASE + TOP_REG3_OFS
+#define TOP_FLASH_TRIGA_REG_BASE IOADDR_TOP_REG_BASE + TOP_REG1_OFS
+#define TOP_ME_SHUT_REG_BASE IOADDR_TOP_REG_BASE + TOP_REG1_OFS
+
+int top_senmisc_en_bit_get(int senmisc_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val)
+{
+	PIN_GROUP_CONFIG pinmux_config[1];
+	int ret;
+
+	// Update current pinmux enum, but no setting
+	pinmux_config[0].pin_function = PIN_FUNC_SENSORMISC;
+	ret = nvt_pinmux_capture(pinmux_config, 1);
+	if (ret)
+		pr_err("get pinmux config failed\n");
+
+
+	printk("%s g_senmisc_config is 0x%x\n", __FUNCTION__, g_senmisc_config);
+
+	ret = 1; // for default cnt is 1
+
+	if (senmisc_id == 0) {
+		printk("[enable] SN_MCLK\n");
+		*p_addr = TOP_SN_MCLK_REG_BASE;
+		*start_bit = 8;
+		*end_bit = 9;
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN_MCLK_1:
+				*p_val = 1;
+				break;
+			case  PIN_SENSORMISC_CFG_SN_MCLK_2:
+				*p_val = 2;
+				break;
+			case  PIN_SENSORMISC_CFG_SN_MCLK_3:
+				*p_val = 3;
+				break;
+			default:
+				pr_err("dtsi not setting SN_MCLK\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 1) {
+		printk("[enable] SN2_MCLK\n");
+		*p_addr = TOP_SN_MCLK_REG_BASE;
+		*start_bit = 12;
+		*end_bit = 13;
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN2_MCLK_1:
+				*p_val = 1;
+				break;
+			case  PIN_SENSORMISC_CFG_SN2_MCLK_2:
+				*p_val = 2;
+				break;
+			default:
+				pr_err("dtsi not setting SN2_MCLK\n");
+				ret = -1;
+				break;
+		}
+
+	} else if (senmisc_id == 2) {
+		printk("[enable] SN3_MCLK\n");
+		*p_addr = TOP_SN_MCLK_REG_BASE;
+		*start_bit = 16;
+		*end_bit = 17;
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN3_MCLK_1:
+				*p_val = 1;
+				break;
+			case  PIN_SENSORMISC_CFG_SN3_MCLK_2:
+				*p_val = 2;
+				break;
+			case  PIN_SENSORMISC_CFG_SN3_MCLK_3:
+				*p_val = 3;
+				break;
+			default:
+				pr_err("dtsi not setting SN3_MCLK\n");
+				ret = -1;
+				break;
+		}
+
+	} else if (senmisc_id == 3) {
+		printk("[enable] SN_XVSXHS\n");
+		*p_addr = TOP_SN_MCLK_REG_BASE;
+		*start_bit = 25;
+		*end_bit = 26;
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN_XVSXHS_1:
+				*p_val = 1;
+				break;
+			case  PIN_SENSORMISC_CFG_SN_XVSXHS_2:
+				*p_val = 2;
+				break;
+			default:
+				pr_err("dtsi not setting SN_XVSXHS\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 4) {
+		printk("[enable] SN2_XVSXHS\n");
+		*p_addr = TOP_SN_MCLK_REG_BASE;
+		*start_bit = 27;
+		*end_bit = 28;
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN2_XVSXHS_1:
+				*p_val = 1;
+				break;
+			default:
+				pr_err("dtsi not setting SN2_XVSXHS\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 5) {
+		printk("[enable] FLASH_TRIGA\n");
+		*p_addr = TOP_FLASH_TRIGA_REG_BASE;
+		*start_bit = 9;
+		*end_bit = 10;
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_FLASH_TRIGA_IN_1:
+				*p_val = 1;
+				break;
+			case  PIN_SENSORMISC_CFG_FLASH_TRIGA_IN_2:
+				*p_val = 2;
+				break;
+			default:
+				pr_err("dtsi not setting FLASH_TRIGA\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 6) {
+		printk("[enable] ME_SHUT_IN\n");
+		*p_addr = TOP_ME_SHUT_REG_BASE;
+		*start_bit = 5;
+		*end_bit = 6;
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_ME_SHUT_IN_1:
+				*p_val = 1;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_IN_2:
+				*p_val = 2;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_IN_3:
+				*p_val = 3;
+				break;
+			default:
+				pr_err("dtsi not setting ME_SHUT_IN\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 7) {
+		printk("[enable] ME_SHUT_OUT\n");
+		*p_addr = TOP_ME_SHUT_REG_BASE;
+		*start_bit = 7;
+		*end_bit = 8;
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_ME_SHUT_OUT_1:
+				*p_val = 1;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_OUT_2:
+				*p_val = 2;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_OUT_3:
+				*p_val = 3;
+				break;
+			default:
+				pr_err("dtsi not setting ME_SHUT_OUT\n");
+				ret = -1;
+				break;
+		}
+	} else {
+		printk("error senmisc id");
+		ret = -1;
+
+	}
+
+	return ret;
+}
+
+//sensermisc_id : {0~10} = {SN_MCLK, SN2_MCLK, SN3_MCLK, SN_XVSXHS, SN2_XVSXHS, FLASH_TRIGA, ME_SHUT_IN, ME_SHUT_OUT, PR_SN_MCLK, CFG_SRAM, CFG_SRAM_SIO}
+int top_senmisc_func_bit_get(int senmisc_id, unsigned long *p_addr,  unsigned int *start_bit, unsigned int *end_bit,  unsigned int *p_val)
+{
+	PIN_GROUP_CONFIG pinmux_config[1];
+	int ret;
+
+	// Update current pinmux enum, but no setting
+	pinmux_config[0].pin_function = PIN_FUNC_SENSORMISC;
+	ret = nvt_pinmux_capture(pinmux_config, 1);
+	if (ret)
+		pr_err("get pinmux config failed\n");
+
+
+	printk("%s g_senmisc_config is 0x%x\n", __FUNCTION__, g_senmisc_config);
+
+	ret = 1; // for default cnt is 1
+
+	if (senmisc_id == 0) {
+		printk("[enable] SN_MCLK\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN_MCLK_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 0;
+				*end_bit = 0;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_SN_MCLK_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGHSIGPIO0_OFS;
+				*start_bit = 11;
+				*end_bit = 11;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_SN_MCLK_3:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDGPIO0_OFS;
+				*start_bit = 5;
+				*end_bit = 5;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("dtsi not setting SN_MCLK\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 1) {
+		printk("[enable] SN2_MCLK\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN2_MCLK_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 1;
+				*end_bit = 1;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_SN2_MCLK_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 8;
+				*end_bit = 8;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("dtsi not setting SN2_MCLK\n");
+				ret = -1;
+				break;
+		}
+
+	} else if (senmisc_id == 2) {
+		printk("[enable] SN3_MCLK\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN3_MCLK_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGPGPIO0_OFS;
+				*start_bit = 12;
+				*end_bit = 12;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_SN3_MCLK_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGPGPIO0_OFS;
+				*start_bit = 21;
+				*end_bit = 21;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_SN3_MCLK_3:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 3;
+				*end_bit = 3;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("dtsi not setting SN3_MCLK\n");
+				ret = -1;
+				break;
+		}
+
+	} else if (senmisc_id == 3) {
+		printk("[enable] SN_XVSXHS\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN_XVSXHS_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 2;
+				*end_bit = 3;
+				*p_val = 0xA;
+				break;
+			case  PIN_SENSORMISC_CFG_SN_XVSXHS_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGHSIGPIO0_OFS;
+				*start_bit = 7;
+				*end_bit = 8;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("dtsi not setting SN_XVSXHS\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 4) {
+		printk("[enable] SN2_XVSXHS\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_SN2_XVSXHS_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGSGPIO0_OFS;
+				*start_bit = 4;
+				*end_bit = 5;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("dtsi not setting SN2_XVSXHS\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 5) {
+		printk("[enable] FLASH_TRIGA\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_FLASH_TRIGA_IN_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGCGPIO0_OFS;
+				*start_bit = 23;
+				*end_bit = 24;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_FLASH_TRIGA_IN_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDSIGPIO0_OFS;
+				*start_bit = 3;
+				*end_bit = 4;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("dtsi not setting FLASH_TRIGA\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 6) {
+		printk("[enable] ME_SHUT_IN\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_ME_SHUT_IN_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGCGPIO0_OFS;
+				*start_bit = 20;
+				*end_bit = 20;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_IN_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDSIGPIO0_OFS;
+				*start_bit = 0;
+				*end_bit = 0;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_IN_3:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGPGPIO0_OFS;
+				*start_bit = 21;
+				*end_bit = 21;
+				*p_val = 0;
+				break;
+			default:
+				pr_err("dtsi not setting ME_SHUT_IN\n");
+				ret = -1;
+				break;
+		}
+	} else if (senmisc_id == 7) {
+		printk("[enable] ME_SHUT_OUT\n");
+
+		switch(g_senmisc_config) {
+			case  PIN_SENSORMISC_CFG_ME_SHUT_OUT_1:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGCGPIO0_OFS;
+				*start_bit = 21;
+				*end_bit = 22;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_OUT_2:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDSIGPIO0_OFS;
+				*start_bit = 1;
+				*end_bit = 2;
+				*p_val = 0;
+				break;
+			case  PIN_SENSORMISC_CFG_ME_SHUT_OUT_3:
+				*p_addr = IOADDR_TOP_REG_BASE + TOP_REGDSIGPIO0_OFS;
+				*start_bit = 5;
+				*end_bit = 5;
+				*p_val = 0;
+
+				*(p_addr + 1) = IOADDR_TOP_REG_BASE + TOP_REGPGPIO0_OFS;
+				*(start_bit + 1) = 22;
+				*(end_bit + 1) = 22;
+				*(p_val + 1) = 0;
+				ret = 2;
+
+				break;
+			default:
+				pr_err("dtsi not setting ME_SHUT_OUT\n");
+				ret = -1;
+				break;
+		}
+	} else {
+		printk("error senmisc id");
+		ret = -1;
+
+	}
+
+	return ret;
+}
+
+struct nvt_pinctrl_info info_sram_sel[1] = {0};
+INT32 top_gzip_sram_sel(GZIP_SRAM_SEL sram_sel)
+{
+	union TOP_REG8         top_reg8;
+
+	if (top_reg_addr) {
+		info_sram_sel->top_base = (void *)top_reg_addr;
+		top_reg8.reg = TOP_GETREG(info_sram_sel, TOP_REG8_OFS);
+		top_reg8.bit.GZIP_SRAM_OWNER = sram_sel;
+		TOP_SETREG(info_sram_sel, TOP_REG8_OFS, top_reg8.reg);
+	} else {
+		pr_err("invalid pinmux address\n");
+		return -E_NOMEM;
+	}
+	return E_OK;
+}
+
 // struct nvt_pinctrl_info info_get_id[1] = {0};
 // UINT32 nvt_get_chip_id(void)
 // {
@@ -5879,23 +6999,6 @@ EXPORT_SYMBOL(nvt_get_chip_id);
 // 			top_reg8.bit.FAST_BOOT_GZIP_DIRMODE_EN = 0;
 // 		}
 // 		TOP_SETREG(info_direct_mode, TOP_REG8_OFS, top_reg8.reg);
-// 	} else {
-// 		pr_err("invalid pinmux address\n");
-// 		return -E_NOMEM;
-// 	}
-// 	return E_OK;
-// }
-
-// struct nvt_pinctrl_info info_sram_sel[1] = {0};
-// INT32 top_gzip_sram_sel(GZIP_SRAM_SEL sram_sel)
-// {
-// 	union TOP_REG8         top_reg8;
-
-// 	if (top_reg_addr) {
-// 		info_sram_sel->top_base = top_reg_addr;
-// 		top_reg8.reg = TOP_GETREG(info_sram_sel, TOP_REG8_OFS);
-// 		top_reg8.bit.GZIP_SRAM_OWNER = sram_sel;
-// 		TOP_SETREG(info_sram_sel, TOP_REG8_OFS, top_reg8.reg);
 // 	} else {
 // 		pr_err("invalid pinmux address\n");
 // 		return -E_NOMEM;

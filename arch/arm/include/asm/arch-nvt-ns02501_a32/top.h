@@ -661,6 +661,18 @@ typedef struct {
 	UINT32      config;                 ///< Configuration for pinFunction
 } PIN_GROUP_CONFIG;
 
+/**
+    GZIP SRAM owner
+
+    @note For FASTBOOT_DIR_MODE_SEL_ENUM
+*/
+typedef enum {
+	GZIP_SRAM_GZ            = 0x0,      //< GZIP sram owner = GZip
+	GZIP_SRAM_MCU           = 0x1,      //< GZIP sram owner = MCU
+	GZIP_SRAM_AUDIO         = 0x2,      //< GZIP sram owner = Audio
+	ENUM_DUMMY4WORD(GZIP_SRAM_SEL)
+} GZIP_SRAM_SEL;
+
 int nvt_pinmux_capture(PIN_GROUP_CONFIG *pinmux_config, int count);
 int nvt_pinmux_update(PIN_GROUP_CONFIG *pinmux_config, int count);
 int pinmux_set_config(PINMUX_FUNC_ID id, uint32_t pinmux);
@@ -672,5 +684,6 @@ PINMUX_LCDINIT pinmux_get_dispmode(PINMUX_FUNC_ID id);
 int nvt_pinmux_init(void);
 int pinmux_select_debugport(PINMUX_DEBUGPORT uiDebug);
 UINT32 top_get_bs(void);
+extern INT32 top_gzip_sram_sel(GZIP_SRAM_SEL sram_sel);
 
 #endif

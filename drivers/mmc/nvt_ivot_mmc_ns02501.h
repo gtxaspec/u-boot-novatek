@@ -368,7 +368,7 @@
 
 static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
 {
-	return 0x7;
+	return 0x2C;
 }
 
 static inline uint32_t nvt_mmc_get_outdly(uint8_t host_id, uint32_t freq)

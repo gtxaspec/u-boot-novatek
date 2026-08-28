@@ -388,12 +388,13 @@ static int nvt_emmc_set_bootbus(void)
 		bus_width = 1; // 4 bit
 		nvt_dbg(MSG, "Set EMMC boot bus to 4-bit mode\n");
 	}
-
 	sprintf(command, "mmc bootbus %d %d 0 0", CONFIG_NVT_IVOT_EMMC, bus_width);
 	ret = run_command(command, 0);
-	if (ret < 0){
+	if (ret != 0) {
 		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
 	}
+
 	return ret;
 }
 
@@ -405,15 +406,35 @@ static int nvt_emmc_init(void)
 	/* Switch to emmc bus and user partition access config */
 	sprintf(command, "mmc dev %d", CONFIG_NVT_IVOT_EMMC);
 	ret = run_command(command, 0);
-	if (ret < 0)
-		return ret;
+	if (ret != 0) {
+		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
+	}
 
 	ret = nvt_emmc_set_bootbus();
 	if (ret < 0)
 		return ret;
 
-	sprintf(command, "mmc partconf %d 1 %d 0", CONFIG_NVT_IVOT_EMMC, CONFIG_NVT_IVOT_EMMC_BOOT_PART);
+	sprintf(command, "mmc partconf %d 1 1 0", CONFIG_NVT_IVOT_EMMC);
 	ret = run_command(command, 0);
+	if (ret != 0) {
+		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
+	}
+
+	sprintf(command, "mmc rst %d 1", CONFIG_NVT_IVOT_EMMC);
+	ret = run_command(command, 0);
+	if (ret != 0) {
+		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
+	}
+
+	sprintf(command, "nvt_print_ext_csd %d", CONFIG_NVT_IVOT_EMMC);
+	ret = run_command(command, 0);
+	if (ret != 0) {
+		nvt_dbg(ERR, "command : [%s] failed\n", command);
+		cli_loop();
+	}
 
 	return ret;
 }

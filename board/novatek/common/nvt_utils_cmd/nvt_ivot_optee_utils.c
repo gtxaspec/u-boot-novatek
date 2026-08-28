@@ -54,18 +54,14 @@ static int nvt_sample_send_fast(void)
 	struct TEST_DATA {
 		char test_intput[10];
 	};
-	unsigned long shm_size = 0;
-	unsigned long shm_addr = 0;
-	if (nvt_dts_optee_nsmem(&shm_addr, &shm_size) != 0) {
-		printf("parsing share memory fail\r\n");
-		return -1;
-	}
+	unsigned long shm_addr = nvt_memory_cfg[MEMTYPE_NSMEM].addr;
+	unsigned long shm_size = nvt_memory_cfg[MEMTYPE_NSMEM].size;
 	struct TEST_DATA *driver_data = (struct TEST_DATA *)shm_addr;
 	sprintf(driver_data->test_intput, "hello~~\n");
 	//a0: for smc cmd,   a2: for share memory , others not use
 	__arm_smccc_smc(NVT_HELLO_WORD, 0x00, shm_addr, 0x00, 0x00, 0x00, 0x00, 0x00, &return_val, NULL);
 	printf("intput data:%s\n", driver_data->test_intput);
-	printf("return value :%x %x %x %x\n", return_val.a0, return_val.a1, return_val.a2, return_val.a3);
+	printf("return value :%lx %lx %lx %lx\n", return_val.a0, return_val.a1, return_val.a2, return_val.a3);
 
 	return 0;
 }

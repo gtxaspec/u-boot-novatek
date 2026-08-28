@@ -48,11 +48,11 @@
 #define PIN_SDIO_CFG_SDIO_1             0x1         ///< SDIO  (C_GPIO[13..18])
 
 #define PIN_SDIO_CFG_SDIO2_1            0x10        ///< SDIO2_1 (C_GPIO[19..24])
-#define PIN_SDIO_CFG_SDIO2_2            0x20        ///< SDIO2_2 (P_GPIO[2..7])
+#define PIN_SDIO_CFG_SDIO2_2            0x20        ///< SDIO2_2 (S_GPIO[0..3] S_GPIO[7..8])
 #define PIN_SDIO_CFG_SDIO2_3            0x40        ///< SDIO2_2 (DSI_GPIO[2..7])
 
 #define PIN_SDIO_CFG_SDIO3_1            0x100       ///< SDIO3 (C_GPIO[0..3] C_GPIO[10] C_GPIO[11])
-#define PIN_SDIO_CFG_SDIO3_BUS_WIDTH    0x200       ///< SDIO3 bus width 8 bits (C_GPIO[0..7])
+#define PIN_SDIO_CFG_SDIO3_BUS_WIDTH    0x200       ///< SDIO3 bus width 8 bits (C_GPIO[4..7])
 #define PIN_SDIO_CFG_SDIO3_DS           0x400       ///< SDIO3 data strobe      (C_GPIO[8])
 
 // compatible with na51090, na51103
@@ -60,7 +60,7 @@
 #define PIN_SDIO2_CFG_1ST_PINMUX        PIN_SDIO_CFG_SDIO2_1
 
 
-#define PIN_SDIO_CFG_MASK(host_id)   (0xF << host_id)
+#define PIN_SDIO_CFG_MASK(host_id)   (0xF << (4 * host_id))
 
 /**
     PIN config for NAND
@@ -82,7 +82,7 @@
 */
 #define PIN_ETH_CFG_NONE                0x0
 
-#define PIN_ETH_CFG_ETH_RMII_1          0x1          ///< ETH_RMII_1   (DSI_GPIO[2..5] DSI_GPIO[8..10])
+#define PIN_ETH_CFG_ETH_RMII_1          0x1          ///< ETH_RMII_1   (DSI_GPIO[2..5] DSI_GPIO[7..9])
 #define PIN_ETH_CFG_ETH_RMII_2          0x2          ///< ETH_RMII_2   (P_GPIO[0..5] P_GPIO[8])
 
 #define PIN_ETH_CFG_ETH_LED_1           0x10         ///< ETH_LED_1    (D_GPIO[0] D_GPIO[1])
@@ -469,24 +469,8 @@
 #define PIN_MISC_CFG_SP2_CLK_3              0x4000        ///< SP2_CLK_3 (D_GPIO[4])
 
 #define PIN_MISC_CFG_CPU_ICE                0x10000000   ///< CPU_ICE   (D_GPIO[2..6])
-/*
-#define PIN_MISC_CFG_SATA_LED_1             0x1000       ///< SATA_LED_1 (D_GPIO[4])
-#define PIN_MISC_CFG_SATA2_LED_1            0x2000       ///< SATA2_LED_1	(D_GPIO[4])
 
 #define PIN_MISC_CFG_ADC                    0x100000     ///< ADC (A_GPIO[0..3])
-
-#define PIN_MISC_CFG_MIPI_MODE_SEL_1C4D     0x200000     ///< MIPI(DSI_GPIO[0..9])
-#define PIN_MISC_CFG_MIPI_MODE_SEL_1C2D     0x400000     ///< MIPI(DSI_GPIO[0..11])
-
-
-#define PIN_MISC_CFG_MIPI_CK0_SEL_DSI       0x1000000
-#define PIN_MISC_CFG_MIPI_CK0_SEL_CSI_TX    0x2000000
-
-#define PIN_MISC_CFG_MIPI_CK1_SEL_DSI       0x4000000
-#define PIN_MISC_CFG_MIPI_CK1_SEL_CSI_TX    0x8000000
-
-#define PIN_MISC_CFG_CPU_ICE                0x10000000   ///< CPU_ICE	(D_GPIO[10..14])
-*/
 
 /**
     PIN location of LCD
@@ -526,76 +510,70 @@
 #define PINMUX_LCD_SEL_GPIO                     0               ///< GPIO
 
 #define PINMUX_LCD_SEL_CCIR656                  1               ///< CCIR-656 8 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK (L_GPIO[0..8])
-                                                                ///< When PIN_FUNC_SEL_LCD2  CCIR_YC[0..7]/CCIR_CLK (L_GPIO[13..21])
+                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK (DSI_GPIO[0..10])
 
-#define PINMUX_LCD_SEL_CCIR656_16BITS           2               ///< CCIR-656 16 bits. CCIR_Y[0..7]/CCIR_CLK/CCIR_C[0..7] (L_GPIO[0..8] L_GPIO[9..16])
+#define PINMUX_LCD_SEL_CCIR656_16BITS           2               ///< CCIR-656 16 bits. CCIR_Y[0..7]/CCIR_CLK/CCIR_C[0..7] (DSI_GPIO[0..7] DSI_GPIO[10] L_GPIO[1..8])
 
 #define PINMUX_LCD_SEL_CCIR601                  3               ///< CCIR-601 8 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD (L_GPIO[0..10])
-                                                                ///< When PIN_FUNC_SEL_LCD2, CCIR_YC[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD/CCIR_FIELD (L_GPIO[13..23] L_GPIO[25])
+                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD (DSI_GPIO[0..10])
 
-#define PINMUX_LCD_SEL_CCIR601_16BITS           4               ///< CCIR-601 16 bits. CCIR_Y[0..7]/CCIR_CLK/CCIR_C[0..7]/CCIR_VD/CCIR_HD (L_GPIO[0..7] L_GPIO[8] L_GPIO[9..16] L_GPIO[17..18])
+#define PINMUX_LCD_SEL_CCIR601_16BITS           4               ///< CCIR-601 16 bits. CCIR_Y[0..7]/CCIR_CLK/CCIR_C[0..7]/CCIR_VD/CCIR_HD (DSI_GPIO[0..10] L_GPIO[1..8])
 
 #define PINMUX_LCD_SEL_SERIAL_RGB_6BITS         5               ///< Serial RGB 6 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  RGB_D[2..7]/RGB_CLK/RGB_VD/RGB_HD (L_GPIO[2..10])
-                                                                ///< When PIN_FUNC_SEL_LCD2  RGB_D[2..7]/RGB_CLK/RGB_VD/RGB_HD (L_GPIO[15..23])
+                                                                ///< When PIN_FUNC_SEL_LCD  RGB_D[2..7]/RGB_CLK/RGB_VD/RGB_HD (DSI_GPIO[2..10])
 
 #define PINMUX_LCD_SEL_SERIAL_RGB_8BITS         6               ///< Serial RGB 8 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  RGB_D[0..7]/RGB_CLK/RGB_VD/RGB_HD (L_GPIO[0..10])
-                                                                ///< When PIN_FUNC_SEL_LCD2  RGB_D[0..7]/RGB_CLK/RGB_VD/RGB_HD (L_GPIO[13..23])
+                                                                ///< When PIN_FUNC_SEL_LCD  RGB_D[0..7]/RGB_CLK/RGB_VD/RGB_HD (DSI_GPIO[0..10])
 
 #define PINMUX_LCD_SEL_SERIAL_YCbCr_8BITS       7               ///< Serial YCbCr 8 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD (L_GPIO[0..10])
-                                                                ///< When PIN_FUNC_SEL_LCD2  CCIR_YC[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD (L_GPIO[13..23])
+                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD (DSI_GPIO[0..10])
 
-#define PINMUX_LCD_SEL_PARALLE_RGB565           8               ///< Parallel RGB565. RGB_C0_[0..4]/RGB_DCLK/RGB_VS/RGB_HS/RGB_C1_[0..5]/RGB_C2_[0..4] (L_GPIO[0..8] L_GPIO[11..18])
+#define PINMUX_LCD_SEL_PARALLE_RGB565           8               ///< Parallel RGB565. RGB_C0_[0..4]/RGB_DCLK/RGB_VS/RGB_HS/RGB_C1_[0..5]/RGB_C2_[0..4] (DSI_GPIO[0..10] L_GPIO[1..8])
 
-#define PINMUX_LCD_SEL_PARALLE_RGB666           9               ///< Parallel RGB666. RGB_C0_[0..5]/RGB_DCLK/RGB_VS/RGB_HS/RGB_C1_[0..5]/RGB_C2_[0..5] (L_GPIO[2..8] L_GPIO[11..18] L_GPIO[22..27])
+#define PINMUX_LCD_SEL_PARALLE_RGB666           9               ///< Parallel RGB666. RGB_C0_[0..5]/RGB_DCLK/RGB_VS/RGB_HS/RGB_C1_[0..5]/RGB_C2_[0..5] (DSI_GPIO[0..10] L_GPIO[1..9] P_GPIO[8..9] )
 
 #define PINMUX_LCD_SEL_PARALLE_RGB888           10              ///< Parallel RGB888. RGB_C0_[0..7]/RGB_DCLK/RGB_VS/RGB_HS/RGB_C1_[0..7]/RGB_C2_[0..7] (L_GPIO[0..18] L_GPIO[20..27])
 
-#define PINMUX_LCD_SEL_RGB_16BITS               11              ///< RGB 16 bits. CCIR_Y[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD/CCIR_C[0..7] (L_GPIO[0..18])
+#define PINMUX_LCD_SEL_RGB_16BITS               11              ///< RGB 16 bits. CCIR_Y[0..7]/CCIR_CLK/CCIR_VD/CCIR_HD/CCIR_C[0..7] (DSI_GPIO[0..10] L_GPIO[1..8] )
 
 #define PINMUX_LCD_SEL_MIPI                     12              ///< MIPI DSI
 
 #define PINMUX_LCD_SEL_PARALLE_MI_8BITS         13              ///< Parallel MI 8 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  MPU_D[0..7]/MPU_CS/MPU_RS/MPU_WR/MPU_RD (L_GPIO[0..7] L_GPIO[8..11])
-                                                                ///< When PIN_FUNC_SEL_LCD2  MPU2_D[0..7]/MPU2_RS/MPU2_CS/MPU2_WR/MPU2_RD (L_GPIO[12..19] L_GPIO[21..24])
+                                                                ///< When PIN_FUNC_SEL_LCD  MPU_D[0..7]/MPU_CS/MPU_RS/MPU_WR/MPU_RD (DSI_GPIO[0..10])
 
 #define PINMUX_LCD_SEL_PARALLE_MI_9BITS         14              ///< Parallel MI 9 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  MPU_D[0..8]/MPU_CS/MPU_RS/MPU_WR/MPU_RD (L_GPIO[0..7][12] L_GPIO[8..11])
-                                                                ///< When PIN_FUNC_SEL_LCD2  MPU2_D[0..8]/MPU2_RS/MPU2_CS/MPU2_WR/MPU2_RD (L_GPIO[12..20] L_GPIO[21..24])
+                                                                ///< When PIN_FUNC_SEL_LCD  MPU_D[0..8]/MPU_CS/MPU_RS/MPU_WR/MPU_RD (DSI_GPIO[0..10] L_GPIO[1])
 
-#define PINMUX_LCD_SEL_PARALLE_MI_16BITS        15              ///< Parallel MI 16 bits. MPU_D[0..15]/MPU_CS/MPU_RS/MPU_WR/MPU_RD (L_GPIO[0..7][12..19] L_GPIO[8..11])
+#define PINMUX_LCD_SEL_PARALLE_MI_16BITS        15              ///< Parallel MI 16 bits. MPU_D[0..15]/MPU_CS/MPU_RS/MPU_WR/MPU_RD (DSI_GPIO[0..10] L_GPIO[1..8])
 
 #define PINMUX_LCD_SEL_PARALLE_MI_18BITS        16              ///< Parallel MI 18 bits. MPU_D[0..17]/MPU_CS/MPU_RS/MPU_WR/MPU_RD (L_GPIO[0..7][12..21] L_GPIO[8..11])
 
 #define PINMUX_LCD_SEL_SERIAL_MI_SDIO           17              ///< Serial MI SDIO bi-direction.
-                                                                ///< When PIN_FUNC_SEL_LCD  MPU_CLK/MPU_RS/MPU_CS/MPU_SDIO (L_GPIO[8..10] L_GPIO[7])
-                                                                ///< When PIN_FUNC_SEL_LCD2  MPU_CLK/MPU_RS/MPU_CS/MPU_SDIO (L_GPIO[15..17] L_GPIO[14])
+                                                                ///< When PIN_FUNC_SEL_LCD  MPU_CLK/MPU_RS/MPU_CS/MPU_SDIO (DSI_GPIO[2..5] DSI_GPIO[6])
 
 #define PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO        18              ///< Serial MI SDI/SDO seperate.
-                                                                ///< When PIN_FUNC_SEL_LCD  MPU_CLK/MPU_RS/MPU_CS/MPU_SDO/MPU_SDI (L_GPIO[8..10] L_GPIO[5..6])
-                                                                ///< When PIN_FUNC_SEL_LCD2  MPU_CLK/MPU_RS/MPU_CS/MPU_SDO/MPU_SDI (L_GPIO[15..17] L_GPIO[12..13])
-
+                                                                ///< When PIN_FUNC_SEL_LCD  MPU_CLK/MPU_RS/MPU_CS/MPU_SDO/MPU_SDI (DSI_GPIO[2..5] DSI_GPIO[0..1])
 
 #define PINMUX_LCD_SEL_CCIR656_2                19              ///< CCIR-656 8 bits.
-                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK (L_GPIO[0..8])
-                                                                ///< When PIN_FUNC_SEL_LCD2  CCIR_YC[0..7]/CCIR_CLK (L_GPIO[13..21])
+                                                                ///< When PIN_FUNC_SEL_LCD  CCIR_YC[0..7]/CCIR_CLK (DSI_GPIO[2..7] DSI_GPIO[10] P_GPIO[21..22])
 
+#define PINMUX_LCD_SEL_SERIAL_MI_SDIO2          20              ///< Serial MI SDIO bi-direction.
+                                                                ///< When PIN_FUNC_SEL_LCD  MPU_CLK/MPU_RS/MPU_CS/MPU_SDIO (P_GPIO[6..9] P_GPIO[10])
 
+#define PINMUX_LCD_SEL_SERIAL_MI_SDIO3          21              ///< Serial MI SDIO bi-direction.
+                                                                ///< When PIN_FUNC_SEL_LCD  MPU_CLK/MPU_RS/MPU_CS/MPU_SDIO (DSI_GPIO[2..5] DSI_GPIO[6])
+
+#define PINMUX_LCD_SEL_SERIAL_MI_SDI_SDO3       22              ///< Serial MI SDI/SDO seperate.
+                                                                ///< When PIN_FUNC_SEL_LCD  MPU_CLK/MPU_RS/MPU_CS/MPU_SDO/MPU_SDI (DSI_GPIO[2..5] P_GPIO[21..22])
 
 #define PINMUX_LCD_SEL_TE_ENABLE                (0x01 << 23)    ///< TE Enable.
                                                                 ///< When PIN_FUNC_SEL_LCD  DSI_TE (DSI_GPIO[12])
-                                                                ///< When PIN_FUNC_SEL_LCD2  DSI_TE (DSI_GPIO[13])
                                                                 ///< When PIN_FUNC_SEL_LCD and PARALLE_MI  MPU_TE (L_GPIO[11])
-                                                                ///< When PIN_FUNC_SEL_LCD2 and PARALLE_MI  MPU_TE (L_GPIO[18])
                                                                 ///< When PIN_FUNC_SEL_LCD and SERIAL_MI  MI_TE (L_GPIO[22])
-                                                                ///< When PIN_FUNC_SEL_LCD2 and SERIAL_MI  MI_TE (L_GPIO[25])
 
 #define PINMUX_LCD_SEL_TE2_ENABLE               (0x01 << 28)    ///< TE2 Enable.
 
+#define PINMUX_LCD_SEL_TE3_ENABLE               (0x01 << 31)    ///< TE3 Enable.
 
 #define PINMUX_LCD_SEL_DE_ENABLE                (0x01 << 24)    ///< DE Enable.
                                                                 ///< When PIN_FUNC_SEL_LCD  CCIR_DE  LCD_TYPE = 0x1~0x2(When CCIR_DATA_WIDTH = 1) LCD_TYPE = 0x3 and 0x7~0x8 and 0xA (L_GPIO[19])LCD_TYPE = 0x1~0x2(When CCIR_DATA_WIDTH = 0)LCD_TYPE = 0x4~0x6 (L_GPIO[11])
@@ -603,16 +581,16 @@
 
 
 #define PINMUX_LCD_SEL_HVLD_1                   (0x01 << 25)    ///< HVLD Enable (For CCIR-601 8 bits). CCIR_HVLD/CCIR_VVLD (L_GPIO[12..13])
-#define PINMUX_LCD_SEL_HVLD_2                   (0x01 << 22)
+#define PINMUX_LCD_SEL_HVLD_2                   (0x01 << 22)    ///< HVLD Enable (For CCIR-601 8 bits). CCIR_HVLD/CCIR_VVLD (DSI_GPIO[9])
 #define PINMUX_LCD_SEL_VVLD_1                   (0x01 << 29)    ///< VVLD Enable (For CCIR-601 8 bits). CCIR_HVLD/CCIR_VVLD (L_GPIO[12..13])
-#define PINMUX_LCD_SEL_VVLD_2                   (0x01 << 30)
+#define PINMUX_LCD_SEL_VVLD_2                   (0x01 << 30)    ///< VVLD Enable (For CCIR-601 8 bits). CCIR_HVLD/CCIR_VVLD (DSI_GPIO[8])
 
 
 #define PINMUX_LCD_SEL_FIELD                    (0x01 << 26)    ///< FIELD Enable (For CCIR-601). CCIR_FIELD: CCIR-601 8 bits(L_GPIO[14])  CCIR-601 16 bits(L_GPIO[20])
 
 #define PINMUX_LCD_SEL_NO_HVSYNC                (0x1 << 27)     ///< No HSYNC/VSYNC (backward compatible)
 
-#define PINMUX_LCD_SEL_FEATURE_MSK              (0x3F << 23)
+#define PINMUX_LCD_SEL_FEATURE_MSK              (0x1FF << 23)
 
 
 /********************** Pre-roll part ENUM **********************/

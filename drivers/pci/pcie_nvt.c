@@ -25,7 +25,7 @@
 #include "pcie_dw_common.h"
 #include "pcie_nvt.h"
 
-#define DRV_VERSION                     "1.01.04"
+#define DRV_VERSION                     "1.01.05"
 
 DECLARE_GLOBAL_DATA_PTR;
 

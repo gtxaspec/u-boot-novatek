@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier:	GPL-2.0+
 #
-KBUILD_CFLAGS := -fno-builtin -Werror -Iboard/$(BOARDDIR)/../common/include -fshort-wchar -Iinclude
+KBUILD_CFLAGS += -fno-stack-protector -fno-builtin -Iboard/$(BOARDDIR)/../common/include -fshort-wchar -Iinclude
 
 obj-$(CONFIG_NVT_IVOT_SOC) += nvt_ivot_common.o
 obj-$(CONFIG_NVT_IVOT_OPTEE_SUPPORT) += nvt_optee/nvt_optee_smc.o

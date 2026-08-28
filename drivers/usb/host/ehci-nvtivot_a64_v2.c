@@ -74,7 +74,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define TRIM_RESINT_UPPER 0x14
 #define TRIM_RESINT_LOWER 0x1
 
-#define DRV_VERSION                     "1.00.16"
+#define DRV_VERSION                     "1.00.17"
 
 static REGVALUE usb_getreg(unsigned long usbbase, unsigned long offset)
 {
@@ -704,6 +704,8 @@ static void nvtim_init_usbhc(int index)
 		tmpval = U2PHY_GETREG(MAP_PHY(0x08));
 		tmpval &= ~(0x7 << 3);
 		U2PHY_SETREG(MAP_PHY(0x08), tmpval);
+		// Provide the optimal resistance value according to HS/FS
+		U2PHY_SETREG(MAP_PHY(0x1a8), 0x18);
 		U2PHY_SETREG(MAP_PHY(0x180), 0x01);  // sw datarpusel = 0
 		U2PHY_SETREG(MAP_PHY(0x30), 0x20);   // Port0 datarpu1 = 1
 		U2PHY_SETREG(MAP_PHY(0x2c), 0x20);   // sw set enable of reg_datarpu1 = 1

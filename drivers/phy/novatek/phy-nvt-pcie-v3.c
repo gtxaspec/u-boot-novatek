@@ -10,7 +10,7 @@
 #include <asm/arch/efuse_protected.h>
 #include <linux/bitops.h>
 
-#define DRV_VERSION                     "1.00.05"
+#define DRV_VERSION                     "1.00.06"
 
 enum nvt_pcie_phy_id {
 	NVT_PHY_PCIE0 = 0,
@@ -285,6 +285,11 @@ static int pcie_phy_init(struct phy *phy)
 		default:
 			break;
 		}
+
+		//Gen3 avoid missing code & reduce KP to prevent dead zone and misssing code error.
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x0854, 0x3, 10, 4);   // reduce PLL mode KP = 0x3 (default 0x8)
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x094C, 0x1, 24, 1);   // Gen3 TC init decrease 100 code(default 0x200)
+		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x094C, 0x19C, 12, 10);// Gen3 TC init decrease 100 code(default 0x200)
 
 		// TX EIOS align TX_ELECIDLE
 		rc_apbm_srmw(core->v_base[NVT_PHY_PCIE0+idx]+0x874, 0x3, 0, 2);
