@@ -13,7 +13,6 @@ struct ahci_nvt_plat_data {
 	void __iomem *base;
 	void __iomem *top_va_base;
 	void __iomem *phy_va_base;
-	int idx;
 };
 
 int nvtsata_platform_init(struct udevice *dev);

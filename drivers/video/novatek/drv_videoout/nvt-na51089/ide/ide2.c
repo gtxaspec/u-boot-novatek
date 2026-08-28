@@ -55,6 +55,7 @@
 */
 //@{
 
+
 static void generate_line_params(struct struct_point *p_src, struct struct_point *p_dst,
 								 struct struct_point *p_test_point,
 								 INT32 *p_param_a, INT32 *p_param_b, INT32 *p_param_c, UINT32 *p_compare)
@@ -276,35 +277,13 @@ void idec_set_device(IDE_ID id, IDE_DEVICE_TYPE uidevice)
 	T_IDE_CTRL reg;
 
 	//coverity[unsigned_compare]
-	ide_chk_range(uidevice, DISPLAY_DEVICE_CASIO2G, DISPLAY_DEVICE_RGB_16BIT);
+	ide_chk_range(uidevice, DISPLAY_DEVICE_CASIO2G, DISPLAY_DEVICE_OUTPUT_DRAM);
 
 	reg.reg = idec_get_reg(id, IDE_CTRL_OFS);
 
 	reg.bit.disp_dev = uidevice;
 
 	idec_set_reg(id, IDE_CTRL_OFS, reg.reg);
-}
-
-void idec_set_dram_out(IDE_ID id, BOOL b_en)
-{
-	T_IDE_DRAM_WB reg;
-
-	reg.reg = idec_get_reg(id, IDE_DRAM_WB_OFS);
-
-	reg.bit.out_dram_en = b_en;
-
-	idec_set_reg(id, IDE_DRAM_WB_OFS, reg.reg);
-}
-
-void idec_set_dram_out_uvswap(IDE_ID id, BOOL b_en)
-{
-	T_IDE_DRAM_WB reg;
-
-	reg.reg = idec_get_reg(id, IDE_DRAM_WB_OFS);
-
-	reg.bit.out_uv_swap = b_en;
-
-	idec_set_reg(id, IDE_DRAM_WB_OFS, reg.reg);
 }
 
 
@@ -703,7 +682,7 @@ void idec_set_dmach_dis(IDE_ID id, BOOL b_en)
 
 	reg.reg = idec_get_reg(id, IDE_CTRL_OFS);
 
-	if (b_en) {
+	if (b_en) {	
 		idec_clr_interrupt_en(id, IDE_INTEN_MSK);//IDE_INTEN_MSK
 		reg.bit.dmach_dis = 1;
 	} else {
@@ -739,56 +718,6 @@ void idec_set_en(IDE_ID id, BOOL b_en)
 
 	idec_set_reg(id, IDE_CTRL_OFS, reg.reg);
 }
-
-void idec_set_frm_reset_delay_count(IDE_ID id, UINT16 counter)
-{
-	T_IDE_DELAY_COUNT reg;
-
-	reg.reg = idec_get_reg(id, IDE_DELAY_COUNT_OFS);
-
-	reg.bit.frm_delay_cnt = counter;
-
-	idec_set_reg(id, IDE_DELAY_COUNT_OFS, reg.reg);
-}
-
-void idec_set_swreset(IDE_ID id, BOOL b_en)
-{
-	T_IDE_CTRL reg;
-
-	reg.reg = idec_get_reg(id, IDE_CTRL_OFS);
-
-	reg.bit.srst = b_en;
-
-	idec_set_reg(id, IDE_CTRL_OFS, reg.reg);
-}
-
-/**
-    Enable/Disable ide AXI.
-
-    ide module AXI Enable/Disable.
-
-    @param[in] id   ide ID
-    @param[in] b_en
-		- @b TRUE:  Enable.
-		- @b FALSE: Disable.
-
-    @return void
-*/
-void idec_set_axien(IDE_ID id, BOOL b_en)
-{
-	T_IDE_AXI_REG1 reg;
-
-	reg.reg = idec_get_reg(id, IDE_AXI_REG1_OFS);
-
-	if (b_en) {
-		reg.bit.axi_dis = 0;
-	} else {
-		reg.bit.axi_dis = 1;
-	}
-
-	idec_set_reg(id, IDE_AXI_REG1_OFS, reg.reg);
-}
-
 
 /**
     Set Load to ide.
@@ -1012,44 +941,6 @@ IDE_DEVICE_TYPE idec_get_device(IDE_ID id)
 	return reg.bit.disp_dev;
 }
 
-BOOL idec_get_dram_out(IDE_ID id)
-{
-	T_IDE_DRAM_WB reg;
-
-	reg.reg = idec_get_reg(id, IDE_DRAM_WB_OFS);
-
-	return reg.bit.out_dram_en;
-}
-
-BOOL idec_get_dram_out_uvswap(IDE_ID id)
-{
-	T_IDE_DRAM_WB reg;
-
-	reg.reg = idec_get_reg(id, IDE_DRAM_WB_OFS);
-
-	return reg.bit.out_uv_swap;
-}
-
-/**
-    Get ide output to dram's format
-
-    Get ide output to dram's format during dram out path
-
-    @param[in]  id          ide ID
-    @return is_yuv422   yuv422 or 420
-		- @b FALSE  : 420
-		- @b TRUE   : 422
-*/
-BOOL idec_get_dram_out_format(IDE_ID id)
-{
-	T_IDE_CTRL reg;
-
-	reg.reg = idec_get_reg(id, IDE_CTRL_OFS);
-
-	return reg.bit.out_dram_fmt;
-}
-
-
 /**
     Get ide through mode select.
 
@@ -1271,137 +1162,6 @@ void idec_set_pal0_rw(IDE_ID id, BOOL b_sel)
 	}
 }
 
-void idec_set_hwcur_en(IDE_ID id, BOOL ui_en)
-{
-	T_IDE_CURSOR_POS reg;
-
-	reg.reg = idec_get_reg(id, IDE_CURSOR_POS_OFS);
-
-	reg.bit.cursor_en = ui_en;
-
-	idec_set_reg(id, IDE_CURSOR_POS_OFS, reg.reg);
-}
-
-void idec_set_vpi_en(IDE_ID id, BOOL ui_en)
-{
-	T_IDE_SCALE_CTRL reg;
-
-	reg.reg = idec_get_reg(id, IDE_SCALE_CTRL_OFS);
-
-	reg.bit.vpi_en = ui_en;
-
-	idec_set_reg(id, IDE_SCALE_CTRL_OFS, reg.reg);
-}
-
-void idec_set_vpi_coef(IDE_ID id, UINT8 ui_coef0, UINT8 ui_coef1)
-{
-	T_IDE_PI_CTRL reg;
-
-	reg.reg = idec_get_reg(id, IDE_PI_CTRL_OFS);
-
-	reg.bit.pif_coef0 = ui_coef0;
-	reg.bit.pif_coef1 = ui_coef1;
-
-	idec_set_reg(id, IDE_PI_CTRL_OFS, reg.reg);
-}
-
-BOOL idec_get_hwcur_en(IDE_ID id)
-{
-	T_IDE_CURSOR_POS reg;
-
-	reg.reg = idec_get_reg(id, IDE_CURSOR_POS_OFS);
-
-	return reg.bit.cursor_en;
-}
-
-
-/**
-    Set HW cursor read/write access
-
-    @param[in] id   ide ID
-    @param[in] b_sel
-		- @b FALSE: Enable ide access palette 0
-		- @b TRUE:  Enable CPU access palette 0
-
-    @return void
-*/
-void idec_set_hwcur_rw(IDE_ID id, BOOL b_sel)
-{
-	T_IDE_CURSOR_SRAM reg;
-
-	reg.reg = idec_get_reg(id, IDE_CURSOR_SRAM_OFS);
-
-	if (b_sel) {
-		reg.bit.cpu_access = 1;
-	} else {
-		reg.bit.cpu_access = 0;
-	}
-
-	idec_set_reg(id, IDE_CURSOR_SRAM_OFS, reg.reg);
-}
-/**
-    Get HW cursor read/write access
-
-    @param[in] id   ide ID
-    @param[in] b_sel
-		- @b FALSE: Enable ide access palette 0
-		- @b TRUE:  Enable CPU access palette 0
-
-    @return void
-*/
-BOOL idec_get_hwcur_rw(IDE_ID id)
-{
-	T_IDE_CURSOR_SRAM reg;
-
-	reg.reg = idec_get_reg(id, IDE_CURSOR_SRAM_OFS);
-
-	return reg.bit.cpu_access = 1;
-}
-
-
-void idec_set_hwcur_pos(IDE_ID id, UINT32 ui_x, UINT32 ui_y)
-{
-	T_IDE_CURSOR_POS reg;
-
-	reg.reg = idec_get_reg(id, IDE_CURSOR_POS_OFS);
-
-	reg.bit.x = ui_x;
-	reg.bit.y = ui_y;
-
-	idec_set_reg(id, IDE_CURSOR_POS_OFS, reg.reg);
-}
-
-void idec_get_hwcur_pos(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y)
-{
-	T_IDE_CURSOR_POS reg;
-
-	reg.reg = idec_get_reg(id, IDE_CURSOR_POS_OFS);
-
-	*ui_x = reg.bit.x;
-	*ui_y = reg.bit.y;
-
-}
-
-BOOL idec_get_vpi_en(IDE_ID id)
-{
-	T_IDE_SCALE_CTRL reg;
-
-	reg.reg = idec_get_reg(id, IDE_SCALE_CTRL_OFS);
-
-	return reg.bit.vpi_en;
-}
-
-void idec_get_vpi_coef(IDE_ID id, UINT8 *ui_coef0, UINT8 *ui_coef1)
-{
-	T_IDE_PI_CTRL reg;
-
-	reg.reg = idec_get_reg(id, IDE_PI_CTRL_OFS);
-
-	*ui_coef0 = reg.bit.pif_coef0;
-	*ui_coef1 = reg.bit.pif_coef1;
-}
-
-
 /**
     Set OSD palette1 read/write access
 
@@ -1611,14 +1371,6 @@ void idec_set_pal(IDE_ID id, UINT32 ui_entry, UINT32 ui_palette)
 	idec_set_reg(id, ofs, ui_palette);
 }
 
-void idec_set_pal_shadow(IDE_ID id, UINT32 ui_entry, UINT32 ui_palette)
-{
-	UINT32 ofs;
-
-	ofs = IDE_PAL1_OFS + (ui_entry << 2);
-
-	idec_set_reg(id, ofs, ui_palette);
-}
 
 /**
     Get the color and blending operation of the specific entry of OSD palette.
@@ -1629,7 +1381,7 @@ void idec_set_pal_shadow(IDE_ID id, UINT32 ui_entry, UINT32 ui_palette)
     This API is chip version design dependent, user should care the parameter ui_palette's format.
 
     @param[in] id   ide ID
-    @param[in] ui_entry      OSD palette entry(0~14)
+    @param[in] ui_entry      OSD palette entry(0~511)
     @param[out] ui_palette    The returned palette content.
 		 - ui_palette[7~0]:      Cr value of the palette.
 		 - ui_palette[15~8]:     Cb value of the palette.
@@ -1646,115 +1398,6 @@ void idec_get_pal(IDE_ID id, UINT32 ui_entry, UINT32 *ui_palette)
 
 	*ui_palette = idec_get_reg(id, ofs);
 }
-
-void idec_get_pal_shadow(IDE_ID id, UINT32 ui_entry, UINT32 *ui_palette)
-{
-	UINT32 ofs;
-
-	ofs = IDE_PAL1_OFS + (ui_entry << 2);
-
-	*ui_palette = idec_get_reg(id, ofs);
-}
-
-/**
-    Set the color of the specific entry of HW cursor.
-
-    @param[in] id   ide ID
-    @param[in] ui_entry      HW cursor color entry(0~14)
-    @param[in] ui_palette    The palette content.
-		 - ui_palette[7~0]:      Y value of the color.
-		 - ui_palette[15~8]:     Cb value of the color.
-		 - ui_palette[23~16]:    Cr value of the color.
-
-    @return void
-*/
-void idec_set_hwcur_pal(IDE_ID id, UINT32 ui_entry, UINT8 ui_color_y, UINT8 ui_color_cb, UINT8 ui_color_cr)
-{
-	UINT32 ofs;
-	T_IDE_CURSOR_COLOR reg;
-
-	ofs = IDE_CURSOR_COLOR1_OFS + (ui_entry << 2);
-	reg.reg = idec_get_reg(id, ofs);
-
-	reg.bit.cursor_y = ui_color_y;
-	reg.bit.cursor_cb = ui_color_cb;
-	reg.bit.cursor_cr = ui_color_cr;
-	
-	idec_set_reg(id, ofs, reg.reg);
-}
-
-/**
-    Get the palette of the specific entry of HW cursor.
-
-    @param[in] id   ide ID
-    @param[in] ui_entry      HW cursor color entry(0~511)
-    @param[in] ui_palette    The palette content.
-		 - ui_palette[7~0]:      Y value of the color.
-		 - ui_palette[15~8]:     Cb value of the color.
-		 - ui_palette[23~16]:    Cr value of the color.
-
-
-    @return void
-*/
-void idec_get_hwcur_pal(IDE_ID id, UINT32 ui_entry, UINT8 *ui_color_y, UINT8 *ui_color_cb, UINT8 *ui_color_cr)
-{
-	UINT32 ofs;
-	T_IDE_CURSOR_COLOR reg;
-
-	ofs = IDE_CURSOR_COLOR1_OFS + (ui_entry << 2);
-
-	reg.reg = idec_get_reg(id, ofs);
-	*ui_color_y = reg.bit.cursor_y;
-	*ui_color_cb = reg.bit.cursor_cb;
-	*ui_color_cr = reg.bit.cursor_cr;
-}
-
-/**
-    Set the color and blending operation of the specific entry of HW cursor font 64x64.
-
-    @param[in] id   ide ID
-    @param[in] ui_entry      HW cursor entry(0~511)
-    @param[in] ui_font       HW cursor font value.
-
-    @return void
-*/
-void idec_set_hwcur_font(IDE_ID id, UINT32 ui_entry, UINT32 ui_font)
-{
-	UINT32 ofs;
-	T_IDE_CURSOR_FONT reg;
-
-	ofs = IDE_CURSOR_FONT_OFS + (ui_entry << 2);
-	reg.reg = idec_get_reg(id, ofs);
-	reg.bit.curfont = ui_font;
-	idec_set_hwcur_rw(id, 1);
-	idec_set_reg(id, ofs, reg.reg);
-	idec_set_hwcur_rw(id, 0);
-	
-}
-
-/**
-    Get the color and blending operation of the specific entry of HW cursor font 64x64.
-
-    @param[in] id   ide ID
-    @param[in] ui_entry      HW cursor entry(0~511)
-    @param[in] ui_font       HW cursor font value.
-
-
-    @return void
-*/
-void idec_get_hwcur_font(IDE_ID id, UINT32 ui_entry, UINT32 *ui_font)
-{
-	UINT32 ofs;
-
-	ofs = IDE_CURSOR_FONT_OFS + (ui_entry << 2);
-
-	idec_set_hwcur_rw(id, 1);
-
-	*ui_font = idec_get_reg(id, ofs);
-
-	idec_set_hwcur_rw(id, 0);
-}
-
 /**
     Set ide background color.
 
@@ -2904,7 +2547,7 @@ UINT32 idec_get_interrupt_status(IDE_ID id)
 {
 	T_IDE_INT reg;
 
-	reg.reg = idec_get_reg(id, IDE_INT_STS_OFS);
+	reg.reg = idec_get_reg(id, IDE_INT_OFS);
 
 	return reg.reg & IDE_INTSTS_MSK;
 }
@@ -2923,13 +2566,13 @@ void idec_clear_interrupt_status(IDE_ID id, UINT32 ui_int_status)
 {
 	T_IDE_INT reg;
 
-	reg.reg = idec_get_reg(id, IDE_INT_STS_OFS);
+	reg.reg = idec_get_reg(id, IDE_INT_OFS);
 
 	reg.reg &= ~IDE_INTSTS_MSK;
 
 	reg.reg |= ui_int_status & IDE_INTSTS_MSK;
 
-	idec_set_reg(id, IDE_INT_STS_OFS, reg.reg);
+	idec_set_reg(id, IDE_INT_OFS, reg.reg);
 }
 
 /**
@@ -2970,7 +2613,7 @@ UINT32 idec_get_interrupt_en(IDE_ID id)
 
 	reg.reg = idec_get_reg(id, IDE_INT_OFS);
 
-	return (reg.reg & 0x001FFFFF);
+	return (reg.reg & 0x0000FFFF);
 }
 
 
@@ -4180,34 +3823,59 @@ void idec_set_alpha_blending(IDE_ID id, IDE_BLEND_LAYER ui_layer, IDE_ALPHA_TYPE
 	T_IDE_BLEND reg;
 	T_IDE_BLEND2 reg2;
 
-	//                                                  [alpha1] [alpha2][alpha3][alpha4]
-	//Default assume layer from lower -> upper layer = VDO1--->VDO2--->Line--->FD--->OSD1
-	reg.reg = idec_get_reg(id, IDE_BLEND_OFS);
-
-
-	if (ui_layer == IDE_BLEND_V1) {
+	////                                                [alpha1]
+	//Default assume layer from lower -> upper layer = VDO1--->OSD1
+	if (id == IDE_ID_2) {
+		/*
+		reg.reg = idec_get_reg(id, IDE_BLEND_OFS);
 		reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
-		reg.bit.alpha_sel4 = ui_alhpa_type;
-		reg2.bit.global_alpha5 = ui_global_alpha;
-		idec_set_reg(id, IDE_BLEND2_OFS, reg2.reg);
-	} else if (ui_layer == IDE_BLEND_V2) {
-		reg.bit.alpha_sel1 = ui_alhpa_type;
-		reg.bit.global_alpha1 = ui_global_alpha;
-	} else if (ui_layer == IDE_BLEND_FD) {
-		reg.bit.alpha_sel2 = ui_alhpa_type;
-		reg.bit.global_alpha2 = ui_global_alpha;
-	} else if (ui_layer == IDE_BLEND_O1) {
-		reg.bit.alpha_sel3 = ui_alhpa_type;
-		reg.bit.global_alpha3 = ui_global_alpha;
-	} else if (ui_layer == IDE_BLEND_O1_GLBALPHA5) {
-		reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
-		reg.bit.alpha_sel3 = ui_alhpa_type;
-		reg2.bit.global_alpha4 = ui_global_alpha;
-		idec_set_reg(id, IDE_BLEND2_OFS, reg2.reg);
+		if (ui_layer ==  IDE_BLEND_O1) {
+			reg.bit.alpha_sel4 = ui_alhpa_type;
+			reg2.bit.global_alpha4 = ui_global_alpha;
+			idec_set_reg(id, IDE_BLEND2_OFS, reg2.reg);
+		} else if (ui_layer == IDE_BLEND_O1_GLBALPHA5) {
+			reg.bit.alpha_sel4 = ui_alhpa_type;
+			reg2.bit.global_alpha5 = ui_global_alpha;
+			idec_set_reg(id, IDE_BLEND2_OFS, reg2.reg);
+		} else {
+			DBG_WRN("IDE2 not Support Blending of this layer!!\r\n");
+			return;
+		}
+		idec_set_reg(id, IDE_BLEND_OFS, reg.reg);
+		*/
+		DBG_WRN("There is no IDE2\r\n");
 	}
+	//IDE1
+	else {
+		//                                                  [alpha1] [alpha2][alpha3][alpha4]
+		//Default assume layer from lower -> upper layer = VDO1--->VDO2--->Line--->FD--->OSD1
+		reg.reg = idec_get_reg(id, IDE_BLEND_OFS);
 
-	idec_set_reg(id, IDE_BLEND_OFS, reg.reg);
 
+		if (ui_layer == IDE_BLEND_V1) {
+			reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
+			reg.bit.alpha_sel4 = ui_alhpa_type;
+			reg2.bit.global_alpha5 = ui_global_alpha;
+			idec_set_reg(id, IDE_BLEND2_OFS, reg2.reg);
+		} else if (ui_layer == IDE_BLEND_V2) {
+			reg.bit.alpha_sel1 = ui_alhpa_type;
+			reg.bit.global_alpha1 = ui_global_alpha;
+		} else if (ui_layer == IDE_BLEND_FD) {
+			reg.bit.alpha_sel2 = ui_alhpa_type;
+			reg.bit.global_alpha2 = ui_global_alpha;
+		} else if (ui_layer == IDE_BLEND_O1) {
+			reg.bit.alpha_sel3 = ui_alhpa_type;
+			reg.bit.global_alpha3 = ui_global_alpha;
+		} else if (ui_layer == IDE_BLEND_O1_GLBALPHA5) {
+			reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
+			reg.bit.alpha_sel3 = ui_alhpa_type;
+			reg2.bit.global_alpha4 = ui_global_alpha;
+			idec_set_reg(id, IDE_BLEND2_OFS, reg2.reg);
+		}
+
+		idec_set_reg(id, IDE_BLEND_OFS, reg.reg);
+
+	}
 }
 
 /**
@@ -4228,28 +3896,48 @@ void idec_get_alpha_blending(IDE_ID id, IDE_BLEND_LAYER ui_layer, IDE_ALPHA_TYPE
 	T_IDE_BLEND2 reg2;
 
 
-	//                                                  [alpha1] [alpha2][alpha3][alpha4]
-	//Default assume layer from lower -> upper layer = VDO1--->VDO2--->Line--->FD--->OSD1
-	reg.reg = idec_get_reg(id, IDE_BLEND_OFS);
+	if (id == IDE_ID_2) {
+		/*
+		reg.reg = idec_get_reg(id, IDE_BLEND_OFS);
+		reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
+		if (ui_layer ==  IDE_BLEND_O1) {
+			*ui_alhpa_type = reg.bit.alpha_sel4;
+			*ui_global_alpha = reg2.bit.global_alpha4;
+		} else if (ui_layer == IDE_BLEND_O1_GLBALPHA5) {
+			*ui_alhpa_type = reg.bit.alpha_sel4;
+			*ui_global_alpha = reg2.bit.global_alpha5;
+		} else {
+			DBG_WRN("IDE2 not Support Blending of this layer!!\r\n");
+			return;
+		}
+		*/
+		DBG_WRN("There is no IDE2\r\n");
+	}
+	//IDE1
+	else {
+		//                                                  [alpha1] [alpha2][alpha3][alpha4]
+		//Default assume layer from lower -> upper layer = VDO1--->VDO2--->Line--->FD--->OSD1
+		reg.reg = idec_get_reg(id, IDE_BLEND_OFS);
 
 
-	if (ui_layer == IDE_BLEND_V1) {
-		reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
-		*ui_alhpa_type = reg.bit.alpha_sel4;
-		*ui_global_alpha = reg2.bit.global_alpha5;
-	} else if (ui_layer == IDE_BLEND_V2) {
-		*ui_alhpa_type = reg.bit.alpha_sel1;
-		*ui_global_alpha = reg.bit.global_alpha1;
-	} else if (ui_layer == IDE_BLEND_FD) {
-		*ui_alhpa_type = reg.bit.alpha_sel2;
-		*ui_global_alpha = reg.bit.global_alpha2;
-	} else if (ui_layer == IDE_BLEND_O1) {
-		*ui_alhpa_type = reg.bit.alpha_sel3;
-		*ui_global_alpha = reg.bit.global_alpha3;
-	} else if (ui_layer == IDE_BLEND_O1_GLBALPHA5) {
-		reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
-		*ui_alhpa_type = reg.bit.alpha_sel3;
-		*ui_global_alpha = reg2.bit.global_alpha4;
+		if (ui_layer == IDE_BLEND_V1) {
+			reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
+			*ui_alhpa_type = reg.bit.alpha_sel4;
+			*ui_global_alpha = reg2.bit.global_alpha5;
+		} else if (ui_layer == IDE_BLEND_V2) {
+			*ui_alhpa_type = reg.bit.alpha_sel1;
+			*ui_global_alpha = reg.bit.global_alpha1;
+		} else if (ui_layer == IDE_BLEND_FD) {
+			*ui_alhpa_type = reg.bit.alpha_sel2;
+			*ui_global_alpha = reg.bit.global_alpha2;
+		} else if (ui_layer == IDE_BLEND_O1) {
+			*ui_alhpa_type = reg.bit.alpha_sel3;
+			*ui_global_alpha = reg.bit.global_alpha3;
+		} else if (ui_layer == IDE_BLEND_O1_GLBALPHA5) {
+			reg2.reg = idec_get_reg(id, IDE_BLEND2_OFS);
+			*ui_alhpa_type = reg.bit.alpha_sel3;
+			*ui_global_alpha = reg2.bit.global_alpha4;
+		}
 	}
 }
 //@}
@@ -5222,289 +4910,5 @@ void idec_get_fd_color(IDE_ID id, IDE_FD_NUM ui_num, UINT8 *ui_y, UINT8 *ui_cb, 
 	*ui_cb = reg.bit.cb;
 	*ui_cr = reg.bit.cr;
 }
-//#if (_EMULATION_ == ENABLE)
-#if defined(_NVT_EMULATION_)
-BOOL idec_compare_reg_default_value(void);
-
-static IDE_REG_DEFAULT  ide_reg_default[] = {
-	{ 0x0000,     IDE_0000_REG_DEFAULT},
-	{ 0x0028,     IDE_0028_REG_DEFAULT},
-	{ 0x002C,     IDE_002C_REG_DEFAULT},
-	{ 0x0054,     IDE_0054_REG_DEFAULT},
-	{ 0x0058,     IDE_0058_REG_DEFAULT},
-	{ 0x005C,     IDE_005C_REG_DEFAULT},
-	{ 0x0060,     IDE_0060_REG_DEFAULT},
-	{ 0x0064,     IDE_0064_REG_DEFAULT},
-	{ 0x0068,     IDE_0068_REG_DEFAULT},
-	{ 0x006C,     IDE_006C_REG_DEFAULT},
-	{ 0x0070,     IDE_0070_REG_DEFAULT},
-	{ 0x0074,     IDE_0074_REG_DEFAULT},
-	{ 0x0078,     IDE_0078_REG_DEFAULT},
-	{ 0x007C,     IDE_007C_REG_DEFAULT},
-	{ 0x0080,     IDE_0080_REG_DEFAULT},
-	{ 0x0084,     IDE_0084_REG_DEFAULT},
-	{ 0x0088,     IDE_0088_REG_DEFAULT},
-	{ 0x008C,     IDE_008C_REG_DEFAULT},
-	{ 0x0090,     IDE_0090_REG_DEFAULT},
-	{ 0x0094,     IDE_0094_REG_DEFAULT},
-	{ 0x0098,     IDE_0098_REG_DEFAULT},
-	{ 0x009C,     IDE_009C_REG_DEFAULT},
-
-	{ 0x00A0,     IDE_00A0_REG_DEFAULT},
-	{ 0x00A4,     IDE_00A4_REG_DEFAULT},
-	{ 0x00A8,     IDE_00A8_REG_DEFAULT},
-	{ 0x00AC,     IDE_00AC_REG_DEFAULT},
-	{ 0x00B0,     IDE_00B0_REG_DEFAULT},
-	{ 0x00B4,     IDE_00B4_REG_DEFAULT},
-	{ 0x00B8,     IDE_00B8_REG_DEFAULT},
-	{ 0x00BC,     IDE_00BC_REG_DEFAULT},
-	{ 0x00C0,     IDE_00C0_REG_DEFAULT},
-	{ 0x00C4,     IDE_00C4_REG_DEFAULT},
-	{ 0x00C8,     IDE_00C8_REG_DEFAULT},
-	{ 0x00CC,     IDE_00CC_REG_DEFAULT},
-	{ 0x00D0,     IDE_00D0_REG_DEFAULT},
-	{ 0x00D4,     IDE_00D4_REG_DEFAULT},
-	{ 0x00D8,     IDE_00D8_REG_DEFAULT},
-	{ 0x00DC,     IDE_00DC_REG_DEFAULT},
-
-	{ 0x00E0,     IDE_00E0_REG_DEFAULT},
-	{ 0x00E4,     IDE_00E4_REG_DEFAULT},
-	{ 0x00E8,     IDE_00E8_REG_DEFAULT},
-	{ 0x00EC,     IDE_00EC_REG_DEFAULT},
-	{ 0x00F0,     IDE_00F0_REG_DEFAULT},
-	{ 0x00F4,     IDE_00F4_REG_DEFAULT},
-	{ 0x00F8,     IDE_00F8_REG_DEFAULT},
-	{ 0x00FC,     IDE_00FC_REG_DEFAULT},
-	{ 0x0100,     IDE_0100_REG_DEFAULT},
-	{ 0x0104,     IDE_0104_REG_DEFAULT},
-	{ 0x0108,     IDE_0108_REG_DEFAULT},
-	{ 0x010C,     IDE_010C_REG_DEFAULT},
-	{ 0x0110,     IDE_0110_REG_DEFAULT},
-	{ 0x0114,     IDE_0114_REG_DEFAULT},
-	{ 0x0118,     IDE_0118_REG_DEFAULT},
-	{ 0x011C,     IDE_011C_REG_DEFAULT},
-
-	{ 0x0120,     IDE_0120_REG_DEFAULT},
-	{ 0x0124,     IDE_0124_REG_DEFAULT},
-	{ 0x0128,     IDE_0128_REG_DEFAULT},
-	{ 0x012C,     IDE_012C_REG_DEFAULT},
-
-	{ 0x0130,     IDE_0130_REG_DEFAULT},
-	{ 0x0134,     IDE_0134_REG_DEFAULT},
-	{ 0x0138,     IDE_0138_REG_DEFAULT},
-	{ 0x013C,     IDE_013C_REG_DEFAULT},
-
-	{ 0x0140,     IDE_0140_REG_DEFAULT},
-	{ 0x0144,     IDE_0144_REG_DEFAULT},
-	{ 0x0148,     IDE_0148_REG_DEFAULT},
-	{ 0x014C,     IDE_014C_REG_DEFAULT},
-
-	{ 0x0150,     IDE_0150_REG_DEFAULT},
-	{ 0x0154,     IDE_0154_REG_DEFAULT},
-	{ 0x0158,     IDE_0158_REG_DEFAULT},
-	{ 0x015C,     IDE_015C_REG_DEFAULT},
-
-	{ 0x0160,     IDE_0160_REG_DEFAULT},
-	{ 0x0164,     IDE_0164_REG_DEFAULT},
-	{ 0x0168,     IDE_0168_REG_DEFAULT},
-	{ 0x016C,     IDE_016C_REG_DEFAULT},
-
-	{ 0x0170,     IDE_0170_REG_DEFAULT},
-	{ 0x0174,     IDE_0174_REG_DEFAULT},
-	{ 0x0178,     IDE_0178_REG_DEFAULT},
-	{ 0x017C,     IDE_017C_REG_DEFAULT},
-
-	{ 0x0180,     IDE_0180_REG_DEFAULT},
-	{ 0x0184,     IDE_0184_REG_DEFAULT},
-	{ 0x0188,     IDE_0188_REG_DEFAULT},
-	{ 0x018C,     IDE_018C_REG_DEFAULT},
-
-	{ 0x0190,     IDE_0190_REG_DEFAULT},
-	{ 0x0194,     IDE_0194_REG_DEFAULT},
-	{ 0x0198,     IDE_0198_REG_DEFAULT},
-	{ 0x019C,     IDE_019C_REG_DEFAULT},
-
-	{ 0x01A0,     IDE_01A0_REG_DEFAULT},
-	{ 0x01A4,     IDE_01A4_REG_DEFAULT},
-	{ 0x01A8,     IDE_01A8_REG_DEFAULT},
-	{ 0x01AC,     IDE_01AC_REG_DEFAULT},
-
-	{ 0x01B0,     IDE_01B0_REG_DEFAULT},
-	{ 0x01B4,     IDE_01B4_REG_DEFAULT},
-	{ 0x01B8,     IDE_01B8_REG_DEFAULT},
-	{ 0x01BC,     IDE_01BC_REG_DEFAULT},
-
-	{ 0x01C0,     IDE_01C0_REG_DEFAULT},
-	{ 0x01C4,     IDE_01C4_REG_DEFAULT},
-	{ 0x01C8,     IDE_01C8_REG_DEFAULT},
-	{ 0x01CC,     IDE_01CC_REG_DEFAULT},
-
-	{ 0x01D0,     IDE_01D0_REG_DEFAULT},
-
-	{ 0x0A00,     IDE_0A00_REG_DEFAULT},
-	{ 0x0A04,     IDE_0A04_REG_DEFAULT},
-	{ 0x0A08,     IDE_0A08_REG_DEFAULT},
-	{ 0x0A0C,     IDE_0A0C_REG_DEFAULT},
-
-	{ 0x0A10,     IDE_0A10_REG_DEFAULT},
-	{ 0x0A14,     IDE_0A14_REG_DEFAULT},
-	{ 0x0A18,     IDE_0A18_REG_DEFAULT},
-	{ 0x0A1C,     IDE_0A1C_REG_DEFAULT},
-
-	{ 0x0A20,     IDE_0A20_REG_DEFAULT},
-	{ 0x0A24,     IDE_0A24_REG_DEFAULT},
-	{ 0x0A28,     IDE_0A28_REG_DEFAULT},
-	{ 0x0A2C,     IDE_0A2C_REG_DEFAULT},
-
-	{ 0x0A30,     IDE_0A30_REG_DEFAULT},
-	{ 0x0A34,     IDE_0A34_REG_DEFAULT},
-	{ 0x0A38,     IDE_0A38_REG_DEFAULT},
-	{ 0x0A3C,     IDE_0A3C_REG_DEFAULT},
-
-	{ 0x0A40,     IDE_0A40_REG_DEFAULT},
-	{ 0x0A44,     IDE_0A44_REG_DEFAULT},
-	{ 0x0A48,     IDE_0A48_REG_DEFAULT},
-	{ 0x0A4C,     IDE_0A4C_REG_DEFAULT},
-
-	{ 0x0A50,     IDE_0A50_REG_DEFAULT},
-	{ 0x0A54,     IDE_0A54_REG_DEFAULT},
-	{ 0x0A58,     IDE_0A58_REG_DEFAULT},
-	{ 0x0A5C,     IDE_0A5C_REG_DEFAULT},
-
-	{ 0x0A60,     IDE_0A60_REG_DEFAULT},
-	{ 0x0A64,     IDE_0A64_REG_DEFAULT},
-	{ 0x0A68,     IDE_0A68_REG_DEFAULT},
-	{ 0x0A6C,     IDE_0A6C_REG_DEFAULT},
-
-	{ 0x0A70,     IDE_0A70_REG_DEFAULT},
-	{ 0x0A74,     IDE_0A74_REG_DEFAULT},
-	{ 0x0A78,     IDE_0A78_REG_DEFAULT},
-	{ 0x0A7C,     IDE_0A7C_REG_DEFAULT},
-
-	{ 0x0A80,     IDE_0A80_REG_DEFAULT},
-	{ 0x0A84,     IDE_0A84_REG_DEFAULT},
-	{ 0x0A88,     IDE_0A88_REG_DEFAULT},
-	{ 0x0A8C,     IDE_0A8C_REG_DEFAULT},
-
-	{ 0x0A90,     IDE_0A90_REG_DEFAULT},
-	{ 0x0A94,     IDE_0A94_REG_DEFAULT},
-	{ 0x0A98,     IDE_0A98_REG_DEFAULT},
-	{ 0x0A9C,     IDE_0A9C_REG_DEFAULT},
-
-	{ 0x0AA0,     IDE_0AA0_REG_DEFAULT},
-	{ 0x0AA4,     IDE_0AA4_REG_DEFAULT},
-	{ 0x0AA8,     IDE_0AA8_REG_DEFAULT},
-	{ 0x0AAC,     IDE_0AAC_REG_DEFAULT},
-
-	{ 0x0AB0,     IDE_0AB0_REG_DEFAULT},
-	{ 0x0AB4,     IDE_0AB4_REG_DEFAULT},
-	{ 0x0AB8,     IDE_0AB8_REG_DEFAULT},
-	{ 0x0ABC,     IDE_0ABC_REG_DEFAULT},
-
-	{ 0x0AC0,     IDE_0AC0_REG_DEFAULT},
-	{ 0x0AC4,     IDE_0AC4_REG_DEFAULT},
-	{ 0x0AC8,     IDE_0AC8_REG_DEFAULT},
-	{ 0x0ACC,     IDE_0ACC_REG_DEFAULT},
-
-	{ 0x0AD0,     IDE_0AD0_REG_DEFAULT},
-	{ 0x0AD4,     IDE_0AD4_REG_DEFAULT},
-	{ 0x0AD8,     IDE_0AD8_REG_DEFAULT},
-	{ 0x0ADC,     IDE_0ADC_REG_DEFAULT},
-
-	{ 0x0AE0,     IDE_0AE0_REG_DEFAULT},
-	{ 0x0AE4,     IDE_0AE4_REG_DEFAULT},
-	{ 0x0AE8,     IDE_0AE8_REG_DEFAULT},
-	{ 0x0AEC,     IDE_0AEC_REG_DEFAULT},
-
-	{ 0x0AF0,     IDE_0AF0_REG_DEFAULT},
-	{ 0x0AF4,     IDE_0AF4_REG_DEFAULT},
-	{ 0x0AF8,     IDE_0AF8_REG_DEFAULT},
-	{ 0x0AFC,     IDE_0AFC_REG_DEFAULT},
-
-	{ 0x0B00,     IDE_0B00_REG_DEFAULT},
-	{ 0x0B04,     IDE_0B04_REG_DEFAULT},
-	{ 0x0B08,     IDE_0B08_REG_DEFAULT},
-	{ 0x0B0C,     IDE_0B0C_REG_DEFAULT},
-
-	{ 0x0B10,     IDE_0B10_REG_DEFAULT},
-	{ 0x0B14,     IDE_0B14_REG_DEFAULT},
-	{ 0x0B18,     IDE_0B18_REG_DEFAULT},
-	{ 0x0B1C,     IDE_0B1C_REG_DEFAULT},
-
-	{ 0x0B20,     IDE_0B20_REG_DEFAULT},
-	{ 0x0B24,     IDE_0B24_REG_DEFAULT},
-	{ 0x0B28,     IDE_0B28_REG_DEFAULT},
-	{ 0x0B2C,     IDE_0B2C_REG_DEFAULT},
-
-	{ 0x0B30,     IDE_0B30_REG_DEFAULT},
-	{ 0x0B34,     IDE_0B34_REG_DEFAULT},
-	{ 0x0B38,     IDE_0B38_REG_DEFAULT},
-	{ 0x0B3C,     IDE_0B3C_REG_DEFAULT},
-
-	{ 0x0B40,     IDE_0B40_REG_DEFAULT},
-	{ 0x0B44,     IDE_0B44_REG_DEFAULT},
-	{ 0x0B48,     IDE_0B48_REG_DEFAULT},
-	{ 0x0B4C,     IDE_0B4C_REG_DEFAULT},
-
-	{ 0x0B50,     IDE_0B50_REG_DEFAULT},
-	{ 0x0B54,     IDE_0B54_REG_DEFAULT},
-	{ 0x0B58,     IDE_0B58_REG_DEFAULT},
-	{ 0x0B5C,     IDE_0B5C_REG_DEFAULT},
-
-	{ 0x0B60,     IDE_0B60_REG_DEFAULT},
-	{ 0x0B64,     IDE_0B64_REG_DEFAULT},
-	{ 0x0B68,     IDE_0B68_REG_DEFAULT},
-	{ 0x0B6C,     IDE_0B6C_REG_DEFAULT},
-
-	{ 0x0B70,     IDE_0B70_REG_DEFAULT},
-	{ 0x0B74,     IDE_0B74_REG_DEFAULT},
-	{ 0x0B78,     IDE_0B78_REG_DEFAULT},
-	{ 0x0B7C,     IDE_0B7C_REG_DEFAULT},
-
-	{ 0x0B80,     IDE_0B80_REG_DEFAULT},
-	{ 0x0B84,     IDE_0B84_REG_DEFAULT},
-	{ 0x0B88,     IDE_0B88_REG_DEFAULT},
-	{ 0x0B8C,     IDE_0B8C_REG_DEFAULT},
-
-	{ 0x0B90,     IDE_0B90_REG_DEFAULT},
-	{ 0x0D00,     IDE_0D00_REG_DEFAULT},
-	{ 0x0D10,     IDE_0D10_REG_DEFAULT},
-	{ 0x0D40,     IDE_0D40_REG_DEFAULT},
-	{ 0x0D50,     IDE_0D50_REG_DEFAULT},
-};
-
-/*
-    (Verification code) Compare ide register default value
-
-    (Verification code) Compare ide register default value.
-
-    @note   Not include WDT Timeout Record / User Data Register.
-
-    @return Compare status
-		- @b FALSE  : Register default value is incorrect.
-		- @b TRUE   : Register default value is correct.
-*/
-BOOL idec_compare_reg_default_value(void)
-{
-	UINT32  ui_index;
-	BOOL    b_return = TRUE;
-
-	for (ui_index = 0; ui_index < (sizeof(ide_reg_default) / sizeof(IDE_REG_DEFAULT)); ui_index++) {
-		if (INW(IOADDR_IDE_REG_BASE + ide_reg_default[ui_index].ui_offset) != ide_reg_default[ui_index].ui_value) {
-			DBG_ERR("Register (0x%.4X) default value 0x%.8X isn't 0x%.8X\r\n",
-					(unsigned int)ide_reg_default[ui_index].ui_offset,
-					(unsigned int)INW(IOADDR_IDE_REG_BASE + ide_reg_default[ui_index].ui_offset),
-					(unsigned int)ide_reg_default[ui_index].ui_value);
-			b_return = FALSE;
-		}
-	}
-
-	return b_return;
-}
-#endif
-
-#if defined(__KERNEL__)
-EXPORT_SYMBOL(idec_set_dram_out);
-#endif
 
 //@}

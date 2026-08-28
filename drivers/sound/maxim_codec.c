@@ -9,7 +9,6 @@
 #include <div64.h>
 #include <i2c.h>
 #include <i2s.h>
-#include <log.h>
 #include <sound.h>
 #include <asm/gpio.h>
 #include <asm/io.h>

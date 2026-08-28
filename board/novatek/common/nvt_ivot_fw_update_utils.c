@@ -25,19 +25,6 @@
 #include <asm/nvt-common/modelext/emb_partition_info.h>
 #include <asm/nvt-common/shm_info.h>
 #include <asm/nvt-common/nvt_common.h>
-#include <asm/nvt-common/nvt_ivot_optee.h>
-#include <asm/nvt-common/nvt_ivot_efuse_smc.h>
-#include <asm/nvt-common/nvt_ivot_sha_smc.h>
-#include <asm/nvt-common/nvt_ivot_rsa_smc.h>
-#include <asm/nvt-common/nvt_ivot_aes_smc.h>
-#include <asm/nvt-common/nvt_ivot_ecdsa_smc.h>
-#include <asm/arch/nvt_crypto.h>
-#include <asm/arch/nvt_rsa.h>
-#include <asm/arch/nvt_hash.h>
-#if defined(CONFIG_SIGNATUREMETHOD_ECDSA)
-#include <asm/arch/nvt_ecdsa.h>
-#endif
-#include <asm/arch/crypto.h>
 #include <asm/arch/IOAddress.h>
 #include "nvt_ivot_pack.h"
 #include "nvt_ivot_soc_utils.h"
@@ -56,8 +43,7 @@ EMB_PARTITION_FDT_TRANSLATE_TABLE emb_part_fdt_map[EMBTYPE_TOTAL_SIZE] = {
 	{"partition_mbr", EMBTYPE_MBR},
 	{"partition_loader", EMBTYPE_LOADER},
 	{"partition_fdt", EMBTYPE_FDT},
-	{"partition_fdt.app", EMBTYPE_FDTFAST},  // fastboot application.bin (fdt format)
-	{"partition_fdt.fast", EMBTYPE_FDTFAST}, // fastboot nvt-fastboot.bin (fdt format)
+	{"partition_fdt.app", EMBTYPE_FDT},
 	{"partition_teeos", EMBTYPE_TEEOS},
 	{"partition_uboot", EMBTYPE_UBOOT},
 	{"partition_uenv", EMBTYPE_UENV},
@@ -67,13 +53,10 @@ EMB_PARTITION_FDT_TRANSLATE_TABLE emb_part_fdt_map[EMBTYPE_TOTAL_SIZE] = {
 	{"partition_usr", EMBTYPE_USER},
 	{"partition_usrraw", EMBTYPE_USERRAW},
 	{"partition_rtos", EMBTYPE_RTOS},
-	{"partition_rtos_s", EMBTYPE_RTOS},
 	{"partition_app", EMBTYPE_APP},
 	{"partition_ai", EMBTYPE_AI},
 	{"partition_atf", EMBTYPE_ATF},
 	{"partition_bank", EMBTYPE_BANK},
-	{"partition_loader.aov", EMBTYPE_LOADER}, // 2nd loader for always on video
-	{"partition_mcu", EMBTYPE_MCU}, // mcu firmware
 };
 
 EMB_PARTITION emb_partition_info_data_curr[EMB_PARTITION_INFO_COUNT];
@@ -121,7 +104,7 @@ int nvt_chk_mtd_fdt_is_null(void)
 			sprintf(command, "sf read 0x%lx 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
 			break;
 		case FLASHTYPE_NAND:
-			sprintf(command, "nand read %lx 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
+			sprintf(command, "nand read 0x%lx 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset, pEmb[id].PartitionSize);
 			break;
 		case FLASHTYPE_EMMC:
 			sprintf(command, "mmc read 0x%lx 0x%llx 0x%llx", (unsigned long)tmp_model_ptr, pEmb[id].PartitionOffset/MMC_MAX_BLOCK_LEN, pEmb[id].PartitionSize/MMC_MAX_BLOCK_LEN);
@@ -133,56 +116,8 @@ int nvt_chk_mtd_fdt_is_null(void)
 
 	nvt_dbg(IND, "%s: cmd:%s\n",__func__, command);
 	ret = run_command(command, 0);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
-
-#if defined(CONFIG_ENCRYPT_DTS)
-	HEADINFO *headinfo = (HEADINFO *)tmp_model_ptr;
-	unsigned int fdt_real_size =  headinfo->BinLength;
-	/**
-	 * maybe dummy data in fdt partition before we burned
-	 * If data is dummy and we cast it to HEADINFO, the huge size we would get.
-	 */
-	if (fdt_real_size > pEmb[id].PartitionSize) {
-		free(tmp_model_ptr);
-		return 1;
-	}
-#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
-	if (is_secure_enable() != 0) {
-		if (nvt_chk_signature_on_uboot((ulong)tmp_model_ptr, fdt_real_size)) {
-			nvt_dbg(ERR, "check fdt signature fail\n");
-			free((void *)tmp_model_ptr);
-			return -1;
-
-		}
-		ret = nvt_decrypt_aes_on_uboot((unsigned long)tmp_model_ptr);
-		if (ret < 0) {
-			nvt_dbg(ERR, "Decrypt fdt fail, ret = %d\r\n", ret);
-			free((void *)tmp_model_ptr);
-			return ret;
-		}
-	}
-#elif defined(CONFIG_NVT_IVOT_OPTEE_SECBOOT_SUPPORT)
-	NVT_SMC_EFUSE_DATA efuse_data = {0};
-	efuse_data.cmd = NVT_SMC_EFUSE_IS_SECURE;
-	if (nvt_ivot_optee_efuse_operation(&efuse_data) != 0) {
-		if (nvt_chk_signature((ulong)tmp_model_ptr, fdt_real_size)) {
-			nvt_dbg(ERR, "check fdt signature fail\n");
-			free((void *)tmp_model_ptr);
-			return -1;
-
-		}
-		ret = nvt_decrypt_aes((unsigned long)tmp_model_ptr);
-		if (ret < 0) {
-			nvt_dbg(ERR, "Decrypt fdt fail, ret = %d\r\n", ret);
-			free((void *)tmp_model_ptr);
-			return ret;
-		}
-	}
-#endif /* CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
-	nvt_dbg(IND, "Verify encrypted dts PASS\r\n");
-#endif /* CONFIG_ENCRYPT_DTS */
 
 	ret = nvt_check_isfdt((unsigned long)tmp_model_ptr);
 	free(tmp_model_ptr);
@@ -209,12 +144,12 @@ int nvt_fw_load_tbin(void)
 	if (nvt_fs_set_blk_dev())
 		return ERR_NVT_UPDATE_OPENFAILED;
 	else {
-		ret = fs_read(get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), (ulong)nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, 0, 0, &size);
+		ret = fs_read(get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), (ulong)CONFIG_NVT_RUNFW_SDRAM_BASE, 0, 0, &size);
 		if (size <= 0 || ret < 0) {
-			nvt_dbg(ERR, "Read %s at 0x%lx failed ret=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
+			nvt_dbg(ERR, "Read %s at 0x%lx failed ret=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), CONFIG_NVT_RUNFW_SDRAM_BASE, size);
 			return ERR_NVT_UPDATE_READ_FAILED;
 		} else {
-			nvt_dbg(IND, "Read %s at 0x%lx successfully, size=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), nvt_memory_cfg[MEMTYPE_ALL_IN_ONE].addr, size);
+			nvt_dbg(IND, "Read %s at 0x%lx successfully, size=%lld\n", get_nvt_bin_name(NVT_BIN_NAME_TYPE_RUNFW), CONFIG_NVT_RUNFW_SDRAM_BASE, size);
 		}
 	}
 
@@ -229,7 +164,7 @@ int nvt_detect_fw_tbin(void)
 	return 1;
 #endif
 
-	p_shminfo = (SHMINFO *)nvt_memory_cfg[MEMTYPE_SHMEM].addr;
+	p_shminfo = (SHMINFO *)CONFIG_SMEM_SDRAM_BASE;
 	if (strncmp(p_shminfo->boot.LdInfo_1, "LD_NVT", 6) != 0) {
 		return -1;
 	} else {
@@ -336,9 +271,9 @@ void lz_uncompress(unsigned char *in, unsigned char *out, unsigned int insize)
 	while( inpos < insize );
 }
 
-int get_part_and_flash_type(const char *partname, loff_t *off, loff_t *maxsize, nvt_flash_type_t *flash_type)
+int get_part_and_flash_type(const char *partname, loff_t *off, loff_t *maxsize, nvt_flash_type_t* flash_type)
 {
-#if defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
+#if defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_IVOT_EMMC))
 	char cmdline[1024] = {0}, nvtemmcpart[32] = {0};
 	char *nvtemmcpart_off = NULL, *nvtemmcpart_off_next = NULL, *nvtemmcpart_off_end = NULL, *tmp = NULL;
 	u32 nvtemmcpart_sz = 0;
@@ -711,7 +646,6 @@ getfdt_again:
 		printf("fdt_getprop fail\n");
 		return -1;
 	}
-
 	addr = be64_to_cpu(val[0]);
 	size = be64_to_cpu(val[1]);
 	debug("addr = 0x%llx, size = 0x%llx\n", addr, size);
@@ -738,6 +672,7 @@ getfdt_again:
 		pemb[part_id].PartitionOffset = addr;
 		pemb[part_id].PartitionSize = size;
 	}
+
 	debug("FlashType=%d EmbType=%u PartitionOffset=%llx PartitionSize=%llx Node_name=%s idx=%u\n",
 											pemb[part_id].FlashType,
 											pemb[part_id].EmbType,
@@ -894,6 +829,61 @@ int nvt_getfdt_rootfs_mtd_num(ulong fdt_addr, unsigned int *mtd_num, uint32_t *r
 #endif
 	return 0;
 }
+
+#ifdef CONFIG_NVT_PCIE
+int nvt_get_nvtpack_label_from_id(void *fdt_addr, char *root, unsigned int id, unsigned long *label_addr)
+{
+	int  nodeoffset, nextoffset;
+	char name[255];
+
+	if (label_addr == NULL)
+		return -1;
+
+	nodeoffset = fdt_path_offset((void*)fdt_addr, root);
+	if (nodeoffset < 0) {
+		return -1;
+	}
+
+	/* To the pointer of the id offset */
+	sprintf(name, "id%d", id);
+	nextoffset = fdt_subnode_offset((const void *)fdt_addr, nodeoffset, name);
+	if (nextoffset < 0) {
+		return -1;
+	}
+
+	/* To get label name from id offset */
+	*label_addr = (unsigned long )fdt_getprop((const void*)fdt_addr, nextoffset, "label", NULL);
+	if (label_addr == NULL) {
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+bool nvt_runfw_bin_eprootfs_chk_exist(void *fdt_buf, unsigned int id)
+{
+	char root[255];
+	int ret = 0;
+	unsigned long label_addr;
+
+#if defined(CONFIG_NVT_IVOT_EMMC)
+	sprintf(root, "mmc%d/nvtpack/index", CONFIG_NVT_IVOT_EMMC);
+#elif defined(CONFIG_NVT_SPI_NOR)
+	sprintf(root, "/nor/nvtpack/index");
+#else
+	sprintf(root, "/nand/nvtpack/index");
+#endif
+	ret = nvt_get_nvtpack_label_from_id(nvt_fdt_buffer, root, id, &label_addr);
+	if (ret < 0) {
+		return false;
+	}
+	if (strncmp((char *)label_addr, "ep-rootfs", 9) == 0) {
+		return true;
+	} else {
+		return false;
+	}
+}
+#endif /* CONFIG_NVT_PCIE */
 
 /*** NAND Util ***/
 uint32_t nand_get_page_size(void)

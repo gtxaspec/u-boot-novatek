@@ -20,12 +20,10 @@
 #include "displyr.h"
 #include "dispctrl.h"
 #include "dispdevctrl.h"
-#if !(defined __FREERTOS)
+#if !(defined __UITRON || defined __ECOS || defined __FREERTOS)
 #include <linux/fb.h>
 #endif
 
-
-#define HDMI_DISOBJUSED 1
 /**
     Display Control Object
 
@@ -53,25 +51,8 @@ typedef struct {
 
 	PDISPDEV_OBJ (*dev_callback)(void);				  ///< Callback for lcd device to register dev obj.
 
-	PDISPDEVHDMI_CTRL phdmidev_control[2];				///< HDMI Device Control
-
 } DISP_OBJ, *PDISP_OBJ;
 
-
-typedef struct _gamma_t_{
-	BOOL  enable;
-	UINT8 gamma_r[33];
-	UINT8 gamma_g[33];
-	UINT8 gamma_b[33];
-} gamma_t;
-
-typedef struct _cc_t_{
-	BOOL  enable;
-	INT8  sat_ofs;
-	INT8  int_ofs;
-	UINT8 ycon;
-	UINT8 ccon;
-} cc_t;
 
 
 //
@@ -80,7 +61,7 @@ typedef struct _cc_t_{
 extern PDISP_OBJ disp_get_display_object(DISP_ID disp_id);
 #define disp_getDisplayObject(disp_id) disp_get_display_object(disp_id)
 
-#if 0//!defined (__FREERTOS)
+#if 0//!(defined __UITRON || defined __ECOS || defined __FREERTOS)
 int display_obj_set_video1_blank(DISP_ID id, unsigned int blank_mode);
 int display_obj_set_video2_blank(DISP_ID id, unsigned int blank_mode);
 int display_obj_set_osd_blank(DISP_ID id, unsigned int blank_mode);
@@ -91,15 +72,12 @@ int display_obj_get_osd_buf_addr(DISP_ID id, unsigned long *phys_addr, char __io
 int display_obj_get_video1_param(DISP_ID id, struct fb_var_screeninfo *var, struct fb_fix_screeninfo *fix);
 int display_obj_get_video2_param(DISP_ID id, struct fb_var_screeninfo *var, struct fb_fix_screeninfo *fix);
 int display_obj_get_osd_param(DISP_ID id, struct fb_var_screeninfo *var, struct fb_fix_screeninfo *fix);
-int display_obj_set_osd_addr(DISP_ID id, uintptr_t addr, bool load);
+int display_obj_set_osd_addr(DISP_ID id, unsigned int addr, bool load);
 int display_obj_get_layer_support(DISP_ID id, DISPLAYER layer);
 
 #define A_ADDR(osd_buf_size, rgb_addr) ALIGN_CEIL_16(rgb_addr + osd_buf_size) //osd_buf_size = osd buf (line offset * height)
 
 #endif
-#define ALIGN_CEIL_16(a)        (((a) + 0x0F) & ~0x0F)
-#define A_ADDR(osd_buf_size, rgb_addr) ALIGN_CEIL_16(rgb_addr + osd_buf_size) //osd_buf_size = osd buf (line offset * height)
-
 //@}
 
 #endif

@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <asm/io.h>
 #include <dm/pinctrl.h>
-#include <linux/bitops.h>
 #include "pinctrl-snapdragon.h"
 
 struct msm_pinctrl_priv {
@@ -56,7 +55,7 @@ static int msm_pinctrl_probe(struct udevice *dev)
 {
 	struct msm_pinctrl_priv *priv = dev_get_priv(dev);
 
-	priv->base = dev_read_addr(dev);
+	priv->base = devfdt_get_addr(dev);
 	priv->data = (struct msm_pinctrl_data *)dev->driver_data;
 
 	return priv->base == FDT_ADDR_T_NONE ? -EINVAL : 0;
@@ -123,7 +122,7 @@ U_BOOT_DRIVER(pinctrl_snapdraon) = {
 	.name		= "pinctrl_msm",
 	.id		= UCLASS_PINCTRL,
 	.of_match	= msm_pinctrl_ids,
-	.priv_auto	= sizeof(struct msm_pinctrl_priv),
+	.priv_auto_alloc_size = sizeof(struct msm_pinctrl_priv),
 	.ops		= &msm_pinctrl_ops,
 	.probe		= msm_pinctrl_probe,
 };

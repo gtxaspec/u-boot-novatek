@@ -49,8 +49,6 @@ typedef enum {
 	DISPDEV_IOCTRL_SET_DISPSIZE,                  ///< Set current active display standard buffer/window size.
 	DISPDEV_IOCTRL_SET_CLK1_2,                    ///< Set display clock1/2
 	DISPDEV_IOCTRL_SET_RGBD_SWAP,                 ///< Set dummy swap
-	DISPDEV_IOCTRL_SET_HDMI_FMT,                  ///< select the HDMI output format 444/422/420
-	DISPDEV_IOCTRL_SET_HDMI2_FMT,                 ///< select the HDMI2 output format 444/422/420
 
 	/* GET control group */
 	DISPDEV_IOCTRL_GET_ENABLE,                    ///< Get display engine's global enable/disable.
@@ -65,9 +63,6 @@ typedef enum {
 	DISPDEV_IOCTRL_GET_CSB_EN,                    ///< Get display Contrast / Saturation / Brightness performances and also the function enable/disable.
 	DISPDEV_IOCTRL_GET_TVPAR,                     ///< Get TV paramter of user definition.
 	DISPDEV_IOCTRL_GET_TVFULL,                    ///< Get TV full screen.
-	DISPDEV_IOCTRL_GET_LOGOMODE,                  ///< Get the LOGO mode
-	DISPDEV_IOCTRL_GET_HDMI_FMT,                  ///< Get the HDMI output format 444/422/420
-	DISPDEV_IOCTRL_GET_HDMI2_FMT,                 ///< Get the HDMI2 output format 444/422/420
 
 	/* Others */
 	DISPDEV_IOCTRL_SET_LOAD,                      ///< Set Display Configuration Activation
@@ -77,7 +72,6 @@ typedef enum {
 
 	DISPDEV_IOCTRL_SET_CLK_FREQ,                  ///< Set IDEx clock frequency
 	DISPDEV_IOCTRL_SET_CLK_EN,                    ///< Enable IDEx clock
-	DISPDEV_IOCTRL_KEEP_LOGO_SETTING,             ///< keep boot logo ide setting
 
 	ENUM_DUMMY4WORD(DISPDEV_IOCTRL_OP)
 } DISPDEV_IOCTRL_OP;
@@ -116,9 +110,6 @@ typedef struct {
 		struct { // DISPDEV_IOCTRL_SET_DEVICE
 			DISPDEV_TYPE    disp_dev_type;    ///< select display device type
 		} SET_DEVICE;
-		struct { // DISPDEV_IOCTRL_SET_HDMI_FMT
-			HDMI_FMT    hdmi_fmt;    ///< select HDMI format
-		} SET_HDMI_FMT;
 
 		/**
 		    Set Display Engine PIXEL output order for Serial-RGB/RGBD/RGB-Through
@@ -541,9 +532,6 @@ typedef struct {
 		struct { // DISPDEV_IOCTRL_GET_ENABLE
 			DISPDEV_TYPE    disp_dev_type;    ///< Get display device type
 		} GET_DEVICE;
-		struct { // DISPDEV_IOCTRL_GET_HDMI_FMT
-			HDMI_FMT    hdmi_fmt;    		///< Get HDMI format
-		} GET_HDMI_FMT;
 
 		/**
 		    Get Display Engine Clock Source
@@ -735,17 +723,6 @@ typedef struct {
 			BOOL               b_clk_en;          ///< clock enable/disable
 		} SET_CLK_EN;
 
-		/**
-					Get LOGO mode
-			This structure is used for display control operation code "DISPDEV_IOCTRL_GET_LOGOMODE"
-			to get the logomode enable/disable. This structure shuld be used like this:
-		\n	dispDevCtrl(DISPDEV_IOCTRL_GET_LOGOMODE, &disp_ctrl);
-		\n	"disp_ctrl.SEL.GET_LOGOMODE.b_en_logo "
-			is the logomode Disable/Enable
-		*/
-		struct {
-			BOOL			b_en_logo;			///< Enable/Disable
-		} GET_LOGOMODE;
 
 	} SEL;
 } DISPDEV_IOCTRL_PARAM, *PDISPDEV_IOCTRL_PARAM;

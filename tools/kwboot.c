@@ -26,6 +26,12 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#ifdef __GNUC__
+#define PACKED __attribute((packed))
+#else
+#define PACKED
+#endif
+
 /*
  * Marvell BootROM UART Sensing
  */
@@ -62,7 +68,7 @@ struct kwboot_block {
 	uint8_t _pnum;
 	uint8_t data[128];
 	uint8_t csum;
-} __packed;
+} PACKED;
 
 #define KWBOOT_BLK_RSP_TIMEO 1000 /* ms */
 
@@ -465,7 +471,7 @@ kwboot_term_pipe(int in, int out, char *quit, int *s)
 	ssize_t nin, nout;
 	char _buf[128], *buf = _buf;
 
-	nin = read(in, buf, sizeof(_buf));
+	nin = read(in, buf, sizeof(buf));
 	if (nin <= 0)
 		return -1;
 
@@ -479,14 +485,13 @@ kwboot_term_pipe(int in, int out, char *quit, int *s)
 					return 0;
 				buf++;
 				nin--;
-			} else {
+			} else
 				while (*s > 0) {
 					nout = write(out, quit, *s);
 					if (nout <= 0)
 						return -1;
 					(*s) -= nout;
 				}
-			}
 		}
 	}
 
@@ -559,9 +564,7 @@ kwboot_terminal(int tty)
 		}
 	} while (quit[s] != 0);
 
-	if (in >= 0)
-		tcsetattr(in, TCSANOW, &otio);
-	printf("\n");
+	tcsetattr(in, TCSANOW, &otio);
 out:
 	return rc;
 }
@@ -634,7 +637,7 @@ kwboot_img_patch_hdr(void *img, size_t size)
 	}
 
 	image_ver = image_version(img);
-	if (image_ver != 0 && image_ver != 1) {
+	if (image_ver < 0) {
 		fprintf(stderr, "Invalid image header version\n");
 		errno = EINVAL;
 		goto out;
@@ -644,11 +647,6 @@ kwboot_img_patch_hdr(void *img, size_t size)
 		hdrsz = sizeof(*hdr);
 	else
 		hdrsz = KWBHEADER_V1_SIZE(hdr);
-
-	if (size < hdrsz) {
-		errno = EINVAL;
-		goto out;
-	}
 
 	csum = kwboot_img_csum8(hdr, hdrsz) - hdr->checksum;
 	if (csum != hdr->checksum) {

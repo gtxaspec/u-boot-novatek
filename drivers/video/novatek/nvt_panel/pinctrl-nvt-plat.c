@@ -17,7 +17,6 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 #include <linux/libfdt.h>
-#include <linux/compat.h>
 
 #include <asm/io.h>
 #include "common.h"
@@ -46,34 +45,16 @@
 #include <asm/arch/na51102_regs.h>
 #include <asm/arch/na51102_pinmux.h>
 #else
-#if (defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64))
-#include <asm/arch/ns02201_regs.h>
-#include <asm/arch/ns02201_pinmux.h>
-#else
-#if (defined(CONFIG_TARGET_NS02301))
-#include <asm/arch/ns02301_regs.h>
-#include <asm/arch/ns02301_pinmux.h>
-#else
-#if (defined(CONFIG_TARGET_NS02401_A64))
-#include <asm/arch/ns02401_regs.h>
-#include <asm/arch/ns02401_pinmux.h>
-#else
 #include <asm/arch/na51000_regs.h>
 #endif
 #endif
 #endif
 #endif
-#endif
-#endif
-#endif
 
-
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
+#if CONFIG_TARGET_NA51102_A64
 u64 top_reg_addr = 0x2f0010000;
 extern u64 top_reg_addr;
-#elif defined(CONFIG_TARGET_NS02401_A64)
-u64 top_reg_addr = 0x4f0010000;
-extern u64 top_reg_addr;
+
 #else
 u32 top_reg_addr = 0xf0010000;
 extern u32 top_reg_addr;
@@ -83,7 +64,7 @@ extern u32 top_reg_addr;
 
 const char *pinmux_dts_name[] =
 {
-#if defined(CONFIG_TARGET_NA51102_A64)
+#if CONFIG_TARGET_NA51102_A64
 	"sdio",
 	"nand",
 	"eth",
@@ -111,97 +92,6 @@ const char *pinmux_dts_name[] =
 	"tv",
 	"sel_lcd",
 	"sel_lcd2",
-
-#elif defined(CONFIG_TARGET_NS02201_A64)
-
-	"sdio",
-	"nand",
-	"eth",
-	"i2c",
-	"i2cII",
-	"i2cIII",
-	"i2cIV",
-	"pwm",
-	"pwmII",
-	"ccnt",
-	"sensor",
-	"sensor2",
-	"sensormisc",
-	"sensormiscii",
-	"sensorsync",
-	"sensorsyncII",
-	"sensorsyncIII",
-	"sensorsyncIV",
-	"audio",
-	"uart",
-	"uartII",
-	"remote",
-	"sdp",
-	"spi",
-	"sif",
-	"misc",
-	"lcd",
-	"lcd2",
-	"lcd3",
-	"tv",
-	"lcd_pinout",
-	"sel_lcd",
-	"sel_lcd2",
-	"pcie",
-	"sel_pcie",
-	
-#elif defined(CONFIG_TARGET_NS02301)
-	
-	"sdio",
-	"nand",
-	"eth",
-	"i2c",
-	"pwm",
-	"pwmII",
-	"pwmIII",
-	"ccnt",
-	"sensor",
-	"sensor2",
-	"sensormisc",
-	"sensorsync",
-	"audio",
-	"uart",
-	"csi",
-	"remote",
-	"sdp",
-	"spi",
-	"sif",
-	"misc",
-	"lcd",
-	"tv",
-	"sel_lcd",
-	"pr_i2c",
-	"pr_uart",
-	"pr_sensor",
-	"pr_sensormisc",
-	"pr_spi",
-	"pr_pwm",
-	"pr_audio",
-
-#elif defined(CONFIG_TARGET_NS02401_A64)
-
-	"sdio",
-	"nand",
-	"eth",
-	"i2c",
-	"pwm",
-	"audio",
-	"uart",
-	"remote",
-	"sdp",
-	"spi",
-	"misc",
-	"lcd",
-	"tv",
-	"sel_lcd",
-	"pcie",
-	"sel_pcie",
-	"sata_led",
 
 #else
 	"sdio",
@@ -318,7 +208,7 @@ int nvt_pinmux_update(PIN_GROUP_CONFIG *pinmux_config, int count)
 		}
 
 		ret = pinmux_init(info);
-#if !(defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) ||  defined(CONFIG_TARGET_NS02401_A64))
+#if !CONFIG_TARGET_NA51102_A64
 		if (ret == E_OK)
 			ret = pinmux_set_config(id_restore, pinmux_restore);
 #endif
@@ -336,7 +226,7 @@ EXPORT_SYMBOL(nvt_pinmux_update);
 
 int pinmux_set_config(PINMUX_FUNC_ID id, u32 pinmux)
 {
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02401_A64)
+#if CONFIG_TARGET_NA51102_A64
 	PIN_GROUP_CONFIG pinmux_cfg[1] = {0};
 	int ret = E_OK;
 
@@ -420,7 +310,7 @@ int nvt_pinmux_probe(void)
     info = malloc(sizeof(struct nvt_pinctrl_info));
 	//info = devm_kzalloc(&pdev->dev, sizeof(struct nvt_pinctrl_info), GFP_KERNEL);
 	if (!info) {
-		printf("nvt pinmux mem alloc fail\n");
+		dev_err(pdev, "nvt pinmux mem alloc fail\n");
 		return -ENOMEM;
 	}
 #if 0
@@ -448,16 +338,11 @@ int nvt_pinmux_probe(void)
 		return -ENOMEM;
 	}
 	*/
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64)
+#if CONFIG_TARGET_NA51102_A64
     info->top_base = (void*) IOADDR_TOP_REG_BASE;
 	top_reg_addr = (u64) info->top_base;
     printf("%s(pinmux= top_base=%p, length=%p):\n", __func__ , info->top_base,
 	      IOADDR_TOP_REG_BASE);
-#elif defined(CONFIG_TARGET_NS02401_A64)
-	info->top_base = (void*) IOADDR_TOP_REG_BASE;
-	top_reg_addr = (u64) info->top_base;
-	printf("%s(pinmux= top_base=%p, length=%ld):\n", __func__ , info->top_base,
-		  IOADDR_TOP_REG_BASE);
 #else
 	info->top_base = (void*) IOADDR_TOP_REG_BASE;
 	top_reg_addr = (u32) info->top_base;
@@ -483,18 +368,18 @@ int nvt_pinmux_probe(void)
 
     for(i=0;i < PIN_FUNC_MAX; i++)
     {
-#if defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02301) || defined(CONFIG_TARGET_NS02401_A64)
+#if CONFIG_TARGET_NA51102_A64
         sprintf(path,"/top/%s",pinmux_dts_name[i]);
 #else
         sprintf(path,"/top@%x/%s",IOADDR_TOP_REG_BASE, pinmux_dts_name[i]);
 #endif
-		//printf("[%d]\r\n",i);
     	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
     	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", NULL);
         info->top_pinmux[nr_pinmux].config = __be32_to_cpu(cell[0]);
         info->top_pinmux[nr_pinmux].pin_function = nr_pinmux;
 
-		//printf("%s(top = top_base=%s, length=%x):\n", __func__ , pinmux_dts_name[i],info->top_pinmux[nr_pinmux].config);
+//printf("%s(top = top_base=%s, length=%x):\n", __func__ , pinmux_dts_name[i],
+	      //info->top_pinmux[nr_pinmux].config);
 
         nr_pinmux++;
 

@@ -9,12 +9,9 @@
 
 #ifdef CONFIG_NVT_HASH
 #include <common.h>
-#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_hash.h>
-
-#include <linux/delay.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -26,16 +23,9 @@
  *  Global Definition
  *************************************************************************************/
 //#define NVT_HASH_DEBUG
-// #define NVT_HASH_DMA_36BIT_SUPPORT      0
 
 #define PLAT_CACHE_LINE_SIZE            CONFIG_SYS_CACHELINE_SIZE
 #define PLAT_CACHE_LINE_MASK            (CONFIG_SYS_CACHELINE_SIZE-1)
-#ifdef NVT_HASH_DMA_36BIT_SUPPORT
-#define DMA_ADDR_LO(x)                  ((uint32_t)((uint64_t)(x)))
-#define DMA_ADDR_HI(x)                  ((uint32_t)(((uint64_t)(x)) >> 32))
-#else
-#define DMA_ADDR_LO(x)                  ((uint32_t)(x))
-#endif
 
 #define IV_BYTE_REVERSE(x)              ((((x)&0xff)<<24) | ((((x)>>8)&0xff)<<16) | ((((x)>>16)&0xff)<<8) | (((x)>>24)&0xff))
 
@@ -97,13 +87,10 @@
 #define NVT_HASH_OUT6_REG               0x88           ///< output data  192 ~ 223 bit
 #define NVT_HASH_OUT7_REG               0x8c           ///< output data  224 ~ 255 bit
 #define NVT_HASH_PIO_IN_REG             0x90           ///< input  data  0   ~ 31  bit, PIO mode
-#define NVT_HASH_DMA_SRC_REG            0x94           ///< source dma low address, word alignment
-#define NVT_HASH_DMA_DST_REG            0x98           ///< destination low dma address, word alignment
+#define NVT_HASH_DMA_SRC_REG            0x94           ///< source dma address, word alignment
+#define NVT_HASH_DMA_DST_REG            0x98           ///< destination dma address, word alignment
 #define NVT_HASH_DMA_TX_SIZE_REG        0x9c           ///< hash message size, byte unit and alignment
 #define NVT_HASH_KEY_READ_REG           0xA0           ///< hash key readable control
-#define NVT_HASH_DMA_SRC_H_REG          0xA4           ///< source dma high address
-#define NVT_HASH_DMA_DST_H_REG          0xA8           ///< destination dma high address
-#define NVT_HASH_AXI_CHANNEL_REG		0xB0		   ///< AXI DMA Channel 
 
 /*************************************************************************************
  *  Local Definition
@@ -114,12 +101,13 @@ static void nvt_hash_platform_init(void)
 {
 	uint32_t tmp;
 
-	/* Hash clock select, 0:fix(240MHz) 1:fix(320MHz) */
+	/* Hash clock select, 0:240MHz 1:320MHz 2: RVD 3: PLL9 */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x24);
 	tmp &= ~(0x3<<16);
+	tmp |= (0x1<<16);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x24, tmp);
 
-	/* Hash master clock enable */
+	/* Hash clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x78);
 	tmp |= (0x1<<27);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x78, tmp);
@@ -139,7 +127,7 @@ static void nvt_hash_platform_exit(void)
 	tmp &= ~(0x1<<27);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x88, tmp);
 
-	/* Hash master clock disable */
+	/* Hash clock disable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x78);
 	tmp &= ~(0x1<<27);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x78, tmp);
@@ -406,14 +394,8 @@ int nvt_hash_dma_sha(struct nvt_hash_pio_t *p_hash)
 	hash_write(NVT_HASH_PADLEN_REG, p_hash->src_size);
 
 	/* set DMA address and length */
-	hash_write(NVT_HASH_DMA_SRC_REG,   DMA_ADDR_LO(p_hash->src));
-#ifdef NVT_HASH_DMA_36BIT_SUPPORT
-    hash_write(NVT_HASH_DMA_SRC_H_REG, DMA_ADDR_HI(p_hash->src));
-#endif
+	hash_write(NVT_HASH_DMA_SRC_REG, (uint32_t)p_hash->src);
 	hash_write(NVT_HASH_DMA_TX_SIZE_REG, p_hash->src_size);
-
-	/*clear DMA channel disable*/
-	hash_write(NVT_HASH_AXI_CHANNEL_REG, ~(0x1<<16));
 
 	/* clear DMA interrupt status */
 	hash_write(NVT_HASH_INT_STS_REG, 0x1);

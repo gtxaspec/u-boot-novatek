@@ -9,14 +9,10 @@
 
 #ifdef CONFIG_NVT_CRYPTO
 #include <common.h>
-#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_crypto.h>
 #include <asm/arch/efuse_protected.h>
-
-#include <linux/delay.h>
-#include <cpu_func.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -28,11 +24,12 @@
  *  Global Definition
  *************************************************************************************/
 //#define NVT_CRYPTO_DEBUG
+//#define NVT_CRYPTO_DMA_36BIT_SUPPORT    1
 
 #define PLAT_CACHE_LINE_SIZE            CONFIG_SYS_CACHELINE_SIZE
 #define PLAT_CACHE_LINE_MASK            (CONFIG_SYS_CACHELINE_SIZE-1)
 #ifdef NVT_CRYPTO_DMA_36BIT_SUPPORT
-#define DMA_ADDR_LO(x)                  ((uint32_t)((uintptr)(x)))
+#define DMA_ADDR_LO(x)                  ((uint32_t)((uint64_t)(x)))
 #define DMA_ADDR_HI(x)                  ((uint32_t)(((uint64_t)(x)) >> 32))
 #else
 #define DMA_ADDR_LO(x)                  ((uint32_t)(x))
@@ -84,7 +81,6 @@
 #define NVT_CRYPTO_DMA2_ADDR_REG          0x58           ///< DMA channel 2 descriptor starting low  address, DMA mode only
 #define NVT_CRYPTO_DMA3_ADDR_REG          0x5C           ///< DMA channel 0 descriptor starting low  address, DMA mode only
 #define NVT_CRYPTO_KEY_READ_REG           0x60           ///< crypto key readable control
-#define NVT_CRYPTO_AXI_DMA_DIS_REG		  0x68           ///< crypto AXI control
 #define NVT_CRYPTO_DMA0_ADDR_H_REG        0x70           ///< DMA channel 0 descriptor starting high address, DMA mode only
 #define NVT_CRYPTO_DMA1_ADDR_H_REG        0x74           ///< DMA channel 1 descriptor starting high address, DMA mode only
 #define NVT_CRYPTO_DMA2_ADDR_H_REG        0x78           ///< DMA channel 2 descriptor starting high address, DMA mode only
@@ -133,15 +129,10 @@ static void nvt_crypto_platform_init(void)
 	tmp &= ~(0x1<<10);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x24, tmp);
 
-	/* Crypto clock enable */
+	/* Crypto master clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);
 	tmp |= (0x1<<31);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x70, tmp);
-
-	/* Crypto master clock enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x00);
-	tmp |= (0x1<<0);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x00, tmp);
 
 	/* Crypto program clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0xE0);
@@ -552,11 +543,6 @@ int nvt_crypto_dma_aes(struct nvt_crypto_pio_t *p_crypto)
 	reg_value  = crypto_read(NVT_CRYPTO_INT_ENB_REG);
 	reg_value &= ~(0xf<<4);
 	crypto_write(NVT_CRYPTO_INT_ENB_REG, reg_value);
-
-	/* clear axi dma disable */
-	reg_value  = crypto_read(NVT_CRYPTO_AXI_DMA_DIS_REG);
-	reg_value &= ~(0x1<<16);
-	crypto_write(NVT_CRYPTO_AXI_DMA_DIS_REG, reg_value);
 
 	/* clear interrupt status */
 	crypto_write(NVT_CRYPTO_INT_STS_REG, (0xf<<4));

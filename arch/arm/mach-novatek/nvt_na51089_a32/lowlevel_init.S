@@ -64,7 +64,7 @@ ENTRY(local_load)
     @ ==========================================================================
     MOV   r0, #-33				        @r0 = E_PAR
 
-	MOV   r8, #0	                	@param != this No. break
+	MOV   r8, #8	                	@param != this No. break
 #   MOV   r8, #31		                @param > 31. break(all address can be read)
 
     MOV   r5, #0x1F

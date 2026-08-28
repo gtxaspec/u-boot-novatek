@@ -3,19 +3,16 @@
  * Copyright (C) 2018 Anup Patel <anup@brainfault.org>
  */
 
-#include <common.h>
 #include <clk.h>
+#include <common.h>
 #include <debug_uart.h>
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
-#include <log.h>
 #include <watchdog.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <linux/compiler.h>
 #include <serial.h>
-#include <linux/err.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -24,9 +21,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define UART_RXFIFO_DATA	0x000000ff
 #define UART_TXCTRL_TXEN	0x1
 #define UART_RXCTRL_RXEN	0x1
-
-/* IP register */
-#define UART_IP_RXWM            0x2
 
 struct uart_sifive {
 	u32 txfifo;
@@ -38,8 +32,9 @@ struct uart_sifive {
 	u32 div;
 };
 
-struct sifive_uart_plat {
+struct sifive_uart_platdata {
 	unsigned long clock;
+	int saved_input_char;
 	struct uart_sifive *regs;
 };
 
@@ -99,14 +94,14 @@ static int _sifive_serial_getc(struct uart_sifive *regs)
 		return -EAGAIN;
 	ch &= UART_RXFIFO_DATA;
 
-	return ch;
+	return (!ch) ? -EAGAIN : ch;
 }
 
 static int sifive_serial_setbrg(struct udevice *dev, int baudrate)
 {
 	int ret;
 	struct clk clk;
-	struct sifive_uart_plat *plat = dev_get_plat(dev);
+	struct sifive_uart_platdata *platdata = dev_get_platdata(dev);
 	u32 clock = 0;
 
 	ret = clk_get_by_index(dev, 0, &clk);
@@ -124,21 +119,22 @@ static int sifive_serial_setbrg(struct udevice *dev, int baudrate)
 			return 0;
 		}
 	}
-	plat->clock = clock;
-	_sifive_serial_setbrg(plat->regs, plat->clock, baudrate);
+	platdata->clock = clock;
+	_sifive_serial_setbrg(platdata->regs, platdata->clock, baudrate);
 
 	return 0;
 }
 
 static int sifive_serial_probe(struct udevice *dev)
 {
-	struct sifive_uart_plat *plat = dev_get_plat(dev);
+	struct sifive_uart_platdata *platdata = dev_get_platdata(dev);
 
 	/* No need to reinitialize the UART after relocation */
 	if (gd->flags & GD_FLG_RELOC)
 		return 0;
 
-	_sifive_serial_init(plat->regs);
+	platdata->saved_input_char = 0;
+	_sifive_serial_init(platdata->regs);
 
 	return 0;
 }
@@ -146,8 +142,14 @@ static int sifive_serial_probe(struct udevice *dev)
 static int sifive_serial_getc(struct udevice *dev)
 {
 	int c;
-	struct sifive_uart_plat *plat = dev_get_plat(dev);
-	struct uart_sifive *regs = plat->regs;
+	struct sifive_uart_platdata *platdata = dev_get_platdata(dev);
+	struct uart_sifive *regs = platdata->regs;
+
+	if (platdata->saved_input_char > 0) {
+		c = platdata->saved_input_char;
+		platdata->saved_input_char = 0;
+		return c;
+	}
 
 	while ((c = _sifive_serial_getc(regs)) == -EAGAIN) ;
 
@@ -157,31 +159,35 @@ static int sifive_serial_getc(struct udevice *dev)
 static int sifive_serial_putc(struct udevice *dev, const char ch)
 {
 	int rc;
-	struct sifive_uart_plat *plat = dev_get_plat(dev);
+	struct sifive_uart_platdata *platdata = dev_get_platdata(dev);
 
-	while ((rc = _sifive_serial_putc(plat->regs, ch)) == -EAGAIN) ;
+	while ((rc = _sifive_serial_putc(platdata->regs, ch)) == -EAGAIN) ;
 
 	return rc;
 }
 
 static int sifive_serial_pending(struct udevice *dev, bool input)
 {
-	struct sifive_uart_plat *plat = dev_get_plat(dev);
-	struct uart_sifive *regs = plat->regs;
+	struct sifive_uart_platdata *platdata = dev_get_platdata(dev);
+	struct uart_sifive *regs = platdata->regs;
 
-	if (input)
-		return (readl(&regs->ip) & UART_IP_RXWM);
-	else
+	if (input) {
+		if (platdata->saved_input_char > 0)
+			return 1;
+		platdata->saved_input_char = _sifive_serial_getc(regs);
+		return (platdata->saved_input_char > 0) ? 1 : 0;
+	} else {
 		return !!(readl(&regs->txfifo) & UART_TXFIFO_FULL);
+	}
 }
 
-static int sifive_serial_of_to_plat(struct udevice *dev)
+static int sifive_serial_ofdata_to_platdata(struct udevice *dev)
 {
-	struct sifive_uart_plat *plat = dev_get_plat(dev);
+	struct sifive_uart_platdata *platdata = dev_get_platdata(dev);
 
-	plat->regs = (struct uart_sifive *)(uintptr_t)dev_read_addr(dev);
-	if (IS_ERR(plat->regs))
-		return PTR_ERR(plat->regs);
+	platdata->regs = (struct uart_sifive *)dev_read_addr(dev);
+	if (IS_ERR(platdata->regs))
+		return PTR_ERR(platdata->regs);
 
 	return 0;
 }
@@ -202,8 +208,8 @@ U_BOOT_DRIVER(serial_sifive) = {
 	.name	= "serial_sifive",
 	.id	= UCLASS_SERIAL,
 	.of_match = sifive_serial_ids,
-	.of_to_plat = sifive_serial_of_to_plat,
-	.plat_auto	= sizeof(struct sifive_uart_plat),
+	.ofdata_to_platdata = sifive_serial_ofdata_to_platdata,
+	.platdata_auto_alloc_size = sizeof(struct sifive_uart_platdata),
 	.probe = sifive_serial_probe,
 	.ops	= &sifive_serial_ops,
 };

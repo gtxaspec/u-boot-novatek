@@ -15,8 +15,7 @@
 
 // NA51055, NA51089 set driving by "mA"
 // other chip set driving by "driving level", and refer pimux setting to nvt_ivot_mmcplat.h
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103)\
- || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02301))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
 #define SDIO_OLD_DRIVING_FLOW           0
 #else
 #define SDIO_OLD_DRIVING_FLOW           1
@@ -244,8 +243,7 @@ typedef enum {
 #define SDIO_DES_TABLE_NUM        (128)
 #define SDIO_DES_WORD_SIZE        (3)   /*descriptor 3 word*/
 #define SDIO_HOST_MAX_DATA_LENGTH (64*1024*1024)
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) \
-|| defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02301))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
 #define SDIO_HOST_DATA_FIFO_DEPTH (32)
 #else
 #define SDIO_HOST_DATA_FIFO_DEPTH (16)

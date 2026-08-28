@@ -24,40 +24,6 @@
 #include <linux/compiler.h>
 #include <ns16550.h>
 #include <dm.h>
-#include <asm/nvt-common/nvt_common.h>
-#include <command.h>
-
-#define RAM_SRC_SELECT_OFFSET 0x20
-
-static char nvt_ddr_remap_help_text[] =
-"\n"
-"nvt_ddr_remap 1 - DDR1 base address on 2G bits\n"
-"nvt_ddr_remap 2 - DDR1 base address on 4G bits\n"
-"nvt_ddr_remap 3 - DDR1 base address on 8G bits\n"
-"nvt_ddr_remap 4 - DDR1 base address on 16G bits\n"
-"";
-
-static int do_nvt_ddr_remap(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
-{
-	unsigned int reg;
-	unsigned int val;
-
-	if (argc < 2) {
-		return -1;
-	}
-	val = (unsigned int)simple_strtoul(argv[1], NULL, 16);
-
-	reg = readl(IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
-	reg |= 1 << (val + 3);
-	writel(reg, IOADDR_TOP_REG_BASE + RAM_SRC_SELECT_OFFSET);
-	return 0;
-}
-
-U_BOOT_CMD(
-	nvt_ddr_remap, 2, 1, do_nvt_ddr_remap,
-	"Represent DRAMx select",
-	nvt_ddr_remap_help_text
-);
 
 #ifdef CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT
 extern int nvt_ddr_slow_down(void);
@@ -69,37 +35,37 @@ DECLARE_GLOBAL_DATA_PTR;
 static struct ns16550_platdata ns16550_com1_pdata = {
 	.base = CONFIG_SYS_NS16550_COM1,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com2_pdata = {
 	.base = CONFIG_SYS_NS16550_COM2,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com3_pdata = {
 	.base = CONFIG_SYS_NS16550_COM3,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com4_pdata = {
 	.base = CONFIG_SYS_NS16550_COM4,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com5_pdata = {
 	.base = CONFIG_SYS_NS16550_COM5,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com6_pdata = {
 	.base = CONFIG_SYS_NS16550_COM6,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 U_BOOT_DEVICE(ns16550_com1) = {
@@ -125,14 +91,7 @@ U_BOOT_DEVICE(ns16550_com1) = {
 
 int serial_preinit(void)
 {
-#if ( CONFIG_UART2_PINMUX_CHANNEL_1 || \
-	CONFIG_UART3_PINMUX_CHANNEL_1 || \
-	CONFIG_UART4_PINMUX_CHANNEL_1 || CONFIG_UART4_PINMUX_CHANNEL_2 || \
-	CONFIG_UART5_PINMUX_CHANNEL_1 || CONFIG_UART5_PINMUX_CHANNEL_2 || \
-	CONFIG_UART6_PINMUX_CHANNEL_1 || CONFIG_UART6_PINMUX_CHANNEL_2 || \
-	CONFIG_UART7_PINMUX_CHANNEL_1 || CONFIG_UART7_PINMUX_CHANNEL_2 || \
-	CONFIG_UART8_PINMUX_CHANNEL_1 || CONFIG_UART8_PINMUX_CHANNEL_2 || \
-	CONFIG_UART9_PINMUX_CHANNEL_1 || CONFIG_UART9_PINMUX_CHANNEL_2)
+#if (!(CONFIG_UART2_PINMUX_NONE && CONFIG_UART3_PINMUX_NONE && CONFIG_UART4_PINMUX_NONE && CONFIG_UART5_PINMUX_NONE))
 	u32 value;
 #endif
 
@@ -242,6 +201,12 @@ void enable_caches(void)
 	icache_enable();
 }
 
+
+void __weak reset_cpu(unsigned long ignored)
+{
+}
+
+
 #ifdef CONFIG_ARCH_MISC_INIT
 #ifdef CONFIG_NOVATEK_PAD
 extern void nvt_pad_init(void);
@@ -254,6 +219,22 @@ int arch_misc_init(void)
 	return 0;
 }
 #endif
+
+/*
+ * Routine: dram_init
+ * Description: sets uboots idea of sdram size
+ */
+int dram_init(void)
+{
+#ifdef CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT
+	// Default not enabled in nvt platform.
+	// If specific project needs slow down DDR freq at boot,
+	// plz uncomment below line.
+//	nvt_ddr_slow_down();
+#endif
+	gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
+	return 0;
+}
 
 /*
  * Print board information

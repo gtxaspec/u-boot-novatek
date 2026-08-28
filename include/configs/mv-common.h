@@ -16,8 +16,6 @@
 #ifndef _MV_COMMON_H
 #define _MV_COMMON_H
 
-#include <linux/stringify.h>
-
 /*
  * High Level Configuration Options (easy to change)
  */
@@ -39,16 +37,8 @@
 #define CONFIG_SYS_NS16550_COM1		MV_UART_CONSOLE_BASE
 #endif
 
-#if defined(CONFIG_ARMADA_38X) && !defined(CONFIG_SYS_BAUDRATE_TABLE)
-#define CONFIG_SYS_BAUDRATE_TABLE	{ 300, 600, 1200, 1800, 2400, 4800, \
-					  9600, 19200, 38400, 57600, 115200, \
-					  230400, 460800, 500000, 576000, \
-					  921600, 1000000, 1152000, 1500000, \
-					  2000000, 2500000, 3125000, 4000000, \
-					  5200000 }
-#endif
-
 /* auto boot */
+#define CONFIG_PREBOOT
 
 /*
  * For booting Linux, the board info and command line data
@@ -69,7 +59,10 @@
 /*
  * Other required minimal configurations
  */
+#define CONFIG_ARCH_CPU_INIT	/* call arch_cpu_init() */
 #define CONFIG_SYS_LOAD_ADDR	0x00800000	/* default load adr- 8M */
+#define CONFIG_SYS_MEMTEST_START 0x00800000	/* 8M */
+#define CONFIG_SYS_MEMTEST_END	0x00ffffff	/*(_16M -1) */
 #define CONFIG_SYS_RESET_ADDRESS 0xffff0000	/* Rst Vector Adr */
 #define CONFIG_SYS_MAXARGS	32	/* max number of command args */
 

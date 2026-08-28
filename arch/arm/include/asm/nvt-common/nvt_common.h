@@ -20,13 +20,14 @@
 #include <common.h>
 #include <image-sparse.h>
 #include <asm/gpio.h>
-#include <ns16550.h>
 
 extern unsigned long nvt_tm0_cnt_beg;
 extern unsigned long nvt_tm0_cnt_end;
 extern unsigned long nvt_shminfo_comm_uboot_boot_func;
 extern unsigned long nvt_shminfo_comm_core1_start;
 extern unsigned long nvt_shminfo_comm_core2_start;
+extern unsigned long nvt_shminfo_comm_itron_comp_addr;
+extern unsigned long nvt_shminfo_comm_itron_comp_len;
 extern unsigned long nvt_shminfo_comm_fw_update_addr;
 extern unsigned long nvt_shminfo_comm_fw_update_len;
 extern unsigned int nvt_shminfo_boot_fdt_addr;
@@ -46,50 +47,6 @@ extern u32 rtos_disable_anchor;
 extern EMB_PARTITION_FDT_TRANSLATE_TABLE emb_part_fdt_map[EMBTYPE_TOTAL_SIZE];
 extern EMB_PARTITION emb_partition_info_data_curr[EMB_PARTITION_INFO_COUNT];
 extern EMB_PARTITION emb_partition_info_data_new[EMB_PARTITION_INFO_COUNT];
-
-enum {
-	MEMTYPE_DRAM,
-	MEMTYPE_CORE2ENTRY1,
-	MEMTYPE_CORE2ENTRY2,
-	MEMTYPE_FDT,
-	MEMTYPE_SHMEM,
-	MEMTYPE_LOADER,
-	MEMTYPE_SHMEM_AMP,
-	MEMTYPE_ATF,
-	MEMTYPE_TEEOS,
-	MEMTYPE_NSMEM,
-	MEMTYPE_LINUXTMP,
-	MEMTYPE_UBOOT,
-	MEMTYPE_RTOS,
-	MEMTYPE_BRIDGE,
-	MEMTYPE_LINUX,
-	MEMTYPE_ALL_IN_ONE,
-	MEMTYPE_KERNEL_IMG,
-	MEMTYPE_DSP,
-	MEMTYPE_RTOS_S0,
-	MEMTYPE_RTOS_S1,
-	MEMTYPE_RTOS_S2,
-	MEMTYPE_LOGO_FB,
-	MEMTYPE_LOGO2_FB,
-	MEMTYPE_SIZE,
-};
-
-#define MEMTYPE_TOTAL_SIZE (MEMTYPE_SIZE)
-typedef struct _EMB_MEM_FDT_TRANSLATE_TABLE {
-	char fdt_node_name[30];
-	unsigned short emb_type;
-} EMB_MEM_FDT_TRANSLATE_TABLE;
-
-typedef struct _nvt_mem_region {
-	unsigned long addr;
-	unsigned long size;
-} nvt_mem_region;
-
-extern EMB_MEM_FDT_TRANSLATE_TABLE emb_mem_fdt_map[MEMTYPE_TOTAL_SIZE];
-extern nvt_mem_region nvt_memory_cfg[MEMTYPE_TOTAL_SIZE];
-
-int nvt_get_memory_by_dts(const void *fdt_addr);
-void nvt_print_dram_setting(void);
 
 /* print color setting */
 #define ANSI_COLOR_RED			"\x1b[31m"
@@ -200,7 +157,9 @@ void lz_uncompress(unsigned char *in, unsigned char *out, unsigned int insize);
 int get_part_and_flash_type(const char *partname, loff_t *off, loff_t *maxsize, nvt_flash_type_t* flash_type);
 #define get_part( partname_ptr, off_ptr, maxsize_ptr) get_part_and_flash_type( partname_ptr, off_ptr, maxsize_ptr, NULL)
 void nvt_disable_mem_protect(void);
+#if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || defined(CONFIG_NVT_LINUX_AUTODETECT) || defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_EMMC_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT)
 int nvt_part_config(char *p_cmdline, EMB_PARTITION *partition_ptr);
+#endif
 char *get_nvt_bin_name(NVT_BIN_NAME_TYPE type);
 int nvt_check_should_rename_updfw(void);
 int nvt_rename_updfw(int reverse);
@@ -217,7 +176,6 @@ int nvt_check_isfdt(ulong addr);
 int nvt_enum_fdt_props(ulong fdt_addr, char *part_node_name, void *pdata,
 			int (*enum_funcs)(ulong fdt_addr, const char *node_name, const char *prop_name, char *prop_val, void *pdata));
 int nvt_fdt_embpart_lookup(char *part_node_name, unsigned short *embtype);
-/* To get partition table from dts. */
 int nvt_getfdt_emb(ulong fdt_addr, EMB_PARTITION *pemb);
 int nvt_getfdt_rootfs_mtd_num(ulong fdt_addr, unsigned int *mtd_num, uint32_t *ro_attr);
 int nvt_dts_config_parsing(void);
@@ -241,23 +199,25 @@ lbaint_t nvt_mmc_sparse_reserve(struct sparse_storage *info, lbaint_t blk, lbain
 void nvt_mmc_sparse_msg_print(const char *str, char *response);
 #endif
 
+#ifdef CONFIG_NVT_PCIE
+int nvt_get_nvtpack_label_from_id(void *fdt_addr, char *root, unsigned int id, unsigned long *label_addr);
+bool nvt_runfw_bin_eprootfs_chk_exist(void *fdt_buf, unsigned int id);
+#endif
+
 /*** NAND Util ***/
 uint32_t nand_get_page_size(void);
 uint32_t nand_get_block_size(void);
 uint32_t nand_total_blocks(void);
 
 /*** DDR Util ***/
-#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64) || defined(CONFIG_TARGET_NS02201) || defined(CONFIG_TARGET_NS02201_A64) || defined(CONFIG_TARGET_NS02302_A64))
+#if (defined(CONFIG_TARGET_NA51090) || defined(CONFIG_TARGET_NA51090_A64) || defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64) || defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64))
 void nvt_ddr_scan(u32 type);
 #else
 void nvt_ddr_scan(void);
 #endif
 void nvt_stbc_pmc(UINT32 debug);
 
-/*** UART(serial Util ***/
-#if (defined(CONFIG_SERIAL_NVT))
-extern int nvt_serial_calc_divisor(struct ns16550 *port, int baudrate);
-#endif
+void nvt_print_system_info(void);
 
 #if defined(CONFIG_NVT_IVOT_DUAL_RTOS)
 extern int nvt_decide_dual_rtos_idx(void);

@@ -6,12 +6,7 @@
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  */
 
-#include <common.h>
-#include <dm.h>
 #include <edid.h>
-#include <fdtdec.h>
-#include <log.h>
-#include <asm/io.h>
 #include "meson_vpu.h"
 
 enum {
@@ -28,9 +23,7 @@ enum meson_venc_source {
 };
 
 #define HHI_VDAC_CNTL0		0x2F4 /* 0xbd offset in data sheet */
-#define HHI_VDAC_CNTL0_G12A	0x2EC /* 0xbb offset in data sheet */
 #define HHI_VDAC_CNTL1		0x2F8 /* 0xbe offset in data sheet */
-#define HHI_VDAC_CNTL1_G12A	0x2F0 /* 0xbc offset in data sheet */
 
 struct meson_cvbs_enci_mode {
 	unsigned int mode_tag;
@@ -182,7 +175,7 @@ union meson_hdmi_venc_mode meson_hdmi_enci_mode_480i = {
 		.hso_end = 129,
 		.vso_even = 3,
 		.vso_odd = 260,
-		.macv_max_amp = 0xb,
+		.macv_max_amp = 0x810b,
 		.video_prog_mode = 0xf0,
 		.video_mode = 0x8,
 		.sch_adjust = 0x20,
@@ -202,7 +195,7 @@ union meson_hdmi_venc_mode meson_hdmi_enci_mode_576i = {
 		.hso_end = 129,
 		.vso_even = 3,
 		.vso_odd = 260,
-		.macv_max_amp = 0x7,
+		.macv_max_amp = 8107,
 		.video_prog_mode = 0xff,
 		.video_mode = 0x13,
 		.sch_adjust = 0x28,
@@ -781,13 +774,12 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 	unsigned int eof_lines;
 	unsigned int sof_lines;
 	unsigned int vsync_lines;
-	u32 reg;
 
 	/* Use VENCI for 480i and 576i and double HDMI pixels */
 	if (mode->flags & DISPLAY_FLAGS_DOUBLECLK) {
+		venc_hdmi_latency = 1;
 		hdmi_repeat = true;
 		use_enci = true;
-		venc_hdmi_latency = 1;
 	}
 
 	meson_venc_hdmi_get_dmt_vmode(mode, &vmode_dmt);
@@ -858,11 +850,8 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		unsigned int lines_f1;
 
 		/* CVBS Filter settings */
-		writel(ENCI_CFILT_CMPT_SEL_HIGH | 0x10,
-		       priv->io_base + _REG(ENCI_CFILT_CTRL));
-		writel(ENCI_CFILT_CMPT_CR_DLY(2) |
-		       ENCI_CFILT_CMPT_CB_DLY(1),
-		       priv->io_base + _REG(ENCI_CFILT_CTRL2));
+		writel(0x12, priv->io_base + _REG(ENCI_CFILT_CTRL));
+		writel(0x12, priv->io_base + _REG(ENCI_CFILT_CTRL2));
 
 		/* Digital Video Select : Interlace, clk27 clk, external */
 		writel(0, priv->io_base + _REG(VENC_DVI_SETTING));
@@ -884,8 +873,7 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		       priv->io_base + _REG(ENCI_SYNC_VSO_ODDLN));
 
 		/* Macrovision max amplitude change */
-		writel(ENCI_MACV_MAX_AMP_ENABLE_CHANGE |
-		       ENCI_MACV_MAX_AMP_VAL(vmode->enci.macv_max_amp),
+		writel(vmode->enci.macv_max_amp,
 		       priv->io_base + _REG(ENCI_MACV_MAX_AMP));
 
 		/* Video mode */
@@ -894,8 +882,7 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		writel(vmode->enci.video_mode,
 		       priv->io_base + _REG(ENCI_VIDEO_MODE));
 
-		/*
-		 * Advanced Video Mode :
+		/* Advanced Video Mode :
 		 * Demux shifting 0x2
 		 * Blank line end at line17/22
 		 * High bandwidth Luma Filter
@@ -903,10 +890,7 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		 * Bypass luma low pass filter
 		 * No macrovision on CSYNC
 		 */
-		writel(ENCI_VIDEO_MODE_ADV_DMXMD(2) |
-		       ENCI_VIDEO_MODE_ADV_VBICTL_LINE_17_22 |
-		       ENCI_VIDEO_MODE_ADV_YBW_HIGH,
-		       priv->io_base + _REG(ENCI_VIDEO_MODE_ADV));
+		writel(0x26, priv->io_base + _REG(ENCI_VIDEO_MODE_ADV));
 
 		writel(vmode->enci.sch_adjust,
 		       priv->io_base + _REG(ENCI_VIDEO_SCH));
@@ -921,17 +905,8 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		/* UNreset Interlaced TV Encoder */
 		writel(0, priv->io_base + _REG(ENCI_DBG_PX_RST));
 
-		/*
-		 * Enable Vfifo2vd and set Y_Cb_Y_Cr:
-		 * Corresponding value:
-		 * Y  => 00 or 10
-		 * Cb => 01
-		 * Cr => 11
-		 * Ex: 0x4e => 01001110 would mean Cb/Y/Cr/Y
-		 */
-		writel(ENCI_VFIFO2VD_CTL_ENABLE |
-		       ENCI_VFIFO2VD_CTL_VD_SEL(0x4e),
-		       priv->io_base + _REG(ENCI_VFIFO2VD_CTL));
+		/* Enable Vfifo2vd, Y_Cb_Y_Cr select */
+		writel(0x4e01, priv->io_base + _REG(ENCI_VFIFO2VD_CTL));
 
 		/* Timings */
 		writel(vmode->enci.pixel_start,
@@ -953,8 +928,7 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		meson_vpp_setup_mux(priv, MESON_VIU_VPP_MUX_ENCI);
 
 		/* Interlace video enable */
-		writel(ENCI_VIDEO_EN_ENABLE,
-		       priv->io_base + _REG(ENCI_VIDEO_EN));
+		writel(1, priv->io_base + _REG(ENCI_VIDEO_EN));
 
 		lines_f0 = mode->vback_porch.typ + mode->vactive.typ +
 			   mode->vback_porch.typ + mode->vsync_len.typ;
@@ -1203,8 +1177,7 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		writel(1, priv->io_base + _REG(ENCP_VIDEO_EN));
 
 		/* Set DE signal's polarity is active high */
-		writel_bits(ENCP_VIDEO_MODE_DE_V_HIGH,
-			    ENCP_VIDEO_MODE_DE_V_HIGH,
+		writel_bits(BIT(14), BIT(14),
 			    priv->io_base + _REG(ENCP_VIDEO_MODE));
 
 		/* Program DE timing */
@@ -1329,52 +1302,21 @@ static void meson_venc_hdmi_mode_set(struct meson_vpu_priv *priv,
 		meson_vpp_setup_mux(priv, MESON_VIU_VPP_MUX_ENCP);
 	}
 
-	/* Set VPU HDMI setting */
-	/* Select ENCP or ENCI data to HDMI */
-	if (use_enci)
-		reg = VPU_HDMI_ENCI_DATA_TO_HDMI;
-	else
-		reg = VPU_HDMI_ENCP_DATA_TO_HDMI;
-
-	/* Invert polarity of HSYNC from VENC */
-	if (mode->flags & DISPLAY_FLAGS_HSYNC_HIGH)
-		reg |= VPU_HDMI_INV_HSYNC;
-
-	/* Invert polarity of VSYNC from VENC */
-	if (mode->flags & DISPLAY_FLAGS_VSYNC_HIGH)
-		reg |= VPU_HDMI_INV_VSYNC;
-
-	/* Output data format: CbYCr */
-	reg |= VPU_HDMI_OUTPUT_CBYCR;
-
-	/*
-	 * Write rate to the async FIFO between VENC and HDMI.
-	 * One write every 2 wr_clk.
-	 */
-	if (venc_repeat)
-		reg |= VPU_HDMI_WR_RATE(2);
-
-	/*
-	 * Read rate to the async FIFO between VENC and HDMI.
-	 * One read every 2 wr_clk.
-	 */
-	if (hdmi_repeat)
-		reg |= VPU_HDMI_RD_RATE(2);
-
-	writel(reg, priv->io_base + _REG(VPU_HDMI_SETTING));
+	writel((use_enci ? 1 : 2) |
+		       (mode->flags & DISPLAY_FLAGS_HSYNC_HIGH ? 1 << 2 : 0) |
+		       (mode->flags & DISPLAY_FLAGS_VSYNC_HIGH ? 1 << 3 : 0) |
+		       4 << 5 |
+		       (venc_repeat ? 1 << 8 : 0) |
+		       (hdmi_repeat ? 1 << 12 : 0),
+		       priv->io_base + _REG(VPU_HDMI_SETTING));
 }
 
 static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 				      struct meson_cvbs_enci_mode *mode)
 {
-	u32 reg;
-
 	/* CVBS Filter settings */
-	writel(ENCI_CFILT_CMPT_SEL_HIGH | 0x10,
-	       priv->io_base + _REG(ENCI_CFILT_CTRL));
-	writel(ENCI_CFILT_CMPT_CR_DLY(2) |
-	       ENCI_CFILT_CMPT_CB_DLY(1),
-	       priv->io_base + _REG(ENCI_CFILT_CTRL2));
+	writel(0x12, priv->io_base + _REG(ENCI_CFILT_CTRL));
+	writel(0x12, priv->io_base + _REG(ENCI_CFILT_CTRL2));
 
 	/* Digital Video Select : Interlace, clk27 clk, external */
 	writel(0, priv->io_base + _REG(VENC_DVI_SETTING));
@@ -1396,8 +1338,7 @@ static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 	       priv->io_base + _REG(ENCI_SYNC_VSO_ODDLN));
 
 	/* Macrovision max amplitude change */
-	writel(ENCI_MACV_MAX_AMP_ENABLE_CHANGE |
-	       ENCI_MACV_MAX_AMP_VAL(mode->macv_max_amp),
+	writel(0x8100 + mode->macv_max_amp,
 	       priv->io_base + _REG(ENCI_MACV_MAX_AMP));
 
 	/* Video mode */
@@ -1406,8 +1347,7 @@ static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 	writel(mode->video_mode,
 	       priv->io_base + _REG(ENCI_VIDEO_MODE));
 
-	/*
-	 * Advanced Video Mode :
+	/* Advanced Video Mode :
 	 * Demux shifting 0x2
 	 * Blank line end at line17/22
 	 * High bandwidth Luma Filter
@@ -1415,10 +1355,7 @@ static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 	 * Bypass luma low pass filter
 	 * No macrovision on CSYNC
 	 */
-	writel(ENCI_VIDEO_MODE_ADV_DMXMD(2) |
-	       ENCI_VIDEO_MODE_ADV_VBICTL_LINE_17_22 |
-	       ENCI_VIDEO_MODE_ADV_YBW_HIGH,
-	       priv->io_base + _REG(ENCI_VIDEO_MODE_ADV));
+	writel(0x26, priv->io_base + _REG(ENCI_VIDEO_MODE_ADV));
 
 	writel(mode->sch_adjust, priv->io_base + _REG(ENCI_VIDEO_SCH));
 
@@ -1450,50 +1387,16 @@ static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 	/* UNreset Interlaced TV Encoder */
 	writel(0, priv->io_base + _REG(ENCI_DBG_PX_RST));
 
-	/*
-	 * Enable Vfifo2vd and set Y_Cb_Y_Cr:
-	 * Corresponding value:
-	 * Y  => 00 or 10
-	 * Cb => 01
-	 * Cr => 11
-	 * Ex: 0x4e => 01001110 would mean Cb/Y/Cr/Y
-	 */
-	writel(ENCI_VFIFO2VD_CTL_ENABLE |
-	       ENCI_VFIFO2VD_CTL_VD_SEL(0x4e),
-	       priv->io_base + _REG(ENCI_VFIFO2VD_CTL));
+	/* Enable Vfifo2vd, Y_Cb_Y_Cr select */
+	writel(0x4e01, priv->io_base + _REG(ENCI_VFIFO2VD_CTL));
 
 	/* Power UP Dacs */
 	writel(0, priv->io_base + _REG(VENC_VDAC_SETTING));
 
 	/* Video Upsampling */
-	/*
-	 * CTRL0, CTRL1 and CTRL2:
-	 * Filter0: input data sample every 2 cloks
-	 * Filter1: filtering and upsample enable
-	 */
-	reg = VENC_UPSAMPLE_CTRL_F0_2_CLK_RATIO | VENC_UPSAMPLE_CTRL_F1_EN |
-		VENC_UPSAMPLE_CTRL_F1_UPSAMPLE_EN;
-
-	/*
-	 * Upsample CTRL0:
-	 * Interlace High Bandwidth Luma
-	 */
-	writel(VENC_UPSAMPLE_CTRL_INTERLACE_HIGH_LUMA | reg,
-	       priv->io_base + _REG(VENC_UPSAMPLE_CTRL0));
-
-	/*
-	 * Upsample CTRL1:
-	 * Interlace Pb
-	 */
-	writel(VENC_UPSAMPLE_CTRL_INTERLACE_PB | reg,
-	       priv->io_base + _REG(VENC_UPSAMPLE_CTRL1));
-
-	/*
-	 * Upsample CTRL2:
-	 * Interlace R
-	 */
-	writel(VENC_UPSAMPLE_CTRL_INTERLACE_PR | reg,
-	       priv->io_base + _REG(VENC_UPSAMPLE_CTRL2));
+	writel(0x0061, priv->io_base + _REG(VENC_UPSAMPLE_CTRL0));
+	writel(0x4061, priv->io_base + _REG(VENC_UPSAMPLE_CTRL1));
+	writel(0x5061, priv->io_base + _REG(VENC_UPSAMPLE_CTRL2));
 
 	/* Select Interlace Y DACs */
 	writel(0, priv->io_base + _REG(VENC_VDAC_DACSEL0));
@@ -1507,16 +1410,14 @@ static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 	meson_vpp_setup_mux(priv, MESON_VIU_VPP_MUX_ENCI);
 
 	/* Enable ENCI FIFO */
-	writel(VENC_VDAC_FIFO_EN_ENCI_ENABLE,
-	       priv->io_base + _REG(VENC_VDAC_FIFO_CTRL));
+	writel(0x2000, priv->io_base + _REG(VENC_VDAC_FIFO_CTRL));
 
 	/* Select ENCI DACs 0, 1, 4, and 5 */
 	writel(0x11, priv->io_base + _REG(ENCI_DACSEL_0));
 	writel(0x11, priv->io_base + _REG(ENCI_DACSEL_1));
 
 	/* Interlace video enable */
-	writel(ENCI_VIDEO_EN_ENABLE,
-	       priv->io_base + _REG(ENCI_VIDEO_EN));
+	writel(1, priv->io_base + _REG(ENCI_VIDEO_EN));
 
 	/* Configure Video Saturation / Contrast / Brightness / Hue */
 	writel(mode->video_saturation,
@@ -1529,8 +1430,7 @@ static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 	       priv->io_base + _REG(ENCI_VIDEO_HUE));
 
 	/* Enable DAC0 Filter */
-	writel(VENC_VDAC_DAC0_FILT_CTRL0_EN,
-	       priv->io_base + _REG(VENC_VDAC_DAC0_FILT_CTRL0));
+	writel(0x1, priv->io_base + _REG(VENC_VDAC_DAC0_FILT_CTRL0));
 	writel(0xfc48, priv->io_base + _REG(VENC_VDAC_DAC0_FILT_CTRL1));
 
 	/* 0 in Macrovision register 0 */
@@ -1541,21 +1441,15 @@ static void meson_venci_cvbs_mode_set(struct meson_vpu_priv *priv,
 	       priv->io_base + _REG(ENCI_SYNC_ADJ));
 
 	/* enable VDAC */
-	writel_bits(VENC_VDAC_SEL_ATV_DMD, 0,
-		    priv->io_base + _REG(VENC_VDAC_DACSEL0));
+	writel_bits(BIT(5), 0, priv->io_base + _REG(VENC_VDAC_DACSEL0));
 
 	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXBB))
 		hhi_write(HHI_VDAC_CNTL0, 1);
 	else if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXL) ||
 		 meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXM))
 		hhi_write(HHI_VDAC_CNTL0, 0xf0001);
-	else if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
-		hhi_write(HHI_VDAC_CNTL0_G12A, 0x906001);
 
-	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
-		hhi_write(HHI_VDAC_CNTL1_G12A, 0);
-	else
-		hhi_write(HHI_VDAC_CNTL1, 0);
+	hhi_write(HHI_VDAC_CNTL1, 0);
 }
 
 void meson_vpu_setup_venc(struct udevice *dev,

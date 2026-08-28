@@ -4,18 +4,12 @@
  * Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
  */
 
-#include <common.h>
-#include <cpu_func.h>
 #include <dm.h>
-#include <init.h>
-#include <asm/cache.h>
-#include <asm/global_data.h>
+#include <common.h>
 #include <asm/io.h>
 #include <dm/platform_data/serial_pl01x.h>
 #include <asm/arch/hi3798cv200.h>
 #include <asm/armv8/mmu.h>
-#include <linux/bitops.h>
-#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -41,15 +35,15 @@ static struct mm_region poplar_mem_map[] = {
 struct mm_region *mem_map = poplar_mem_map;
 
 #if !CONFIG_IS_ENABLED(OF_CONTROL)
-static const struct pl01x_serial_plat serial_plat = {
+static const struct pl01x_serial_platdata serial_platdata = {
 	.base = REG_BASE_UART0,
 	.type = TYPE_PL010,
 	.clock = 75000000,
 };
 
-U_BOOT_DRVINFO(poplar_serial) = {
+U_BOOT_DEVICE(poplar_serial) = {
 	.name = "serial_pl01x",
-	.plat = &serial_plat,
+	.platdata = &serial_platdata,
 };
 #endif
 
@@ -60,7 +54,7 @@ int checkboard(void)
 	return 0;
 }
 
-void reset_cpu(void)
+void reset_cpu(ulong addr)
 {
 	psci_system_reset();
 }
@@ -161,7 +155,6 @@ static void usb2_phy_init(void)
 }
 
 #if defined(CONFIG_USB_GADGET) && defined(CONFIG_USB_GADGET_DWC2_OTG)
-#include <env.h>
 #include <usb.h>
 #include <usb/dwc2_udc.h>
 #include <g_dnl.h>

@@ -9,7 +9,6 @@
 #define __NVT_IVOT_MMC_NA51090_H__
 
 #include <asm/arch/na51090_regs.h>
-#include <asm/arch/gpio.h>
 #include <linux/bitops.h>
 
 /**************************
@@ -68,6 +67,10 @@
 #define PIN_SDIO_CFG_SDIO2_1            (0x10)
 #define PIN_SDIO_CFG_SDIO2_BUS_WIDTH    (0x20)
 #define PIN_SDIO_CFG_SDIO2_DS           (0x40)
+
+#define PIN_SDIO_CFG_SDIO3_1            (0x100)
+#define PIN_SDIO_CFG_SDIO3_BUS_WIDTH    (0x200)
+#define PIN_SDIO_CFG_SDIO3_DS           (0x400)
 
 /* TOP */
 #define TOP_SDIO_EN_REG                 (IOADDR_TOP_REG_BASE + 0x04)
@@ -135,25 +138,13 @@
 #define GPIO_SDIO_D2                    P_GPIO(17)
 #define GPIO_SDIO_D3                    P_GPIO(18)
 
-#define GPIO_SDIO2_CLK                  C_GPIO(8)
-#define GPIO_SDIO2_CMD                  C_GPIO(9)
-#define GPIO_SDIO2_D0                   C_GPIO(10)
-#define GPIO_SDIO2_D1                   C_GPIO(11)
-#define GPIO_SDIO2_D2                   C_GPIO(12)
-#define GPIO_SDIO2_D3                   C_GPIO(13)
-#define GPIO_SDIO2_D4                   C_GPIO(2)
-#define GPIO_SDIO2_D5                   C_GPIO(3)
-#define GPIO_SDIO2_D6                   C_GPIO(4)
-#define GPIO_SDIO2_D7                   C_GPIO(5)
-
 /* PAD pull */
-#define PAD_PULLNONE                    (0x0)
 #define PAD_PULLDOWN                    (0x1)
-#define PAD_PULLUP                      (0x2)
 
 #define PAD_PUPD_SDIO_CLK_REG           (IOADDR_PAD_REG_BASE + 0x08)
 #define PAD_PUPD_SDIO_CLK_MASK          GENMASK(25, 24)
 #define PAD_PUPD_SDIO_CLK_SHIFT         (24)
+
 #define PAD_PUPD_SDIO_CMD_REG           (IOADDR_PAD_REG_BASE + 0x08)
 #define PAD_PUPD_SDIO_CMD_MASK          GENMASK(27, 26)
 #define PAD_PUPD_SDIO_CMD_SHIFT         (26)
@@ -161,47 +152,17 @@
 #define PAD_PUPD_SDIO_D0_REG            (IOADDR_PAD_REG_BASE + 0x08)
 #define PAD_PUPD_SDIO_D0_MASK           GENMASK(31, 30)
 #define PAD_PUPD_SDIO_D0_SHIFT          (30)
+
 #define PAD_PUPD_SDIO_D1_REG            (IOADDR_PAD_REG_BASE + 0x0C)
 #define PAD_PUPD_SDIO_D1_MASK           GENMASK(1, 0)
 #define PAD_PUPD_SDIO_D1_SHIFT          (0)
 #define PAD_PUPD_SDIO_D2_REG            (IOADDR_PAD_REG_BASE + 0x0C)
 #define PAD_PUPD_SDIO_D2_MASK           GENMASK(3, 2)
 #define PAD_PUPD_SDIO_D2_SHIFT          (2)
+
 #define PAD_PUPD_SDIO_D3_REG            (IOADDR_PAD_REG_BASE + 0x0C)
 #define PAD_PUPD_SDIO_D3_MASK           GENMASK(5, 4)
 #define PAD_PUPD_SDIO_D3_SHIFT          (4)
-
-#define PAD_PUPD_SDIO2_CLK_REG          (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_CLK_MASK         GENMASK(17, 16)
-#define PAD_PUPD_SDIO2_CLK_SHIFT        (16)
-#define PAD_PUPD_SDIO2_CMD_REG          (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_CMD_MASK         GENMASK(19, 18)
-#define PAD_PUPD_SDIO2_CMD_SHIFT        (18)
-
-#define PAD_PUPD_SDIO2_D0_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D0_MASK          GENMASK(21, 20)
-#define PAD_PUPD_SDIO2_D0_SHIFT         (20)
-#define PAD_PUPD_SDIO2_D1_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D1_MASK          GENMASK(23, 22)
-#define PAD_PUPD_SDIO2_D1_SHIFT         (22)
-#define PAD_PUPD_SDIO2_D2_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D2_MASK          GENMASK(25, 24)
-#define PAD_PUPD_SDIO2_D2_SHIFT         (24)
-#define PAD_PUPD_SDIO2_D3_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D3_MASK          GENMASK(27, 26)
-#define PAD_PUPD_SDIO2_D3_SHIFT         (26)
-#define PAD_PUPD_SDIO2_D4_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D4_MASK          GENMASK(5, 4)
-#define PAD_PUPD_SDIO2_D4_SHIFT         (4)
-#define PAD_PUPD_SDIO2_D5_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D5_MASK          GENMASK(7, 6)
-#define PAD_PUPD_SDIO2_D5_SHIFT         (6)
-#define PAD_PUPD_SDIO2_D6_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D6_MASK          GENMASK(9, 8)
-#define PAD_PUPD_SDIO2_D6_SHIFT         (8)
-#define PAD_PUPD_SDIO2_D7_REG           (IOADDR_PAD_REG_BASE + 0x00)
-#define PAD_PUPD_SDIO2_D7_MASK          GENMASK(11, 10)
-#define PAD_PUPD_SDIO2_D7_SHIFT         (10)
 
 static inline uint32_t nvt_mmc_get_indly(uint8_t host_id, uint32_t freq)
 {

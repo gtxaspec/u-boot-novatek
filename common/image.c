@@ -8,14 +8,6 @@
 
 #ifndef USE_HOSTCC
 #include <common.h>
-#include <bootstage.h>
-#include <cpu_func.h>
-#include <env.h>
-#include <lmb.h>
-#include <log.h>
-#include <malloc.h>
-#include <asm/cache.h>
-#include <u-boot/crc.h>
 #include <watchdog.h>
 
 #ifdef CONFIG_SHOW_BOOT_PROGRESS
@@ -24,9 +16,8 @@
 
 #include <rtc.h>
 
-#include <gzip.h>
+#include <environment.h>
 #include <image.h>
-#include <lz4.h>
 #include <mapmem.h>
 
 #if IMAGE_ENABLE_FIT || IMAGE_ENABLE_OF_LIBFDT
@@ -36,27 +27,22 @@
 #include <xilinx.h>
 #endif
 
-#include <asm/global_data.h>
 #include <u-boot/md5.h>
 #include <u-boot/sha1.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 
-#include <bzlib.h>
 #include <linux/lzo.h>
 #include <lzma/LzmaTypes.h>
 #include <lzma/LzmaDec.h>
 #include <lzma/LzmaTools.h>
-#include <linux/zstd.h>
-
 #ifdef CONFIG_CMD_BDI
-extern int do_bdinfo(struct cmd_tbl *cmdtp, int flag, int argc,
-		     char *const argv[]);
+extern int do_bdinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if CONFIG_IS_ENABLED(LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 static const image_header_t *image_get_ramdisk(ulong rd_addr, uint8_t arch,
 						int verify);
 #endif
@@ -72,7 +58,6 @@ static const image_header_t *image_get_ramdisk(ulong rd_addr, uint8_t arch,
 #endif /* !USE_HOSTCC*/
 
 #include <u-boot/crc.h>
-#include <imximage.h>
 
 #ifndef CONFIG_SYS_BARGSIZE
 #define CONFIG_SYS_BARGSIZE 512
@@ -144,8 +129,6 @@ static const table_entry_t uimage_os[] = {
 #if defined(CONFIG_BOOTM_OPENRTOS) || defined(USE_HOSTCC)
 	{	IH_OS_OPENRTOS,	"openrtos",	"OpenRTOS",		},
 #endif
-	{	IH_OS_OPENSBI,	"opensbi",	"RISC-V OpenSBI",	},
-	{	IH_OS_EFI,	"efi",		"EFI Firmware" },
 
 	{	-1,		"",		"",			},
 };
@@ -189,8 +172,6 @@ static const table_entry_t uimage_type[] = {
 	{       IH_TYPE_PMMC,        "pmmc",        "TI Power Management Micro-Controller Firmware",},
 	{	IH_TYPE_STM32IMAGE, "stm32image", "STMicroelectronics STM32 Image" },
 	{	IH_TYPE_MTKIMAGE,   "mtk_image",   "MediaTek BootROM loadable Image" },
-	{	IH_TYPE_COPRO, "copro", "Coprocessor Image"},
-	{	IH_TYPE_SUNXI_EGON, "sunxi_egon",  "Allwinner eGON Boot Image" },
 	{	-1,		    "",		  "",			},
 };
 
@@ -201,7 +182,6 @@ static const table_entry_t uimage_comp[] = {
 	{	IH_COMP_LZMA,	"lzma",		"lzma compressed",	},
 	{	IH_COMP_LZO,	"lzo",		"lzo compressed",	},
 	{	IH_COMP_LZ4,	"lz4",		"lz4 compressed",	},
-	{	IH_COMP_ZSTD,	"zstd",		"zstd compressed",	},
 	{	-1,		"",		"",			},
 };
 
@@ -401,9 +381,9 @@ void image_print_contents(const void *ptr)
 		}
 	} else if (image_check_type(hdr, IH_TYPE_FIRMWARE_IVT)) {
 		printf("HAB Blocks:   0x%08x   0x0000   0x%08x\n",
-			image_get_load(hdr) - image_get_header_size(),
-			(int)(image_get_size(hdr) + image_get_header_size()
-			+ sizeof(flash_header_v2_t) - 0x2060));
+				image_get_load(hdr) - image_get_header_size(),
+				image_get_size(hdr) + image_get_header_size()
+						- 0x1FE0);
 	}
 }
 
@@ -423,7 +403,6 @@ static void print_decomp_msg(int comp_type, int type, bool is_xip)
 	else
 		printf("   Uncompressing %s\n", name);
 }
-
 int image_decomp_type(const unsigned char *buf, ulong len)
 {
 	const struct comp_magic_map *cmagic = image_comp;
@@ -462,16 +441,13 @@ int image_decomp(int comp, ulong load, ulong image_start, int type,
 		else
 			ret = -ENOSPC;
 		break;
-#ifndef USE_HOSTCC
-#if CONFIG_IS_ENABLED(GZIP)
+#ifdef CONFIG_GZIP
 	case IH_COMP_GZIP: {
 		ret = gunzip(load_buf, unc_len, image_buf, &image_len);
 		break;
 	}
 #endif /* CONFIG_GZIP */
-#endif
-#ifndef USE_HOSTCC
-#if CONFIG_IS_ENABLED(BZIP2)
+#ifdef CONFIG_BZIP2
 	case IH_COMP_BZIP2: {
 		uint size = unc_len;
 
@@ -487,9 +463,7 @@ int image_decomp(int comp, ulong load, ulong image_start, int type,
 		break;
 	}
 #endif /* CONFIG_BZIP2 */
-#endif
-#ifndef USE_HOSTCC
-#if CONFIG_IS_ENABLED(LZMA)
+#ifdef CONFIG_LZMA
 	case IH_COMP_LZMA: {
 		SizeT lzma_len = unc_len;
 
@@ -499,9 +473,7 @@ int image_decomp(int comp, ulong load, ulong image_start, int type,
 		break;
 	}
 #endif /* CONFIG_LZMA */
-#endif
-#ifndef USE_HOSTCC
-#if CONFIG_IS_ENABLED(LZO)
+#ifdef CONFIG_LZO
 	case IH_COMP_LZO: {
 		size_t size = unc_len;
 
@@ -510,9 +482,7 @@ int image_decomp(int comp, ulong load, ulong image_start, int type,
 		break;
 	}
 #endif /* CONFIG_LZO */
-#endif
-#ifndef USE_HOSTCC
-#if CONFIG_IS_ENABLED(LZ4)
+#ifdef CONFIG_LZ4
 	case IH_COMP_LZ4: {
 		size_t size = unc_len;
 
@@ -521,59 +491,6 @@ int image_decomp(int comp, ulong load, ulong image_start, int type,
 		break;
 	}
 #endif /* CONFIG_LZ4 */
-#endif
-#ifndef USE_HOSTCC
-#if CONFIG_IS_ENABLED(ZSTD)
-	case IH_COMP_ZSTD: {
-		size_t size = unc_len;
-		ZSTD_DStream *dstream;
-		ZSTD_inBuffer in_buf;
-		ZSTD_outBuffer out_buf;
-		void *workspace;
-		size_t wsize;
-
-		wsize = ZSTD_DStreamWorkspaceBound(image_len);
-		workspace = malloc(wsize);
-		if (!workspace) {
-			debug("%s: cannot allocate workspace of size %zu\n", __func__,
-			      wsize);
-			return -1;
-		}
-
-		dstream = ZSTD_initDStream(image_len, workspace, wsize);
-		if (!dstream) {
-			printf("%s: ZSTD_initDStream failed\n", __func__);
-			return ZSTD_getErrorCode(ret);
-		}
-
-		in_buf.src = image_buf;
-		in_buf.pos = 0;
-		in_buf.size = image_len;
-
-		out_buf.dst = load_buf;
-		out_buf.pos = 0;
-		out_buf.size = size;
-
-		while (1) {
-			size_t ret;
-
-			ret = ZSTD_decompressStream(dstream, &out_buf, &in_buf);
-			if (ZSTD_isError(ret)) {
-				printf("%s: ZSTD_decompressStream error %d\n", __func__,
-				       ZSTD_getErrorCode(ret));
-				return ZSTD_getErrorCode(ret);
-			}
-
-			if (in_buf.pos >= image_len || !ret)
-				break;
-		}
-
-		image_len = out_buf.pos;
-
-		break;
-	}
-#endif /* CONFIG_ZSTD */
-#endif
 	default:
 		printf("Unimplemented compression type %d\n", comp);
 		return -ENOSYS;
@@ -583,10 +500,8 @@ int image_decomp(int comp, ulong load, ulong image_start, int type,
 
 	return ret;
 }
-
-
 #ifndef USE_HOSTCC
-#if CONFIG_IS_ENABLED(LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 /**
  * image_get_ramdisk - get and verify ramdisk image
  * @rd_addr: ramdisk image start address
@@ -652,9 +567,9 @@ static const image_header_t *image_get_ramdisk(ulong rd_addr, uint8_t arch,
 /* Shared dual-format routines */
 /*****************************************************************************/
 #ifndef USE_HOSTCC
-ulong image_load_addr = CONFIG_SYS_LOAD_ADDR;	/* Default Load Address */
-ulong image_save_addr;			/* Default Save Address */
-ulong image_save_size;			/* Default Save Size (in bytes) */
+ulong load_addr = CONFIG_SYS_LOAD_ADDR;	/* Default Load Address */
+ulong save_addr;			/* Default Save Address */
+ulong save_size;			/* Default Save Size (in bytes) */
 
 static int on_loadaddr(const char *name, const char *value, enum env_op op,
 	int flags)
@@ -662,7 +577,7 @@ static int on_loadaddr(const char *name, const char *value, enum env_op op,
 	switch (op) {
 	case env_op_create:
 	case env_op_overwrite:
-		image_load_addr = hextoul(value, NULL);
+		load_addr = simple_strtoul(value, NULL, 16);
 		break;
 	default:
 		break;
@@ -676,13 +591,13 @@ ulong env_get_bootm_low(void)
 {
 	char *s = env_get("bootm_low");
 	if (s) {
-		ulong tmp = hextoul(s, NULL);
+		ulong tmp = simple_strtoul(s, NULL, 16);
 		return tmp;
 	}
 
 #if defined(CONFIG_SYS_SDRAM_BASE)
 	return CONFIG_SYS_SDRAM_BASE;
-#elif defined(CONFIG_ARM) || defined(CONFIG_MICROBLAZE)
+#elif defined(CONFIG_ARM)
 	return gd->bd->bi_dram[0].start;
 #else
 	return 0;
@@ -699,11 +614,13 @@ phys_size_t env_get_bootm_size(void)
 		return tmp;
 	}
 
-	start = gd->ram_base;
-	size = gd->ram_size;
-
-	if (start + size > gd->ram_top)
-		size = gd->ram_top - start;
+#if defined(CONFIG_ARM) && defined(CONFIG_NR_DRAM_BANKS)
+	start = gd->bd->bi_dram[0].start;
+	size = gd->bd->bi_dram[0].size;
+#else
+	start = gd->bd->bi_memstart;
+	size = gd->bd->bi_memsize;
+#endif
 
 	s = env_get("bootm_low");
 	if (s)
@@ -815,14 +732,14 @@ static const char *unknown_msg(enum ih_category category)
 }
 
 /**
- * genimg_get_cat_name - translate entry id to long name
+ * get_cat_table_entry_name - translate entry id to long name
  * @category: category to look up (enum ih_category)
  * @id: entry id to be translated
  *
  * This will scan the translation table trying to find the entry that matches
  * the given id.
  *
- * @return long entry name if translation succeeds; error string on failure
+ * @retur long entry name if translation succeeds; error string on failure
  */
 const char *genimg_get_cat_name(enum ih_category category, uint id)
 {
@@ -839,14 +756,14 @@ const char *genimg_get_cat_name(enum ih_category category, uint id)
 }
 
 /**
- * genimg_get_cat_short_name - translate entry id to short name
+ * get_cat_table_entry_short_name - translate entry id to short name
  * @category: category to look up (enum ih_category)
  * @id: entry id to be translated
  *
  * This will scan the translation table trying to find the entry that matches
  * the given id.
  *
- * @return short entry name if translation succeeds; error string on failure
+ * @retur short entry name if translation succeeds; error string on failure
  */
 const char *genimg_get_cat_short_name(enum ih_category category, uint id)
 {
@@ -870,24 +787,6 @@ int genimg_get_cat_count(enum ih_category category)
 const char *genimg_get_cat_desc(enum ih_category category)
 {
 	return table_info[category].desc;
-}
-
-/**
- * genimg_cat_has_id - check whether category has entry id
- * @category: category to look up (enum ih_category)
- * @id: entry id to be checked
- *
- * This will scan the translation table trying to find the entry that matches
- * the given id.
- *
- * @return true if category has entry id; false if not
- */
-bool genimg_cat_has_id(enum ih_category category, uint id)
-{
-	if (get_table_entry(table_info[category].table, id))
-		return true;
-
-	return false;
 }
 
 /**
@@ -932,12 +831,6 @@ const char *genimg_get_type_name(uint8_t type)
 	return (get_table_entry_name(uimage_type, "Unknown Image", type));
 }
 
-const char *genimg_get_comp_name(uint8_t comp)
-{
-	return (get_table_entry_name(uimage_comp, "Unknown Compression",
-					comp));
-}
-
 static const char *genimg_get_short_name(const table_entry_t *table, int val)
 {
 	table = get_table_entry(table, val);
@@ -953,6 +846,12 @@ static const char *genimg_get_short_name(const table_entry_t *table, int val)
 const char *genimg_get_type_short_name(uint8_t type)
 {
 	return genimg_get_short_name(uimage_type, type);
+}
+
+const char *genimg_get_comp_name(uint8_t comp)
+{
+	return (get_table_entry_name(uimage_comp, "Unknown Compression",
+					comp));
 }
 
 const char *genimg_get_comp_short_name(uint8_t comp)
@@ -1046,21 +945,21 @@ ulong genimg_get_kernel_addr_fit(char * const img_addr,
 
 	/* find out kernel image address */
 	if (!img_addr) {
-		kernel_addr = image_load_addr;
+		kernel_addr = load_addr;
 		debug("*  kernel: default image load address = 0x%08lx\n",
-		      image_load_addr);
+		      load_addr);
 #if CONFIG_IS_ENABLED(FIT)
-	} else if (fit_parse_conf(img_addr, image_load_addr, &kernel_addr,
+	} else if (fit_parse_conf(img_addr, load_addr, &kernel_addr,
 				  fit_uname_config)) {
 		debug("*  kernel: config '%s' from image at 0x%08lx\n",
 		      *fit_uname_config, kernel_addr);
-	} else if (fit_parse_subimage(img_addr, image_load_addr, &kernel_addr,
+	} else if (fit_parse_subimage(img_addr, load_addr, &kernel_addr,
 				     fit_uname_kernel)) {
 		debug("*  kernel: subimage '%s' from image at 0x%08lx\n",
 		      *fit_uname_kernel, kernel_addr);
 #endif
 	} else {
-		kernel_addr = hextoul(img_addr, NULL);
+		kernel_addr = simple_strtoul(img_addr, NULL, 16);
 		debug("*  kernel: cmdline image address = 0x%08lx\n",
 		      kernel_addr);
 	}
@@ -1097,7 +996,7 @@ ulong genimg_get_kernel_addr(char * const img_addr)
  */
 int genimg_get_format(const void *img_addr)
 {
-#if CONFIG_IS_ENABLED(LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 	const image_header_t *hdr;
 
 	hdr = (const image_header_t *)img_addr;
@@ -1158,12 +1057,12 @@ int genimg_has_config(bootm_headers_t *images)
  *     1, if ramdisk image is found but corrupted, or invalid
  *     rd_start and rd_end are set to 0 if no ramdisk exists
  */
-int boot_get_ramdisk(int argc, char *const argv[], bootm_headers_t *images,
-		     uint8_t arch, ulong *rd_start, ulong *rd_end)
+int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
+		uint8_t arch, ulong *rd_start, ulong *rd_end)
 {
 	ulong rd_addr, rd_load;
 	ulong rd_data, rd_len;
-#if CONFIG_IS_ENABLED(LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 	const image_header_t *rd_hdr;
 #endif
 	void *buf;
@@ -1187,7 +1086,7 @@ int boot_get_ramdisk(int argc, char *const argv[], bootm_headers_t *images,
 	 */
 	buf = map_sysmem(images->os.start, 0);
 	if (buf && genimg_get_format(buf) == IMAGE_FORMAT_ANDROID)
-		select = (argc == 0) ? env_get("loadaddr") : argv[0];
+		select = argv[0];
 #endif
 
 	if (argc >= 2)
@@ -1212,7 +1111,7 @@ int boot_get_ramdisk(int argc, char *const argv[], bootm_headers_t *images,
 			if (images->fit_uname_os)
 				default_addr = (ulong)images->fit_hdr_os;
 			else
-				default_addr = image_load_addr;
+				default_addr = load_addr;
 
 			if (fit_parse_conf(select, default_addr,
 					   &rd_addr, &fit_uname_config)) {
@@ -1227,7 +1126,7 @@ int boot_get_ramdisk(int argc, char *const argv[], bootm_headers_t *images,
 			} else
 #endif
 			{
-				rd_addr = hextoul(select, NULL);
+				rd_addr = simple_strtoul(select, NULL, 16);
 				debug("*  ramdisk: cmdline image address = "
 						"0x%08lx\n",
 						rd_addr);
@@ -1255,7 +1154,7 @@ int boot_get_ramdisk(int argc, char *const argv[], bootm_headers_t *images,
 		 */
 		buf = map_sysmem(rd_addr, 0);
 		switch (genimg_get_format(buf)) {
-#if CONFIG_IS_ENABLED(LEGACY_IMAGE_FORMAT)
+#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 		case IMAGE_FORMAT_LEGACY:
 			printf("## Loading init Ramdisk from Legacy "
 					"Image at %08lx ...\n", rd_addr);
@@ -1301,7 +1200,7 @@ int boot_get_ramdisk(int argc, char *const argv[], bootm_headers_t *images,
 			if (select)
 				end = strchr(select, ':');
 			if (end) {
-				rd_len = hextoul(++end, NULL);
+				rd_len = simple_strtoul(++end, NULL, 16);
 				rd_data = rd_addr;
 			} else
 #endif
@@ -1379,7 +1278,7 @@ int boot_ramdisk_high(struct lmb *lmb, ulong rd_data, ulong rd_len,
 		/* a value of "no" or a similar string will act like 0,
 		 * turning the "load high" feature off. This is intentional.
 		 */
-		initrd_high = hextoul(s, NULL);
+		initrd_high = simple_strtoul(s, NULL, 16);
 		if (initrd_high == ~0)
 			initrd_copy_to_ram = 0;
 	} else {
@@ -1387,7 +1286,7 @@ int boot_ramdisk_high(struct lmb *lmb, ulong rd_data, ulong rd_len,
 	}
 
 
-	debug("## initrd_high = 0x%lx, copy_to_ram = %d\n",
+	debug("## initrd_high = 0x%08lx, copy_to_ram = %d\n",
 			initrd_high, initrd_copy_to_ram);
 
 	if (rd_data) {
@@ -1411,7 +1310,7 @@ int boot_ramdisk_high(struct lmb *lmb, ulong rd_data, ulong rd_len,
 			bootstage_mark(BOOTSTAGE_ID_COPY_RAMDISK);
 
 			*initrd_end = *initrd_start + rd_len;
-			printf("   Loading Ramdisk to %lx, end %lx ... ",
+			printf("   Loading Ramdisk to %08lx, end %08lx ... ",
 					*initrd_start, *initrd_end);
 
 			memmove_wd((void *)*initrd_start,
@@ -1432,7 +1331,7 @@ int boot_ramdisk_high(struct lmb *lmb, ulong rd_data, ulong rd_len,
 		*initrd_start = 0;
 		*initrd_end = 0;
 	}
-	debug("   ramdisk load start = 0x%lx, ramdisk load end = 0x%lx\n",
+	debug("   ramdisk load start = 0x%08lx, ramdisk load end = 0x%08lx\n",
 			*initrd_start, *initrd_end);
 
 	return 0;
@@ -1454,7 +1353,7 @@ int boot_get_setup(bootm_headers_t *images, uint8_t arch,
 
 #if IMAGE_ENABLE_FIT
 #if defined(CONFIG_FPGA)
-int boot_get_fpga(int argc, char *const argv[], bootm_headers_t *images,
+int boot_get_fpga(int argc, char * const argv[], bootm_headers_t *images,
 		  uint8_t arch, const ulong *ld_start, ulong * const ld_len)
 {
 	ulong tmp_img_addr, img_data, img_len;
@@ -1555,8 +1454,8 @@ static void fit_loadable_process(uint8_t img_type,
 			fit_loadable_handler->handler(img_data, img_len);
 }
 
-int boot_get_loadable(int argc, char *const argv[], bootm_headers_t *images,
-		      uint8_t arch, const ulong *ld_start, ulong * const ld_len)
+int boot_get_loadable(int argc, char * const argv[], bootm_headers_t *images,
+		uint8_t arch, const ulong *ld_start, ulong * const ld_len)
 {
 	/*
 	 * These variables are used to hold the current image location
@@ -1694,12 +1593,10 @@ int boot_get_cmdline(struct lmb *lmb, ulong *cmd_start, ulong *cmd_end)
  *      0 - success
  *     -1 - failure
  */
-int boot_get_kbd(struct lmb *lmb, struct bd_info **kbd)
+int boot_get_kbd(struct lmb *lmb, bd_t **kbd)
 {
-	*kbd = (struct bd_info *)(ulong)lmb_alloc_base(lmb,
-						       sizeof(struct bd_info),
-						       0xf,
-						       env_get_bootm_mapsize() + env_get_bootm_low());
+	*kbd = (bd_t *)(ulong)lmb_alloc_base(lmb, sizeof(bd_t), 0xf,
+				env_get_bootm_mapsize() + env_get_bootm_low());
 	if (*kbd == NULL)
 		return -1;
 

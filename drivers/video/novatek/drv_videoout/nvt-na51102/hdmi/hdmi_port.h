@@ -4,8 +4,6 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/nvt-common/nvt_types.h>
-//#include <asm/arch/efuse_protected.h>
-#include <linux/delay.h>
 
 
 

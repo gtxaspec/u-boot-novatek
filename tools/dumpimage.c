@@ -35,23 +35,14 @@ static int dumpimage_extract_subimage(struct image_type_params *tparams,
 	if (tparams->verify_header) {
 		retval = tparams->verify_header((unsigned char *)ptr,
 				sbuf->st_size, &params);
-		if (retval != 0) {
-			fprintf(stderr, "%s: failed to verify header of %s\n",
-				params.cmdname, tparams->name);
+		if (retval != 0)
 			return -1;
-		}
-
 		/*
 		 * Extract the file from the image
 		 * if verify is successful
 		 */
 		if (tparams->extract_subimage) {
 			retval = tparams->extract_subimage(ptr, &params);
-			if (retval != 0) {
-				fprintf(stderr, "%s: extract_subimage failed for %s\n",
-					params.cmdname, tparams->name);
-				return -3;
-			}
 		} else {
 			fprintf(stderr,
 				"%s: extract_subimage undefined for %s\n",
@@ -104,6 +95,7 @@ int main(int argc, char **argv)
 			printf("dumpimage version %s\n", PLAIN_VERSION);
 			exit(EXIT_SUCCESS);
 		case 'h':
+			usage();
 		default:
 			usage();
 			break;
@@ -183,9 +175,6 @@ int main(int argc, char **argv)
 		 * image type. Returns the error code if not matched
 		 */
 		retval = dumpimage_extract_subimage(tparams, ptr, &sbuf);
-		if (retval)
-			fprintf(stderr, "%s: Can't extract subimage from %s\n",
-				params.cmdname, params.imagefile);
 	} else {
 		/*
 		 * Print the image information for matched image type

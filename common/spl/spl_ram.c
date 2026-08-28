@@ -11,8 +11,6 @@
  */
 #include <common.h>
 #include <binman_sym.h>
-#include <image.h>
-#include <log.h>
 #include <mapmem.h>
 #include <spl.h>
 #include <linux/libfdt.h>

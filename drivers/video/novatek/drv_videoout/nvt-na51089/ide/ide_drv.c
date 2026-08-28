@@ -55,16 +55,13 @@ int nvt_ide_drv_init(MODULE_INFO *pmodule_info)
 	int i_ret = 0;
 
 	init_waitqueue_head(&pmodule_info->ide_wait_queue);
-	//spin_lock_init(&pmodule_info->ide_spinlock);
+	spin_lock_init(&pmodule_info->ide_spinlock);
 	sema_init(&pmodule_info->ide_sem, 1);
 	init_completion(&pmodule_info->ide_completion);
 	tasklet_init(&pmodule_info->ide_tasklet[0], nvt_ide_drv_do_tasklet, (unsigned long)pmodule_info);
 
 	/* initial clock here */
 
-
-	/* Add HW Module initialization here when driver loaded */
-	ide_platform_create_resource(pmodule_info);
 
 
 	/* register IRQ here*/
@@ -73,12 +70,11 @@ int nvt_ide_drv_init(MODULE_INFO *pmodule_info)
 		i_ret = -ENODEV;
 		goto FAIL_FREE_IRQ;
 	}
-	/* register IRQ here*/
-	if (request_irq(pmodule_info->iinterrupt_id[1], nvt_ide2_drv_isr, IRQF_TRIGGER_HIGH, "IDE2_INT", pmodule_info)) {
-		nvt_dbg(ERR, "failed to register an IRQ Int:%d\n", pmodule_info->iinterrupt_id[1]);
-		i_ret = -ENODEV;
-		goto FAIL_FREE_IRQ;
-	}
+
+
+	/* Add HW Module initialization here when driver loaded */
+
+	ide_platform_create_resource(pmodule_info);
 
 	return i_ret;
 
@@ -191,22 +187,6 @@ irqreturn_t nvt_ide_drv_isr(int irq, void *dev_id)
 	/*  Tasklet for bottom half mechanism */
 	//tasklet_schedule(&pmodule_info->ide_tasklet);
 	ide_isr();
-
-
-	return IRQ_HANDLED;
-}
-
-irqreturn_t nvt_ide2_drv_isr(int irq, void *dev_id)
-{
-	//PMODULE_INFO pmodule_info = (PMODULE_INFO)dev_id;
-
-	/* simple triggle and response mechanism*/
-	//complete(&pmodule_info->ide_completion);
-
-
-	/*  Tasklet for bottom half mechanism */
-	//tasklet_schedule(&pmodule_info->ide_tasklet);
-	ide2_isr();
 
 
 	return IRQ_HANDLED;

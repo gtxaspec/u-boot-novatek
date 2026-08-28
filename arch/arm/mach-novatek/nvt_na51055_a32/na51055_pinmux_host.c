@@ -1212,12 +1212,7 @@ ER pinmux_init(struct nvt_pinctrl_info *info)
 			return E_CTX;
 		}
 
-		if((i != PIN_FUNC_SIF)){// won't init in uboot stage, because we are always use gpio config instead
-			err = pinmux_config_hdl[i](info->top_pinmux[i].config);
-		} else {
-			pr_err("top_config[%d].config skip\n", i);
-		}
-
+		err = pinmux_config_hdl[i](info->top_pinmux[i].config);
 		if (err != E_OK) {
 			pr_err("top_config[%d].config config error\n", i);
 			/*Leave critical section*/

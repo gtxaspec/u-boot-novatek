@@ -6,7 +6,6 @@
 #include "ahci_nvt.h"
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/efuse_protected.h>
-#include <linux/delay.h>
 
 #define msleep(a) udelay(a * 1000)
 
@@ -37,7 +36,7 @@ static u32 nvt_sata_phy_read(void __iomem *phy_reg)
 
 static inline void nvt_sata100_phy_parameter_setting(struct udevice *dev)
 {
-	struct ahci_nvt_plat_data *plat_data = dev_get_priv(dev);
+	struct ahci_nvt_plat_data *plat_data = dev_get_platdata(dev);
 	u32 val = 0;
 
 	if (rxclkinv) {
@@ -506,7 +505,7 @@ static inline void nvt_sata100_phy_parameter_setting(struct udevice *dev)
 
 int nvtsata_platform_init(struct udevice *dev)
 {
-	struct ahci_nvt_plat_data *plat_data = dev_get_priv(dev);
+	struct ahci_nvt_plat_data *plat_data = dev_get_platdata(dev);
 
 	if (!plat_data->base) {
 		pr_err("Error base addr\r\n");

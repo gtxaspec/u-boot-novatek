@@ -55,7 +55,7 @@ E_SYS    = (-5),   // System error
 E_NOMEM  = (-10),  // Insufficient memory
 // - - - - - - - - // - - - - - - - - - - - - - - - - - -
 E_NOSPT  = (-17),  // Feature not supported
-E_INOSPT = (-18),  // Feature not supported by RTOS/FILE specification
+E_INOSPT = (-18),  // Feature not supported by ITRON/FILE specification
 E_RSFN   = (-20),  // Reserved function code number
 E_RSATR  = (-24),  // Reserved attribute
 // - - - - - - - - // - - - - - - - - - - - - - - - - - -

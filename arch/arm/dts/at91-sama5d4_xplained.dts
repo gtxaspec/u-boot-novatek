@@ -59,7 +59,7 @@
 	};
 
 	onewire_tm: onewire {
-		gpios = <&pioE 15 GPIO_ACTIVE_HIGH>;
+		gpios = <&pioE 15 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_onewire_tm_default>;
 		status = "okay";
@@ -117,7 +117,7 @@
 				status = "okay";
 				spi_flash@0 {
 					u-boot,dm-pre-reloc;
-					compatible = "jedec,spi-nor";
+					compatible = "spi-flash";
 					spi-max-frequency = <50000000>;
 					reg = <0>;
 				};

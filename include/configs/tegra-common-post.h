@@ -21,21 +21,12 @@
 #define CONFIG_SYS_NONCACHED_MEMORY	(1 << 20)	/* 1 MiB */
 
 #ifndef CONFIG_SPL_BUILD
-
-#if CONFIG_IS_ENABLED(CMD_USB)
-# define BOOT_TARGET_USB(func) func(USB, usb, 0)
-#else
-# define BOOT_TARGET_USB(func)
-#endif
-
-#ifndef BOOT_TARGET_DEVICES
 #define BOOT_TARGET_DEVICES(func) \
 	func(MMC, mmc, 1) \
 	func(MMC, mmc, 0) \
-	BOOT_TARGET_USB(func) \
+	func(USB, usb, 0) \
 	func(PXE, pxe, na) \
 	func(DHCP, dhcp, na)
-#endif
 #include <config_distro_bootcmd.h>
 #else
 #define BOOTENV
@@ -49,6 +40,7 @@
 
 #ifdef CONFIG_USB_KEYBOARD
 #define STDIN_KBD_USB ",usbkbd"
+#define CONFIG_PREBOOT			"usb start"
 #else
 #define STDIN_KBD_USB ""
 #endif

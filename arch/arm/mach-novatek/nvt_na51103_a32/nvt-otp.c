@@ -14,8 +14,6 @@
 #include <common.h>
 #include <asm/arch/efuse_protected.h>
 #include <asm/nvt-common/rcw_macro.h>
-#include <asm/arch/IOAddress.h>
-#include <linux/delay.h>
 #include "nvt_otp_reg.h"
 
 #ifndef CHKPNT

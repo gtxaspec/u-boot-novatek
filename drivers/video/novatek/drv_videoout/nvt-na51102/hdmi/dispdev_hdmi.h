@@ -102,4 +102,11 @@ extern void hdmitx_reset_sil9002(void);
 #endif
 
 
+extern HDMI_MODE        g_dispdev_hdmi_mode;
+extern HDMI_VIDEOID     g_dispdev_hdmi_vid;
+extern HDMI_AUDIOFMT    g_dispdev_aud_fmt;
+extern HDMI_SRCFMT		g_dispdev_src_fmt;
+
+
+
 #endif

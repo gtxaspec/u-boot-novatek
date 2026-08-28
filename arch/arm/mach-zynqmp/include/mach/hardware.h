@@ -7,9 +7,7 @@
 #ifndef _ASM_ARCH_HARDWARE_H
 #define _ASM_ARCH_HARDWARE_H
 
-#ifndef __ASSEMBLY__
-#include <linux/bitops.h>
-#endif
+#define ARASAN_NAND_BASEADDR	0xFF100000
 
 #define ZYNQMP_TCM_BASE_ADDR	0xFFE00000
 #define ZYNQMP_TCM_SIZE		0x40000
@@ -18,13 +16,6 @@
 #define ZYNQMP_CRL_APB_TIMESTAMP_REF_CTRL_CLKACT	0x1000000
 #define ZYNQMP_CRL_APB_BOOT_PIN_CTRL_OUT_EN_SHIFT	0
 #define ZYNQMP_CRL_APB_BOOT_PIN_CTRL_OUT_VAL_SHIFT	8
-
-#define ZYNQMP_AMS_PS_SYSMON_BASEADDR      0XFFA50800
-#define ZYNQMP_AMS_PS_SYSMON_ANALOG_BUS ((ZYNQMP_AMS_PS_SYSMON_BASEADDR) \
-							    + 0x00000114)
-#define ZYNQMP_PS_SYSMON_ANALOG_BUS_VAL 0x00003210
-
-#define ADMA_CH0_BASEADDR	0xFFA80000
 
 #define PS_MODE0	BIT(0)
 #define PS_MODE1	BIT(1)
@@ -68,9 +59,6 @@ struct iou_scntr_secure {
 };
 
 #define iou_scntr_secure ((struct iou_scntr_secure *)ZYNQMP_IOU_SCNTR_SECURE)
-
-#define ZYNQMP_PS_VERSION	0xFFCA0044
-#define ZYNQMP_PS_VER_MASK	GENMASK(1, 0)
 
 /* Bootmode setting values */
 #define BOOT_MODES_MASK	0x0000000F
@@ -138,14 +126,11 @@ struct apu_regs {
 
 #define ZYNQMP_CSU_VERSION_EMPTY_SHIFT		20
 
-#define ZYNQMP_SILICON_VER_MASK		0xF
-#define ZYNQMP_SILICON_VER_SHIFT	0
+#define ZYNQMP_SILICON_VER_MASK		0xF000
+#define ZYNQMP_SILICON_VER_SHIFT	12
 
 struct csu_regs {
-	u32 reserved0[4];
-	u32 multi_boot;
-	u32 reserved1[11];
-	u32 idcode;
+	u32 reserved0[17];
 	u32 version;
 };
 
@@ -159,5 +144,8 @@ struct pmu_regs {
 };
 
 #define pmu_base ((struct pmu_regs *)ZYNQMP_PMU_BASEADDR)
+
+#define ZYNQMP_CSU_IDCODE_ADDR	0xFFCA0040
+#define ZYNQMP_CSU_VER_ADDR	0xFFCA0044
 
 #endif /* _ASM_ARCH_HARDWARE_H */

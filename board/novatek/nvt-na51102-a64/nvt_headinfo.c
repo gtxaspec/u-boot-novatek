@@ -23,7 +23,7 @@ extern char uboot_bin_size[];
 extern HEADINFO gHeadInfo __attribute__ ((section (".data.bininfo")));
 HEADINFO gHeadInfo =
 {
-	CONFIG_SYS_TEXT_BASE, //<- fw CODE entry (4)
+	CONFIG_UBOOT_SDRAM_BASE, //<- fw CODE entry (4)
 	{0}, ///<- reserved (4*19)
 	"ub51102 ", //<- CHIP-NAME / TAG-NAME (8)
 	"FFFFFFFF", //<- version (8)

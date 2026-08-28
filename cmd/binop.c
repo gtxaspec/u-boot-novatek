@@ -2,8 +2,6 @@
 
 #include <common.h>
 #include <command.h>
-#include <env.h>
-#include <hexdump.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <linux/ctype.h>
@@ -28,20 +26,43 @@ void write_to_env_var(char *varname, u8 *result, ulong len)
 		str_ptr += 2;
 	}
 	*str_ptr = '\0';
-	env_set(varname, str_output);
+	setenv(varname, str_output);
 
 	free(str_output);
+}
+
+void decode_hexstring(char *hexstr, u8 *result)
+{
+	int i;
+	int acc = 0;
+
+	for (i = 0; i < strlen(hexstr); ++i) {
+		char d = hexstr[i];
+		int value;
+
+		if (isdigit(d))
+			value = (d - '0');
+		else
+			value = (islower(d) ? toupper(d) : d) - 'A' + 10;
+
+		if (i % 2 == 0) {
+			acc = value * 16;
+		} else {
+			result[i / 2] = acc + value;
+			acc = 0;
+		}
+	}
 }
 
 void read_from_env_var(char *varname, u8 *result)
 {
 	char *str_value;
 
-	str_value = env_get(varname);
+	str_value = getenv(varname);
 	if (str_value)
-		hex2bin(result, str_value, strlen(str_value) / 2);
+		decode_hexstring(str_value, result);
 	else
-		hex2bin(result, varname, strlen(varname) / 2);
+		decode_hexstring(varname, result);
 }
 
 void read_from_mem(ulong addr, u8 *result, ulong len)
@@ -58,14 +79,13 @@ void write_to_mem(char *varname, u8 *result, ulong len)
 	ulong addr;
 	u8 *buf;
 
-	addr = hextoul(varname, NULL);
+	addr = simple_strtoul(varname, NULL, 16);
 	buf = map_sysmem(addr, len);
 	memcpy(buf, result, len);
 	unmap_sysmem(buf);
 }
 
-static int do_binop(struct cmd_tbl *cmdtp, int flag, int argc,
-		    char *const argv[])
+static int do_binop(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong len;
 	u8 *result, *src1, *src2;
@@ -89,18 +109,18 @@ static int do_binop(struct cmd_tbl *cmdtp, int flag, int argc,
 	else
 		return CMD_RET_USAGE;
 
-	len = dectoul(lenarg, NULL);
+	len = simple_strtoul(lenarg, NULL, 10);
 
 	src1 = malloc(len);
 	src2 = malloc(len);
 
 	if (*src1arg == '*')
-		read_from_mem(hextoul(src1arg + 1, NULL), src1, len);
+		read_from_mem(simple_strtoul(src1arg + 1, NULL, 16), src1, len);
 	else
 		read_from_env_var(src1arg, src1);
 
 	if (*src2arg == '*')
-		read_from_mem(hextoul(src2arg + 1, NULL), src2, len);
+		read_from_mem(simple_strtoul(src2arg + 1, NULL, 16), src2, len);
 	else
 		read_from_env_var(src2arg, src2);
 

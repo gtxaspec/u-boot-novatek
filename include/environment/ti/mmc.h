@@ -11,7 +11,7 @@
 #define DEFAULT_MMC_TI_ARGS \
 	"mmcdev=0\0" \
 	"mmcrootfstype=ext4 rootwait\0" \
-	"finduuid=part uuid ${boot} ${bootpart} uuid\0" \
+	"finduuid=part uuid mmc ${bootpart} uuid\0" \
 	"args_mmc=run finduuid;setenv bootargs console=${console} " \
 		"${optargs} " \
 		"root=PARTUUID=${uuid} rw " \
@@ -41,7 +41,7 @@
 				"fi;" \
 			"fi;" \
 		"fi;\0" \
-	"mmcloados=" \
+	"mmcloados=run args_mmc; " \
 		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
 			"if run loadfdt; then " \
 				"bootz ${loadaddr} - ${fdtaddr}; " \
@@ -56,14 +56,13 @@
 			"bootz; " \
 		"fi;\0" \
 	"mmcboot=mmc dev ${mmcdev}; " \
-		"devnum=${mmcdev}; " \
-		"devtype=mmc; " \
+		"setenv devnum ${mmcdev}; " \
+		"setenv devtype mmc; " \
 		"if mmc rescan; then " \
 			"echo SD/MMC found on device ${mmcdev};" \
 			"if run loadimage; then " \
-				"run args_mmc; " \
 				"if test ${boot_fit} -eq 1; then " \
-					"run run_fit; " \
+					"run loadfit; " \
 				"else " \
 					"run mmcloados;" \
 				"fi;" \

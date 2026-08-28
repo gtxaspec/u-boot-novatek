@@ -13,4 +13,7 @@ obj-$(CONFIG_NVT_SPI_NONE) += spinand.o
 endif
 endif
 
+ifdef CONFIG_TARGET_NA51068
+obj-y += spi020_nand.o
+endif
 

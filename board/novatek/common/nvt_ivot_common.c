@@ -4,7 +4,7 @@
     @file       nvt_ivot_common.c
     @ingroup
     @note
-    Copyright   Novatek Microelectronics Corp. 2022.  All rights reserved.
+    Copyright   Novatek Microelectronics Corp. 2019.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 2 as
@@ -30,13 +30,13 @@
 #include <asm/nvt-common/nvt_ivot_optee.h>
 #include <asm/nvt-common/nvt_ivot_efuse_smc.h>
 #include <asm/arch/hardware.h>
-#include <u-boot/md5.h>
+#include <u-boot/md5.h> 
 
 unsigned long nvt_shminfo_comm_uboot_boot_func = 0;
 unsigned long nvt_shminfo_comm_core1_start = 0;
 unsigned long nvt_shminfo_comm_core2_start = 0;
-unsigned long nvt_shminfo_comm_rtos_comp_addr = 0;
-unsigned long nvt_shminfo_comm_rtos_comp_len = 0;
+unsigned long nvt_shminfo_comm_itron_comp_addr = 0;
+unsigned long nvt_shminfo_comm_itron_comp_len = 0;
 unsigned long nvt_shminfo_comm_fw_update_addr = 0;
 unsigned long nvt_shminfo_comm_fw_update_len = 0;
 unsigned int nvt_shminfo_boot_fdt_addr = 0;
@@ -46,103 +46,11 @@ uint8_t *nvt_fdt_buffer = NULL;
 u32 uart_disable_anchor = 0;
 u32 rtos_disable_anchor = 0;
 
-EMB_MEM_FDT_TRANSLATE_TABLE emb_mem_fdt_map[MEMTYPE_TOTAL_SIZE] = {
-	{"dram", MEMTYPE_DRAM},
-	{"core2entry1", MEMTYPE_CORE2ENTRY1},
-	{"core2entry2", MEMTYPE_CORE2ENTRY2},
-	{"fdt", MEMTYPE_FDT},
-	{"shmem", MEMTYPE_SHMEM},
-	{"loader", MEMTYPE_LOADER},
-	{"shmem_amp", MEMTYPE_SHMEM_AMP},
-	{"atf", MEMTYPE_ATF},
-	{"teeos", MEMTYPE_TEEOS},
-	{"nsmem", MEMTYPE_NSMEM},
-	{"linuxtmp", MEMTYPE_LINUXTMP},
-	{"uboot", MEMTYPE_UBOOT},
-	{"rtos", MEMTYPE_RTOS},
-	{"bridge", MEMTYPE_BRIDGE},
-	{"memory", MEMTYPE_LINUX},
-	{"all_in_one", MEMTYPE_ALL_IN_ONE},
-	{"kernel_img", MEMTYPE_KERNEL_IMG},
-	{"dsp", MEMTYPE_DSP},
-	{"rtos_s0", MEMTYPE_RTOS_S0},
-	{"rtos_s1", MEMTYPE_RTOS_S1},
-	{"rtos_s2", MEMTYPE_RTOS_S2},
-	{"logo-fb", MEMTYPE_LOGO_FB},
-	{"logo2-fb", MEMTYPE_LOGO2_FB},
-};
-nvt_mem_region __attribute__((section(".data"))) nvt_memory_cfg[MEMTYPE_TOTAL_SIZE] = {0};
-
-phys_addr_t prior_stage_fdt_address = _BOARD_FDT_ADDR_;
-
-void nvt_print_dram_setting(void)
-{
-	int i;
-	for (i = 0; i < MEMTYPE_TOTAL_SIZE; i++) {
-		nvt_dbg(MSG, "%s[0x%lx - 0x%lx]\n", emb_mem_fdt_map[i].fdt_node_name, nvt_memory_cfg[i].addr, nvt_memory_cfg[i].size);
-	}
-}
-
-int nvt_get_memory_by_dts(const void *fdt_addr)
-{
-	int  nodeoffset, subnode, i;
-	const char *name = NULL;
-	u32 *val = NULL;
-	int addr_cells, size_cells;
-
-	nodeoffset = fdt_path_offset(fdt_addr, "/nvt_memory_cfg");
-	if (nodeoffset <= 0) {
-		nvt_dbg(ERR, "can not find /nvt_memory_cfg on device tree\n");
-		return -1;
-	}
-
-	addr_cells = fdt_address_cells(fdt_addr, nodeoffset);
-	size_cells = fdt_size_cells(fdt_addr, nodeoffset);
-
-	subnode = fdt_first_subnode(fdt_addr, nodeoffset);
-	if (subnode <= 0) {
-		nvt_dbg(ERR, "can not find first_subnode on device tree\n");
-		return -1;
-	}
-
-	fdt_for_each_subnode(subnode, fdt_addr, nodeoffset) {
-		name = fdt_get_name(fdt_addr, subnode, NULL);
-
-		for (i = 0; i < MEMTYPE_TOTAL_SIZE; i++) {
-			if (strncmp(emb_mem_fdt_map[i].fdt_node_name, name, strlen(name)) == 0) {
-				break;
-			}
-		}
-		if (i >= MEMTYPE_TOTAL_SIZE) {
-			nvt_dbg(ERR, "can not find %s on device tree\n", name);
-			return -1;
-		}
-
-		val = (u32 *)fdt_getprop(fdt_addr, subnode, "reg", NULL);
-		if (val == NULL) {
-			nvt_dbg(ERR, "%s : can not find reg on device tree\n", name);
-			return -1;
-		}
-
-		nvt_memory_cfg[i].addr = fdt_read_number(val, addr_cells);
-		nvt_memory_cfg[i].size = fdt_read_number(val + addr_cells, size_cells);
-	}
-
-	/* Get memory from dts */
-	if (fdtdec_setup_mem_size_base() != 0)
-		return -EINVAL;
-
-	nvt_memory_cfg[MEMTYPE_LINUX].addr = gd->ram_base;
-	nvt_memory_cfg[MEMTYPE_LINUX].size = gd->ram_size;
-
-	return 0;
-}
-
 void nvt_shminfo_init(void)
 {
 	SHMINFO *p_shminfo;
 
-	p_shminfo = (SHMINFO *)nvt_memory_cfg[MEMTYPE_SHMEM].addr;
+	p_shminfo = (SHMINFO *)CONFIG_SMEM_SDRAM_BASE;
 
 	debug("%s \n", p_shminfo->boot.LdInfo_1);
 	debug("0x%x \n", (unsigned int)p_shminfo->boot.fdt_addr);
@@ -165,8 +73,8 @@ void nvt_shminfo_init(void)
 	nvt_shminfo_comm_uboot_boot_func = (unsigned long)&p_shminfo->comm.Resv[0];
 	nvt_shminfo_comm_core1_start = (unsigned long)&p_shminfo->comm.Resv[1];
 	nvt_shminfo_comm_core2_start = (unsigned long)&p_shminfo->comm.Resv[2];
-	nvt_shminfo_comm_rtos_comp_addr = (unsigned long)&p_shminfo->comm.Resv[3];
-	nvt_shminfo_comm_rtos_comp_len = (unsigned long)&p_shminfo->comm.Resv[4];
+	nvt_shminfo_comm_itron_comp_addr = (unsigned long)&p_shminfo->comm.Resv[3];
+	nvt_shminfo_comm_itron_comp_len = (unsigned long)&p_shminfo->comm.Resv[4];
 	nvt_shminfo_comm_fw_update_addr = (unsigned long)&p_shminfo->comm.Resv[5];
 	nvt_shminfo_comm_fw_update_len = (unsigned long)&p_shminfo->comm.Resv[6];
 	nvt_shminfo_boot_fdt_addr = (unsigned long)&p_shminfo->boot.fdt_addr;
@@ -227,17 +135,17 @@ int nvt_fdt_init(bool reload)
 		memset((unsigned char *)tmp_addr, 0, alloc_size);
 		//read first block to get fdt size
 		char command[128];
-		#if defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(CONFIG_NVT_SPI_NOR) && defined(NVT_LINUX_RAMDISK_SUPPORT))
+		#if defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(CONFIG_NVT_SPI_NOR) && defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT))
 		sprintf(command, "sf read 0x%lx 0x%llx 0x%lx", tmp_addr, pEmb[id].PartitionOffset, preload_size);
 		ret = run_command(command, 0);
-		#elif defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(CONFIG_NVT_SPI_NAND) && defined(NVT_LINUX_RAMDISK_SUPPORT))
-		sprintf(command, "nand read %lx 0x%llx 0x%lx", tmp_addr, pEmb[id].PartitionOffset, preload_size);
+		#elif defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(CONFIG_NVT_SPI_NAND) && defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT))
+		sprintf(command, "nand read 0x%lx 0x%llx 0x%lx", tmp_addr, pEmb[id].PartitionOffset, preload_size);
 		ret = run_command(command, 0);
-		#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(CONFIG_NVT_IVOT_EMMC) && defined(NVT_LINUX_RAMDISK_SUPPORT))
+		#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(CONFIG_NVT_IVOT_EMMC) && defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT))
 		/* MMC read should use block number unit */
 		sprintf(command, "mmc read 0x%lx 0x%llx 0x%lx", tmp_addr, ALIGN_CEIL(pEmb[id].PartitionOffset, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN, ALIGN_CEIL(preload_size,MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN);
 		ret = run_command(command, 0);
-		#elif defined(CONFIG_NVT_LINUX_SD_BOOT) || defined(NVT_LINUX_RAMDISK_SUPPORT)
+		#elif defined(CONFIG_NVT_LINUX_SD_BOOT) || defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT)
 		sprintf(command, "fatload mmc 0:1 0x%lx %s", tmp_addr, get_nvt_bin_name(NVT_BIN_NAME_TYPE_MODELEXT));
 		ret = run_command(command, 0);
 		#else
@@ -250,10 +158,10 @@ int nvt_fdt_init(bool reload)
 			return ret;
 		}
 
-#if defined(CONFIG_ENCRYPT_DTS)
+#if defined(CONFIG_ENCRYPT_CFG)
 		HEADINFO *headinfo = (HEADINFO *)tmp_addr;
 		fdt_real_size =  headinfo->BinLength;
-#else  /* !CONFIG_ENCRYPT_DTS */
+#else  /* !CONFIG_ENCRYPT_CFG */
 		if ((ret = fdt_check_header((void *)tmp_addr)) != 0) {
 			printf("invalid fdt header, addr=0x%08X er = %d \n", (unsigned int)tmp_addr, ret);
 			free((void*)tmp_addr);
@@ -261,7 +169,7 @@ int nvt_fdt_init(bool reload)
 		}
 		fdt_real_size = (ulong)fdt_totalsize(tmp_addr);
 		debug("fdt size = %d\n", (unsigned int)fdt_real_size);
-#endif /* CONFIG_ENCRYPT_DTS */
+#endif /* CONFIG_ENCRYPT_CFG */
 
 		if (fdt_real_size > alloc_size) {
 			printf("fdt_real_size 0x%lx > alloc_size 0x%lx\n", fdt_real_size, alloc_size);
@@ -271,30 +179,30 @@ int nvt_fdt_init(bool reload)
 
 		//read remain size
 		if (fdt_real_size > preload_size) {
-			#if defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(CONFIG_NVT_SPI_NOR) && defined(NVT_LINUX_RAMDISK_SUPPORT))
+			#if defined(CONFIG_NVT_LINUX_SPINOR_BOOT) || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(CONFIG_NVT_SPI_NOR) && defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT))
 			sprintf(command, "sf read 0x%lx 0x%llx 0x%lx", tmp_addr+preload_size, pEmb[id].PartitionOffset+preload_size, fdt_real_size-preload_size);
 			ret = run_command(command, 0);
-			#elif defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(CONFIG_NVT_SPI_NAND) && defined(NVT_LINUX_RAMDISK_SUPPORT))
+			#elif defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(CONFIG_NVT_SPI_NAND) && defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT))
 			sprintf(command, "nand read 0x%lx 0x%llx 0x%lx", tmp_addr+preload_size, pEmb[id].PartitionOffset+preload_size, fdt_real_size-preload_size);
 			ret = run_command(command, 0);
-			#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(CONFIG_NVT_IVOT_EMMC) && defined(NVT_LINUX_RAMDISK_SUPPORT))
+			#elif defined(CONFIG_NVT_LINUX_EMMC_BOOT) || (defined(CONFIG_NVT_IVOT_EMMC) && defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT))
 			/* MMC read should use block number unit */
 			ulong num = ALIGN_CEIL(fdt_real_size, MMC_MAX_BLOCK_LEN)/MMC_MAX_BLOCK_LEN;
 			if ((num * MMC_MAX_BLOCK_LEN) > alloc_size) {
-				printf("fdt_real_size 0x%x > 0x%x\n", num*MMC_MAX_BLOCK_LEN, alloc_size);
+				printf("fdt_real_size 0x%lx > 0x%lx\n", num*MMC_MAX_BLOCK_LEN, alloc_size);
 				free((void*)tmp_addr);
 				return -1;
 			}
 			sprintf(command, "mmc read 0x%lx 0x%llx 0x%x", tmp_addr, ALIGN_CEIL(pEmb[id].PartitionOffset, MMC_MAX_BLOCK_LEN) / MMC_MAX_BLOCK_LEN, num);
 			ret = run_command(command, 0);
-			#elif defined(CONFIG_NVT_LINUX_SD_BOOT) || defined(NVT_LINUX_RAMDISK_SUPPORT)
+			#elif defined(CONFIG_NVT_LINUX_SD_BOOT) || defined(CONFIG_NVT_LINUX_RAMDISK_SUPPORT)
 			sprintf(command, "fatload mmc 0:1 0x%lx %s", tmp_addr+preload_size, get_nvt_bin_name(NVT_BIN_NAME_TYPE_MODELEXT));
 			ret = run_command(command, 0);
 			#else
 			/* All-in-one SD boot */
 			#endif /* CONFIG_NVT_LINUX_SPINAND_BOOT */
 		}
-#if defined(CONFIG_ENCRYPT_DTS)
+#if defined(CONFIG_ENCRYPT_CFG)
 	#if defined(CONFIG_NVT_IVOT_SECBOOT_SUPPORT)
 		if (is_secure_enable() != 0) {
 			if(nvt_chk_signature_on_uboot((ulong)tmp_addr, fdt_real_size))
@@ -331,7 +239,7 @@ int nvt_fdt_init(bool reload)
 		}
 	#endif /* CONFIG_NVT_IVOT_SECBOOT_SUPPORT */
 		nvt_dbg(IND, "Verify encrypted dts PASS\r\n");
-#endif /* CONFIG_ENCRYPT_DTS */
+#endif /* CONFIG_ENCRYPT_CFG */
 
 		// fdt in flash, maybe its size larger than loader passed one
 		if (fdt_totalsize(nvt_fdt_buffer) < fdt_real_size) {
@@ -343,24 +251,19 @@ int nvt_fdt_init(bool reload)
 				cli_loop();
 			}
 		}
-
-		if (nvt_fdt_buffer != NULL) {
-			memcpy(nvt_fdt_buffer, (void*)tmp_addr, fdt_real_size);
-		} else {
-			printf("%s: nvt_fdt_buffer is NULL\n",__func__);
-			ret = -1;
-		}
-
+		memcpy(nvt_fdt_buffer, (void*)tmp_addr, fdt_real_size);
 		free((void*)tmp_addr);
 		if (ret) {
 			printf("fdt init fail return %d\n", ret);
 			return ret;
 		}
+	#else /* !CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT */
+			/* FIXME: To do customized boot */
+
 	#endif /* CONFIG_NVT_IVOT_SOC_FW_UPDATE_SUPPORT */
 	} else {
 		ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 		ulong fdt_real_size;
-
 		if ((ret = fdt_check_header((void *)fdt_addr)) != 0) {
 			printf("invalid fdt header, addr=0x%08X er = %d \n", (unsigned int)fdt_addr, ret);
 			return ret;
@@ -382,21 +285,6 @@ int nvt_fdt_init(bool reload)
 int nvt_check_isfdt(ulong addr)
 {
 	int  nodeoffset, ret;
-	const unsigned int flash_tunning_size = 0x1000;
-	const unsigned int flash_tunning_header1 = 0x0F0F0F0F;
-	const unsigned int flash_tunning_header2 = 0x00FF00FF;
-
-	/**
-	 * for flash read speed up (run in DTR mode)
-	 * There is a tuning pattern filled with 4KB of the hexadecimal value 0x0F0F0F0F,
-	 * located at the front of the Flat Device Tree (FDT).
-	 * loader will use this pattern to speedup flash read speed
-	 */
-	unsigned int forcc = *(unsigned int *)addr;
-	if (forcc == flash_tunning_header1 || forcc == flash_tunning_header2) {
-		addr += flash_tunning_size;
-	}
-
 	ret = fdt_check_header((void *)addr);
 	if (ret < 0) {
 		debug("fdt address %lx is not valid with error code: %d\n", addr, ret);
@@ -404,6 +292,23 @@ int nvt_check_isfdt(ulong addr)
 	}
 
 	return 0;
+}
+
+void nvt_print_system_info(void)
+{
+	nvt_dbg(IND, "\r%s \
+			\r CONFIG_MEM_SIZE                =      0x%08x \n \
+			\r CONFIG_NVT_UIMAGE_SIZE         =      0x%08x \n \
+			\r CONFIG_NVT_ALL_IN_ONE_IMG_SIZE =      0x%08x \n \
+			\r CONFIG_UBOOT_SDRAM_BASE        =      0x%08x \n \
+			\r CONFIG_UBOOT_SDRAM_SIZE        =      0x%08x \n \
+			\r CONFIG_LINUX_SDRAM_BASE        =      0x%08x \n \
+			\r CONFIG_LINUX_SDRAM_SIZE        =      0x%08x \n \
+			\r CONFIG_LINUX_SDRAM_START       =      0x%08x %s \n", ANSI_COLOR_YELLOW, CONFIG_MEM_SIZE,
+										CONFIG_NVT_UIMAGE_SIZE, CONFIG_NVT_ALL_IN_ONE_IMG_SIZE,
+										CONFIG_UBOOT_SDRAM_BASE, CONFIG_UBOOT_SDRAM_SIZE,
+										CONFIG_LINUX_SDRAM_BASE, CONFIG_LINUX_SDRAM_SIZE,
+										CONFIG_LINUX_SDRAM_START, ANSI_COLOR_RESET);
 }
 
 unsigned long get_nvt_timer0_cnt(void)
@@ -476,20 +381,22 @@ int nvt_ivot_set_cpuclk(void)
 		printf("run do_nvt_cpu_freq fail\n");
 	}
 
-
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, subnode, "apb-frequency", NULL);
 	if (cell == NULL) {
 		printf("no apb clock dtsi\n");
+		return ret;
 	} else {
 		apb_freq = __be32_to_cpu(cell[0]) / 1000000;
 		printf("DTS find apb freq clock %dMHz\n", apb_freq);
-		sprintf(cmd, "nvt_apb_freq %d", apb_freq);
-		ret_apb = run_command(cmd, 0);
-
-		if (ret_apb) {
-			printf("run do_nvt_apb_freq fail\n");
-		}
 	}
+
+	sprintf(cmd, "nvt_apb_freq %d", apb_freq);
+	ret_apb = run_command(cmd, 0);
+
+	if (ret_apb) {
+		printf("run do_nvt_apb_freq fail\n");
+	}
+
 	return (ret + ret_apb);
 }
 
@@ -578,13 +485,7 @@ int nvt_dts_config_parsing(void)
 		goto nvt_dts_cfg_getnode;
 	}
 
-#if defined(CONFIG_SUPPORT_EMMC_BOOT)
-	#if defined(CONFIG_NVT_IVOT_EMMC)
-		sprintf(cmd, "mmc%d", CONFIG_NVT_IVOT_EMMC);
-	#else
-		#error "EMMC should set CONFIG_NVT_IVOT_EMMC";
-	#endif
-#endif
+	sprintf(cmd, "/emmc");
 	nodeoffset = fdt_path_offset((void*)nvt_fdt_buffer, cmd);
 	subnode = fdt_first_subnode((void*)nvt_fdt_buffer, nodeoffset);
 	ptr = fdt_get_name((const void*)nvt_fdt_buffer, subnode, NULL);

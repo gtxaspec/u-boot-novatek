@@ -10,7 +10,6 @@
 #include <common.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <env.h>
 #include <stdio_dev.h>
 #include <asm/arch/dss.h>
 #include <lcd.h>
@@ -244,7 +243,7 @@ static int parse_pixclock(char *pixclock)
 	int divisor, pixclock_val;
 	char *pixclk_start = pixclock;
 
-	pixclock_val = dectoul(pixclock, &pixclock);
+	pixclock_val = simple_strtoul(pixclock, &pixclock, 10);
 	divisor = DIV_ROUND_UP(PIXEL_CLK_NUMERATOR, pixclock_val);
 	/* 0 and 1 are illegal values for PCD */
 	if (divisor <= 1)

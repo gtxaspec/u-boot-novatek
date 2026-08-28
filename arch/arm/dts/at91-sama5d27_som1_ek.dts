@@ -43,7 +43,6 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 /dts-v1/;
-#include <dt-bindings/gpio/gpio.h>
 #include "sama5d27_som1.dtsi"
 
 / {
@@ -56,7 +55,7 @@
 	};
 
 	onewire_tm: onewire {
-		gpios = <&pioA 17 GPIO_ACTIVE_HIGH>;
+		gpios = <&pioA 17 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_onewire_tm_default>;
 		status = "okay";

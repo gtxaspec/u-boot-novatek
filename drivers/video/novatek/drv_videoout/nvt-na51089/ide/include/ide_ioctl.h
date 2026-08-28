@@ -6,7 +6,7 @@
 #define MODULE_REG_LIST_NUM     10
 
 typedef struct reg_info {
-	uintptr_t ui_addr;
+	unsigned int ui_addr;
 	unsigned int ui_value;
 } REG_INFO;
 

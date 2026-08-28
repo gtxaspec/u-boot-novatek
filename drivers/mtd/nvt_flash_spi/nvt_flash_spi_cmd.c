@@ -7,10 +7,6 @@
 #define CACHELINE_SIZE         CONFIG_SYS_CACHELINE_SIZE
 u32 nvt_flash_ecc_err_pages[100] = {0};
 
-extern void invalidate_dcache_range(ulong start_addr, ulong stop);
-extern void flush_dcache_range(ulong start_addr, ulong stop);
-
-
 #if defined(CONFIG_NVT_FW_UPDATE_LED) && !defined(CONFIG_NVT_PWM)
 #define OP_ERASE 0
 #define OP_PROGRAM 1
@@ -152,7 +148,6 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 	uint32_t *pulBuf_spare;
 	unsigned long uiSpareAreaAddr;
 	uint32_t j;
-
 	uint32_t *pulBuf = (uint32_t *)pBuf;
 
 	union T_NAND_COMMAND_REG  uiCmdCycle = {0};
@@ -183,7 +178,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 		}
 
 		// 2-plane flash
-		if (info->flash_info->plane_flags && (uiRowAddr & (0x1 << 6))) {
+		if (info->flash_info->plane_flags && ((uiRowAddr & (0x1 << 6)) || (uiColAddr == info->flash_info->page_size))) {
 			uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_PAGE_READ;
 			transParam.colAddr = 0;
 			transParam.rowAddr = uiRowAddr;
@@ -209,6 +204,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				return ret;
 			}
 #ifndef CONFIG_FLASH_ONLY_DUAL
+#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
 			if (info->flash_info->spi_nand_status.bQuadProgram) {
 				uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX4;
 				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
@@ -216,10 +212,20 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX2;
 				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
 			}
+#else
+			uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX4;
+
+			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+#endif
 #else       //define as CONFIG_FLASH_ONLY_DUAL
 			uiCmdCycle.Bit.CMD_CYC_1ST = SPINAND_CMD_CACHE_READX2;
 
 			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
+#endif
+
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+			/*Disable clk_auto_gating before set cs_manual*/
+			*(u32 *) 0xF00200B0 &= ~0x80000;
 #endif
 
 			nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
@@ -230,10 +236,14 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 
 			transParam.colAddr      = 0;
 
-			if (info->flash_info->device_size == 512) {
-				transParam.rowAddr      = (uiColAddr | (1 << 13)) << 8;
+			if (uiRowAddr & (0x1 << 6)) {
+				if (info->flash_info->device_size == 512) {
+					transParam.rowAddr      = (uiColAddr | (1 << 13)) << 8;
+				} else {
+					transParam.rowAddr = (uiColAddr | (1 << 12)) << 8;
+				}
 			} else {
-				transParam.rowAddr      = (uiColAddr | (1 << 12)) << 8;
+				transParam.rowAddr = uiColAddr<<8;
 			}
 
 			transParam.fifoDir      = _FIFO_READ;
@@ -298,6 +308,11 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 
 			nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
 
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+			/*Enable clk_auto_gating after set cs_manual*/
+			*(u32 *) 0xF00200B0 |= 0x80000;
+#endif
+
 			nand_hostSetNandType(info, NANDCTRL_SPI_NAND_TYPE);
 
 			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
@@ -334,7 +349,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 						}
 					}
 				} else if (info->use_ecc == NANDCTRL_SPIFLASH_USE_INTERNAL_BCH_ECC) {
-					if (NAND_GETREG(info, NAND_CTRL_STS_REG_OFS) & NAND_PRI_ECC_STS) {
+					if (ucStatus & NAND_PRI_ECC_STS) {
 						NAND_DEBUG_MSG("Primary BCH ECC procedure\n");
 						NAND_SETREG(info, NAND_CTRL_STS_REG_OFS, NAND_PRI_ECC_STS);
 
@@ -352,7 +367,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 					}
 
 				} else {
-					if (NAND_GETREG(info, NAND_CTRL_STS_REG_OFS) & NAND_PRI_ECC_STS) {
+					if (ucStatus & NAND_PRI_ECC_STS) {
 						printf("Primary RS ECC procedure\n");
 						NAND_SETREG(info, NAND_CTRL_STS_REG_OFS, NAND_PRI_ECC_STS);
 
@@ -411,6 +426,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				uiCmdCycle.Bit.CMD_CYC_3RD = SPINAND_FEATURE_STATUS;
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
+#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
 				if (info->flash_info->spi_nand_status.bQuadProgram) {
 					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
 					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
@@ -418,7 +434,12 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
 					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
 				}
-#else	// define as CONFIG_FLASH_ONLY_DUAL
+#else
+				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
+
+				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+#endif
+#else
 				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
 
 				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
@@ -453,7 +474,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				}
 #endif
 
-#if NVT_BCH_ECC_SUPPORT
+#if defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
 				if ((info->flash_info->spare_size) && (info->flash_info->spare_align)) {
 					if (uiNandSectionCountPerPage == 4) {
 						NAND_DEBUG_MSG("read 2k page, swap oob:\r\n");
@@ -541,6 +562,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				uiCmdCycle.Bit.CMD_CYC_3RD = SPINAND_FEATURE_STATUS;
 
 #ifndef CONFIG_FLASH_ONLY_DUAL
+#if (defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64))
 				if (info->flash_info->spi_nand_status.bQuadProgram) {
 					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
 					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
@@ -548,7 +570,11 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 					uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
 					nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
 				}
-#else	// define as CONFIG_FLASH_ONLY_DUAL
+#else
+				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX4;
+				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+#endif
+#else
 				uiCmdCycle.Bit.CMD_CYC_4TH = SPINAND_CMD_CACHE_READX2;
 
 				nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
@@ -587,7 +613,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 				}
 #endif
 
-#if NVT_BCH_ECC_SUPPORT
+#if defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
 				if ((info->flash_info->spare_size) && (info->flash_info->spare_align)) {
 					if (uiNandSectionCountPerPage == 4) {
 						NAND_DEBUG_MSG("read 2k page, swap oob:\r\n");
@@ -706,7 +732,7 @@ static ER spiNand_readPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr,
 						}
 					}
 				} else {
-					if (NAND_GETREG(info, NAND_CTRL_STS_REG_OFS) & NAND_PRI_ECC_STS) {
+					if (ucStatus & NAND_PRI_ECC_STS) {
 						printf("Primary RS ECC procedure\n");
 						NAND_SETREG(info, NAND_CTRL_STS_REG_OFS, NAND_PRI_ECC_STS);
 
@@ -776,7 +802,8 @@ static ER spiNand_programPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr
 			break;
 		}
 
-		if (uiColAddr == info->flash_info->page_size) {
+		if ((uiColAddr & info->flash_info->page_size) && \
+			!(uiColAddr & (info->flash_info->page_size-1))) {
 			transParam.colAddr = 0;
 			transParam.rowAddr = 0;
 			transParam.fifoDir = _FIFO_READ;
@@ -797,6 +824,11 @@ static ER spiNand_programPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr
 
 			nand_hostSetNandType(info, NANDCTRL_SPI_NOR_TYPE);
 			info->flash_info->config_nand_type = NANDCTRL_SPI_NOR_TYPE;
+
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+			/*Disable clk_auto_gating before set cs_manual*/
+			*(u32 *) 0xF00200B0 &= ~0x80000;
+#endif
 
 			nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 
@@ -870,6 +902,11 @@ static ER spiNand_programPage(struct drv_nand_dev_info *info, uint32_t uiRowAddr
 
 			nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
 			nand_host_set_cpu_access_spare(info, FALSE);
+
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+			/*Enable clk_auto_gating after set cs_manual*/
+			*(u32 *) 0xF00200B0 |= 0x80000;
+#endif
 
 			nand_hostSetNandType(info, NANDCTRL_SPI_NAND_TYPE);
 			info->flash_info->config_nand_type = NANDCTRL_SPI_NAND_TYPE;
@@ -1309,7 +1346,7 @@ int nand_cmd_wait_complete(struct drv_nand_dev_info *info)
 		}
 
 		time_now = get_timer(0);
-		if ((time_now - time_start) > WAIT_COMP_TIMEOUT) {
+		if ((time_now - time_start) > 4500) {
 			printf("_COMP_INTR not set\n\r");
 			return -EIO;
 		}
@@ -1317,8 +1354,10 @@ int nand_cmd_wait_complete(struct drv_nand_dev_info *info)
 
 	NAND_SETREG(info, NAND_CTRL_STS_REG_OFS, NAND_COMP_STS);
 
+#if defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
 	// Disable AXI ch
-	//nand_host_axi_ch_disable(info, 1); // always on
+	nand_host_axi_ch_disable(info, 1);
+#endif
 
 	if (info->ecc_status_type == 1) {
 		// special ecc_sts type for XT26G01C
@@ -1484,7 +1523,7 @@ void nand_cmd_write_spare_sram(struct drv_nand_dev_info *info)
 	uint32_t *pul_buf = (uint32_t *)(info->data_buff + info->flash_info->page_size);
 	uint32_t section_count_per_page = (info->flash_info->page_size / 0x200);
 	int j = 0;
-#if NVT_BCH_ECC_SUPPORT
+#if defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
 	u8 chip_id = info->flash_info->chip_id & 0xFF;
 #endif
 
@@ -1495,7 +1534,7 @@ void nand_cmd_write_spare_sram(struct drv_nand_dev_info *info)
 	nand_host_set_cpu_access_spare(info, TRUE);
 	spare_area_addr = (unsigned long) info->mmio_base + NAND_SPARE00_REG_OFS;
 
-#if NVT_BCH_ECC_SUPPORT
+#if defined(CONFIG_TARGET_NA51102) || defined(CONFIG_TARGET_NA51102_A64)
 	if ((info->flash_info->spare_size) && (info->flash_info->spare_align)) {
 		// clear spare sram
 		for (j = 0; j < 64; j++) {
@@ -1678,294 +1717,147 @@ static int spiflash_read_data(struct drv_nand_dev_info *info, u32 addr, u32 byte
 	u32 dummy_read = 0;
 #endif
 
-	if (info->flash_info->dtr_read == NANDCTRL_SDR_TYPE) {	//SDR read
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Disable clk_auto_gating before set cs_manual*/
+	*(u32 *) 0xF00200B0 &= ~0x80000;
+#endif
 
-		nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
+	nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 
-		nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_MANUAL_MODE);
+	nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_MANUAL_MODE);
 
-		nand_hostSetCSActive(info, NAND_SPI_CS_LOW);
+	nand_hostSetCSActive(info, NAND_SPI_CS_LOW);
 
-		if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ) {
-			if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_QUAD_READ_NORMAL_4BYTE;
-			} else {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_QUAD_READ_NORMAL;
-			}
-		} else if ((info->flash_info->nor_read_mode == SPI_NOR_OCTAL_READ) && NVT_OCTAL_IO_SUPPORT) {
-			if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_OCTAL_READ_4BYTE;
-			} else {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_OCTAL_READ;
-			}
-		} else if (info->flash_info->nor_read_mode == SPI_NOR_DUAL_READ) {
-			if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_DUAL_READ_4BYTE;
-			} else {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_DUAL_READ;
-			}
-		} else {
-			if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_READ_4BYTE;
-			} else {
-				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_READ;
-			}
-		}
-
-		transParam.colAddr      = 0;
-		transParam.rowAddr      = addr;
-		transParam.fifoDir      = _FIFO_READ;
-		transParam.transMode    = _PIO_MODE;
-		transParam.type         = _CMD_ADDR;
-		transParam.uiCS         = info->flash_info->chip_sel;
-
-		nand_host_setup_transfer(info, &transParam, 0, 0, _SINGLE_PAGE);
-
+	if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ) {
 		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
-			nand_hostSetupAddressCycle(0, NAND_ROW_ADDRESS_4_CYCLE_CNT, NAND_COL_ADDRESS_1_CYCLE_CNT);
+			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_QUAD_READ_NORMAL_4BYTE;
 		} else {
-			nand_hostSetupAddressCycle(0, NAND_ROW_ADDRESS_3_CYCLE_CNT, NAND_COL_ADDRESS_1_CYCLE_CNT);
+			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_QUAD_READ_NORMAL;
 		}
+	} else if (info->flash_info->nor_read_mode == SPI_NOR_DUAL_READ) {
+		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
+			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_DUAL_READ_4BYTE;
+		} else {
+			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_DUAL_READ;
+		}
+	} else {
+		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
+			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_READ_4BYTE;
+		} else {
+			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_READ;
+		}
+	}
 
+
+
+	transParam.colAddr      = 0;
+	transParam.rowAddr      = addr;
+	transParam.fifoDir      = _FIFO_READ;
+	transParam.transMode    = _PIO_MODE;
+	transParam.type         = _CMD_ADDR;
+	transParam.uiCS         = info->flash_info->chip_sel;
+
+	nand_host_setup_transfer(info, &transParam, 0, 0, _SINGLE_PAGE);
+
+	if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
+		nand_hostSetupAddressCycle(0, NAND_ROW_ADDRESS_4_CYCLE_CNT, NAND_COL_ADDRESS_1_CYCLE_CNT);
+	} else {
+		nand_hostSetupAddressCycle(0, NAND_ROW_ADDRESS_3_CYCLE_CNT, NAND_COL_ADDRESS_1_CYCLE_CNT);
+	}
+
+	nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
+
+	ret = nand_cmd_wait_complete(info);
+
+	if (ret != E_OK) {
+		nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
+		nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
+		return ret;
+	}
+
+	transParam.colAddr      = 0;
+	transParam.rowAddr      = 0;
+	transParam.fifoDir      = _FIFO_READ;
+	transParam.type         = _SPI_READ_N_BYTES;
+	transParam.uiCS         = info->flash_info->chip_sel;
+
+	if (info->flash_info->nor_read_mode != SPI_NOR_NORMAL_READ) {
+		transParam.transMode = _PIO_MODE;
+#if 0
+		/*Dummy 8 T*/
+		nand_host_setup_transfer(info, &transParam, 0, 1, _SINGLE_PAGE);
+
+		nand_host_send_command(info, uiCmdCycle.Reg, 0);
+
+		ret = nand_host_receive_data(info, &dummy_read, 1, _PIO_MODE);
+#else
+		transParam.type = _DUMMY_CLOCK;
+		nand_host_setup_transfer(info, &transParam, 0, 0, _SINGLE_PAGE);
+		NAND_SETREG(info, NAND_DUMMY_CLOCK_NUM_OFS, 0x7);
 		nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
-
 		ret = nand_cmd_wait_complete(info);
-
+#endif
 		if (ret != E_OK) {
 			nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 			nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
 			return ret;
 		}
 
-		transParam.colAddr      = 0;
-		transParam.rowAddr      = 0;
-		transParam.fifoDir      = _FIFO_READ;
-		transParam.type         = _SPI_READ_N_BYTES;
-		transParam.uiCS         = info->flash_info->chip_sel;
-
-		if (info->flash_info->nor_read_mode != SPI_NOR_NORMAL_READ) {
-			transParam.transMode = _PIO_MODE;
-#if 0
-			/*Dummy 8 T*/
-			nand_host_setup_transfer(info, &transParam, 0, 1, _SINGLE_PAGE);
-
-			nand_host_send_command(info, uiCmdCycle.Reg, 0);
-
-			ret = nand_host_receive_data(info, &dummy_read, 1, _PIO_MODE);
-#else
+		/*Dummy 2 T*/
+		if (((info->rdcr_status & 0xC0) == 0xC0) && (info->ops_freq > 96000000) && \
+			(info->hspeed_dummy_cycle == 10)) {
+			debug("SF: dummy 10T mode with RDCR 0x%08x\n", info->rdcr_status);
 			transParam.type = _DUMMY_CLOCK;
 			nand_host_setup_transfer(info, &transParam, 0, 0, _SINGLE_PAGE);
-			NAND_SETREG(info, NAND_DUMMY_CLOCK_NUM_OFS, 0x7);
+			NAND_SETREG(info, NAND_DUMMY_CLOCK_NUM_OFS, 0x1);
 			nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
 			ret = nand_cmd_wait_complete(info);
-#endif
 			if (ret != E_OK) {
 				nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 				nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
 				return ret;
 			}
-
-			/*Dummy 2 T*/
-			if (((info->rdcr_status & 0xC0) == 0xC0) && (info->ops_freq > 96000000) && \
-				(info->hspeed_dummy_cycle == 10)) {
-				debug("SF: dummy 10T mode with RDCR 0x%08x\n", info->rdcr_status);
-				transParam.type = _DUMMY_CLOCK;
-				nand_host_setup_transfer(info, &transParam, 0, 0, _SINGLE_PAGE);
-				NAND_SETREG(info, NAND_DUMMY_CLOCK_NUM_OFS, 0x1);
-				nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
-				ret = nand_cmd_wait_complete(info);
-				if (ret != E_OK) {
-					nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
-					nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
-					return ret;
-				}
-			}
 		}
-
-		transParam.type         = _SPI_READ_N_BYTES;
-		transParam.transMode    = _DMA_MODE;
-
-		NAND_SETREG(info, NAND_DMASTART_REG_OFS, (uintptr_t)pbuf);
-		if (((uintptr_t)pbuf)&NAND_HIGH_ADDR_MASK) {
-			NAND_SETREG(info, NAND_DMASTART_EXP_REG_OFS, (((uintptr_t)pbuf)&NAND_HIGH_ADDR_MASK)>>32);
-		} else {
-			NAND_SETREG(info, NAND_DMASTART_EXP_REG_OFS, 0);
-		}
-
-		if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ) {
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
-		} else if ((info->flash_info->nor_read_mode == SPI_NOR_OCTAL_READ) && NVT_OCTAL_IO_SUPPORT) {
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_OCTAL_MODE, NAND_SPI_ORDER_MODE_1);
-		} else if (info->flash_info->nor_read_mode == SPI_NOR_DUAL_READ) {
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
-		} else {
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
-		}
-
-		nand_host_setup_transfer(info, &transParam, 0, byte_size, _SINGLE_PAGE);
-
-		nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
-
-		ret = nand_cmd_wait_complete(info);
-
-		nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
-
-		nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
-
-		if (info->flash_info->nor_read_mode != SPI_NOR_NORMAL_READ) {
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
-		}
-		return ret;
-
-	} else {	// DTR read
-		UINT32 dtr_addr, addr_len;
-		BOOL enter_4b = 0;
-
-		if ((info->flash_info->device_size > SPI_FLASH_16MB_BOUN) && (info->flash_info->nor_read_mode != SPI_NOR_OCTAL_READ)) {
-			debug("enter 4B addr\r\n");
-			enter_4byte_address(info);
-			enter_4b = 1;
-		}
-
-		if (info->flash_info->dqs_en) {
-			debug("Set DQS En\r\n");
-			NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, \
-				NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS)|0x1<<21);
-		}
-
-		/*if ((gSPINANDBitOperation == NANDCTRL_SPIFLASH_USE_4_BIT) && (bQuadEnabled == FALSE)) {
-			DBG_USER("Set QE bit\r\n");
-			spiflash_enableQuadMode();
-			bQuadEnabled = TRUE;
-		}*/
-
-		// 0. Set ChipSel to manual mode
-		nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
-		nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_MANUAL_MODE);
-		nand_hostSetCSActive(info, NAND_SPI_CS_LOW);
-
-		// 1. ReadData: send cmd
-		transParam.colAddr      = 0;
-		transParam.rowAddr      = 0;
-		transParam.fifoDir      = _FIFO_READ;
-		transParam.transMode    = _PIO_MODE;
-		transParam.type         = _CMD;
-		transParam.uiCS         = info->flash_info->chip_sel;
-
-		nand_host_setup_transfer(info, &transParam, 0, 0, _SINGLE_PAGE);
-
-		if ((info->flash_info->nor_read_mode == SPI_NOR_OCTAL_READ) && NVT_OCTAL_IO_SUPPORT) {
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_OCTAL_READ_DTR;
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_OCTAL_MODE, NAND_SPI_ORDER_MODE_1);
-		} else if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ) {
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_DTR_QUAD_READ;
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
-		} else if (info->flash_info->nor_read_mode == SPI_NOR_DUAL_READ) {
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_DTR_DUAL_READ;
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
-		} else { // (info->flash_info->nor_read_mode == NANDCTRL_SPIFLASH_USE_1_BIT)
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_DTR_FASTREAD;
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
-		}
-
-		nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
-		ret = nand_cmd_wait_complete(info);
-
-		if (ret != E_OK) {
-			nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
-			nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
-			if (enter_4b)
-				leave_4byte_address(info);
-			return ret;
-		}
-
-		// 2. ReadData: send DTR address + dummy clk
-		if (info->flash_info->nor_read_mode == SPI_NOR_OCTAL_READ) {
-			addr_len = (info->flash_info->dtr_dummy)*2;
-		} else {	// SPI_NOR_QUAD_READ
-			addr_len = info->flash_info->dtr_dummy;
-		}
-		/* note: Single/Dual DTR IO driver not support */
-
-		nand_hostSetDTRType(NANDCTRL_DTR_TYPE);
-
-		transParam.fifoDir      = _FIFO_WRITE;
-		transParam.transMode    = _PIO_MODE;
-		transParam.type         = _SPI_WRITE_N_BYTES;
-
-		if (info->flash_info->device_size <= SPI_FLASH_16MB_BOUN) {
-			addr_len += 3;
-			nand_host_setup_transfer(info, &transParam, 0, addr_len, _SINGLE_PAGE);
-		} else {
-			addr_len += 4;
-			nand_host_setup_transfer(info, &transParam, 0, addr_len, _SINGLE_PAGE);
-		}
-
-		nand_host_send_command(info, uiCmdCycle.Reg, TRUE);
-
-		// remap row address
-		if (info->flash_info->device_size <= SPI_FLASH_16MB_BOUN) {
-			dtr_addr = ((addr & 0xFF0000) >> 16) | (addr & 0xFF00) \
-					   | ((addr & 0xFF) << 16) | (0xFF<<24);
-		} else {
-			dtr_addr = ((addr & 0xFF000000) >> 24) | ((addr & 0xFF0000) >> 8) \
-					   | ((addr & 0xFF00) << 8) | ((addr & 0xFF) << 24);
-		}
-		while(addr_len) {
-			NAND_SETREG(info, NAND_DATAPORT_REG_OFS, dtr_addr);
-			if (addr_len >= 4)
-				addr_len -=4;
-			else
-				addr_len = 0;
-			dtr_addr = 0xFFFFFFFF;	// dummy clock
-		}
-		ret = nand_cmd_wait_complete(info);
-
-		if (ret != E_OK) {
-			nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
-			nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
-			nand_hostSetDTRType(NANDCTRL_SDR_TYPE);
-			if (enter_4b)
-				leave_4byte_address(info);
-			return ret;
-		}
-
-		// 3. ReadData: read DTR IO data
-		transParam.colAddr      = 0;
-		transParam.rowAddr      = 0;
-		transParam.transMode    = _DMA_MODE;
-		transParam.fifoDir      = _FIFO_READ;
-		transParam.type         = _SPI_READ_N_BYTES;
-
-		NAND_SETREG(info, NAND_DMASTART_REG_OFS, (uintptr_t)pbuf);
-
-		nand_host_setup_transfer(info, &transParam, 0, byte_size, _SINGLE_PAGE);
-
-		nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
-
-		ret = nand_cmd_wait_complete(info);
-
-		nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
-
-		nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
-
-		if (info->flash_info->nor_read_mode != SPI_NOR_NORMAL_READ) {
-			nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
-		}
-
-		nand_hostSetDTRType(NANDCTRL_SDR_TYPE);
-
-		if (enter_4b)
-			leave_4byte_address(info);
-
-		// reset to internel clk
-		if (info->flash_info->dqs_en) {
-			NAND_SETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS, \
-				NAND_GETREG(NULL, NAND_DLL_PHASE_DLY_REG1_OFS)& ~(0x1<<21));
-		}
-
-		return ret;
 	}
+
+	transParam.type         = _SPI_READ_N_BYTES;
+	transParam.transMode    = _DMA_MODE;
+
+	NAND_SETREG(info, NAND_DMASTART_REG_OFS, (uintptr_t)pbuf);
+	if (((uintptr_t)pbuf)&NAND_HIGH_ADDR_MASK) {
+		NAND_SETREG(info, NAND_DMASTART_EXP_REG_OFS, (((uintptr_t)pbuf)&NAND_HIGH_ADDR_MASK)>>32);
+	} else {
+		NAND_SETREG(info, NAND_DMASTART_EXP_REG_OFS, 0);
+	}
+
+	if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ) {
+		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
+	} else if (info->flash_info->nor_read_mode == SPI_NOR_DUAL_READ) {
+		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
+	} else {
+		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
+	}
+
+	nand_host_setup_transfer(info, &transParam, 0, byte_size, _SINGLE_PAGE);
+
+	nand_host_send_command(info, uiCmdCycle.Reg, FALSE);
+
+	ret = nand_cmd_wait_complete(info);
+
+	nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
+
+	nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
+
+	if (info->flash_info->nor_read_mode != SPI_NOR_NORMAL_READ) {
+		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
+	}
+
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Enable clk_auto_gating after set cs_manual*/
+	*(u32 *) 0xF00200B0 |= 0x80000;
+#endif
+
+	return ret;
 }
 
 /*
@@ -1994,12 +1886,17 @@ static int spiflash_page_program(struct drv_nand_dev_info *info, u32 addr, u32 b
 
 	spiflash_enable_write_latch(info);
 
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Disable clk_auto_gating before set cs_manual*/
+	*(u32 *) 0xF00200B0 &= ~0x80000;
+#endif
+
 	nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 	nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_MANUAL_MODE);
 
 	nand_hostSetCSActive(info, NAND_SPI_CS_LOW);
 
-	if (info->flash_info->nor_write_mode == SPI_NOR_QUAD_WRITE) {
+	if (info->flash_info->nor_quad_support) {
 		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN)
 			if (info->enter_4byte_addr_mode == 1) {
 				uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_PAGEPROG_4X;
@@ -2008,12 +1905,6 @@ static int spiflash_page_program(struct drv_nand_dev_info *info, u32 addr, u32 b
 			}
 		else {
 			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_PAGEPROG_4X;
-		}
-	} else if (NVT_OCTAL_IO_SUPPORT && info->flash_info->nor_write_mode == SPI_NOR_OCTAL_WRITE){
-		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_PAGEPROG_8X_4BYTE;
-		} else {
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_PAGEPROG_8X;
 		}
 	} else {
 		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN)
@@ -2071,10 +1962,8 @@ static int spiflash_page_program(struct drv_nand_dev_info *info, u32 addr, u32 b
 
 	transParam.type = _SPI_WRITE_N_BYTES;
 
-	if (info->flash_info->nor_write_mode == SPI_NOR_QUAD_WRITE) {
+	if (info->flash_info->nor_quad_support) {
 		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
-	} else if (NVT_OCTAL_IO_SUPPORT && info->flash_info->nor_write_mode == SPI_NOR_OCTAL_WRITE){
-		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_OCTAL_MODE, NAND_SPI_ORDER_MODE_1);
 	} else {
 		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
 	}
@@ -2091,6 +1980,11 @@ static int spiflash_page_program(struct drv_nand_dev_info *info, u32 addr, u32 b
 
 	nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 	nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
+
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Enable clk_auto_gating after set cs_manual*/
+	*(u32 *) 0xF00200B0 |= 0x80000;
+#endif
 
 	nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
 
@@ -2210,6 +2104,11 @@ static int spinor_pio_operation(struct drv_nand_dev_info *info, u32 byte_addr, u
 	union T_NAND_COMMAND_REG uiCmdCycle = {0};
 	int ret;
 
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Disable clk_auto_gating before set cs_manual*/
+	*(u32 *) 0xF00200B0 &= ~0x80000;
+#endif
+
 	nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 
 	nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_MANUAL_MODE);
@@ -2221,12 +2120,6 @@ static int spinor_pio_operation(struct drv_nand_dev_info *info, u32 byte_addr, u
 			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_QUAD_READ_NORMAL_4BYTE;
 		} else {
 			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_QUAD_READ_NORMAL;
-		}
-	} else if ((info->flash_info->nor_read_mode == SPI_NOR_OCTAL_READ) && NVT_OCTAL_IO_SUPPORT) {
-		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_OCTAL_READ_4BYTE;
-		} else {
-			uiCmdCycle.Bit.CMD_CYC_1ST = FLASH_CMD_OCTAL_READ;
 		}
 	} else if (info->flash_info->nor_read_mode == SPI_NOR_DUAL_READ) {
 		if (info->flash_info->device_size > SPI_FLASH_16MB_BOUN) {
@@ -2318,8 +2211,6 @@ static int spinor_pio_operation(struct drv_nand_dev_info *info, u32 byte_addr, u
 
 	if (info->flash_info->nor_read_mode == SPI_NOR_QUAD_READ) {
 		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_QUAD_MODE, NAND_SPI_ORDER_MODE_1);
-	} else if ((info->flash_info->nor_read_mode == SPI_NOR_OCTAL_READ) && NVT_OCTAL_IO_SUPPORT) {
-		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_OCTAL_MODE, NAND_SPI_ORDER_MODE_1);
 	} else if (info->flash_info->nor_read_mode == SPI_NOR_DUAL_READ) {
 		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_DUAL_MODE, NAND_SPI_ORDER_MODE_1);
 	} else {
@@ -2339,6 +2230,11 @@ static int spinor_pio_operation(struct drv_nand_dev_info *info, u32 byte_addr, u
 	if (info->flash_info->nor_read_mode != SPI_NOR_NORMAL_READ) {
 		nand_hostSetSPIIORegister(info, NAND_SPI_CS_ACTIVE_LOW, NAND_SPI_NORMAL_DUPLEX_MODE, NAND_SPI_ORDER_MODE_1);
 	}
+
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Enable clk_auto_gating after set cs_manual*/
+	*(u32 *) 0xF00200B0 |= 0x80000;
+#endif
 
 	return ret;
 }
@@ -2588,6 +2484,11 @@ int spinor_read_sfdp(struct drv_nand_dev_info *info, u32 addr, u32 byte_size, u8
 	union T_NAND_COMMAND_REG uiCmdCycle = {0};
 	int ret;
 
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Disable clk_auto_gating before set cs_manual*/
+	*(u32 *) 0xF00200B0 &= ~0x80000;
+#endif
+
 	nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 
 	nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_MANUAL_MODE);
@@ -2652,6 +2553,11 @@ int spinor_read_sfdp(struct drv_nand_dev_info *info, u32 addr, u32 byte_size, u8
 	nand_hostSetCSActive(info, NAND_SPI_CS_HIGH);
 
 	nand_hostConfigChipSelOperationMode(info, NAND_SPI_CS_AUTO_MODE);
+
+#if defined(CONFIG_TARGET_NA51055) || defined(CONFIG_TARGET_NA51089)
+	/*Enable clk_auto_gating after set cs_manual*/
+	*(u32 *) 0xF00200B0 |= 0x80000;
+#endif
 
 	return ret;
 }

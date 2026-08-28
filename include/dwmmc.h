@@ -7,10 +7,8 @@
 #ifndef __DWMMC_HW_H
 #define __DWMMC_HW_H
 
-#include <asm/cache.h>
 #include <asm/io.h>
 #include <mmc.h>
-#include <linux/bitops.h>
 
 #define DWMCI_CTRL		0x000
 #define	DWMCI_PWREN		0x004
@@ -174,7 +172,7 @@ struct dwmci_host {
 	struct mmc *mmc;
 	void *priv;
 
-	int (*clksel)(struct dwmci_host *host);
+	void (*clksel)(struct dwmci_host *host);
 	void (*board_init)(struct dwmci_host *host);
 
 	/**
@@ -256,10 +254,10 @@ static inline u8 dwmci_readb(struct dwmci_host *host, int reg)
  * ...
  *
  * Inside U_BOOT_DRIVER():
- *	.plat_auto	= sizeof(struct rockchip_mmc_plat),
+ *	.platdata_auto_alloc_size = sizeof(struct rockchip_mmc_plat),
  *
  * To access platform data:
- *	struct rockchip_mmc_plat *plat = dev_get_plat(dev);
+ *	struct rockchip_mmc_plat *plat = dev_get_platdata(dev);
  *
  * See rockchip_dw_mmc.c for an example.
  *

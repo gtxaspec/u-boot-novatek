@@ -9,10 +9,9 @@
 #ifndef _SPI_FLASH_H_
 #define _SPI_FLASH_H_
 
+#include <dm.h>	/* Because we dereference struct udevice here */
 #include <linux/types.h>
 #include <linux/mtd/spi-nor.h>
-
-struct udevice;
 
 /* by default ENV use the same parameters than SF command */
 #ifndef CONFIG_ENV_SPI_BUS
@@ -53,7 +52,7 @@ struct dm_spi_flash_ops {
 /* Access the serial operations for a device */
 #define sf_get_ops(dev) ((struct dm_spi_flash_ops *)(dev)->driver->ops)
 
-#if CONFIG_IS_ENABLED(DM_SPI_FLASH)
+#ifdef CONFIG_DM_SPI_FLASH
 /**
  * spi_flash_read_dm() - Read data from SPI flash
  *
@@ -103,18 +102,6 @@ int spi_flash_erase_dm(struct udevice *dev, u32 offset, size_t len);
  */
 int spl_flash_get_sw_write_prot(struct udevice *dev);
 
-/**
- * spi_flash_std_probe() - Probe a SPI flash device
- *
- * This is the standard internal method for probing a SPI flash device to
- * determine its type. It can be used in chip-specific drivers which need to
- * do this, typically with of-platdata
- *
- * @dev: SPI-flash device to probe
- * @return 0 if OK, -ve on error
- */
-int spi_flash_std_probe(struct udevice *dev);
-
 int spi_flash_probe_bus_cs(unsigned int busnum, unsigned int cs,
 			   unsigned int max_hz, unsigned int spi_mode,
 			   struct udevice **devp);
@@ -124,9 +111,7 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 				  unsigned int max_hz, unsigned int spi_mode);
 
 /* Compatibility function - this is the old U-Boot API */
-static inline void spi_flash_free(struct spi_flash *flash)
-{
-}
+void spi_flash_free(struct spi_flash *flash);
 
 static inline int spi_flash_read(struct spi_flash *flash, u32 offset,
 				 size_t len, void *buf)
@@ -182,6 +167,8 @@ static inline int spi_flash_erase(struct spi_flash *flash, u32 offset,
 {
 	struct mtd_info *mtd = &flash->mtd;
 	struct erase_info instr;
+
+	printf("%s 0x%x 0x%x\n", mtd->name, mtd->erasesize, mtd->writebufsize);
 
 	if (offset % mtd->erasesize || len % mtd->erasesize) {
 		printf("SF: Erase offset/length not multiple of erase size\n");

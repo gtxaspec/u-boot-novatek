@@ -11,7 +11,6 @@
     published by the Free Software Foundation.
 */
 
-#include <cpu_func.h>
 #include <common.h>
 #include <asm/armv7.h>
 #include <asm/io.h>
@@ -37,37 +36,37 @@ DECLARE_GLOBAL_DATA_PTR;
 static struct ns16550_platdata ns16550_com1_pdata = {
 	.base = CONFIG_SYS_NS16550_COM1,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com2_pdata = {
 	.base = CONFIG_SYS_NS16550_COM2,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com3_pdata = {
 	.base = CONFIG_SYS_NS16550_COM3,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com4_pdata = {
 	.base = CONFIG_SYS_NS16550_COM4,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com5_pdata = {
 	.base = CONFIG_SYS_NS16550_COM5,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 static struct ns16550_platdata ns16550_com6_pdata = {
 	.base = CONFIG_SYS_NS16550_COM6,
 	.reg_shift = 2,
-	.clock = 48000000,
+	.clock = CONFIG_SYS_NS16550_HSCLK,
 };
 
 U_BOOT_DEVICE(ns16550_com1) = {
@@ -281,6 +280,12 @@ void enable_caches(void)
 	icache_enable();
 }
 
+
+void __weak reset_cpu(unsigned long ignored)
+{
+}
+
+
 #ifdef CONFIG_ARCH_MISC_INIT
 #ifdef CONFIG_NOVATEK_PAD
 extern void nvt_pad_init(void);
@@ -293,6 +298,22 @@ int arch_misc_init(void)
 	return 0;
 }
 #endif
+
+/*
+ * Routine: dram_init
+ * Description: sets uboots idea of sdram size
+ */
+int dram_init(void)
+{
+#ifdef CONFIG_NVT_IVOT_DDR_SLOW_DOWN_SUPPORT
+	// Default not enabled in nvt platform.
+	// If specific project needs slow down DDR freq at boot,
+	// plz uncomment below line.
+//	nvt_ddr_slow_down();
+#endif
+	gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
+	return 0;
+}
 
 /*
  * Print board information
@@ -403,7 +424,7 @@ u32 nvt_get_chip_id(void)
 // ROM code version number
 //
 #define TOP_ROMVER_A            0x00000102
-#define TOP_ROMVER_B            0x00000103
+#define TOP_ROMVER_C            0x00000103
 #define TOP_GETROMVER()         readl(0xF0007FFC)
 u32 nvt_get_chip_ver(void)
 {
@@ -412,11 +433,11 @@ u32 nvt_get_chip_ver(void)
 	chip_ver = TOP_GETROMVER();
     if(chip_ver == TOP_ROMVER_A) {
         return CHIPVER_A;
-    } else if(chip_ver == TOP_ROMVER_B) {
-        return CHIPVER_B;
+    } else if(chip_ver == TOP_ROMVER_C) {
+        return CHIPVER_C;
     } else {
-		printf("force to Ver B\n");
-        return CHIPVER_B;
+		printf("force to Ver C\n");
+        return CHIPVER_C;
     }
 
 	return chip_ver;

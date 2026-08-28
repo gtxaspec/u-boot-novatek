@@ -26,7 +26,7 @@
 //#define PCIE_BOOT_RC (0x01 << 8)
 
 #ifdef CONFIG_NVT_PCIE_CASCADE
-static int do_nvt_pcie_copy_sram(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_nvt_pcie_copy_sram(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	unsigned int eploader_size = EP_LOADER_SIZE;
 	unsigned int *p_src = (unsigned int *)simple_strtoul(argv[1], NULL, 16);
@@ -48,7 +48,7 @@ U_BOOT_CMD(
 	""
 );
 
-static int do_nvt_pcie_boot(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_nvt_pcie_boot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	writel(EP_BOOT_CPU_VALUE, EP_BOOT_CPU_BASE);
 	return 0;
@@ -66,7 +66,7 @@ static char epstatus_help_text[] =
 	"nvt_pcie_epstatus set start [epfdt address] - set ep fdt address to communication register\n"
 	"";
 
-static int do_nvt_pcie_epstatus(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_nvt_pcie_epstatus(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret = -1;
 	u32 value;
@@ -115,7 +115,7 @@ U_BOOT_CMD(
 	epstatus_help_text
 );
 
-static int do_nvt_pcie_copy(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_nvt_pcie_copy(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	unsigned long *src = (unsigned long *)simple_strtoul(argv[1], NULL, 16);
 	unsigned long *dest = (unsigned long *)(simple_strtoul(argv[2], NULL, 16) + PCIE_MAPPING_BASE);
@@ -148,7 +148,7 @@ U_BOOT_CMD(
 #endif
 
 
-static int do_nvt_pcie_getid(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+static int do_nvt_pcie_getid(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret = NVT_PCIE_EP;
 	u32 value;

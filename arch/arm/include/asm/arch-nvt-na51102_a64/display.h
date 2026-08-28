@@ -20,7 +20,7 @@
 #include "displyr.h"
 #include "dispctrl.h"
 #include "dispdevctrl.h"
-#if !(defined __FREERTOS)
+#if !(defined __UITRON || defined __ECOS || defined __FREERTOS)
 #include <linux/fb.h>
 #endif
 
@@ -65,7 +65,7 @@ typedef struct {
 extern PDISP_OBJ disp_get_display_object(DISP_ID disp_id);
 #define disp_getDisplayObject(disp_id) disp_get_display_object(disp_id)
 
-#if 0//!defined (__FREERTOS)
+#if 0//!(defined __UITRON || defined __ECOS || defined __FREERTOS)
 int display_obj_set_video1_blank(DISP_ID id, unsigned int blank_mode);
 int display_obj_set_video2_blank(DISP_ID id, unsigned int blank_mode);
 int display_obj_set_osd_blank(DISP_ID id, unsigned int blank_mode);

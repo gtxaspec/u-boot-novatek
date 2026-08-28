@@ -6,15 +6,13 @@
  * Copyright (C) 2015-2016 Stefan Roese <sr@denx.de>
  */
 
-#include <init.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/global_data.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/mxc_i2c.h>
-#include <fsl_esdhc_imx.h>
+#include <fsl_esdhc.h>
 #include <linux/bitops.h>
 #include <miiphy.h>
 #include <netdev.h>
@@ -180,9 +178,7 @@ int board_phy_config(struct phy_device *phydev)
 int board_early_init_f(void)
 {
 	setup_iomux_uart();
-#ifdef CONFIG_FEC_MXC
 	setup_iomux_fec();
-#endif
 
 	return 0;
 }
@@ -204,10 +200,7 @@ int board_init(void)
 
 int checkboard(void)
 {
-	u32 cpurev = get_cpu_rev();
-
-	printf("Board: PHYTEC phyCORE-i.MX%s\n",
-	      get_imx_type((cpurev & 0xFF000) >> 12));
+	puts("Board: PHYTEC phyCORE-i.MX6UL\n");
 
 	return 0;
 }

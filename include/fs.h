@@ -6,9 +6,6 @@
 #define _FS_H
 
 #include <common.h>
-#include <rtc.h>
-
-struct cmd_tbl;
 
 #define FS_TYPE_ANY	0
 #define FS_TYPE_FAT	1
@@ -16,32 +13,6 @@ struct cmd_tbl;
 #define FS_TYPE_SANDBOX	3
 #define FS_TYPE_UBIFS	4
 #define FS_TYPE_BTRFS	5
-#define FS_TYPE_SQUASHFS 6
-
-struct blk_desc;
-
-/**
- * do_fat_fsload - Run the fatload command
- *
- * @cmdtp: Command information for fatload
- * @flag: Command flags (CMD_FLAG_...)
- * @argc: Number of arguments
- * @argv: List of arguments
- * @return result (see enum command_ret_t)
- */
-int do_fat_fsload(struct cmd_tbl *cmdtp, int flag, int argc,
-		  char *const argv[]);
-
-/**
- * do_ext2load - Run the ext2load command
- *
- * @cmdtp: Command information for ext2load
- * @flag: Command flags (CMD_FLAG_...)
- * @argc: Number of arguments
- * @argv: List of arguments
- * @return result (see enum command_ret_t)
- */
-int do_ext2load(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
 
 /*
  * Tell the fs layer which block device an partition to use for future
@@ -65,28 +36,6 @@ int fs_set_blk_dev(const char *ifname, const char *dev_part_str, int fstype);
  * Returns non-zero if invalid partition or error accessing the disk.
  */
 int fs_set_blk_dev_with_part(struct blk_desc *desc, int part);
-
-/**
- * fs_close() - Unset current block device and partition
- *
- * fs_close() closes the connection to a file system opened with either
- * fs_set_blk_dev() or fs_set_dev_with_part().
- *
- * Many file functions implicitly call fs_close(), e.g. fs_closedir(),
- * fs_exist(), fs_ln(), fs_ls(), fs_mkdir(), fs_read(), fs_size(), fs_write(),
- * fs_unlink().
- */
-void fs_close(void);
-
-/**
- * fs_get_type() - Get type of current filesystem
- *
- * Return: filesystem type
- *
- * Returns filesystem type representing the current filesystem, or
- * FS_TYPE_ANY for any unrecognised filesystem.
- */
-int fs_get_type(void);
 
 /**
  * fs_get_type_name() - Get type of current filesystem
@@ -122,33 +71,30 @@ int fs_exists(const char *filename);
  */
 int fs_size(const char *filename, loff_t *size);
 
-/**
- * fs_read() - read file from the partition previously set by fs_set_blk_dev()
+/*
+ * fs_read - Read file from the partition previously set by fs_set_blk_dev()
+ * Note that not all filesystem types support either/both offset!=0 or len!=0.
  *
- * Note that not all filesystem drivers support either or both of offset != 0
- * and len != 0.
- *
- * @filename:	full path of the file to read from
- * @addr:	address of the buffer to write to
- * @offset:	offset in the file from where to start reading
- * @len:	the number of bytes to read. Use 0 to read entire file.
- * @actread:	returns the actual number of bytes read
- * Return:	0 if OK with valid *actread, -1 on error conditions
+ * @filename: Name of file to read from
+ * @addr: The address to read into
+ * @offset: The offset in file to read from
+ * @len: The number of bytes to read. Maybe 0 to read entire file
+ * @actread: Returns the actual number of bytes read
+ * @return 0 if ok with valid *actread, -1 on error conditions
  */
 int fs_read(const char *filename, ulong addr, loff_t offset, loff_t len,
 	    loff_t *actread);
 
-/**
- * fs_write() - write file to the partition previously set by fs_set_blk_dev()
+/*
+ * fs_write - Write file to the partition previously set by fs_set_blk_dev()
+ * Note that not all filesystem types support offset!=0.
  *
- * Note that not all filesystem drivers support offset != 0.
- *
- * @filename:	full path of the file to write to
- * @addr:	address of the buffer to read from
- * @offset:	offset in the file from where to start writing
- * @len:	the number of bytes to write
- * @actwrite:	returns the actual number of bytes written
- * Return:	0 if OK with valid *actwrite, -1 on error conditions
+ * @filename: Name of file to read from
+ * @addr: The address to read into
+ * @offset: The offset in file to read from. Maybe 0 to write to start of file
+ * @len: The number of bytes to write
+ * @actwrite: Returns the actual number of bytes written
+ * @return 0 if ok with valid *actwrite, -1 on error conditions
  */
 int fs_write(const char *filename, ulong addr, loff_t offset, loff_t len,
 	     loff_t *actwrite);
@@ -161,29 +107,14 @@ int fs_write(const char *filename, ulong addr, loff_t offset, loff_t len,
 #define FS_DT_REG  8         /* regular file */
 #define FS_DT_LNK  10        /* symbolic link */
 
-#define FS_DIRENT_NAME_LEN 256
-
-/**
- * struct fs_dirent - directory entry
- *
- * A directory entry, returned by fs_readdir(). Returns information
+/*
+ * A directory entry, returned by fs_readdir().  Returns information
  * about the file/directory at the current directory entry position.
  */
 struct fs_dirent {
-	/** @type:		one of FS_DT_x (not a mask) */
-	unsigned int type;
-	/** @size:		file size */
-	loff_t size;
-	/** @flags:		attribute flags (FS_ATTR_*) */
-	u32 attr;
-	/** create_time:	time of creation */
-	struct rtc_time create_time;
-	/** access_time:	time of last access */
-	struct rtc_time access_time;
-	/** change_time:	time of last modification */
-	struct rtc_time change_time;
-	/** name:		file name */
-	char name[FS_DIRENT_NAME_LEN];
+	unsigned type;       /* one of FS_DT_x (not a mask) */
+	loff_t size;         /* size in bytes */
+	char name[256];
 };
 
 /* Note: fs_dir_stream should be treated as opaque to the user of fs layer */
@@ -246,45 +177,75 @@ int fs_mkdir(const char *filename);
  * Common implementation for various filesystem commands, optionally limited
  * to a specific filesystem type via the fstype parameter.
  */
-int do_size(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	    int fstype);
-int do_load(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	    int fstype);
-int do_ls(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	  int fstype);
+int do_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+		int fstype);
+int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+		int fstype);
+int do_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+		int fstype);
 int file_exists(const char *dev_type, const char *dev_part, const char *file,
 		int fstype);
-int do_save(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	    int fstype);
-int do_rm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	  int fstype);
-int do_mkdir(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	     int fstype);
-int do_ln(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	  int fstype);
+int do_save(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+		int fstype);
+int do_rm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+		int fstype);
+int do_mkdir(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+		int fstype);
+struct fstype_info *fs_get_info(int fstype);
+void fs_close(void);
 
 /*
  * Determine the UUID of the specified filesystem and print it. Optionally it is
  * possible to store the UUID directly in env.
  */
-int do_fs_uuid(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
-	       int fstype);
+int do_fs_uuid(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+		int fstype);
 
 /*
  * Determine the type of the specified filesystem and print it. Optionally it is
  * possible to store the type directly in env.
  */
-int do_fs_type(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
+int do_fs_type(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
-/**
- * do_fs_types - List supported filesystems.
- *
- * @cmdtp: Command information for fstypes
- * @flag: Command flags (CMD_FLAG_...)
- * @argc: Number of arguments
- * @argv: List of arguments
- * @return result (see enum command_ret_t)
- */
-int do_fs_types(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]);
+struct fstype_info {
+	int fstype;
+	char *name;
+	/*
+	 * Is it legal to pass NULL as .probe()'s  fs_dev_desc parameter? This
+	 * should be false in most cases. For "virtual" filesystems which
+	 * aren't based on a U-Boot block device (e.g. sandbox), this can be
+	 * set to true. This should also be true for the dummy entry at the end
+	 * of fstypes[], since that is essentially a "virtual" (non-existent)
+	 * filesystem.
+	 */
+	bool null_dev_desc_ok;
+	int (*probe)(struct blk_desc *fs_dev_desc,
+		     disk_partition_t *fs_partition);
+	int (*ls)(const char *dirname);
+	int (*exists)(const char *filename);
+	int (*size)(const char *filename, loff_t *size);
+	int (*read)(const char *filename, void *buf, loff_t offset,
+		    loff_t len, loff_t *actread);
+	int (*write)(const char *filename, void *buf, loff_t offset,
+		     loff_t len, loff_t *actwrite);
+	void (*close)(void);
+	int (*uuid)(char *uuid_str);
+	/*
+	 * Open a directory stream.  On success return 0 and directory
+	 * stream pointer via 'dirsp'.  On error, return -errno.  See
+	 * fs_opendir().
+	 */
+	int (*opendir)(const char *filename, struct fs_dir_stream **dirsp);
+	/*
+	 * Read next entry from directory stream.  On success return 0
+	 * and directory entry pointer via 'dentp'.  On error return
+	 * -errno.  See fs_readdir().
+	 */
+	int (*readdir)(struct fs_dir_stream *dirs, struct fs_dirent **dentp);
+	/* see fs_closedir() */
+	void (*closedir)(struct fs_dir_stream *dirs);
+	int (*unlink)(const char *filename);
+	int (*mkdir)(const char *dirname);
+};
 
 #endif /* _FS_H */

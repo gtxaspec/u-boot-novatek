@@ -13,8 +13,6 @@
 
 
 #include <common.h>
-#include <cli.h>
-#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
@@ -66,9 +64,9 @@ static void gpio_set_output(u32 pin)
 
 	pin &= (32 - 1);
 
-	reg_data = INW(IOADDR_GPIO_REG_BASE + 0x20 + ofs);
+	reg_data = INW(IOADDR_GPIO_REG_BASE + NVT_GPIO_STG_DIR_0 + ofs);
 	reg_data |= (1 << pin);    //output
-	OUTW(IOADDR_GPIO_REG_BASE + 0x20 + ofs, reg_data);
+	OUTW(IOADDR_GPIO_REG_BASE + NVT_GPIO_STG_DIR_0 + ofs, reg_data);
 }
 
 static void gpio_set_pin(u32 pin)
@@ -79,7 +77,7 @@ static void gpio_set_pin(u32 pin)
 	pin &= (32 - 1);
 	tmp = (1 << pin);
 
-	OUTW(IOADDR_GPIO_REG_BASE + 0x40 + ofs, tmp);
+	OUTW(IOADDR_GPIO_REG_BASE + NVT_GPIO_STG_SET_0 + ofs, tmp);
 }
 
 static void gpio_clear_pin(u32 pin)
@@ -90,7 +88,7 @@ static void gpio_clear_pin(u32 pin)
 	pin &= (32 - 1);
 	tmp = (1 << pin);
 
-	OUTW(IOADDR_GPIO_REG_BASE + 0x60 + ofs, tmp);
+	OUTW(IOADDR_GPIO_REG_BASE + NVT_GPIO_STG_CLR_0 + ofs, tmp);
 }
 #endif
 
@@ -114,6 +112,101 @@ void nvt_ivot_reset_cpu(void)
 }
 
 
+
+static void ethernet_init(void)
+{
+#if 0
+	int nodeoffset, len;
+	u32 *cell = NULL;
+	char path[20] = {0};
+	u32 sensor_cfg = 0x0, eth_cfg = 0x0, reg_val = 0x0;
+
+	sprintf(path,"/top@%x/sensor",IOADDR_TOP_REG_BASE);
+
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	if (nodeoffset < 0) {
+		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
+		return ;
+	}
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
+	if (len == 0) {
+		printf("%s(%d) len = 0\n",__func__, __LINE__);
+		return ;
+	}
+
+	sensor_cfg = __be32_to_cpu(cell[0]);
+	debug("%s(%d) sensor_cfg = 0x%x\n", __func__, __LINE__, sensor_cfg);
+
+	sprintf(path,"/eth@%x",IOADDR_ETH_REG_BASE);
+
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	if (nodeoffset < 0) {
+		printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
+		return ;
+	}
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
+	if (len == 0) {
+		printf("%s(%d) len = 0\n", __func__, __LINE__);
+		return ;
+	}
+
+	eth_cfg = __be32_to_cpu(cell[0]);
+	debug("%s(%d) eth_cfg = 0x%x\n", __func__, __LINE__, eth_cfg);
+
+	if ((sensor_cfg & 0x20000) || (eth_cfg == 1)) {
+		/* Disable PLL4 */
+		reg_val = CG_GETREG(CG_PLL_ENABLE_OFS);
+		reg_val &= ~(0x1 << 4);
+		CG_SETREG(CG_PLL_ENABLE_OFS, reg_val);
+
+		CG_SETREG(CG_PLL4_DIV0_OFS, 0x0);
+		CG_SETREG(CG_PLL4_DIV1_OFS, 0x0);
+		CG_SETREG(CG_PLL4_DIV2_OFS, 0x32);
+
+		/* spclk_sel: pll4 */
+		reg_val = CG_GETREG(0x24);
+		reg_val &= ~0x4300;
+		reg_val |= (0x1 << 8);
+		CG_SETREG(0x24, reg_val);
+
+		reg_val = CG_GETREG(0x3C);
+		reg_val &= ~0xFF000000;
+		reg_val |= (0xB << 24);
+		CG_SETREG(0x3C, reg_val);
+
+		/* Enable PLL4 */
+		reg_val = CG_GETREG(CG_PLL_ENABLE_OFS);
+		reg_val |= (0x1 << 4);
+		CG_SETREG(CG_PLL_ENABLE_OFS, reg_val);
+
+		/* Enable SP_CLK */
+		reg_val = CG_GETREG(0x70);
+		reg_val |= (0x1 << 12);
+		CG_SETREG(0x70, reg_val);
+
+		/* Pinmux SP_CLK1 */
+		reg_val = TOP_GETREG(0xC);
+		reg_val &= ~(0x3 << 18);
+		reg_val |= (0x1 << 18);
+		TOP_SETREG(0xC, reg_val);
+
+		/* Pinmux P_GPIO17 */
+		reg_val = TOP_GETREG(0xA8);
+		reg_val &= ~(0x1 << 17);
+		TOP_SETREG(0xA8, reg_val);
+	}
+#endif
+
+#ifdef ETH_PHY_HW_RESET
+	gpio_set_output(NVT_PHY_RST_PIN);
+	gpio_clear_pin(NVT_PHY_RST_PIN);
+	mdelay(20);
+	gpio_set_pin(NVT_PHY_RST_PIN);
+	mdelay(50);
+#endif
+}
 
 static void usbphy_init(void)
 {
@@ -285,7 +378,6 @@ int pad_set_power(PAD_POWER_STRUCT *pad_power)
 static void power_init(void)
 {
 	/* Enable it after dts parsing ready*/
-	ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 	int nodeoffset;
 	u32 *cell = NULL;
 	char path[20] = {0};
@@ -293,8 +385,8 @@ static void power_init(void)
 	u32 top_reg0 = TOP_GETREG(0x0);
 
 	sprintf(path,"/top/sgpio_0_26");
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "power_config", NULL);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
 	if (cell == NULL) {
 		printf("%s: Not Existed power_config for sgpio_0_26, skip\n", __func__);
 	} else {
@@ -306,7 +398,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				cli_loop();
+				while (1);
 			}
 
 			pad_set_power(&pad_power);
@@ -316,7 +408,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				cli_loop();
+				while (1);
 			}
 
 			pad_set_power(&pad_power);
@@ -326,8 +418,8 @@ static void power_init(void)
 	}
 
 	sprintf(path,"/top/pgpio_0_19");
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "power_config", NULL);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
 	if (cell == NULL) {
 		printf("%s: Not Existed power_config for pgpio_0_19, skip\n", __func__);
 	} else {
@@ -353,8 +445,8 @@ static void power_init(void)
 	}
 
 	sprintf(path,"/top/cgpio_0_10");
-	nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
-	cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "power_config", NULL);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "power_config", NULL);
 	if (cell == NULL) {
 		printf("%s: Not Existed power_config for cgpio_0_10, skip\n", __func__);
 	} else {
@@ -366,7 +458,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				cli_loop();
+				while (1);
 			}
 
 			pad_set_power(&pad_power);
@@ -376,7 +468,7 @@ static void power_init(void)
 
 				/* Stop boot */
 				printf("!!! Stop booting because your power_config dtsi and bootstrap do not match !!!\n");
-				cli_loop();
+				while (1);
 			}
 
 			pad_set_power(&pad_power);
@@ -389,6 +481,8 @@ static void power_init(void)
 int nvt_ivot_hw_init(void)
 {
 	nvt_ivot_set_cpuclk();
+
+	ethernet_init();
 
 	sdio_power_cycle();
 
@@ -425,7 +519,19 @@ void nvt_ddr_scan(u32 type)
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	} else {
-		writel(0x20050e1c, 0xf0050084);
+		if (readl(0xF00D0000)&0x20) { // LP4 and LP4X
+			printf("LP4/LP4X\r\n");
+			if ((readl(0xF00D0000)&0x3000000) == 0x3000000) { //dual rank
+				printf("dual rank\r\n");
+				writel(0x40460e1c, 0xf0050084);
+			} else { // single rank
+				printf("single rank\r\n");
+				writel(0x40060e1c, 0xf0050084);
+			}
+		} else { // D4
+			printf("D4\r\n");
+			writel(0x40050e1c, 0xf0050084);
+		}
 		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));

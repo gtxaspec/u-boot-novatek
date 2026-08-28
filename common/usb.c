@@ -28,8 +28,6 @@
 #include <common.h>
 #include <command.h>
 #include <dm.h>
-#include <log.h>
-#include <malloc.h>
 #include <memalign.h>
 #include <asm/processor.h>
 #include <linux/compiler.h>
@@ -38,7 +36,6 @@
 #include <asm/unaligned.h>
 #include <errno.h>
 #include <usb.h>
-#include <linux/delay.h>
 
 #define USB_BUFSIZ	512
 
@@ -174,12 +171,6 @@ int usb_detect_change(void)
 	return change;
 }
 
-/* Lock or unlock async schedule on the controller */
-__weak int usb_lock_async(struct usb_device *dev, int lock)
-{
-	return 0;
-}
-
 /*
  * disables the asynch behaviour of the control message. This is used for data
  * transfers that uses the exclusiv access to the control and bulk messages.
@@ -201,15 +192,12 @@ int usb_disable_asynch(int disable)
  */
 
 /*
- * submits an Interrupt Message. Some drivers may implement non-blocking
- * polling: when non-block is true and the device is not responding return
- * -EAGAIN instead of waiting for device to respond.
+ * submits an Interrupt Message
  */
-int usb_int_msg(struct usb_device *dev, unsigned long pipe,
-		void *buffer, int transfer_len, int interval, bool nonblock)
+int usb_submit_int_msg(struct usb_device *dev, unsigned long pipe,
+			void *buffer, int transfer_len, int interval)
 {
-	return submit_int_msg(dev, pipe, buffer, transfer_len, interval,
-			      nonblock);
+	return submit_int_msg(dev, pipe, buffer, transfer_len, interval);
 }
 
 /*
@@ -744,9 +732,8 @@ static int usb_get_string(struct usb_device *dev, unsigned short langid,
 
 		if (result > 0)
 			break;
-#if defined(CONFIG_USB_XHCI_NVTIVOT)
+
 		mdelay(2);
-#endif
 	}
 
 	return result;
@@ -780,9 +767,7 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
 	/* If that failed try to read the descriptor length, then
 	 * ask for just that many bytes */
 	if (rc < 2) {
-#if defined(CONFIG_USB_XHCI_NVTIVOT)
 		mdelay(2);
-#endif
 		rc = usb_get_string(dev, langid, index, buf, 2);
 		if (rc == 2)
 			rc = usb_get_string(dev, langid, index, buf, buf[0]);
@@ -842,9 +827,7 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 			      dev->devnum, dev->string_langid);
 		}
 	}
-#if defined(CONFIG_USB_XHCI_NVTIVOT)
 	mdelay(2);
-#endif
 	err = usb_string_sub(dev, dev->string_langid, index, tbuf);
 	if (err < 0)
 		return err;
@@ -1080,12 +1063,10 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 		err = usb_setup_descriptor(dev, true);
 		if (err)
 			return err;
-#if defined(CONFIG_USB_XHCI_NVTIVOT)
 		/* Resolved the issue of failure to get next device descriptor from
 		 * Logitech USB Receiver on xHCI.
 		*/
 		mdelay(1);
-#endif
 	}
 
 	return 0;
@@ -1112,20 +1093,13 @@ int usb_select_config(struct usb_device *dev)
 	 * requests in the first microframe, the stick crashes. Wait about
 	 * one microframe duration here (1mS for USB 1.x , 125uS for USB 2.0).
 	 */
-#if defined(CONFIG_USB_XHCI_NVTIVOT)
 	mdelay(5);
-#else
-	mdelay(1);
-#endif
 
 	/* only support for one config for now */
 	err = usb_get_configuration_len(dev, 0);
-	//mdelay(10);
 	if (err >= 0) {
 		tmpbuf = (unsigned char *)malloc_cache_aligned(err);
-#if defined(CONFIG_USB_XHCI_NVTIVOT)
 		mdelay(10);
-#endif
 		if (!tmpbuf)
 			err = -ENOMEM;
 		else
@@ -1139,9 +1113,6 @@ int usb_select_config(struct usb_device *dev)
 		return err;
 	}
 	usb_parse_config(dev, tmpbuf, 0);
-#if defined(CONFIG_USB_XHCI_NVTIVOT)
-	mdelay(10);
-#endif
 	free(tmpbuf);
 	usb_set_maxpacket(dev);
 	/*

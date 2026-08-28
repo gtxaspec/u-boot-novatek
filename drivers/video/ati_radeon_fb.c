@@ -16,11 +16,9 @@
  */
 
 #include <common.h>
-#include <linux/delay.h>
 
 #include <command.h>
 #include <bios_emul.h>
-#include <env.h>
 #include <pci.h>
 #include <asm/processor.h>
 #include <linux/errno.h>
@@ -642,7 +640,7 @@ void *video_hw_init(void)
 	if (penv) {
 		/* deceide if it is a string */
 		if (penv[0] <= '9') {
-			videomode = (int)hextoul(penv, NULL);
+			videomode = (int) simple_strtoul (penv, NULL, 16);
 			tmp = 1;
 		}
 	} else {

@@ -19,6 +19,7 @@
 
 #include "bcmstb.h"
 
+#define BCMSTB_SDHCI_BASE	0xf03e0200
 #define BCMSTB_TIMER_LOW	0xf0412008
 #define BCMSTB_TIMER_HIGH	0xf041200c
 #define BCMSTB_TIMER_FREQUENCY	0xf0412020
@@ -30,6 +31,8 @@
 /*
  * Environment configuration for SPI flash.
  */
+#define CONFIG_ENV_OFFSET	0x1e0000
+#define CONFIG_ENV_SECT_SIZE	CONFIG_ENV_SIZE
 
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
 

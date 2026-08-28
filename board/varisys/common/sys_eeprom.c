@@ -12,11 +12,8 @@
 
 #include <common.h>
 #include <command.h>
-#include <env.h>
 #include <i2c.h>
 #include <linux/ctype.h>
-#include <linux/delay.h>
-#include <u-boot/crc.h>
 
 #include "eeprom.h"
 
@@ -299,7 +296,7 @@ static void set_mac_address(unsigned int index, const char *string)
 	}
 
 	for (i = 0; *p && (i < 6); i++) {
-		e.mac[index][i] = hextoul(p, &p);
+		e.mac[index][i] = simple_strtoul(p, &p, 16);
 		if (*p == ':')
 			p++;
 	}
@@ -307,7 +304,7 @@ static void set_mac_address(unsigned int index, const char *string)
 	update_crc();
 }
 
-int do_mac(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_mac(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char cmd;
 
@@ -364,11 +361,11 @@ int do_mac(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		set_date(argv[2]);
 		break;
 	case 'p':	/* MAC table size */
-		e.mac_count = hextoul(argv[2], NULL);
+		e.mac_count = simple_strtoul(argv[2], NULL, 16);
 		update_crc();
 		break;
 	case '0' ... '9':	/* "mac 0" through "mac 22" */
-		set_mac_address(dectoul(argv[1], NULL), argv[2]);
+		set_mac_address(simple_strtoul(argv[1], NULL, 10), argv[2]);
 		break;
 	case 'h':	/* help */
 	default:

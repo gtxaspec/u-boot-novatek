@@ -167,8 +167,8 @@ U_BOOT_DRIVER(gpio_msm) = {
 	.name	= "gpio_nvt",
 	.id	= UCLASS_GPIO,
 	.of_match = nvt_gpio_ids,
-	.of_to_plat = nvt_gpio_ofdata_to_platdata,
+	.ofdata_to_platdata = nvt_gpio_ofdata_to_platdata,
 	.probe	= nvt_gpio_probe,
 	.ops	= &gpio_nvt_ops,
-	.priv_auto = sizeof(struct nvt_gpio_bank),
+	.priv_auto_alloc_size = sizeof(struct nvt_gpio_bank),
 };

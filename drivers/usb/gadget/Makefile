@@ -20,9 +20,19 @@ obj-$(CONFIG_USB_GADGET_BCM_UDC_OTG_PHY) += bcm_udc_otg_phy.o
 obj-$(CONFIG_USB_GADGET_DWC2_OTG) += dwc2_udc_otg.o
 obj-$(CONFIG_USB_GADGET_DWC2_OTG_PHY) += dwc2_udc_otg_phy.o
 obj-$(CONFIG_USB_GADGET_FOTG210) += fotg210.o
-obj-$(CONFIG_USB_GADGET_MAX3420) += max3420_udc.o
+ifeq ($(CONFIG_TARGET_NA51103),y)
+obj-$(CONFIG_USB_GADGET_NVTIVOT) += nvt_udc_v2.o
+else
+obj-$(CONFIG_USB_GADGET_NVTIVOT) += nvt_udc.o
+endif
+ifeq ($(CONFIG_TARGET_NA51102_A64)$(CONFIG_TARGET_NA51103_A64),y)
 obj-$(CONFIG_USB_GADGET_NVTIVOT_A64) += nvt_udc_a64_v2.o
+else
+obj-$(CONFIG_USB_GADGET_NVTIVOT_A64) += nvt_udc_a64.o
+endif
+ifeq ($(CONFIG_TARGET_NA51102_A64),y)
 obj-$(CONFIG_USB_GADGET_NVTIVOT_FOTG330) += fotg330.o
+endif
 obj-$(CONFIG_CI_UDC)	+= ci_udc.o
 ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_USB_GADGET_DOWNLOAD) += g_dnl.o

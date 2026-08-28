@@ -28,7 +28,7 @@
 
    @return void
 */
-void idec_set_reg(UINT32 id, IDEDATA_TYPE offset, REGVALUE value)
+void idec_set_reg(UINT32 id, UINT32 offset, REGVALUE value)
 {
 	if (id == IDE_ID_1) {
 		IDE_SETREG(offset, value);
@@ -46,7 +46,7 @@ void idec_set_reg(UINT32 id, IDEDATA_TYPE offset, REGVALUE value)
 
    @return The value of specific register offset
 */
-REGVALUE idec_get_reg(UINT32 id, IDEDATA_TYPE offset)
+REGVALUE idec_get_reg(UINT32 id, UINT32 offset)
 {
 	if (id == IDE_ID_1) {
 		return IDE_GETREG(offset);

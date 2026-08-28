@@ -10,7 +10,6 @@
  */
 
 #include <common.h>
-#include <log.h>
 #include <malloc.h>
 #include <errno.h>
 #include <div64.h>
@@ -51,6 +50,7 @@ static int nand_block_op(enum dfu_op op, struct dfu_entity *dfu,
 					 lim, buf);
 	} else {
 		nand_erase_options_t opts;
+#ifdef CONFIG_ARCH_NOVATEK
 		int write_flags = WITH_WR_VERIFY;
 
 		memset(&opts, 0, sizeof(opts));
@@ -60,10 +60,8 @@ static int nand_block_op(enum dfu_op op, struct dfu_entity *dfu,
 		opts.quiet = 1;
 		opts.lim = lim;
 
-#ifdef CONFIG_ARCH_NOVATEK
 		if (dfu->data.nand.jffs2)
 			opts.jffs2 = 1;
-#endif	/* CONFIG_ARCH_NOVATEK */
 		/* first erase */
 		ret = nand_erase_opts(mtd, &opts);
 		if (ret)
@@ -75,6 +73,21 @@ static int nand_block_op(enum dfu_op op, struct dfu_entity *dfu,
 #endif
 		ret = nand_write_skip_bad(mtd, start, &count, &actual,
 					  lim, buf, write_flags);
+#else
+		memset(&opts, 0, sizeof(opts));
+		opts.offset = start;
+		opts.length = count;
+		opts.spread = 1;
+		opts.quiet = 1;
+		opts.lim = lim;
+		/* first erase */
+		ret = nand_erase_opts(mtd, &opts);
+		if (ret)
+			return ret;
+		/* then write */
+		ret = nand_write_skip_bad(mtd, start, &count, &actual,
+					  lim, buf, WITH_WR_VERIFY);
+#endif	/* CONFIG_ARCH_NOVATEK */
 	}
 
 	if (ret != 0) {
@@ -220,9 +233,9 @@ int dfu_fill_entity_nand(struct dfu_entity *dfu, char *devstr, char *s)
 	st = strsep(&s, " ");
 	if (!strcmp(st, "raw")) {
 		dfu->layout = DFU_RAW_ADDR;
-		dfu->data.nand.start = hextoul(s, &s);
+		dfu->data.nand.start = simple_strtoul(s, &s, 16);
 		s++;
-		dfu->data.nand.size = hextoul(s, &s);
+		dfu->data.nand.size = simple_strtoul(s, &s, 16);
 #ifdef CONFIG_ARCH_NOVATEK
 	} else if ((!strcmp(st, "part")) || (!strcmp(st, "partubi")) || (!strcmp(st, "partjffs2"))) {
 #else
@@ -235,12 +248,12 @@ int dfu_fill_entity_nand(struct dfu_entity *dfu, char *devstr, char *s)
 
 		dfu->layout = DFU_RAW_ADDR;
 
-		dev = dectoul(s, &s);
+		dev = simple_strtoul(s, &s, 10);
 		s++;
-		part = dectoul(s, &s);
+		part = simple_strtoul(s, &s, 10);
 
 		sprintf(mtd_id, "%s%d,%d", "nand", dev, part - 1);
-		debug("using id '%s'\n", mtd_id);
+		printf("using id '%s'\n", mtd_id);
 
 		mtdparts_init();
 

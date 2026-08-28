@@ -22,7 +22,7 @@ config ENV_SIZE
 
 config ENV_OFFSET
 	hex
-	default 0x2c000 if ENV_IS_IN_NAND
+	default 0x3c000 if ENV_IS_IN_NAND
 	default 0x00B0000 if ENV_IS_IN_SPI_FLASH
 	default 0x002C0000 if ENV_IS_IN_MMC
 

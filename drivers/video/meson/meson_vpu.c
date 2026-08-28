@@ -6,20 +6,14 @@
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  */
 
-#include <common.h>
-#include <display.h>
-#include <dm.h>
+#include "meson_vpu.h"
+#include <power-domain.h>
 #include <efi_loader.h>
-#include <fdt_support.h>
-#include <log.h>
-#include <part.h>
-#include <linux/sizes.h>
-#include <asm/arch/mem.h>
-#include <asm/global_data.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
-
-#include "meson_vpu.h"
+#include <fdt_support.h>
+#include <linux/sizes.h>
+#include <asm/arch/mem.h>
 #include "meson_registers.h"
 #include "simplefb_common.h"
 
@@ -34,17 +28,9 @@ static struct meson_framebuffer {
 	bool is_cvbs;
 } meson_fb = { 0 };
 
-bool meson_vpu_is_compatible(struct meson_vpu_priv *priv,
-			     enum vpu_compatible family)
-{
-	enum vpu_compatible compat = dev_get_driver_data(priv->dev);
-
-	return compat == family;
-}
-
 static int meson_vpu_setup_mode(struct udevice *dev, struct udevice *disp)
 {
-	struct video_uc_plat *uc_plat = dev_get_uclass_plat(dev);
+	struct video_uc_platdata *uc_plat = dev_get_uclass_platdata(dev);
 	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
 	struct display_timing timing;
 	bool is_cvbs = false;
@@ -101,13 +87,13 @@ static const struct udevice_id meson_vpu_ids[] = {
 	{ .compatible = "amlogic,meson-gxbb-vpu", .data = VPU_COMPATIBLE_GXBB },
 	{ .compatible = "amlogic,meson-gxl-vpu", .data = VPU_COMPATIBLE_GXL },
 	{ .compatible = "amlogic,meson-gxm-vpu", .data = VPU_COMPATIBLE_GXM },
-	{ .compatible = "amlogic,meson-g12a-vpu", .data = VPU_COMPATIBLE_G12A },
 	{ }
 };
 
 static int meson_vpu_probe(struct udevice *dev)
 {
 	struct meson_vpu_priv *priv = dev_get_priv(dev);
+	struct power_domain pd;
 	struct udevice *disp;
 	int ret;
 
@@ -129,6 +115,14 @@ static int meson_vpu_probe(struct udevice *dev)
 	if (!priv->dmc_base)
 		return -EINVAL;
 
+	ret = power_domain_get(dev, &pd);
+	if (ret)
+		return ret;
+
+	ret = power_domain_on(&pd);
+	if (ret)
+		return ret;
+
 	meson_vpu_init(dev);
 
 	/* probe the display */
@@ -139,7 +133,7 @@ static int meson_vpu_probe(struct udevice *dev)
 
 static int meson_vpu_bind(struct udevice *dev)
 {
-	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
+	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
 
 	plat->size = VPU_MAX_WIDTH * VPU_MAX_HEIGHT *
 		(1 << VPU_MAX_LOG2_BPP) / 8;
@@ -198,8 +192,8 @@ void meson_vpu_rsv_fb(void *fdt)
 		return;
 
 #if defined(CONFIG_EFI_LOADER)
-	efi_add_memory_map(meson_fb.base, meson_fb.fb_size,
-			   EFI_RESERVED_MEMORY_TYPE);
+	efi_add_memory_map(meson_fb.base, meson_fb.fb_size >> EFI_PAGE_SHIFT,
+			   EFI_RESERVED_MEMORY_TYPE, false);
 #endif
 #if defined(CONFIG_VIDEO_DT_SIMPLEFB)
 	meson_vpu_setup_simplefb(fdt);
@@ -212,6 +206,6 @@ U_BOOT_DRIVER(meson_vpu) = {
 	.of_match = meson_vpu_ids,
 	.probe = meson_vpu_probe,
 	.bind = meson_vpu_bind,
-	.priv_auto	= sizeof(struct meson_vpu_priv),
-	.flags  = DM_FLAG_PRE_RELOC | DM_FLAG_LEAVE_PD_ON,
+	.priv_auto_alloc_size = sizeof(struct meson_vpu_priv),
+	.flags  = DM_FLAG_PRE_RELOC,
 };

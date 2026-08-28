@@ -14,16 +14,13 @@
 #include "common.h"
 #include <clk.h>
 #include <errno.h>
-#include <log.h>
 #include <malloc.h>
 #include <mmc.h>
-#include <dm/device_compat.h>
 
 #include <asm/io.h>
 #include <asm-generic/gpio.h>
 
 #include "arm_pl180_mmci.h"
-#include <linux/delay.h>
 
 #ifdef CONFIG_DM_MMC
 #include <dm.h>
@@ -418,13 +415,13 @@ static void arm_pl180_mmc_init(struct pl180_mmc_host *host)
 
 static int arm_pl180_mmc_probe(struct udevice *dev)
 {
-	struct arm_pl180_mmc_plat *pdata = dev_get_plat(dev);
+	struct arm_pl180_mmc_plat *pdata = dev_get_platdata(dev);
 	struct mmc_uclass_priv *upriv = dev_get_uclass_priv(dev);
 	struct mmc *mmc = &pdata->mmc;
-	struct pl180_mmc_host *host = dev_get_priv(dev);
+	struct pl180_mmc_host *host = dev->priv;
 	struct mmc_config *cfg = &pdata->cfg;
 	struct clk clk;
-	u32 periphid;
+	u32 bus_width;
 	int ret;
 
 	ret = clk_get_by_index(dev, 0, &clk);
@@ -442,36 +439,30 @@ static int arm_pl180_mmc_probe(struct udevice *dev)
 	host->clkdiv_init = SDI_CLKCR_CLKDIV_INIT_V1 | SDI_CLKCR_CLKEN |
 			    SDI_CLKCR_HWFC_EN;
 	host->clock_in = clk_get_rate(&clk);
+	host->version2 = dev_get_driver_data(dev);
 
 	cfg->name = dev->name;
 	cfg->voltages = VOLTAGE_WINDOW_SD;
 	cfg->host_caps = 0;
 	cfg->f_min = host->clock_in / (2 * (SDI_CLKCR_CLKDIV_INIT_V1 + 1));
-	cfg->f_max = MMC_CLOCK_MAX;
+	cfg->f_max = dev_read_u32_default(dev, "max-frequency", MMC_CLOCK_MAX);
 	cfg->b_max = CONFIG_SYS_MMC_MAX_BLK_COUNT;
-
-	periphid = dev_read_u32_default(dev, "arm,primecell-periphid", 0);
-	switch (periphid) {
-	case STM32_MMCI_ID: /* stm32 variant */
-		host->version2 = false;
-		break;
-	case UX500V2_MMCI_ID:
-		host->pwr_init = SDI_PWR_OPD | SDI_PWR_PWRCTRL_ON;
-		host->clkdiv_init = SDI_CLKCR_CLKDIV_INIT_V2 | SDI_CLKCR_CLKEN |
-				    SDI_CLKCR_HWFC_EN;
-		cfg->voltages = VOLTAGE_WINDOW_MMC;
-		cfg->f_min = host->clock_in / (2 + SDI_CLKCR_CLKDIV_INIT_V2);
-		host->version2 = true;
-		break;
-	default:
-		host->version2 = true;
-	}
 
 	gpio_request_by_name(dev, "cd-gpios", 0, &host->cd_gpio, GPIOD_IS_IN);
 
-	ret = mmc_of_parse(dev, cfg);
-	if (ret)
-		return ret;
+	bus_width = dev_read_u32_default(dev, "bus-width", 1);
+	switch (bus_width) {
+	case 8:
+		cfg->host_caps |= MMC_MODE_8BIT;
+		/* Hosts capable of 8-bit transfers can also do 4 bits */
+	case 4:
+		cfg->host_caps |= MMC_MODE_4BIT;
+		break;
+	case 1:
+		break;
+	default:
+		dev_err(dev, "Invalid bus-width value %u\n", bus_width);
+	}
 
 	arm_pl180_mmc_init(host);
 	mmc->priv = host;
@@ -483,7 +474,7 @@ static int arm_pl180_mmc_probe(struct udevice *dev)
 
 int arm_pl180_mmc_bind(struct udevice *dev)
 {
-	struct arm_pl180_mmc_plat *plat = dev_get_plat(dev);
+	struct arm_pl180_mmc_plat *plat = dev_get_platdata(dev);
 
 	return mmc_bind(dev, &plat->mmc, &plat->cfg);
 }
@@ -505,7 +496,7 @@ static int dm_host_set_ios(struct udevice *dev)
 
 static int dm_mmc_getcd(struct udevice *dev)
 {
-	struct pl180_mmc_host *host = dev_get_priv(dev);
+	struct pl180_mmc_host *host = dev->priv;
 	int value = 1;
 
 	if (dm_gpio_is_valid(&host->cd_gpio))
@@ -520,20 +511,22 @@ static const struct dm_mmc_ops arm_pl180_dm_mmc_ops = {
 	.get_cd = dm_mmc_getcd,
 };
 
-static int arm_pl180_mmc_of_to_plat(struct udevice *dev)
+static int arm_pl180_mmc_ofdata_to_platdata(struct udevice *dev)
 {
-	struct pl180_mmc_host *host = dev_get_priv(dev);
+	struct pl180_mmc_host *host = dev->priv;
+	fdt_addr_t addr;
 
-	host->base = dev_read_addr_ptr(dev);
-	if (!host->base)
+	addr = dev_read_addr(dev);
+	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
+
+	host->base = (void *)addr;
 
 	return 0;
 }
 
 static const struct udevice_id arm_pl180_mmc_match[] = {
-	{ .compatible = "arm,pl180" },
-	{ .compatible = "arm,pl18x" },
+	{ .compatible = "st,stm32f4xx-sdio", .data = VERSION1 },
 	{ /* sentinel */ }
 };
 
@@ -543,9 +536,9 @@ U_BOOT_DRIVER(arm_pl180_mmc) = {
 	.of_match = arm_pl180_mmc_match,
 	.ops = &arm_pl180_dm_mmc_ops,
 	.probe = arm_pl180_mmc_probe,
-	.of_to_plat = arm_pl180_mmc_of_to_plat,
+	.ofdata_to_platdata = arm_pl180_mmc_ofdata_to_platdata,
 	.bind = arm_pl180_mmc_bind,
-	.priv_auto	= sizeof(struct pl180_mmc_host),
-	.plat_auto	= sizeof(struct arm_pl180_mmc_plat),
+	.priv_auto_alloc_size = sizeof(struct pl180_mmc_host),
+	.platdata_auto_alloc_size = sizeof(struct arm_pl180_mmc_plat),
 };
 #endif

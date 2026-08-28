@@ -1,6 +1,5 @@
 #include <common.h>
 #include <command.h>
-#include <cpu_func.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <part.h>
@@ -11,7 +10,6 @@
 #include <asm/nvt-common/nvt_ivot_sha_smc.h>
 #include <asm/nvt-common/nvt_ivot_efuse_smc.h>
 #include <asm/nvt-common/nvt_ivot_rsa_smc.h>
-#include <asm/nvt-common/nvt_ivot_ecdsa_smc.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <nvt_optee/nvt_ivot_optee_smc_id_def.h>
 #include <nvt_optee/nvt_optee_software_smc_id.h>          //define in optee_os/core/arch/arm/plat-novatek
@@ -217,68 +215,6 @@ sha_operation_exit:
         }
         return ret;
 
-}
-
-int nvt_ivot_optee_ecdsa_operation(NVT_SMC_ECDSA_DATA *ecdsa_data, unsigned int key_size, unsigned int signature_size)
-{
-	int i;
-	unsigned long shm_size=0;
-	unsigned long shm_addr=0;
-	struct arm_smccc_res return_val={0};
-	unsigned char* share_data;
-
-	if (key_size == 0 || signature_size == 0) {
-		printf("key_size(%u) || signature_size(%u) is zero\r\n",key_size, signature_size);
-		return -1;
-	}
-
-	if(ecdsa_data->key_pub_x == NULL || ecdsa_data->key_pub_y == NULL)
-	{
-		printf("key_pub_x addr == %x || key_pub_y addr= %x error, please check key\r\n",ecdsa_data->key_pub_x, ecdsa_data->key_pub_y);
-		return -1;
-	}
-
-	if(ecdsa_data->sign_r == NULL || ecdsa_data->sign_s == NULL)
-	{
-		printf("sign_r addr== %x || sign_s addr== %x error\r\n",ecdsa_data->sign_r, ecdsa_data->sign_s);
-		return -1;
-	}
-
-	if(nvt_dts_optee_nsmem(&shm_addr, &shm_size)!=0)
-	{
-		printf("parsing share memory fail\r\n");
-		return -1;
-	}
-
-	share_data = (unsigned char *)shm_addr;
-
-	NVT_SMC_ECDSA_DATA *smc_ecdsa_data = (NVT_SMC_ECDSA_DATA *)share_data;
-	memcpy(smc_ecdsa_data, ecdsa_data, sizeof(NVT_SMC_ECDSA_DATA));
-	smc_ecdsa_data->tag = SMC_ECDSA_TAG;
-
-	smc_ecdsa_data->sign_r = (unsigned char *)((unsigned long)share_data + sizeof(NVT_SMC_ECDSA_DATA));
-	smc_ecdsa_data->sign_s = (unsigned char *)((unsigned long)smc_ecdsa_data->sign_r + (signature_size / 2));
-
-	smc_ecdsa_data->key_pub_x = (unsigned char *)((unsigned long)share_data + sizeof(NVT_SMC_ECDSA_DATA) + signature_size);
-	smc_ecdsa_data->key_pub_y = (unsigned char *)((unsigned long)smc_ecdsa_data->key_pub_x + (key_size / 2));
-	smc_ecdsa_data->src = (unsigned char *)((unsigned long)share_data + sizeof(NVT_SMC_ECDSA_DATA) + signature_size + key_size);
-	/* Setup all data to share memory */
-	memcpy(smc_ecdsa_data->sign_r, ecdsa_data->sign_r, (signature_size / 2));
-	memcpy(smc_ecdsa_data->sign_s, ecdsa_data->sign_s, (signature_size / 2));
-	memcpy(smc_ecdsa_data->key_pub_x, ecdsa_data->key_pub_x, (key_size / 2));
-	memcpy(smc_ecdsa_data->key_pub_y, ecdsa_data->key_pub_y, (key_size / 2));
-	memcpy(smc_ecdsa_data->src, ecdsa_data->src, 32);
-
-	 __arm_smccc_smc(NVT_ECDSA_OPERATION, (unsigned long)share_data, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, &return_val, NULL);
-
-	if(return_val.a0 != 0)
-	{
-		printf("NVT_SMC_ECDSA_OPERATION fail (%d)\r\n",return_val.a0);
-		return return_val.a0;
-	}
-	ecdsa_data->result = smc_ecdsa_data->result;
-
-	return 0;
 }
 
 int nvt_ivot_optee_rsa_operation(NVT_SMC_RSA_DATA *rsa_data)

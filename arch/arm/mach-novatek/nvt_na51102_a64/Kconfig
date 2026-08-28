@@ -26,6 +26,11 @@ config NVT_NAND_TYPE
 	depends on (NVT_SPI_NAND || NVT_SPI_NOR || NVT_SPI_NOR_NAND)
 	default 1
 
+config NVT_NAND_ECC
+	int "0: RS-ECC, 1: On-Die ECC"
+	depends on (NVT_SPI_NAND || NVT_SPI_NONE || NVT_SPI_NOR_NAND)
+	default 1
+
 config NVT_IVOT_DDR_SLOW_DOWN_SUPPORT
 	bool "To support slow down DDR frequency"
 	default n

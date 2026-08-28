@@ -7,7 +7,6 @@
  */
 
 #include <common.h>
-#include <cpu_func.h>
 #include <asm/io.h>
 #include <linux/errno.h>
 #include <asm/arch/sys_proto.h>
@@ -47,7 +46,7 @@ int cpu_release(u32 nr, int argc, char *const argv[])
 {
 	uint32_t boot_addr;
 
-	boot_addr = hextoul(argv[0], NULL);
+	boot_addr = simple_strtoul(argv[0], NULL, 16);
 
 	switch (nr) {
 	case 1:

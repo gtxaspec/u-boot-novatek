@@ -5,9 +5,9 @@ config NVT_IVOT_SOC
 	  This option can be used to enable ivot features.
 
 config NVT_IVOT_QEMU_SIM
-        bool "Novatek IVOT virtual platform (vp)"
 	depends on NVT_IVOT_SOC
 	default n
+        bool "Novatek IVOT virtual platform (vp)"
         help
           This option can be used to enable ivot vp qemu simulation
 
@@ -19,56 +19,9 @@ config NVT_FPGA_EMULATION
 
 config NVT_IVOT_SOC_FW_UPDATE_SUPPORT
 	bool "Novatek IVOT FW update utils"
-	depends on ARCH_NOVATEK && NVT_IVOT_SOC_UTILS
 	default n
 	help
 	  This option can be used to support fdt parsing and update api.
-
-config NVT_BIN_CHKSUM_SUPPORT
-	bool "Novatek IVOT verify FW checksum"
-	depends on NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-	default y
-	help
-	  This option is used to verify FW checksum.
-
-config NVT_LINUX_EMMC_BOOT
-	bool "Novatek IVOT EMMC boot support"
-	depends on NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-	depends on NVT_IVOT_EMMC >= 0
-	default y
-	help
-	  This option is used to EMMC boot.
-
-config NVT_LINUX_SPINAND_BOOT
-	bool "Novatek IVOT NAND boot support"
-	depends on NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-	depends on NVT_SPI_NAND
-	default y
-	help
-	  This option is used to NAND boot.
-
-config NVT_LINUX_SPINOR_BOOT
-	bool "Novatek IVOT NOR boot support"
-	depends on NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-	depends on NVT_SPI_NOR
-	default y
-	help
-	  This option is used to NOR boot.
-
-config NVT_LINUX_SPINORNAND_BOOT
-	bool "Novatek IVOT NOR + NAND boot support"
-	depends on NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-	depends on NVT_SPI_NOR_NAND
-	default y
-	help
-	  This option is used to NOR + NAND boot.
-
-config NVT_LINUX_SD_BOOT
-	bool "Novatek IVOT SD boot support"
-	depends on NVT_IVOT_SOC_FW_UPDATE_SUPPORT
-	default y
-	help
-	  This option is used to SD boot.
 
 config NVT_IVOT_SOC_UTILS
 	bool "Novatek IVOT utils"
@@ -95,15 +48,21 @@ config NVT_IVOT_DEBUG_LEVEL
         help
           0 ~ 8: 8 is to turn on all print message
 
+config NVT_IVOT_BOOT_FAST
+	bool "Let your uboot booting time faster"
+	default n
+	help
+	  This option can be used to accelerate boot time.
+
 config NVT_IVOT_SECBOOT_SUPPORT
 	bool "To support secure boot flow"
-	depends on !NVT_IVOT_OPTEE_SECBOOT_SUPPORT
+	depends on !NVT_IVOT_OPTEE_SUPPORT
 	depends on NVT_CRYPTO
 	depends on NVT_HASH
-	depends on NVT_RSA || NVT_ECDSA
+	depends on NVT_RSA
 	default n
-	  help
-	    To support secure boot flow without optee
+	help
+	  To support secure boot flow
 
 config NVT_IVOT_OPTEE_SUPPORT
 	bool "To support the optee utils"
@@ -118,23 +77,14 @@ config NVT_IVOT_OPTEE_SECBOOT_SUPPORT
 	help
 	  To support secure boot flow with optee
 
-config NVT_PCIE_DAUGHTER_BRD
-	bool "Enable nvt pcie daughter board"
-	depends on NVT_IVOT_SOC_UTILS
+config NVT_IVOT_TZPC_SUPPORT
+	bool "To support TZPC related utils"
 	default n
 	help
-	  This option is used to enable NVT pcie boot daughter board.
-
-config NVT_UTILS_CMD
-	bool "Novatek IVOT command support"
-	depends on ARCH_NOVATEK
-	default y
-	help
-	  This option is used to enable nvt command.
+	  This option is used to simple verify TZPC.
 
 config NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 	bool "To support DDR range scan utils"
-	depends on NVT_UTILS_CMD
 	default n
 	help
 	  This option is used to lunch range scan.
@@ -157,28 +107,12 @@ config NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 config NVT_IVOT_STBC_PMC_SUPPORT
 	bool "To support STBC power down utils"
 	depends on TARGET_NA51102_A64
-	depends on NVT_UTILS_CMD
 	default n
 	help
 	  This option is used to lunch range scan.
 
-config NVT_IVOT_TZPC_SUPPORT
-	bool "To support TZPC related utils"
-	depends on NVT_UTILS_CMD
-	default n
-	help
-	  This option is used to simple verify TZPC.
-
-config NVT_IVOT_BOOT_FAST
-	bool "Let your uboot booting time faster"
-	depends on NVT_UTILS_CMD
-	default n
-	help
-	  This option can be used to accelerate boot time.
-
 config VIDEO_LOGO
 	bool "To support display LOGO"
-	depends on NVT_UTILS_CMD
 	default n
 	help
 	  This option is used to lunch display LOGO.
@@ -186,38 +120,20 @@ config VIDEO_LOGO
 config NVT_IVOT_CRYPTO_CMD
 	bool "To support crypto engine command"
 	depends on NVT_IVOT_SOC && NVT_IVOT_OPTEE_SUPPORT=n
-	depends on NVT_UTILS_CMD
 	help
 	  Novatek iVot Crypto Engine Command support.
 
 config NVT_IVOT_HASH_CMD
 	bool "To support hash engine command"
 	depends on NVT_IVOT_SOC && NVT_IVOT_OPTEE_SUPPORT=n
-	depends on NVT_UTILS_CMD
 	help
 	  Novatek iVot Hash Engine Command support.
 
 config NVT_IVOT_RSA_CMD
 	bool "To support rsa engine command"
 	depends on NVT_IVOT_SOC && NVT_IVOT_OPTEE_SUPPORT=n
-	depends on NVT_UTILS_CMD
 	help
 	  Novatek iVot RSA Engine Command support.
-
-config NVT_IVOT_ECDSA_CMD
-	bool "To support ecdsa engine command"
-	depends on NVT_IVOT_SOC && NVT_IVOT_OPTEE_SUPPORT=n
-	depends on NVT_UTILS_CMD
-	help
-	  Novatek iVot ECDSA Engine Command support.
-
-config NVT_IVOT_EFUSE_CMD
-	bool "To support efuse engine command"
-	depends on NVT_IVOT_SOC && NVT_IVOT_SOC_UTILS
-	depends on NVT_UTILS_CMD
-	default y
-	help
-	  Novatek iVot EFUSE Engine Command support.
 
 config NVT_IVOT_DUAL_RTOS
 	bool "Dual RTOS mechanism"

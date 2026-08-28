@@ -34,8 +34,8 @@
 typedef enum {
 	DISP_1,     ///< Display ID 1. In the NT98520, this is used to specify IDE1.
 	DISP_2,     ///< This is no use in NT98520.
-	DISP_3,
-	DISP_MAX,
+
+	DISP_MAX = DISP_2,
 	ENUM_DUMMY4WORD(DISP_ID)
 } DISP_ID;
 
@@ -51,8 +51,7 @@ typedef enum {
 	DISPLAYER_VDO1 = 0x08,                  ///< select display layer video 1
 	DISPLAYER_VDO2 = 0x10,                  ///< select display layer video 2
 	DISPLAYER_FD   = 0x20,                  ///< select display layer FD
-	DISPLAYER_HWC  = 0x40,                  ///< select display layer HW cursor
-	DISPLAYER_MASK = 0x7A,                  ///< Valid display layer selection mask
+	DISPLAYER_MASK = 0x3A,                  ///< Valid display layer selection mask
 
 	ENUM_DUMMY4WORD(DISPLAYER)
 } DISPLAYER;
@@ -151,10 +150,6 @@ typedef struct {
 #define DISPCMDBASE_DISPLYR     0x02000000
 #define DISPCMDBASE_DISPDEV     0x04000000
 #define DISPCMDBASE_IOCTRL      0x08000000
-
-#define DISP_SADDR_ALIGN_SIZE	64
-#define DISP_YCC_ALIGN_SIZE	32
-#define DISP_RLD_ALIGN_SIZE	16
 
 
 

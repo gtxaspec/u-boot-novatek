@@ -11,10 +11,10 @@
     published by the Free Software Foundation.
 */
 
-#define NVTPACK_UBOOT // NVTPACK_WIN32, NVTPACK_RTOS, NVTPACK_UBOOT, NVTPACK_LINUX_KERNEL, NVTPACK_LINUX_APP
+#define NVTPACK_UBOOT // NVTPACK_WIN32, NVTPACK_UITRON, NVTPACK_UBOOT, NVTPACK_LINUX_KERNEL, NVTPACK_LINUX_APP
 
 #if defined(NVTPACK_WIN32)
-#elif defined(NVTPACK_RTOS)
+#elif defined(NVTPACK_UITRON)
 #include "Type.h"
 #elif defined(NVTPACK_UBOOT)
 #include <common.h>
@@ -42,7 +42,7 @@
 									 ((((unsigned int)(data)) & 0x00FF0000) >> 8) | \
 									 ((((unsigned int)(data)) & 0xFF000000) >> 24))   ///< Swap [31:24] with [7:0] and [23:16] with [15:8].
 #endif
-#if defined(NVTPACK_RTOS)
+#if defined(NVTPACK_UITRON)
 #define __MODULE__          nvtpack
 #define __DBGLVL__          1 // 0=OFF, 1=ERROR, 2=TRACE
 #define __DBGFLT__          "*" //*=All, [mark]=CustomClass
@@ -71,11 +71,40 @@ static NVTPACK_ER nvtpack_er(NVTPACK_ER er)
 	printf("nvtpack:%d\r\n", er);
 	#elif defined(NVTPACK_LINUX_KERNEL)
 	pr_info("nvtpack:%d\r\n", er);
-	#elif defined(NVTPACK_RTOS)
+	#elif defined(NVTPACK_UITRON)
 	DBG_ERR("%d\r\n", er);
 	#endif
 
 	return er;
+}
+
+static NVTPACK_ER nvtpack_get_uitron_offset(NVTPACK_MEM *p_mem, NVTPACK_MEM *p_uitron)
+{
+	unsigned char *p_curr = (unsigned char *)p_mem->p_data;
+	unsigned char *p_end = (unsigned char *)p_mem->p_data + p_mem->len;
+	NVTPACK_BFC_HDR *pBFC = (NVTPACK_BFC_HDR *)p_curr;
+	NVTPACK_BININFO_HDR *pBinInfo = (NVTPACK_BININFO_HDR *)p_curr;
+
+	memset(p_uitron, 0, sizeof(*p_uitron));
+
+	if(pBFC->uiFourCC == MAKEFOURCC('B', 'C', 'L', '1')) {
+		unsigned int bfc_size = UINT32_SWAP(pBFC->uiSizeComp);
+		p_uitron->p_data = pBFC;
+		p_uitron->len = bfc_size + sizeof(NVTPACK_BFC_HDR);
+		if(p_curr + p_uitron->len > p_end) {
+			return nvtpack_er(NVTPACK_ER_PARAM);
+		}
+		return nvtpack_er(NVTPACK_ER_SUCCESS);
+	} else if(strncmp(pBinInfo->BinInfo_1, "NT9", 3) == 0) {
+		unsigned int bin_size = pBinInfo->BinLength;
+		p_uitron->p_data = pBinInfo;
+		p_uitron->len = bin_size;
+		if(p_curr + p_uitron->len > p_end) {
+			return nvtpack_er(NVTPACK_ER_PARAM);
+		}
+		return nvtpack_er(NVTPACK_ER_SUCCESS);
+	}
+	return nvtpack_er(NVTPACK_ER_UNKNOWN_FORMAT);
 }
 
 _NVTPACK_EXTERN_C unsigned int nvtpack_calc_nvt_sum(NVTPACK_MEM *p_mem)
@@ -105,8 +134,40 @@ _NVTPACK_EXTERN_C NVTPACK_ER nvtpack_verify(NVTPACK_MEM *p_mem, NVTPACK_VERIFY_O
 		p_output->ver = NVTPACK_VER_16072017;
 		p_output->partition_cnt = ((NVTPACK_FW_HDR2 *)p_mem->p_data)->TotalRes;
 		return nvtpack_er(NVTPACK_ER_SUCCESS);
-	}
+	} else {
+		//remove uITRON header
+		unsigned char *p_curr = (unsigned char *)p_mem->p_data;
+		unsigned char *p_end = (unsigned char *)p_mem->p_data + p_mem->len;
+		if(!IsEqualGUID(&GUID_FW, (GUID *)p_mem->p_data)) {
+			if(nvtpack_get_uitron_offset(p_mem, &chk_mem) != NVTPACK_ER_SUCCESS) {
+				return nvtpack_er(NVTPACK_ER_PARAM);
+			}
 
+			if(nvtpack_calc_nvt_sum(&chk_mem) != 0) {
+				return nvtpack_er(NVTPACK_ER_CHECK_SUM);
+			}
+			p_curr += chk_mem.len;
+			if(p_curr >= p_end) {
+				p_output->ver = NVTPACK_VER_13012816;
+				p_output->partition_cnt = 1;
+				return nvtpack_er(NVTPACK_ER_SUCCESS);
+			} else {
+				p_output->partition_cnt++;
+			}
+		}
+
+		if(IsEqualGUID(&GUID_FW, (GUID *)p_curr)) {
+			NVTPACK_FW_HDR *pFw = (NVTPACK_FW_HDR *)(p_curr);
+			chk_mem.p_data = p_curr;
+			chk_mem.len = sizeof(NVTPACK_FW_HDR) + pFw->TotalRes * sizeof(NVTPACK_PARTITION_HDR);
+			if(nvtpack_calc_nvt_sum(&chk_mem) != 0) {
+				return NVTPACK_ER_CHECK_SUM;
+			}
+			p_output->ver = NVTPACK_VER_13012816;
+			p_output->partition_cnt += ((NVTPACK_FW_HDR *)p_curr)->TotalRes;
+			return nvtpack_er(NVTPACK_ER_SUCCESS);
+		}
+	}
 	return nvtpack_er(NVTPACK_ER_UNKNOWN_FORMAT);
 }
 
@@ -126,7 +187,27 @@ _NVTPACK_EXTERN_C NVTPACK_ER nvtpack_get_partition(NVTPACK_GET_PARTITION_INPUT *
 		TotalRes = pFw->TotalRes;
 		pPartition = (NVTPACK_PARTITION_HDR *)((unsigned long)p_in->p_data + sizeof(NVTPACK_FW_HDR2));
 	} else {
-		return nvtpack_er(NVTPACK_ER_UNKNOWN_FORMAT);
+		NVTPACK_MEM mem_uitron = {0};
+		if(!IsEqualGUID(&GUID_FW, (GUID *)p_in->p_data)) {
+			if(nvtpack_get_uitron_offset(p_in, &mem_uitron) != NVTPACK_ER_SUCCESS) {
+				return nvtpack_er(NVTPACK_ER_PARAM);
+			}
+			if(id == 0) {
+				p_out->p_data = mem_uitron.p_data;
+				p_out->len = mem_uitron.len;
+				return nvtpack_er(NVTPACK_ER_SUCCESS);
+			}
+		}
+
+		p_curr = (unsigned char *)p_in->p_data + mem_uitron.len;
+
+		if(IsEqualGUID(&GUID_FW, (GUID *)p_curr)) {
+			NVTPACK_FW_HDR *pFw = (NVTPACK_FW_HDR *)p_curr;
+			TotalRes = pFw->TotalRes;
+			pPartition = (NVTPACK_PARTITION_HDR *)((unsigned long)p_curr + sizeof(NVTPACK_FW_HDR));
+		} else {
+			return nvtpack_er(NVTPACK_ER_UNKNOWN_FORMAT);
+		}
 	}
 
 	for(i = 0; i < TotalRes; i++) {
@@ -151,6 +232,8 @@ _NVTPACK_EXTERN_C NVTPACK_ER nvtpack_check_partition(EMB_PARTITION pemb, NVTPACK
 	    {
 		case EMBTYPE_MBR:
 		case EMBTYPE_FDT:
+		case EMBTYPE_UITRON:
+		case EMBTYPE_ECOS:
 		case EMBTYPE_UBOOT:
 		case EMBTYPE_LINUX:
 		case EMBTYPE_ROOTFS:
@@ -158,7 +241,6 @@ _NVTPACK_EXTERN_C NVTPACK_ER nvtpack_check_partition(EMB_PARTITION pemb, NVTPACK
 		case EMBTYPE_TEEOS:
 		case EMBTYPE_AI:
 		case EMBTYPE_ATF:
-		case EMBTYPE_FDTFAST:
 			break;
 		default:
 			if(!pemb.FileExist)
@@ -185,7 +267,27 @@ _NVTPACK_EXTERN_C NVTPACK_ER nvtpack_enum_partition(NVTPACK_ENUM_PARTITION_INPUT
 		TotalRes = pFw->TotalRes;
 		pPartition = (NVTPACK_PARTITION_HDR *)((unsigned long)p_in->p_data + sizeof(NVTPACK_FW_HDR2));
 	} else {
-		return nvtpack_er(NVTPACK_ER_UNKNOWN_FORMAT);
+		NVTPACK_MEM mem_uitron = {0};
+		if(!IsEqualGUID(&GUID_FW, (GUID *)p_in->p_data)) {
+			if(nvtpack_get_uitron_offset(p_in, &mem_uitron) != NVTPACK_ER_SUCCESS) {
+				return nvtpack_er(NVTPACK_ER_PARAM);
+			}
+			if(p_input->fp_enum) {
+				if(p_input->fp_enum(0, &mem_uitron, p_input->p_user_data) != 0) {
+					return nvtpack_er(NVTPACK_ER_USER_BREAK);
+				}
+			}
+		}
+
+		p_curr = (unsigned char *)p_in->p_data + mem_uitron.len;
+
+		if(IsEqualGUID(&GUID_FW, (GUID *)p_curr)) {
+			NVTPACK_FW_HDR *pFw = (NVTPACK_FW_HDR *)p_curr;
+			TotalRes = pFw->TotalRes;
+			pPartition = (NVTPACK_PARTITION_HDR *)((unsigned long)p_curr + sizeof(NVTPACK_FW_HDR));
+		} else {
+			return nvtpack_er(NVTPACK_ER_UNKNOWN_FORMAT);
+		}
 	}
 
 	for(i = 0; i < TotalRes; i++) {
@@ -223,10 +325,10 @@ static NVTPACK_ER nvtpack_make_parition_pkg_fw1(NVTPACK_MAKE_PARTITION_INPUT *p_
 		return nvtpack_er(NVTPACK_ER_PARAM);
 	}
 
-	//check rtos existing
+	//check uITRON existing
 	if(p_list_curr->id == 0) {
 		if(p_list_curr->mem.len != ALIGN_CEIL_4(p_list_curr->mem.len)) {
-			return nvtpack_er(NVTPACK_ER_RTOS_SIZE_ALIGN4);
+			return nvtpack_er(NVTPACK_ER_UITRON_SIZE_ALIGN4);
 		}
 		if(p_curr + p_list_curr->mem.len > p_end) {
 			return nvtpack_er(NVTPACK_ER_MEM_NOT_ENOUGH);

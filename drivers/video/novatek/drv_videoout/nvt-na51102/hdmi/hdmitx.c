@@ -13,9 +13,11 @@
 #include "hdmi_port.h"
 #include "hdmitx_int.h"
 #include "hdmitx_reg.h"
+#include "dispdev_hdmi.h"
 
 
-#define HDMI_EFUSE_USED 0
+
+#define HDMI_EFUSE_USED 1
 
 
 static BOOL         b_hdmi_tx_open     = FALSE;
@@ -1777,6 +1779,7 @@ static UINT32 hdmitx_config_video(HDMI_VIDEOID vid_code)
 
 
 			// Output Format RGB444 or YUV444 depends on EDID
+			/*
 			if ((hdmitx_get_edid_info()&HDMITX_TV_YCBCR444) && (hdmi_ctrl_option[HDMICFG_OPTION_FORCE_RGB] == 0)) {
 				mode_fmt = (HDMI_INTF_YCBCR444 << 5);
 			} else if ((hdmitx_get_edid_info()&HDMITX_TV_YCBCR422) && (hdmi_ctrl_option[HDMICFG_OPTION_FORCE_RGB] == 0)) {
@@ -1790,6 +1793,18 @@ static UINT32 hdmitx_config_video(HDMI_VIDEOID vid_code)
 			} else if (hdmi_ctrl_option[HDMICFG_OPTION_FORCE_YUV] & 0x2) {
 				mode_fmt = (HDMI_INTF_YCBCR422 << 5);
 			}
+			*/
+
+
+			if(g_dispdev_hdmi_mode == HDMI_MODE_YCBCR444){
+				mode_fmt = (HDMI_INTF_YCBCR444  << 5);
+			} else if (g_dispdev_hdmi_mode == HDMI_MODE_YCBCR422){
+				mode_fmt = (HDMI_INTF_YCBCR422  << 5);
+			} else {
+				mode_fmt = (HDMI_INTF_RGB444  << 5);
+			}
+
+			
 
 			//
 			//  AVI InfoFrame Configuration

@@ -3,22 +3,17 @@
  * Copyright (c) 2014 The Chromium OS Authors.
  */
 
-#define LOG_CATEGORY UCLASS_SERIAL
-
 #include <common.h>
 #include <dm.h>
-#include <env_internal.h>
+#include <environment.h>
 #include <errno.h>
-#include <malloc.h>
 #include <os.h>
 #include <serial.h>
 #include <stdio_dev.h>
 #include <watchdog.h>
-#include <asm/global_data.h>
 #include <dm/lists.h>
 #include <dm/device-internal.h>
 #include <dm/of_access.h>
-#include <linux/delay.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -34,31 +29,29 @@ static const unsigned long baudrate_table[] = CONFIG_SYS_BAUDRATE_TABLE;
 #if CONFIG_IS_ENABLED(SERIAL_PRESENT)
 static int serial_check_stdout(const void *blob, struct udevice **devp)
 {
-	int node = -1;
-	const char *str, *p, *name;
-	int namelen;
+	int node;
 
 	/* Check for a chosen console */
-	str = fdtdec_get_chosen_prop(blob, "stdout-path");
-	if (str) {
-		p = strchr(str, ':');
-		namelen = p ? p - str : strlen(str);
-		node = fdt_path_offset_namelen(blob, str, namelen);
+	node = fdtdec_get_chosen_node(blob, "stdout-path");
+	if (node < 0) {
+		const char *str, *p, *name;
 
-		if (node < 0) {
-			/*
-			 * Deal with things like
-			 *	stdout-path = "serial0:115200n8";
-			 *
-			 * We need to look up the alias and then follow it to
-			 * the correct node.
-			 */
-			name = fdt_get_alias_namelen(blob, str, namelen);
+		/*
+		 * Deal with things like
+		 *	stdout-path = "serial0:115200n8";
+		 *
+		 * We need to look up the alias and then follow it to the
+		 * correct node.
+		 */
+		str = fdtdec_get_chosen_prop(blob, "stdout-path");
+		if (str) {
+			p = strchr(str, ':');
+			name = fdt_get_alias_namelen(blob, str,
+					p ? p - str : strlen(str));
 			if (name)
 				node = fdt_path_offset(blob, name);
 		}
 	}
-
 	if (node < 0)
 		node = fdt_path_offset(blob, "console");
 	if (!uclass_get_device_by_of_offset(UCLASS_SERIAL, node, devp))
@@ -126,7 +119,7 @@ static void serial_find_console_or_panic(void)
 #ifdef CONFIG_SERIAL_SEARCH_ALL
 		if (!uclass_get_device_by_seq(UCLASS_SERIAL, INDEX, &dev) ||
 		    !uclass_get_device(UCLASS_SERIAL, INDEX, &dev)) {
-			if (dev_get_flags(dev) & DM_FLAG_ACTIVATED) {
+			if (dev->flags & DM_FLAG_ACTIVATED) {
 				gd->cur_serial_dev = dev;
 				return;
 			}
@@ -166,25 +159,15 @@ int serial_init(void)
 #if CONFIG_IS_ENABLED(SERIAL_PRESENT)
 	serial_find_console_or_panic();
 	gd->flags |= GD_FLG_SERIAL_READY;
-	serial_setbrg();
 #endif
 
 	return 0;
 }
 
 /* Called after relocation */
-int serial_initialize(void)
+void serial_initialize(void)
 {
-	/* Scanning uclass to probe devices */
-	if (IS_ENABLED(CONFIG_SERIAL_PROBE_ALL)) {
-		int ret;
-
-		ret  = uclass_probe_all(UCLASS_SERIAL);
-		if (ret)
-			return ret;
-	}
-
-	return serial_init();
+	serial_init();
 }
 
 static void _serial_putc(struct udevice *dev, char ch)
@@ -395,7 +378,7 @@ static int on_baudrate(const char *name, const char *value, enum env_op op,
 		/*
 		 * Switch to new baudrate if new baudrate is supported
 		 */
-		baudrate = dectoul(value, NULL);
+		baudrate = simple_strtoul(value, NULL, 10);
 
 		/* Not actually changing */
 		if (gd->baudrate == baudrate)
@@ -425,7 +408,7 @@ static int on_baudrate(const char *name, const char *value, enum env_op op,
 
 		if ((flags & H_INTERACTIVE) != 0)
 			while (1) {
-				if (getchar() == '\r')
+				if (getc() == '\r')
 					break;
 			}
 
@@ -519,6 +502,6 @@ UCLASS_DRIVER(serial) = {
 	.flags		= DM_UC_FLAG_SEQ_ALIAS,
 	.post_probe	= serial_post_probe,
 	.pre_remove	= serial_pre_remove,
-	.per_device_auto	= sizeof(struct serial_dev_priv),
+	.per_device_auto_alloc_size = sizeof(struct serial_dev_priv),
 };
 #endif

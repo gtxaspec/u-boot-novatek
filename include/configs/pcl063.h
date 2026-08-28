@@ -21,8 +21,8 @@
  *
  * Tweak the SPL text base address to avoid this.
  */
-
-#define CONFIG_SYS_FSL_USDHC_NUM	1
+#undef CONFIG_SPL_TEXT_BASE
+#define CONFIG_SPL_TEXT_BASE            0x00909000
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(16 * SZ_1M)
@@ -31,10 +31,13 @@
 #define CONFIG_MXC_UART_BASE		UART1_BASE
 
 /* MMC Configs */
+#define CONFIG_FSL_USDHC
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC1_BASE_ADDR
 
 /* Miscellaneous configurable options */
+#define CONFIG_SYS_MEMTEST_START	0x80000000
+#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x10000000)
 
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 #define CONFIG_SYS_HZ			1000
@@ -52,6 +55,9 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
+#define CONFIG_ENV_SIZE			(16 << 10)
+#define CONFIG_ENV_OFFSET		(512 << 10)
+
 /* NAND */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define CONFIG_SYS_NAND_BASE		0x40000000
@@ -61,6 +67,8 @@
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS		0
 #define CONFIG_USB_MAX_CONTROLLER_COUNT	1
+
+#define CONFIG_IMX_THERMAL
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"console=ttymxc0,115200n8\0" \

@@ -1,7 +1,6 @@
 /* $Id$ */
 
 #include <common.h>
-#include <asm/ptrace.h>
 
 #include <linux/ctype.h>
 #include <bedbug/bedbug.h>
@@ -1005,9 +1004,9 @@ long read_number (char *txt)
 	}
 
 	if (txt[0] == '0' && (txt[1] == 'x' || txt[1] == 'X'))	/* hex */
-		val = hextoul(&txt[2], NULL);
+		val = simple_strtoul (&txt[2], NULL, 16);
 	else						/* decimal */
-		val = dectoul(txt, NULL);
+		val = simple_strtoul (txt, NULL, 10);
 
 	if (is_neg)
 		val = -val;

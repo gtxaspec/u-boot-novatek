@@ -51,6 +51,8 @@
 #define WDT_CTRL_OFS 0x0
 #define WDT_MANUL_OFS 0xC
 
+#define PIN_MISC_CFG_12M_CLK	0x00000080	///< Enable 12Mhz clock (in TOP misc group)
+
 #if defined(CONFIG_SD_CARD1_POWER_PIN) || defined(CONFIG_SD_CARD2_POWER_PIN) || defined(ETH_PHY_HW_RESET)
 static void gpio_set_output(u32 pin)
 {
@@ -296,6 +298,44 @@ static void axi_bridge_timeout_en(void)
 	OUTW(0xF0013018, 0x7c);
 }
 
+static void clk12m_init(void)
+{
+	int nodeoffset, len;
+	u32 *cell = NULL;
+	char path[20] = {0};
+	u32 misc_cfg = 0x0;
+
+	sprintf(path,"/top@%x/misc", lower_32_bits(IOADDR_TOP_REG_BASE));
+
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	if (nodeoffset < 0) {
+		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
+		return ;
+	}
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
+	if (len == 0) {
+		printf("%s(%d) len = 0\n",__func__, __LINE__);
+		return ;
+	}
+
+	misc_cfg = __be32_to_cpu(cell[0]);
+	debug("%s(%d) misc_cfg = 0x%x\n", __func__, __LINE__, misc_cfg);
+	if (misc_cfg & PIN_MISC_CFG_12M_CLK) {
+		u32 reg;
+
+		reg = readl(IOADDR_TOP_REG_BASE + 0x10);
+		reg |= 1<<12;	// 12M_CLK
+		writel(reg, IOADDR_TOP_REG_BASE + 0x10);
+
+		reg = readl(IOADDR_TOP_REG_BASE + 0xB4);
+		reg &= ~(1<<1);
+		writel(reg, IOADDR_TOP_REG_BASE + 0xB4);
+
+		printf("%s: misc_cfg = 0x%x => enable 12M_CLK\n", __func__, misc_cfg);
+	}
+}
+
 int nvt_ivot_hw_init(void)
 {
 	ethernet_init();
@@ -305,6 +345,8 @@ int nvt_ivot_hw_init(void)
 	axi_bridge_timeout_en();
 
 	usbphy_init();
+
+	clk12m_init();
 
 	return 0;
 }

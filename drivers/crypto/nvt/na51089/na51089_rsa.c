@@ -9,12 +9,9 @@
 
 #ifdef CONFIG_NVT_RSA
 #include <common.h>
-#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_rsa.h>
-
-#include <linux/delay.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -27,7 +24,7 @@
  *************************************************************************************/
 //#define NVT_RSA_DEBUG
 #define NVT_RSA_OUTPUT_REVERSE          1
-#define NVT_RSA_BUFFER_LEN              512     ///< bytes, hardware internal SRAM size
+#define NVT_RSA_BUFFER_LEN              256     ///< bytes, hardware internal SRAM size, NA51089 = 256
 
 #ifdef CONFIG_NVT_FPGA_EMULATION
 #define NVT_RSA_TIMEOUT_USEC            (1000000*60)
@@ -80,12 +77,13 @@ static void nvt_rsa_platform_init(void)
 {
 	uint32_t tmp;
 
-	/* RSA clock select, 0:fix(240MHz) 1:fix(320MHz) */
+	/* RSA clock select, 0:240MHz 1:320MHz 2: RVD 3: PLL9 */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x1C);
 	tmp &= ~(0x3<<22);
+	tmp |= (0x1<<22);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x1C, tmp);
 
-	/* RSA master clock enable */
+	/* RSA clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x78);
 	tmp |= (0x1<<26);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x78, tmp);
@@ -212,9 +210,6 @@ int nvt_rsa_pio_normal(struct nvt_rsa_pio_t *p_rsa)
 		break;
 	case NVT_RSA_KEY_WIDTH_2048:
 		block_size = NVT_RSA_2048_KEY_SIZE;
-		break;
-	case NVT_RSA_KEY_WIDTH_4096:
-		block_size = NVT_RSA_4096_KEY_SIZE;
 		break;
 	default:
 		rsa_err("key width=%d not support\n", 256<<p_rsa->key_w);

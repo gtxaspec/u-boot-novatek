@@ -12,7 +12,6 @@
 */
 
 #include <common.h>
-#include <command.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/IOAddress.h>
@@ -284,7 +283,7 @@ void ca53_cycle_count_stop(void)
 	return;
 }
 
-int do_nvt_cpu_get_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_cpu_get_freq(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	u64 time_1, time_2, temp, time_interval;
 	u32 freq;
@@ -316,7 +315,7 @@ U_BOOT_CMD(
 );
 
 
-int do_nvt_cpu_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_cpu_freq(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 value = simple_strtoul(argv[1], NULL, 10);
 	u32 uiReg;
@@ -485,7 +484,7 @@ U_BOOT_CMD(
 );
 
 
-int do_nvt_ddr_freq(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_ddr_freq(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	unsigned int freq_ratio;
 	unsigned int freq_ratio0, freq_ratio1, freq_ratio2;
@@ -549,7 +548,7 @@ int prepare_power_trim(int mode)
 }
 
 
-int do_nvt_pwr_ctrl(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_nvt_pwr_ctrl(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	u32 value = simple_strtoul(argv[1], NULL, 10);
 	//u32 uiReg;

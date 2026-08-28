@@ -29,7 +29,6 @@
 unsigned int ide_debug_level = (NVT_DBG_ERR);
 module_param_named(ide_debug_level, ide_debug_level, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ide_debug_level, "Debug message level");
-
 #endif
 
 //=============================================================================
@@ -132,13 +131,13 @@ static int nvt_ide_probe(struct platform_device *pdev)
 	}
 
 	for (ucloop = 0 ; ucloop < MODULE_REG_NUM ; ucloop++) {
-		nvt_dbg(IND, "%d. resource:0x%llx size:0x%llx\n", ucloop, pdrv_info->presource[ucloop]->start, resource_size(pdrv_info->presource[ucloop]));
+		nvt_dbg(IND, "%d. resource:0x%x size:0x%x\n", ucloop, pdrv_info->presource[ucloop]->start, resource_size(pdrv_info->presource[ucloop]));
 		if (!request_mem_region(pdrv_info->presource[ucloop]->start, resource_size(pdrv_info->presource[ucloop]), pdev->name)) {
 			nvt_dbg(ERR, "failed to request memory resource%d\n", ucloop);
-			/*for ( ; ucloop > 0; ) {
+			for ( ; ucloop > 0; ) {
 				ucloop -= 1;
 				release_mem_region(pdrv_info->presource[ucloop]->start, resource_size(pdrv_info->presource[ucloop]));
-			}*/
+			}
 			ret = -ENODEV;
 			goto FAIL_FREE_BUF;
 		}
@@ -168,9 +167,8 @@ static int nvt_ide_probe(struct platform_device *pdev)
 	}
 
 	//Get clock source
-	for (ucloop = 0 ; ucloop < 2; ucloop++) {
-		if(ucloop == 0)pdrv_info->module_info.pclk[ucloop] = clk_get(&pdev->dev, dev_name(&pdev->dev));
-		else pdrv_info->module_info.pclk[ucloop] = clk_get(&pdev->dev, "2f0900000.ide");
+	for (ucloop = 0 ; ucloop < 1; ucloop++) {
+		pdrv_info->module_info.pclk[ucloop] = clk_get(&pdev->dev, dev_name(&pdev->dev));
 		if (IS_ERR(pdrv_info->module_info.pclk[ucloop])) {
 			nvt_dbg(ERR, "faile to get clock%d source\n", ucloop);
 
@@ -180,11 +178,8 @@ static int nvt_ide_probe(struct platform_device *pdev)
 	}
 
 	//Get ide output interface clock
-	for (ucloop = 0 ; ucloop < 2; ucloop++) {
-
-		if(ucloop == 0) pdrv_info->module_info.ifclk[ucloop] = clk_get(&pdev->dev, "clk_ideif");
-		else pdrv_info->module_info.ifclk[ucloop] = clk_get(&pdev->dev, "clk_ide2if");
-
+	for (ucloop = 0 ; ucloop < 1; ucloop++) {
+		pdrv_info->module_info.ifclk[ucloop] = clk_get(&pdev->dev, "f0800000.ideif");
 		if (IS_ERR(pdrv_info->module_info.ifclk[ucloop])) {
 			nvt_dbg(ERR, "faile to get clock%d source\n", ucloop);
 

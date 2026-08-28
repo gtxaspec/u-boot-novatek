@@ -12,8 +12,6 @@
  */
 #include <common.h>
 #include <command.h>
-#include <env.h>
-#include <image.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <linux/list.h>
@@ -94,12 +92,11 @@ extern int cramfs_info (struct part_info *info);
  * @param argv arguments list
  * @return 0 on success, 1 otherwise
  */
-int do_cramfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
-		   char *const argv[])
+int do_cramfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char *filename;
 	int size;
-	ulong offset = image_load_addr;
+	ulong offset = load_addr;
 	char *offset_virt;
 
 	struct part_info part;
@@ -107,7 +104,7 @@ int do_cramfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	struct mtdids id;
 
 	ulong addr;
-	addr = hextoul(env_get("cramfsaddr"), NULL);
+	addr = simple_strtoul(env_get("cramfsaddr"), NULL, 16);
 
 	/* hack! */
 	/* cramfs_* only supports NOR flash chips */
@@ -129,7 +126,7 @@ int do_cramfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 	if (argc == 3) {
 		offset = simple_strtoul(argv[1], NULL, 0);
-		image_load_addr = offset;
+		load_addr = offset;
 		filename = argv[2];
 	}
 
@@ -163,7 +160,7 @@ int do_cramfs_load(struct cmd_tbl *cmdtp, int flag, int argc,
  * @param argv arguments list
  * @return 0 on success, 1 otherwise
  */
-int do_cramfs_ls(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_cramfs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char *filename = "/";
 	int ret;
@@ -172,7 +169,7 @@ int do_cramfs_ls(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	struct mtdids id;
 
 	ulong addr;
-	addr = hextoul(env_get("cramfsaddr"), NULL);
+	addr = simple_strtoul(env_get("cramfsaddr"), NULL, 16);
 
 	/* hack! */
 	/* cramfs_* only supports NOR flash chips */

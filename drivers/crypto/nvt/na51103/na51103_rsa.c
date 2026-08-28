@@ -9,13 +9,9 @@
 
 #ifdef CONFIG_NVT_RSA
 #include <common.h>
-#include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/nvt_rsa.h>
-
-#include <linux/delay.h>
-#include <cpu_func.h>
 
 /*************************************************************************************
  *  IO Read/Write Definition
@@ -81,20 +77,15 @@ static void nvt_rsa_platform_init(void)
 {
 	uint32_t tmp;
 
-	/* RSA clock select, 0:PLL13(400MHz) 1:fix(320MHz) */
+	/* RSA clock select, 0:PLL2(400MHz) 1:PLL13(350MHz) */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x24);
-	tmp &= ~(0x1<<8);
+	tmp &= ~(0x1<<9);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x24, tmp);
 
-	/* RSA clock enable */
+	/* RSA master clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x70);
 	tmp |= (0x1<<30);
 	IO_REG_WR(IOADDR_CG_REG_BASE, 0x70, tmp);
-
-	/* RSA master clock enable */
-	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0x00);
-	tmp |= (0x1<<0);
-	IO_REG_WR(IOADDR_CG_REG_BASE, 0x00, tmp);
 
 	/* RSA program clock enable */
 	tmp = IO_REG_RD(IOADDR_CG_REG_BASE, 0xE0);
@@ -108,7 +99,7 @@ static void nvt_rsa_platform_init(void)
 
 	/* RSA SRAM shutdown disable */
 	tmp = IO_REG_RD(IOADDR_TOP_REG_BASE, 0x1004);
-	tmp &= ~(0x1<<0);
+	tmp &= ~(0x1<<29);
 	IO_REG_WR(IOADDR_TOP_REG_BASE, 0x1004, tmp);
 }
 
@@ -118,7 +109,7 @@ static void nvt_rsa_platform_exit(void)
 
 	/* RSA SRAM shutdown enable */
 	tmp = IO_REG_RD(IOADDR_TOP_REG_BASE, 0x1004);
-	tmp |= (0x1<<0);
+	tmp |= (0x1<<29);
 	IO_REG_WR(IOADDR_TOP_REG_BASE, 0x1004, tmp);
 
 	/* RSA reset enable */

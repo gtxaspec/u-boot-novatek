@@ -1,24 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * EFI_FILE_PROTOCOL
+ *  EFI utils
  *
- * Copyright (c) 2017 Rob Clark
+ *  Copyright (c) 2017 Rob Clark
  */
 
 #include <common.h>
 #include <charset.h>
 #include <efi_loader.h>
-#include <log.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <fs.h>
-#include <part.h>
 
 /* GUID for file system information */
 const efi_guid_t efi_file_system_info_guid = EFI_FILE_SYSTEM_INFO_GUID;
-
-/* GUID to obtain the volume label */
-const efi_guid_t efi_system_volume_label_id = EFI_FILE_SYSTEM_VOLUME_LABEL_ID;
 
 struct file_system {
 	struct efi_simple_file_system_protocol base;
@@ -33,7 +28,6 @@ struct file_handle {
 	struct file_system *fs;
 	loff_t offset;       /* current file position/cursor */
 	int isdir;
-	u64 open_mode;
 
 	/* for reading a directory: */
 	struct fs_dir_stream *dirs;
@@ -141,25 +135,6 @@ static int sanitize_path(char *path)
 }
 
 /**
- * efi_create_file() - create file or directory
- *
- * @fh:			file handle
- * @attributes:		attributes for newly created file
- * Returns:		0 for success
- */
-static int efi_create_file(struct file_handle *fh, u64 attributes)
-{
-	loff_t actwrite;
-	void *buffer = &actwrite;
-
-	if (attributes & EFI_FILE_DIRECTORY)
-		return fs_mkdir(fh->path);
-	else
-		return fs_write(fh->path, map_to_sysmem(buffer), 0, 0,
-				&actwrite);
-}
-
-/**
  * file_open() - open a file handle
  *
  * @fs:			file system
@@ -167,13 +142,13 @@ static int efi_create_file(struct file_handle *fh, u64 attributes)
  * @file_name:		path of the file to be opened. '\', '.', or '..' may
  *			be used as modifiers. A leading backslash indicates an
  *			absolute path.
- * @open_mode:		bit mask indicating the access mode (read, write,
+ * @mode:		bit mask indicating the access mode (read, write,
  *			create)
  * @attributes:		attributes for newly created file
  * Returns:		handle to the opened file or NULL
  */
 static struct efi_file_handle *file_open(struct file_system *fs,
-		struct file_handle *parent, u16 *file_name, u64 open_mode,
+		struct file_handle *parent, u16 *file_name, u64 mode,
 		u64 attributes)
 {
 	struct file_handle *fh;
@@ -196,13 +171,11 @@ static struct efi_file_handle *file_open(struct file_system *fs,
 	/* +2 is for null and '/' */
 	fh = calloc(1, sizeof(*fh) + plen + (flen * MAX_UTF8_PER_UTF16) + 2);
 
-	fh->open_mode = open_mode;
 	fh->base = efi_file_handle_protocol;
 	fh->fs = fs;
 
 	if (parent) {
 		char *p = fh->path;
-		int exists;
 
 		if (plen > 0) {
 			strcpy(p, parent->path);
@@ -219,18 +192,17 @@ static struct efi_file_handle *file_open(struct file_system *fs,
 		if (set_blk_dev(fh))
 			goto error;
 
-		exists = fs_exists(fh->path);
+		if ((mode & EFI_FILE_MODE_CREATE) &&
+		    (attributes & EFI_FILE_DIRECTORY)) {
+			if (fs_mkdir(fh->path))
+				goto error;
+		} else if (!((mode & EFI_FILE_MODE_CREATE) ||
+			     fs_exists(fh->path)))
+			goto error;
+
 		/* fs_exists() calls fs_close(), so open file system again */
 		if (set_blk_dev(fh))
 			goto error;
-
-		if (!exists) {
-			if (!(open_mode & EFI_FILE_MODE_CREATE) ||
-			    efi_create_file(fh, attributes))
-				goto error;
-			if (set_blk_dev(fh))
-				goto error;
-		}
 
 		/* figure out if file is a directory: */
 		fh->isdir = is_dir(fh);
@@ -246,16 +218,18 @@ error:
 	return NULL;
 }
 
-static efi_status_t efi_file_open_int(struct efi_file_handle *this,
-				      struct efi_file_handle **new_handle,
-				      u16 *file_name, u64 open_mode,
-				      u64 attributes)
+static efi_status_t EFIAPI efi_file_open(struct efi_file_handle *file,
+		struct efi_file_handle **new_handle,
+		u16 *file_name, u64 open_mode, u64 attributes)
 {
-	struct file_handle *fh = to_fh(this);
+	struct file_handle *fh = to_fh(file);
 	efi_status_t ret;
 
+	EFI_ENTRY("%p, %p, \"%ls\", %llx, %llu", file, new_handle,
+		  file_name, open_mode, attributes);
+
 	/* Check parameters */
-	if (!this || !new_handle || !file_name) {
+	if (!file || !new_handle || !file_name) {
 		ret = EFI_INVALID_PARAMETER;
 		goto out;
 	}
@@ -283,81 +257,10 @@ static efi_status_t efi_file_open_int(struct efi_file_handle *this,
 
 	/* Open file */
 	*new_handle = file_open(fh->fs, fh, file_name, open_mode, attributes);
-	if (*new_handle) {
-		EFI_PRINT("file handle %p\n", *new_handle);
+	if (*new_handle)
 		ret = EFI_SUCCESS;
-	} else {
+	else
 		ret = EFI_NOT_FOUND;
-	}
-out:
-	return ret;
-}
-
-/**
- * efi_file_open_()
- *
- * This function implements the Open service of the File Protocol.
- * See the UEFI spec for details.
- *
- * @this:	EFI_FILE_PROTOCOL instance
- * @new_handle:	on return pointer to file handle
- * @file_name:	file name
- * @open_mode:	mode to open the file (read, read/write, create/read/write)
- * @attributes:	attributes for newly created file
- */
-static efi_status_t EFIAPI efi_file_open(struct efi_file_handle *this,
-					 struct efi_file_handle **new_handle,
-					 u16 *file_name, u64 open_mode,
-					 u64 attributes)
-{
-	efi_status_t ret;
-
-	EFI_ENTRY("%p, %p, \"%ls\", %llx, %llu", this, new_handle,
-		  file_name, open_mode, attributes);
-
-	ret = efi_file_open_int(this, new_handle, file_name, open_mode,
-				attributes);
-
-	return EFI_EXIT(ret);
-}
-
-/**
- * efi_file_open_ex() - open file asynchronously
- *
- * This function implements the OpenEx service of the File Protocol.
- * See the UEFI spec for details.
- *
- * @this:	EFI_FILE_PROTOCOL instance
- * @new_handle:	on return pointer to file handle
- * @file_name:	file name
- * @open_mode:	mode to open the file (read, read/write, create/read/write)
- * @attributes:	attributes for newly created file
- * @token:	transaction token
- */
-static efi_status_t EFIAPI efi_file_open_ex(struct efi_file_handle *this,
-					    struct efi_file_handle **new_handle,
-					    u16 *file_name, u64 open_mode,
-					    u64 attributes,
-					    struct efi_file_io_token *token)
-{
-	efi_status_t ret;
-
-	EFI_ENTRY("%p, %p, \"%ls\", %llx, %llu, %p", this, new_handle,
-		  file_name, open_mode, attributes, token);
-
-	if (!token) {
-		ret = EFI_INVALID_PARAMETER;
-		goto out;
-	}
-
-	ret = efi_file_open_int(this, new_handle, file_name, open_mode,
-				attributes);
-
-	if (ret == EFI_SUCCESS && token->event) {
-		token->status = EFI_SUCCESS;
-		efi_signal_event(token->event);
-	}
-
 out:
 	return EFI_EXIT(ret);
 }
@@ -383,93 +286,24 @@ static efi_status_t EFIAPI efi_file_delete(struct efi_file_handle *file)
 
 	EFI_ENTRY("%p", file);
 
-	if (set_blk_dev(fh) || fs_unlink(fh->path))
-		ret = EFI_WARN_DELETE_FAILURE;
-
-	file_close(fh);
-	return EFI_EXIT(ret);
-}
-
-/**
- * efi_get_file_size() - determine the size of a file
- *
- * @fh:		file handle
- * @file_size:	pointer to receive file size
- * Return:	status code
- */
-static efi_status_t efi_get_file_size(struct file_handle *fh,
-				      loff_t *file_size)
-{
-	if (set_blk_dev(fh))
-		return EFI_DEVICE_ERROR;
-
-	if (fs_size(fh->path, file_size))
-		return EFI_DEVICE_ERROR;
-
-	return EFI_SUCCESS;
-}
-
-/**
- * efi_file_size() - Get the size of a file using an EFI file handle
- *
- * @fh:		EFI file handle
- * @size:	buffer to fill in the discovered size
- *
- * Return:	size of the file
- */
-efi_status_t efi_file_size(struct efi_file_handle *fh, efi_uintn_t *size)
-{
-	struct efi_file_info *info = NULL;
-	efi_uintn_t bs = 0;
-	efi_status_t ret;
-
-	*size = 0;
-	ret = EFI_CALL(fh->getinfo(fh, (efi_guid_t *)&efi_file_info_guid, &bs,
-				   info));
-	if (ret != EFI_BUFFER_TOO_SMALL) {
+	if (set_blk_dev(fh)) {
 		ret = EFI_DEVICE_ERROR;
-		goto out;
+		goto error;
 	}
 
-	info = malloc(bs);
-	if (!info) {
-		ret = EFI_OUT_OF_RESOURCES;
-		goto out;
-	}
-	ret = EFI_CALL(fh->getinfo(fh, (efi_guid_t *)&efi_file_info_guid, &bs,
-				   info));
-	if (ret != EFI_SUCCESS)
-		goto out;
+	if (fs_unlink(fh->path))
+		ret = EFI_DEVICE_ERROR;
+	file_close(fh);
 
-	*size = info->file_size;
-
-out:
-	free(info);
-	return ret;
+error:
+	return EFI_EXIT(ret);
 }
 
 static efi_status_t file_read(struct file_handle *fh, u64 *buffer_size,
 		void *buffer)
 {
 	loff_t actread;
-	efi_status_t ret;
-	loff_t file_size;
 
-	if (!buffer) {
-		ret = EFI_INVALID_PARAMETER;
-		return ret;
-	}
-
-	ret = efi_get_file_size(fh, &file_size);
-	if (ret != EFI_SUCCESS)
-		return ret;
-	if (file_size < fh->offset) {
-		ret = EFI_DEVICE_ERROR;
-		return ret;
-	}
-
-	if (set_blk_dev(fh))
-		return EFI_DEVICE_ERROR;
 	if (fs_read(fh->path, map_to_sysmem(buffer), fh->offset,
 		    *buffer_size, &actread))
 		return EFI_DEVICE_ERROR;
@@ -480,34 +314,18 @@ static efi_status_t file_read(struct file_handle *fh, u64 *buffer_size,
 	return EFI_SUCCESS;
 }
 
-static void rtc2efi(struct efi_time *time, struct rtc_time *tm)
-{
-	memset(time, 0, sizeof(struct efi_time));
-	time->year = tm->tm_year;
-	time->month = tm->tm_mon;
-	time->day = tm->tm_mday;
-	time->hour = tm->tm_hour;
-	time->minute = tm->tm_min;
-	time->second = tm->tm_sec;
-}
-
 static efi_status_t dir_read(struct file_handle *fh, u64 *buffer_size,
 		void *buffer)
 {
 	struct efi_file_info *info = buffer;
 	struct fs_dirent *dent;
-	u64 required_size;
-	u16 *dst;
-
-	if (set_blk_dev(fh))
-		return EFI_DEVICE_ERROR;
+	unsigned int required_size;
 
 	if (!fh->dirs) {
 		assert(fh->offset == 0);
 		fh->dirs = fs_opendir(fh->path);
 		if (!fh->dirs)
 			return EFI_DEVICE_ERROR;
-		fh->dent = NULL;
 	}
 
 	/*
@@ -518,27 +336,38 @@ static efi_status_t dir_read(struct file_handle *fh, u64 *buffer_size,
 	 */
 	if (fh->dent) {
 		dent = fh->dent;
+		fh->dent = NULL;
 	} else {
 		dent = fs_readdir(fh->dirs);
 	}
 
+
 	if (!dent) {
-		/* no more files in directory */
-		*buffer_size = 0;
+		/* no more files in directory: */
+		/* workaround shim.efi bug/quirk.. as find_boot_csv()
+		 * loops through directory contents, it initially calls
+		 * read w/ zero length buffer to find out how much mem
+		 * to allocate for the EFI_FILE_INFO, then allocates,
+		 * and then calls a 2nd time.  If we return size of
+		 * zero the first time, it happily passes that to
+		 * AllocateZeroPool(), and when that returns NULL it
+		 * thinks it is EFI_OUT_OF_RESOURCES.  So on first
+		 * call return a non-zero size:
+		 */
+		if (*buffer_size == 0)
+			*buffer_size = sizeof(*info);
+		else
+			*buffer_size = 0;
 		return EFI_SUCCESS;
 	}
 
 	/* check buffer size: */
-	required_size = sizeof(*info) +
-			2 * (utf8_utf16_strlen(dent->name) + 1);
+	required_size = sizeof(*info) + 2 * (strlen(dent->name) + 1);
 	if (*buffer_size < required_size) {
 		*buffer_size = required_size;
 		fh->dent = dent;
 		return EFI_BUFFER_TOO_SMALL;
 	}
-	if (!buffer)
-		return EFI_INVALID_PARAMETER;
-	fh->dent = NULL;
 
 	*buffer_size = required_size;
 	memset(info, 0, required_size);
@@ -546,31 +375,35 @@ static efi_status_t dir_read(struct file_handle *fh, u64 *buffer_size,
 	info->size = required_size;
 	info->file_size = dent->size;
 	info->physical_size = dent->size;
-	info->attribute = dent->attr;
-	rtc2efi(&info->create_time, &dent->create_time);
-	rtc2efi(&info->modification_time, &dent->change_time);
-	rtc2efi(&info->last_access_time, &dent->access_time);
 
 	if (dent->type == FS_DT_DIR)
 		info->attribute |= EFI_FILE_DIRECTORY;
 
-	dst = info->file_name;
-	utf8_utf16_strcpy(&dst, dent->name);
+	ascii2unicode(info->file_name, dent->name);
 
 	fh->offset++;
 
 	return EFI_SUCCESS;
 }
 
-static efi_status_t efi_file_read_int(struct efi_file_handle *this,
-				      efi_uintn_t *buffer_size, void *buffer)
+static efi_status_t EFIAPI efi_file_read(struct efi_file_handle *file,
+					 efi_uintn_t *buffer_size, void *buffer)
 {
-	struct file_handle *fh = to_fh(this);
+	struct file_handle *fh = to_fh(file);
 	efi_status_t ret = EFI_SUCCESS;
 	u64 bs;
 
-	if (!this || !buffer_size)
-		return EFI_INVALID_PARAMETER;
+	EFI_ENTRY("%p, %p, %p", file, buffer_size, buffer);
+
+	if (!buffer_size || !buffer) {
+		ret = EFI_INVALID_PARAMETER;
+		goto error;
+	}
+
+	if (set_blk_dev(fh)) {
+		ret = EFI_DEVICE_ERROR;
+		goto error;
+	}
 
 	bs = *buffer_size;
 	if (fh->isdir)
@@ -582,166 +415,35 @@ static efi_status_t efi_file_read_int(struct efi_file_handle *this,
 	else
 		*buffer_size = SIZE_MAX;
 
-	return ret;
-}
-
-/**
- * efi_file_read() - read file
- *
- * This function implements the Read() service of the EFI_FILE_PROTOCOL.
- *
- * See the Unified Extensible Firmware Interface (UEFI) specification for
- * details.
- *
- * @this:		file protocol instance
- * @buffer_size:	number of bytes to read
- * @buffer:		read buffer
- * Return:		status code
- */
-static efi_status_t EFIAPI efi_file_read(struct efi_file_handle *this,
-					 efi_uintn_t *buffer_size, void *buffer)
-{
-	efi_status_t ret;
-
-	EFI_ENTRY("%p, %p, %p", this, buffer_size, buffer);
-
-	ret = efi_file_read_int(this, buffer_size, buffer);
-
+error:
 	return EFI_EXIT(ret);
 }
 
-/**
- * efi_file_read_ex() - read file asynchonously
- *
- * This function implements the ReadEx() service of the EFI_FILE_PROTOCOL.
- *
- * See the Unified Extensible Firmware Interface (UEFI) specification for
- * details.
- *
- * @this:		file protocol instance
- * @token:		transaction token
- * Return:		status code
- */
-static efi_status_t EFIAPI efi_file_read_ex(struct efi_file_handle *this,
-					    struct efi_file_io_token *token)
-{
-	efi_status_t ret;
-
-	EFI_ENTRY("%p, %p", this, token);
-
-	if (!token) {
-		ret = EFI_INVALID_PARAMETER;
-		goto out;
-	}
-
-	ret = efi_file_read_int(this, &token->buffer_size, token->buffer);
-
-	if (ret == EFI_SUCCESS && token->event) {
-		token->status = EFI_SUCCESS;
-		efi_signal_event(token->event);
-	}
-
-out:
-	return EFI_EXIT(ret);
-}
-
-static efi_status_t efi_file_write_int(struct efi_file_handle *this,
-				       efi_uintn_t *buffer_size, void *buffer)
-{
-	struct file_handle *fh = to_fh(this);
-	efi_status_t ret = EFI_SUCCESS;
-	loff_t actwrite;
-
-	if (!this || !buffer_size || !buffer) {
-		ret = EFI_INVALID_PARAMETER;
-		goto out;
-	}
-	if (fh->isdir) {
-		ret = EFI_UNSUPPORTED;
-		goto out;
-	}
-	if (!(fh->open_mode & EFI_FILE_MODE_WRITE)) {
-		ret = EFI_ACCESS_DENIED;
-		goto out;
-	}
-
-	if (!*buffer_size)
-		goto out;
-
-	if (set_blk_dev(fh)) {
-		ret = EFI_DEVICE_ERROR;
-		goto out;
-	}
-	if (fs_write(fh->path, map_to_sysmem(buffer), fh->offset, *buffer_size,
-		     &actwrite)) {
-		ret = EFI_DEVICE_ERROR;
-		goto out;
-	}
-	*buffer_size = actwrite;
-	fh->offset += actwrite;
-
-out:
-	return ret;
-}
-
-/**
- * efi_file_write() - write to file
- *
- * This function implements the Write() service of the EFI_FILE_PROTOCOL.
- *
- * See the Unified Extensible Firmware Interface (UEFI) specification for
- * details.
- *
- * @this:		file protocol instance
- * @buffer_size:	number of bytes to write
- * @buffer:		buffer with the bytes to write
- * Return:		status code
- */
-static efi_status_t EFIAPI efi_file_write(struct efi_file_handle *this,
+static efi_status_t EFIAPI efi_file_write(struct efi_file_handle *file,
 					  efi_uintn_t *buffer_size,
 					  void *buffer)
 {
-	efi_status_t ret;
+	struct file_handle *fh = to_fh(file);
+	efi_status_t ret = EFI_SUCCESS;
+	loff_t actwrite;
 
-	EFI_ENTRY("%p, %p, %p", this, buffer_size, buffer);
+	EFI_ENTRY("%p, %p, %p", file, buffer_size, buffer);
 
-	ret = efi_file_write_int(this, buffer_size, buffer);
-
-	return EFI_EXIT(ret);
-}
-
-/**
- * efi_file_write_ex() - write to file
- *
- * This function implements the WriteEx() service of the EFI_FILE_PROTOCOL.
- *
- * See the Unified Extensible Firmware Interface (UEFI) specification for
- * details.
- *
- * @this:		file protocol instance
- * @token:		transaction token
- * Return:		status code
- */
-static efi_status_t EFIAPI efi_file_write_ex(struct efi_file_handle *this,
-					     struct efi_file_io_token *token)
-{
-	efi_status_t ret;
-
-	EFI_ENTRY("%p, %p", this, token);
-
-	if (!token) {
-		ret = EFI_INVALID_PARAMETER;
-		goto out;
+	if (set_blk_dev(fh)) {
+		ret = EFI_DEVICE_ERROR;
+		goto error;
 	}
 
-	ret = efi_file_write_int(this, &token->buffer_size, token->buffer);
-
-	if (ret == EFI_SUCCESS && token->event) {
-		token->status = EFI_SUCCESS;
-		efi_signal_event(token->event);
+	if (fs_write(fh->path, map_to_sysmem(buffer), fh->offset, *buffer_size,
+		     &actwrite)) {
+		ret = EFI_DEVICE_ERROR;
+		goto error;
 	}
 
-out:
+	*buffer_size = actwrite;
+	fh->offset += actwrite;
+
+error:
 	return EFI_EXIT(ret);
 }
 
@@ -803,9 +505,16 @@ static efi_status_t EFIAPI efi_file_setpos(struct efi_file_handle *file,
 	if (pos == ~0ULL) {
 		loff_t file_size;
 
-		ret = efi_get_file_size(fh, &file_size);
-		if (ret != EFI_SUCCESS)
+		if (set_blk_dev(fh)) {
+			ret = EFI_DEVICE_ERROR;
 			goto error;
+		}
+
+		if (fs_size(fh->path, &file_size)) {
+			ret = EFI_DEVICE_ERROR;
+			goto error;
+		}
+
 		pos = file_size;
 	}
 
@@ -822,15 +531,8 @@ static efi_status_t EFIAPI efi_file_getinfo(struct efi_file_handle *file,
 {
 	struct file_handle *fh = to_fh(file);
 	efi_status_t ret = EFI_SUCCESS;
-	u16 *dst;
 
 	EFI_ENTRY("%p, %pUl, %p, %p", file, info_type, buffer_size, buffer);
-
-	if (!file || !info_type || !buffer_size ||
-	    (*buffer_size && !buffer)) {
-		ret = EFI_INVALID_PARAMETER;
-		goto error;
-	}
 
 	if (!guidcmp(info_type, &efi_file_info_guid)) {
 		struct efi_file_info *info = buffer;
@@ -839,17 +541,22 @@ static efi_status_t EFIAPI efi_file_getinfo(struct efi_file_handle *file,
 		loff_t file_size;
 
 		/* check buffer size: */
-		required_size = sizeof(*info) +
-				2 * (utf8_utf16_strlen(filename) + 1);
+		required_size = sizeof(*info) + 2 * (strlen(filename) + 1);
 		if (*buffer_size < required_size) {
 			*buffer_size = required_size;
 			ret = EFI_BUFFER_TOO_SMALL;
 			goto error;
 		}
 
-		ret = efi_get_file_size(fh, &file_size);
-		if (ret != EFI_SUCCESS)
+		if (set_blk_dev(fh)) {
+			ret = EFI_DEVICE_ERROR;
 			goto error;
+		}
+
+		if (fs_size(fh->path, &file_size)) {
+			ret = EFI_DEVICE_ERROR;
+			goto error;
+		}
 
 		memset(info, 0, required_size);
 
@@ -860,11 +567,10 @@ static efi_status_t EFIAPI efi_file_getinfo(struct efi_file_handle *file,
 		if (fh->isdir)
 			info->attribute |= EFI_FILE_DIRECTORY;
 
-		dst = info->file_name;
-		utf8_utf16_strcpy(&dst, filename);
+		ascii2unicode(info->file_name, filename);
 	} else if (!guidcmp(info_type, &efi_file_system_info_guid)) {
 		struct efi_file_system_info *info = buffer;
-		struct disk_partition part;
+		disk_partition_t part;
 		efi_uintn_t required_size;
 		int r;
 
@@ -876,7 +582,8 @@ static efi_status_t EFIAPI efi_file_getinfo(struct efi_file_handle *file,
 			ret = EFI_DEVICE_ERROR;
 			goto error;
 		}
-		required_size = sizeof(*info) + 2;
+		required_size = sizeof(info) + 2 *
+				(strlen((const char *)part.name) + 1);
 		if (*buffer_size < required_size) {
 			*buffer_size = required_size;
 			ret = EFI_BUFFER_TOO_SMALL;
@@ -886,28 +593,16 @@ static efi_status_t EFIAPI efi_file_getinfo(struct efi_file_handle *file,
 		memset(info, 0, required_size);
 
 		info->size = required_size;
-		/*
-		 * TODO: We cannot determine if the volume can be written to.
-		 */
-		info->read_only = false;
+		info->read_only = true;
 		info->volume_size = part.size * part.blksz;
-		/*
-		 * TODO: We currently have no function to determine the free
-		 * space. The volume size is the best upper bound we have.
-		 */
-		info->free_space = info->volume_size;
+		info->free_space = 0;
 		info->block_size = part.blksz;
 		/*
 		 * TODO: The volume label is not available in U-Boot.
+		 * Use the partition name as substitute.
 		 */
-		info->volume_label[0] = 0;
-	} else if (!guidcmp(info_type, &efi_system_volume_label_id)) {
-		if (*buffer_size < 2) {
-			*buffer_size = 2;
-			ret = EFI_BUFFER_TOO_SMALL;
-			goto error;
-		}
-		*(u16 *)buffer = 0;
+		ascii2unicode((u16 *)info->volume_label,
+			      (const char *)part.name);
 	} else {
 		ret = EFI_UNSUPPORTED;
 	}
@@ -921,149 +616,23 @@ static efi_status_t EFIAPI efi_file_setinfo(struct efi_file_handle *file,
 					    efi_uintn_t buffer_size,
 					    void *buffer)
 {
-	struct file_handle *fh = to_fh(file);
-	efi_status_t ret = EFI_UNSUPPORTED;
+	EFI_ENTRY("%p, %p, %zu, %p", file, info_type, buffer_size, buffer);
 
-	EFI_ENTRY("%p, %pUl, %zu, %p", file, info_type, buffer_size, buffer);
-
-	if (!guidcmp(info_type, &efi_file_info_guid)) {
-		struct efi_file_info *info = (struct efi_file_info *)buffer;
-		char *filename = basename(fh);
-		char *new_file_name, *pos;
-		loff_t file_size;
-
-		/* The buffer will always contain a file name. */
-		if (buffer_size < sizeof(struct efi_file_info) + 2 ||
-		    buffer_size < info->size) {
-			ret = EFI_BAD_BUFFER_SIZE;
-			goto out;
-		}
-		/* We cannot change the directory attribute */
-		if (!fh->isdir != !(info->attribute & EFI_FILE_DIRECTORY)) {
-			ret = EFI_ACCESS_DENIED;
-			goto out;
-		}
-		/* Check for renaming */
-		new_file_name = malloc(utf16_utf8_strlen(info->file_name) + 1);
-		if (!new_file_name) {
-			ret = EFI_OUT_OF_RESOURCES;
-			goto out;
-		}
-		pos = new_file_name;
-		utf16_utf8_strcpy(&pos, info->file_name);
-		if (strcmp(new_file_name, filename)) {
-			/* TODO: we do not support renaming */
-			EFI_PRINT("Renaming not supported\n");
-			free(new_file_name);
-			ret = EFI_ACCESS_DENIED;
-			goto out;
-		}
-		free(new_file_name);
-		/* Check for truncation */
-		ret = efi_get_file_size(fh, &file_size);
-		if (ret != EFI_SUCCESS)
-			goto out;
-		if (file_size != info->file_size) {
-			/* TODO: we do not support truncation */
-			EFI_PRINT("Truncation not supported\n");
-			ret = EFI_ACCESS_DENIED;
-			goto out;
-		}
-		/*
-		 * We do not care for the other attributes
-		 * TODO: Support read only
-		 */
-		ret = EFI_SUCCESS;
-	} else {
-		/* TODO: We do not support changing the volume label */
-		ret = EFI_UNSUPPORTED;
-	}
-out:
-	return EFI_EXIT(ret);
+	return EFI_EXIT(EFI_UNSUPPORTED);
 }
 
-/**
- * efi_file_flush_int() - flush file
- *
- * This is the internal implementation of the Flush() and FlushEx() services of
- * the EFI_FILE_PROTOCOL.
- *
- * @this:	file protocol instance
- * Return:	status code
- */
-static efi_status_t efi_file_flush_int(struct efi_file_handle *this)
+static efi_status_t EFIAPI efi_file_flush(struct efi_file_handle *file)
 {
-	struct file_handle *fh = to_fh(this);
-
-	if (!this)
-		return EFI_INVALID_PARAMETER;
-
-	if (!(fh->open_mode & EFI_FILE_MODE_WRITE))
-		return EFI_ACCESS_DENIED;
-
-	/* TODO: flush for file position after end of file */
-	return EFI_SUCCESS;
-}
-
-/**
- * efi_file_flush() - flush file
- *
- * This function implements the Flush() service of the EFI_FILE_PROTOCOL.
- *
- * See the Unified Extensible Firmware Interface (UEFI) specification for
- * details.
- *
- * @this:	file protocol instance
- * Return:	status code
- */
-static efi_status_t EFIAPI efi_file_flush(struct efi_file_handle *this)
-{
-	efi_status_t ret;
-
-	EFI_ENTRY("%p", this);
-
-	ret = efi_file_flush_int(this);
-
-	return EFI_EXIT(ret);
-}
-
-/**
- * efi_file_flush_ex() - flush file
- *
- * This function implements the FlushEx() service of the EFI_FILE_PROTOCOL.
- *
- * See the Unified Extensible Firmware Interface (UEFI) specification for
- * details.
- *
- * @this:	file protocol instance
- * @token:	transaction token
- * Return:	status code
- */
-static efi_status_t EFIAPI efi_file_flush_ex(struct efi_file_handle *this,
-					     struct efi_file_io_token *token)
-{
-	efi_status_t ret;
-
-	EFI_ENTRY("%p, %p", this, token);
-
-	if (!token) {
-		ret = EFI_INVALID_PARAMETER;
-		goto out;
-	}
-
-	ret = efi_file_flush_int(this);
-
-	if (ret == EFI_SUCCESS && token->event) {
-		token->status = EFI_SUCCESS;
-		efi_signal_event(token->event);
-	}
-
-out:
-	return EFI_EXIT(ret);
+	EFI_ENTRY("%p", file);
+	return EFI_EXIT(EFI_SUCCESS);
 }
 
 static const struct efi_file_handle efi_file_handle_protocol = {
-	.rev = EFI_FILE_PROTOCOL_REVISION2,
+	/*
+	 * TODO: We currently only support EFI file protocol revision 0x00010000
+	 *	 while UEFI specs 2.4 - 2.7 prescribe revision 0x00020000.
+	 */
+	.rev = EFI_FILE_PROTOCOL_REVISION,
 	.open = efi_file_open,
 	.close = efi_file_close,
 	.delete = efi_file_delete,
@@ -1074,10 +643,6 @@ static const struct efi_file_handle efi_file_handle_protocol = {
 	.getinfo = efi_file_getinfo,
 	.setinfo = efi_file_setinfo,
 	.flush = efi_file_flush,
-	.open_ex = efi_file_open_ex,
-	.read_ex = efi_file_read_ex,
-	.write_ex = efi_file_write_ex,
-	.flush_ex = efi_file_flush_ex,
 };
 
 /**
@@ -1112,7 +677,6 @@ struct efi_file_handle *efi_file_from_path(struct efi_device_path *fp)
 		struct efi_device_path_file_path *fdp =
 			container_of(fp, struct efi_device_path_file_path, dp);
 		struct efi_file_handle *f2;
-		u16 *filename;
 
 		if (!EFI_DP_TYPE(fp, MEDIA_DEVICE, FILE_PATH)) {
 			printf("bad file path!\n");
@@ -1120,12 +684,8 @@ struct efi_file_handle *efi_file_from_path(struct efi_device_path *fp)
 			return NULL;
 		}
 
-		filename = u16_strdup(fdp->str);
-		if (!filename)
-			return NULL;
-		EFI_CALL(ret = f->open(f, &f2, filename,
+		EFI_CALL(ret = f->open(f, &f2, fdp->str,
 				       EFI_FILE_MODE_READ, 0));
-		free(filename);
 		if (ret != EFI_SUCCESS)
 			return NULL;
 

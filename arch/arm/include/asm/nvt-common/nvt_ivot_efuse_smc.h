@@ -4,6 +4,8 @@
 #define SMC_EFUSE_TAG         SMC_EFUSE_MAKEFOURCC('E', 'F', 'U', 'S')
 #define SMC_EFUSE_KEY_TAG         SMC_EFUSE_MAKEFOURCC('E', 'K', 'E', 'Y')
 
+#include <asm/arch-nvt-na51055_a32/efuse_protected.h>
+
 typedef enum _NVT_SMC_EFUSE_CMD
 {
 	NVT_SMC_EFUSE_IS_SECURE,

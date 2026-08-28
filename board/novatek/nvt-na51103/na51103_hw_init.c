@@ -13,18 +13,14 @@
 
 
 #include <common.h>
-#include <cli.h>
-#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/efuse_protected.h>
-#include <asm/arch/gpio.h>
 #ifdef CONFIG_NVT_IVOT_DDR_RANGE_SCAN_SUPPORT
 #include <asm/arch/raw_scanMP.h>
 #include <asm/arch/hardware.h>
-#include <asm/cache.h>
 #endif
 #include <linux/libfdt.h>
 
@@ -32,9 +28,9 @@
 #define WDT_GETREG(ofs)         INW(WDT_REG_ADDR(ofs))
 #define WDT_SETREG(ofs,value)   OUTW(WDT_REG_ADDR(ofs), (value))
 
-#define CG_REG_ADDR(ofs)       	(IOADDR_CG_REG_BASE+(ofs))
-#define CG_GETREG(ofs)         	INW(CG_REG_ADDR(ofs))
-#define CG_SETREG(ofs,value)   	OUTW(CG_REG_ADDR(ofs), (value))
+#define CG_REG_ADDR(ofs)       (IOADDR_CG_REG_BASE+(ofs))
+#define CG_GETREG(ofs)         INW(CG_REG_ADDR(ofs))
+#define CG_SETREG(ofs,value)   OUTW(CG_REG_ADDR(ofs), (value))
 
 #define PAD_REG_ADDR(ofs)       (IOADDR_PAD_REG_BASE+(ofs))
 #define PAD_GETREG(ofs)         INW(PAD_REG_ADDR(ofs))
@@ -374,25 +370,24 @@ void nvt_ddr_scan(u32 type)
 	void (*image_entry)(void) = NULL;
 	printf("memcpy->[0x%08x]", (int)JUMP_ADDR);
 	if (type == 1) {
-		memcpy_toio((void *)JUMP_ADDR, ddr_scan_quick, sizeof(ddr_scan_quick));
+		memcpy((void *)JUMP_ADDR, ddr_scan_quick, sizeof(ddr_scan_quick));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan_quick));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan_quick), ARCH_DMA_MINALIGN));
 	} else if (type == 2) {
-		memcpy_toio((void *)JUMP_ADDR, ddr_scan_phy, sizeof(ddr_scan_phy));
+		memcpy((void *)JUMP_ADDR, ddr_scan_phy, sizeof(ddr_scan_phy));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan_phy));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan_phy), ARCH_DMA_MINALIGN));
 	} else {
-		memcpy_toio((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
+		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	}
-	dcache_disable();
     printf("done\r\n");
 	printf("Jump into sram\n");
 	image_entry = (LDR_GENERIC_CB)(*((unsigned long*)JUMP_ADDR));

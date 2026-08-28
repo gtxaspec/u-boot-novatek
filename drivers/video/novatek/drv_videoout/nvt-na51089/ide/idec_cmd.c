@@ -1,16 +1,36 @@
 #include "./include/ide_platform.h"
 
-/*
-#include <kwrap/file.h>
+#ifndef CHKPNT
+#define CHKPNT    printf("\033[37mCHK: %d, %s\033[0m\r\n", __LINE__, __func__)
+#endif
 
-#include <malloc.h>
-#include "kwrap/type.h"
-#include "kwrap/platform.h"
+#ifndef DBGD
+#define DBGD(x)   printf("\033[0;35m%s=%d\033[0m\r\n", #x, x)
+#endif
 
-*/
+#ifndef DBGH
+#define DBGH(x)   printf("\033[0;35m%s=0x%08X\033[0m\r\n", #x, x)
+#endif
 
-//#include <kwrap/cmdsys.h>
-//#include "kwrap/sxcmd.h"
+#ifndef DBG_DUMP
+#define DBG_DUMP(fmtstr, args...) printf(fmtstr, ##args)
+#endif
+
+#ifndef DBG_ERR
+#define DBG_ERR(fmtstr, args...)  printf("\033[0;31mERR:%s() \033[0m" fmtstr, __func__, ##args)
+#endif
+
+#ifndef DBG_WRN
+#define DBG_WRN(fmtstr, args...)  printf("\033[0;33mWRN:%s() \033[0m" fmtstr, __func__, ##args)
+#endif
+
+#if 0
+#define DBG_IND(fmtstr, args...) printf("%s(): " fmtstr, __func__, ##args)
+#else
+#ifndef DBG_IND
+#define DBG_IND(fmtstr, args...)
+#endif
+#endif
 
 void idec_dump_info(UINT32 id);
 
@@ -25,10 +45,10 @@ void idec_dump_info(UINT32 id)
 	UINT32          v1_width, v1_height, v1_loff, v1_win_width, v1_win_height;
 	UINT32          v2_width, v2_height, v2_loff, v2_win_width, v2_win_height;
 	UINT32          o1_width, o1_height, o1_loff, o1_win_width, o1_win_height;
-	UINT32			fd_width=0, fd_height=0, fd_hor=0, fd_ver=0;
-	UINT8			fd_y=0, fd_u=0, fd_v=0;
+	UINT32			fd_width, fd_height, fd_hor, fd_ver;
+	UINT8			fd_y, fd_u, fd_v;
 
-	UINT32          v1x, v1y, v2x, v2y, o1x, o1y, fdx=0, fdy=0;
+	UINT32          v1x, v1y, v2x, v2y, o1x, o1y, fdx, fdy;
 	//UINT32          clksrc = 0;
 	//UINT32          clksrc_freq = 0;
 	UINT32			clkin = 0;//, clkin_div = 0;
@@ -38,9 +58,9 @@ void idec_dump_info(UINT32 id)
 	UINT32          pinmux = 0;
 	UINT32			fd = 0, quad = 0;
 	BOOL			fd_en = FALSE, quad_en = FALSE;
-	UINT8			line_alpha=0, line_y=0, line_u=0, line_v=0;
-	BOOL			sign_a[4]={0}, sign_b[4]={0};
-	UINT32			a[4]={0}, b[4]={0}, slope[4]={0}, compare[4]={0};
+	UINT8			line_alpha, line_y, line_u, line_v;
+	BOOL			sign_a[4], sign_b[4];
+	UINT32			a[4], b[4], slope[4], compare[4];
 
 	static UINT32 v1_fmt_bw[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1.5};
 	static UINT32 v2_fmt_bw[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1.5};
@@ -349,91 +369,3 @@ void idec_dump_info(UINT32 id)
 //#if !(defined __UITRON || defined __ECOS || defined __FREERTOS)
 //EXPORT_SYMBOL(idec_dump_info);
 //#endif
-#if 0
-static BOOL cmd_ide_dumpinfo(unsigned char argc, char **argv)
-{
-    idec_dump_info(0);
-    //idec_dump_info(1);
-    return TRUE;
-}
-
-static SXCMD_BEGIN(ide_cmd_tbl, "kdrv_ide")
-SXCMD_ITEM("dumpinfo", cmd_ide_dumpinfo, "dump ide info")
-SXCMD_END()
-
-
-int ide_cmd_showhelp(int (*dump)(const char *fmt, ...))
-{
-	UINT32 cmd_num = SXCMD_NUM(ide_cmd_tbl);
-	UINT32 loop = 1;
-
-	dump("---------------------------------------------------------------------\r\n");
-	dump("  %s\n", "vpe");
-	dump("---------------------------------------------------------------------\r\n");
-
-	for (loop = 1 ; loop <= cmd_num ; loop++) {
-		dump("%15s : %s\r\n", ide_cmd_tbl[loop].p_name, ide_cmd_tbl[loop].p_desc);
-	}
-	return 0;
-}
-
-
-#if defined (__KERNEL__) || defined(__LINUX)
-int ide_cmd_execute(unsigned char argc, char **argv)
-{
-	UINT32 cmd_num = SXCMD_NUM(ide_cmd_tbl);
-	UINT32 loop;
-	int    ret;
-
-	if (argc < 1) {
-		return -1;
-	}
-	if (strncmp(argv[0], "?", 2) == 0) {
-		ide_cmd_showhelp(vk_printk);
-		return 0;
-	}
-	for (loop = 1 ; loop <= cmd_num ; loop++) {
-		if (strncmp(argv[0], ide_cmd_tbl[loop].p_name, strlen(argv[0])) == 0) {
-			ret = ide_cmd_tbl[loop].p_func(argc, argv);
-			return ret;
-		}
-	}
-	if (loop > cmd_num) {
-		DBG_ERR("Invalid CMD !!\r\n");
-		ide_cmd_showhelp(vk_printk);
-		return -1;
-	}
-	return 0;
-}
-#else
-MAINFUNC_ENTRY(kdrv_ide, argc, argv)
-{
-	UINT32 cmd_num = SXCMD_NUM(ide_cmd_tbl);
-	UINT32 loop;
-	int    ret;
-
-	if (argc < 2) {
-		return -1;
-	}
-	if (strncmp(argv[1], "?", 2) == 0) {
-		ide_cmd_showhelp(vk_printk);
-		return 0;
-	}
-	for (loop = 1 ; loop <= cmd_num ; loop++) {
-		DBG_ERR(" CMD %s : %s ,%d!!\r\n",argv[1], ide_cmd_tbl[loop].p_name, strlen(argv[1]) );
-		if (strncmp(argv[1], ide_cmd_tbl[loop].p_name, strlen(argv[1])) == 0) {
-			ret = ide_cmd_tbl[loop].p_func(argc - 2, &argv[2]);
-			return ret;
-		}
-	}
-	if (loop > cmd_num) {
-		DBG_ERR("Invalid CMD !!\r\n");
-		ide_cmd_showhelp(vk_printk);
-		return -1;
-	}
-	return 0;
-}
-
-#endif
-#endif
-

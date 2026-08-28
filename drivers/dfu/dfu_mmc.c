@@ -7,7 +7,6 @@
  */
 
 #include <common.h>
-#include <log.h>
 #include <malloc.h>
 #include <errno.h>
 #include <div64.h>
@@ -15,19 +14,17 @@
 #include <ext4fs.h>
 #include <fat.h>
 #include <mmc.h>
-#include <part.h>
-#include <command.h>
 #ifdef CONFIG_ARCH_NOVATEK
 #include <mapmem.h>
+#include <fs.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <asm/nvt-common/nvt_dfu.h>
 
 static bool upgrading = false;
 #endif
-
 static unsigned char *dfu_file_buf;
 static u64 dfu_file_buf_len;
-static u64 dfu_file_buf_offset;
+static long dfu_file_buf_filled;
 
 static int mmc_block_op(enum dfu_op op, struct dfu_entity *dfu,
 			u64 offset, void *buf, long *len)
@@ -105,6 +102,7 @@ static int mmc_block_op(enum dfu_op op, struct dfu_entity *dfu,
 int fs_ext_write(struct dfu_entity *dfu, ulong addr, loff_t offset, loff_t len,
 	     loff_t *actwrite)
 {
+	struct fstype_info *info = fs_get_info(FS_TYPE_EXT);
 	void *buf;
 	static unsigned int left_data;
 	struct sparse_storage sparse;
@@ -125,7 +123,7 @@ int fs_ext_write(struct dfu_entity *dfu, ulong addr, loff_t offset, loff_t len,
 			sparse.reserve = nvt_mmc_sparse_reserve;
 			sparse.mssg = nvt_mmc_sparse_msg_print;
 			upgrading = true;
-			printf("Flashing sparse ext4 image at offset 0x%lx\n", sparse.start);
+			debug("Flashing sparse ext4 image at offset 0x%lx\n", sparse.start);
 			left_data = write_spimg_on_dfu(&sparse, dfu->name, (void *)buf, NULL, len);
 			if (left_data == -1) {
 				printf("DFU Write error\n");
@@ -143,20 +141,45 @@ int fs_ext_write(struct dfu_entity *dfu, ulong addr, loff_t offset, loff_t len,
 			printf("Not sparse image, not support, addr=0x%x\n", (unsigned int)addr);
 			ret = -1;
 		}
+	} else {
+		ret = info->write(dfu->name, buf, offset, len, actwrite);
 	}
+
 	unmap_sysmem(buf);
 
-	if (ret < 0) {
+	if (ret < 0 && len != *actwrite) {
 		printf("** Unable to write file %s **\n", dfu->name);
 		ret = -1;
 	}
+	fs_close();
 
 	return ret;
 }
 #endif
 
+static int mmc_file_buffer(struct dfu_entity *dfu, void *buf, long *len)
+{
+	if (dfu_file_buf_len + *len > CONFIG_SYS_DFU_MAX_FILE_SIZE) {
+		dfu_file_buf_len = 0;
+		printf("mmc_file_buffer overflow\n");
+		return -EINVAL;
+	}
+
+	/* Add to the current buffer. */
+	memcpy(dfu_file_buf + dfu_file_buf_len, buf, *len);
+	dfu_file_buf_len += *len;
+
+	if (dfu_file_buf_len + *len >= CONFIG_SYS_DFU_MAX_FILE_SIZE) {
+		printf("mmc_file_buffer full\n");
+#ifdef CONFIG_ARCH_NOVATEK
+		return dfu_flush_medium_mmc(dfu);
+#endif
+	}
+	return 0;
+}
+
 static int mmc_file_op(enum dfu_op op, struct dfu_entity *dfu,
-			u64 offset, void *buf, u64 *len)
+			void *buf, u64 *len)
 {
 	char dev_part_str[8];
 	int ret;
@@ -170,8 +193,6 @@ static int mmc_file_op(enum dfu_op op, struct dfu_entity *dfu,
 	case DFU_FS_EXT4:
 		fstype = FS_TYPE_EXT;
 		break;
-	case DFU_SKIP:
-		return 0;
 	default:
 		printf("%s: Layout (%s) not (yet) supported!\n", __func__,
 		       dfu_get_layout(dfu->layout));
@@ -206,7 +227,7 @@ static int mmc_file_op(enum dfu_op op, struct dfu_entity *dfu,
 #endif
 	switch (op) {
 	case DFU_OP_READ:
-		ret = fs_read(dfu->name, (size_t)buf, offset, *len, &size);
+		ret = fs_read(dfu->name, (size_t)buf, 0, 0, &size);
 		if (ret) {
 			puts("dfu: fs_read error!\n");
 			return ret;
@@ -216,10 +237,11 @@ static int mmc_file_op(enum dfu_op op, struct dfu_entity *dfu,
 	case DFU_OP_WRITE:
 #ifdef CONFIG_ARCH_NOVATEK
 		if(dfu->layout == DFU_FS_EXT4)
-			ret = fs_ext_write(dfu, (size_t)dfu_file_buf, offset, *len, &size);
+			ret = fs_ext_write(dfu, (size_t)dfu_file_buf, 0, *len, &size);
 		else
 #endif
-		ret = fs_write(dfu->name, (size_t)buf, offset, *len, &size);
+			ret = fs_write(dfu->name, (size_t)buf, 0, *len, &size);
+
 		if (ret) {
 			puts("dfu: fs_write error!\n");
 			return ret;
@@ -240,89 +262,18 @@ static int mmc_file_op(enum dfu_op op, struct dfu_entity *dfu,
 	return ret;
 }
 
-static int nvt_mmc_file_buf_write(struct dfu_entity *dfu, u64 offset, void *buf, long *len)
-{
-	int ret = 0;
-
-	/* Add to the current buffer. */
-	if (dfu_file_buf_len + *len > nvt_memory_cfg[MEMTYPE_LINUXTMP].size) {
-		dfu_file_buf_len = 0;
-		printf("mmc_file_buffer overflow\n");
-		return -EINVAL;
-	}
-	memcpy(dfu_file_buf + dfu_file_buf_len, buf, *len);
-	dfu_file_buf_len += *len;
-
-	if (dfu_file_buf_len >= CONFIG_SYS_DFU_MAX_FILE_SIZE) {
-		ret = mmc_file_op(DFU_OP_WRITE, dfu, dfu_file_buf_offset,
-				  dfu_file_buf, &dfu_file_buf_len);
-		dfu_file_buf_offset += *len;
-	}
-
-	return ret;
-}
-
-static int mmc_file_buf_write(struct dfu_entity *dfu, u64 offset, void *buf, long *len)
-{
-	int ret = 0;
-
-	if (offset == 0) {
-		dfu_file_buf_len = 0;
-		dfu_file_buf_offset = 0;
-	}
-
-	/* Add to the current buffer. */
-	if (dfu_file_buf_len + *len > CONFIG_SYS_DFU_MAX_FILE_SIZE)
-		*len = CONFIG_SYS_DFU_MAX_FILE_SIZE - dfu_file_buf_len;
-	memcpy(dfu_file_buf + dfu_file_buf_len, buf, *len);
-	dfu_file_buf_len += *len;
-
-	if (dfu_file_buf_len == CONFIG_SYS_DFU_MAX_FILE_SIZE) {
-		ret = mmc_file_op(DFU_OP_WRITE, dfu, dfu_file_buf_offset,
-				  dfu_file_buf, &dfu_file_buf_len);
-		dfu_file_buf_offset += dfu_file_buf_len;
-		dfu_file_buf_len = 0;
-	}
-
-	return ret;
-}
-
-static int mmc_file_buf_write_finish(struct dfu_entity *dfu)
-{
-	int ret = mmc_file_op(DFU_OP_WRITE, dfu, dfu_file_buf_offset,
-			dfu_file_buf, &dfu_file_buf_len);
-
-#ifndef CONFIG_ARCH_NOVATEK
-	/* Now that we're done */
-	dfu_file_buf_len = 0;
-	dfu_file_buf_offset = 0;
-#endif
-
-	return ret;
-}
-
 int dfu_write_medium_mmc(struct dfu_entity *dfu,
 		u64 offset, void *buf, long *len)
 {
 	int ret = -1;
 
 	switch (dfu->layout) {
-	case DFU_RAW_ADDR:
+	case DFU_RAW_ADDR:case DFU_FS_MBR:
 		ret = mmc_block_op(DFU_OP_WRITE, dfu, offset, buf, len);
 		break;
 	case DFU_FS_FAT:
 	case DFU_FS_EXT4:
-#ifdef CONFIG_ARCH_NOVATEK
-		ret = nvt_mmc_file_buf_write(dfu, offset, buf, len);
-#else
-		ret = mmc_file_buf_write(dfu, offset, buf, len);
-#endif
-		break;
-	case DFU_SCRIPT:
-		ret = run_command_list(buf, *len, 0);
-		break;
-	case DFU_SKIP:
-		ret = 0;
+		ret = mmc_file_buffer(dfu, buf, len);
 		break;
 	default:
 		printf("%s: Layout (%s) not (yet) supported!\n", __func__,
@@ -336,21 +287,15 @@ int dfu_flush_medium_mmc(struct dfu_entity *dfu)
 {
 	int ret = 0;
 
-	switch (dfu->layout) {
-	case DFU_FS_FAT:
-	case DFU_FS_EXT4:
-		ret = mmc_file_buf_write_finish(dfu);
-		break;
-	case DFU_SCRIPT:
-		/* script may have changed the dfu_alt_info */
-		dfu_reinit_needed = true;
-		break;
-	case DFU_RAW_ADDR:
-	case DFU_SKIP:
-		break;
-	default:
-		printf("%s: Layout (%s) not (yet) supported!\n", __func__,
-		       dfu_get_layout(dfu->layout));
+	if ((dfu->layout != DFU_RAW_ADDR) && (dfu->layout != DFU_FS_MBR)) {
+		/* Do stuff here. */
+		ret = mmc_file_op(DFU_OP_WRITE, dfu, dfu_file_buf,
+				&dfu_file_buf_len);
+
+#ifndef CONFIG_ARCH_NOVATEK
+		/* Now that we're done */
+		dfu_file_buf_len = 0;
+#endif
 	}
 
 	return ret;
@@ -361,17 +306,19 @@ int dfu_get_medium_size_mmc(struct dfu_entity *dfu, u64 *size)
 	int ret;
 
 	switch (dfu->layout) {
-	case DFU_RAW_ADDR:
+	case DFU_RAW_ADDR:case DFU_FS_MBR:
 		*size = dfu->data.mmc.lba_size * dfu->data.mmc.lba_blk_size;
 		return 0;
 	case DFU_FS_FAT:
 	case DFU_FS_EXT4:
-		ret = mmc_file_op(DFU_OP_SIZE, dfu, 0, NULL, size);
+		dfu_file_buf_filled = -1;
+		ret = mmc_file_op(DFU_OP_SIZE, dfu, NULL, size);
 		if (ret < 0)
 			return ret;
-		return 0;
-	case DFU_SCRIPT:
-	case DFU_SKIP:
+		if (*size > CONFIG_SYS_DFU_MAX_FILE_SIZE) {
+		    printf("dfu size overflow\n");
+			return -1;
+		}
 		return 0;
 	default:
 		printf("%s: Layout (%s) not (yet) supported!\n", __func__,
@@ -380,28 +327,23 @@ int dfu_get_medium_size_mmc(struct dfu_entity *dfu, u64 *size)
 	}
 }
 
-
-static int mmc_file_buf_read(struct dfu_entity *dfu, u64 offset, void *buf,
+static int mmc_file_unbuffer(struct dfu_entity *dfu, u64 offset, void *buf,
 			     long *len)
 {
 	int ret;
+	u64 file_len;
 
-	if (offset == 0 || offset >= dfu_file_buf_offset + dfu_file_buf_len ||
-	    offset + *len < dfu_file_buf_offset) {
-		u64 file_len = CONFIG_SYS_DFU_MAX_FILE_SIZE;
-
-		ret = mmc_file_op(DFU_OP_READ, dfu, offset, dfu_file_buf,
-				  &file_len);
+	if (dfu_file_buf_filled == -1) {
+		ret = mmc_file_op(DFU_OP_READ, dfu, dfu_file_buf, &file_len);
 		if (ret < 0)
 			return ret;
-		dfu_file_buf_len = file_len;
-		dfu_file_buf_offset = offset;
+		dfu_file_buf_filled = file_len;
 	}
-	if (offset + *len > dfu_file_buf_offset + dfu_file_buf_len)
+	if (offset + *len > dfu_file_buf_filled)
 		return -EINVAL;
 
 	/* Add to the current buffer. */
-	memcpy(buf, dfu_file_buf + offset - dfu_file_buf_offset, *len);
+	memcpy(buf, dfu_file_buf + offset, *len);
 
 	return 0;
 }
@@ -412,12 +354,12 @@ int dfu_read_medium_mmc(struct dfu_entity *dfu, u64 offset, void *buf,
 	int ret = -1;
 
 	switch (dfu->layout) {
-	case DFU_RAW_ADDR:
+	case DFU_RAW_ADDR:case DFU_FS_MBR:
 		ret = mmc_block_op(DFU_OP_READ, dfu, offset, buf, len);
 		break;
 	case DFU_FS_FAT:
 	case DFU_FS_EXT4:
-		ret = mmc_file_buf_read(dfu, offset, buf, len);
+		ret = mmc_file_unbuffer(dfu, offset, buf, len);
 		break;
 	default:
 		printf("%s: Layout (%s) not (yet) supported!\n", __func__,
@@ -453,7 +395,7 @@ void dfu_free_entity_mmc(struct dfu_entity *dfu)
 int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 {
 	const char *entity_type;
-	ssize_t second_arg;
+	size_t second_arg;
 	size_t third_arg;
 
 	struct mmc *mmc;
@@ -461,7 +403,7 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 	const char *argv[3];
 	const char **parg = argv;
 
-	dfu->data.mmc.dev_num = dectoul(devstr, NULL);
+	dfu->data.mmc.dev_num = simple_strtoul(devstr, NULL, 10);
 
 	for (; parg < argv + sizeof(argv) / sizeof(*argv); ++parg) {
 		*parg = strsep(&s, " ");
@@ -476,7 +418,7 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 	 * Base 0 means we'll accept (prefixed with 0x or 0) base 16, 8,
 	 * with default 10.
 	 */
-	second_arg = simple_strtol(argv[1], NULL, 0);
+	second_arg = simple_strtoul(argv[1], NULL, 0);
 	third_arg = simple_strtoul(argv[2], NULL, 0);
 
 	mmc = find_mmc_device(dfu->data.mmc.dev_num);
@@ -508,11 +450,10 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 					simple_strtoul(s, NULL, 0);
 
 	} else if (!strcmp(entity_type, "part")) {
-		struct disk_partition partinfo;
+		disk_partition_t partinfo;
 		struct blk_desc *blk_dev = mmc_get_blk_desc(mmc);
 		int mmcdev = second_arg;
 		int mmcpart = third_arg;
-		int offset = 0;
 
 		if (part_get_info(blk_dev, mmcpart, &partinfo) != 0) {
 			pr_err("Couldn't find part #%d on mmc device #%d\n",
@@ -520,22 +461,33 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 			return -ENODEV;
 		}
 
-		/*
-		 * Check for an extra entry at dfu_alt_info env variable
-		 * specifying the mmc HW defined partition number
-		 */
-		if (s)
-			if (!strcmp(strsep(&s, " "), "offset"))
-				offset = simple_strtoul(s, NULL, 0);
+		dfu->layout			= DFU_RAW_ADDR;
+		dfu->data.mmc.lba_start		= partinfo.start;
+		dfu->data.mmc.lba_size		= partinfo.size;
+		dfu->data.mmc.lba_blk_size	= partinfo.blksz;
+#ifdef CONFIG_ARCH_NOVATEK
+	} else if (!strcmp(entity_type, "mbr")) {
+		disk_partition_t partinfo;
+		struct blk_desc *blk_dev = mmc_get_blk_desc(mmc);
+		int mmcdev = second_arg;
+		int mmcpart = third_arg;
+
+		if (part_get_info(blk_dev, mmcpart, &partinfo) != 0) {
+			pr_err("Couldn't find part #%d on mmc device #%d\n",
+			      mmcpart, mmcdev);
+			return -ENODEV;
+		}
 
 		dfu->layout			= DFU_RAW_ADDR;
-		dfu->data.mmc.lba_start		= partinfo.start + offset;
-		dfu->data.mmc.lba_size		= partinfo.size-offset;
+		dfu->data.mmc.lba_start		= partinfo.start;
+		dfu->data.mmc.lba_size		= partinfo.size;
 		dfu->data.mmc.lba_blk_size	= partinfo.blksz;
+
+#endif
 	} else if (!strcmp(entity_type, "fat")) {
 		dfu->layout = DFU_FS_FAT;
 #ifdef CONFIG_ARCH_NOVATEK
-		struct disk_partition partinfo;
+		disk_partition_t partinfo;
 		struct blk_desc *blk_dev = mmc_get_blk_desc(mmc);
 		int mmcdev = second_arg;
 		int mmcpart = third_arg;
@@ -553,7 +505,7 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 	} else if (!strcmp(entity_type, "ext4")) {
 		dfu->layout = DFU_FS_EXT4;
 #ifdef CONFIG_ARCH_NOVATEK
-		struct disk_partition partinfo;
+		disk_partition_t partinfo;
 		struct blk_desc *blk_dev = mmc_get_blk_desc(mmc);
 		int mmcdev = second_arg;
 		int mmcpart = third_arg;
@@ -568,10 +520,6 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 		dfu->data.mmc.lba_size		= partinfo.size;
 		dfu->data.mmc.lba_blk_size	= partinfo.blksz;
 #endif
-	} else if (!strcmp(entity_type, "skip")) {
-		dfu->layout = DFU_SKIP;
-	} else if (!strcmp(entity_type, "script")) {
-		dfu->layout = DFU_SCRIPT;
 	} else {
 		pr_err("Memory layout (%s) not supported!\n", entity_type);
 		return -ENODEV;
@@ -579,8 +527,7 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 
 	/* if it's NOT a raw write */
 	if (strcmp(entity_type, "raw")) {
-		dfu->data.mmc.dev = (second_arg != -1) ? second_arg :
-							 dfu->data.mmc.dev_num;
+		dfu->data.mmc.dev = second_arg;
 		dfu->data.mmc.part = third_arg;
 	}
 
@@ -595,7 +542,7 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char *s)
 	/* Check if file buffer is ready */
 	if (!dfu_file_buf) {
 #ifdef CONFIG_ARCH_NOVATEK
-		dfu_file_buf = (unsigned char *)nvt_memory_cfg[MEMTYPE_LINUXTMP].addr;
+		dfu_file_buf = (unsigned char *)CONFIG_LINUX_SDRAM_BASE;
 #else
 		dfu_file_buf = memalign(CONFIG_SYS_CACHELINE_SIZE,
 					CONFIG_SYS_DFU_MAX_FILE_SIZE);

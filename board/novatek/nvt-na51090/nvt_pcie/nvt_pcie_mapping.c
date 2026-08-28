@@ -799,7 +799,7 @@ printf("%s: NO CONFIG_SYS_PCI_64BIT\r\n", __func__);
 
 
 /* this function is portable for the customer */
-int do_pcie (struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+int do_pcie (cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	printk("-------------- PCIe Version: %s -------------- \n", DRV_VER);
 	pcie_init();

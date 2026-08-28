@@ -10,8 +10,6 @@
 
 #include "kdrv_type.h"
 
-
-#define IDEDATA_TYPE	UINT32
 /**
 	define for KDRV_REG_IF when using gpio
 */
@@ -142,15 +140,6 @@ typedef struct {
 } KDRV_VDDO_HDMI_VDOABI;
 
 typedef enum {
-	VDDO_HDMI_1,                ///< HDMI engine select 1
-	VDDO_HDMI_2,                ///< HDMI engine select 2
-	VDDO_HDMI_MAX,
-
-	ENUM_DUMMY4WORD(KDRV_VDDO_HDMI_SEL)
-} KDRV_VDDO_HDMI_SEL;
-
-
-typedef enum {
 	VDDO_DISPDEV_LCDMODE_RGB_SERIAL           =    0,     ///< LCD MODE is RGB Serial or UPS051
 	VDDO_DISPDEV_LCDMODE_RGB_PARALL           =    1,     ///< LCD MODE is RGB Parallel (888)
 	VDDO_DISPDEV_LCDMODE_YUV640               =    2,     ///< LCD MODE is YUV640
@@ -215,23 +204,6 @@ typedef enum {
 } KDRV_VDDO_DISPBUFFORMAT;
 
 typedef enum {
-	VDDO_DISP_RLDCNT_3BIT = 0,                 ///< OSD RLD count 3 bit
-	VDDO_DISP_RLDCNT_4BIT = 1,                 ///< OSD RLD count 4 bit
-	VDDO_DISP_RLDCNT_5BIT = 2,                 ///< OSD RLD count 5 bit
-	VDDO_DISP_RLDCNT_6BIT = 3,                 ///< OSD RLD count 6 bit
-	VDDO_DISP_RLDCNT_7BIT = 4,                 ///< OSD RLD count 7 bit
-	ENUM_DUMMY4WORD(KDRV_VDDO_DISPRLDCNT)
-} KDRV_VDDO_DISPRLDCNT;
-
-typedef enum {
-	VDDO_DISP_RLDLEN_1BYTE = 0,                 ///< OSD RLD length 1 byte
-	VDDO_DISP_RLDLEN_2BYTE = 1,                 ///< OSD RLD length 2 byte
-	VDDO_DISP_RLDLEN_4BYTE = 2,                 ///< OSD RLD length 4 byte
-	ENUM_DUMMY4WORD(KDRV_VDDO_DISPRLDLEN)
-} KDRV_VDDO_DISPRLDLEN;
-
-
-typedef enum {
 	VDDO_DISPOUTDIR_NORMAL       = 0x0,          ///< Normal output direction
 	VDDO_DISPOUTDIR_HRZ_FLIP     = 0x1,          ///< Horizontal flip
 	VDDO_DISPOUTDIR_VTC_FLIP     = 0x2,          ///< Vertical flip
@@ -265,26 +237,6 @@ typedef enum {
 	VDDO_DISPCK_OP_YBIGKEY = 0x3,             ///< ck = (Y > YKEY) ?    only for video layer
 	ENUM_DUMMY4WORD(KDRV_VDDO_DISPCKOP)
 } KDRV_VDDO_DISPCKOP;
-
-typedef enum {
-	VDDO_DISPHWC_NUM1=1  ,           ///< Number 1
-	VDDO_DISPHWC_NUM2  ,             ///< Number 2
-	VDDO_DISPHWC_NUM3  ,             ///< Number 3
-	VDDO_DISPHWC_NUM4  ,             ///< Number 4
-	VDDO_DISPHWC_NUM5  ,             ///< Number 5
-	VDDO_DISPHWC_NUM6  ,             ///< Number 6
-	VDDO_DISPHWC_NUM7  ,             ///< Number 7
-	VDDO_DISPHWC_NUM8  ,             ///< Number 8
-	VDDO_DISPHWC_NUM9  ,             ///< Number 9
-	VDDO_DISPHWC_NUM10 ,             ///< Number 10
-	VDDO_DISPHWC_NUM11 ,             ///< Number 11
-	VDDO_DISPHWC_NUM12 ,             ///< Number 12
-	VDDO_DISPHWC_NUM13 ,             ///< Number 13
-	VDDO_DISPHWC_NUM14 ,             ///< Number 14
-	VDDO_DISPHWC_NUM15 ,             ///< Number 15
-	ENUM_DUMMY4WORD(KDRV_VDDO_DISPHWCNUM)
-} KDRV_VDDO_DISPHWCNUM;
-
 
 typedef enum {
 	VDDO_DISPFD_NUM0  = 0x00000001,             ///< Number 0
@@ -410,30 +362,6 @@ typedef struct {
 		struct { // VDDO_DISPCTRL_DMA_ABORT
 			BOOL            en;            ///< dmaa bort Enable/Disable
 		} KDRV_VDDO_DMAABORT;
-		struct { // VDDO_DISPCTRL_VPI_EN
-			BOOL            en;            ///< PI filter Enable/Disable
-		} KDRV_VDDO_VPIEN;
-		struct { // VDDO_DISPCTRL_VPI_COEF
-			UINT8            coef0;         ///< PI filter coefficient 0
-			UINT8            coef1;         ///< PI filter coefficient 0
-		} KDRV_VDDO_VPICOEF;
-		struct { // VDDO_DISPCTRL_PA_EN
-			BOOL            en;            ///< PA Enable/Disable
-		} KDRV_VDDO_PAEN;
-		struct { // VDDO_DISPCTRL_CCA_HUE_EN
-			BOOL            b_en;            ///< Enable/Disable
-		} KDRV_VDDO_CCA_HUE_EN;
-		struct { // DISPCTRL_SET_CC_HUE
-			UINT8           *p_hue_tab;    ///< (24 entries)
-		} KDRV_VDDO_CCA_HUE_TBL;
-		struct { // VDDO_DISPCTRL_MGEN
-			BOOL            b_en;         ///< MG enable
-			UINT8            fmt;         ///< MG format
-		} KDRV_VDDO_MGEN;
-		struct { // VDDO_DISPCTRL_CH_EN
-			BOOL            b_en;         ///< ch enable
-		} KDRV_VDDO_CHEN;
-
 	} SEL;
 } KDRV_VDDO_DISPCTRL_PARAM;
 
@@ -455,7 +383,6 @@ typedef struct {
 		*/
 		struct { // VDDO_DISPDEV_OPEN_DEVICE
 			KDRV_VDDO_DEV_TYPE          dev_id;      ///< Open specified display device.
-			KDRV_VDDO_HDMI_SEL			hdmi_id;     ///< engine select of HDMI device
 			BOOL						user_data_en;
 			UINT32						user_data;
 		} KDRV_VDDO_OPEN_DEVICE;
@@ -473,7 +400,6 @@ typedef struct {
 		\n  kdrv_vddo_set(handel, VDDO_DISPDEV_HDMIMODE, &disp_dev);
 		*/
 		struct { // VDDO_DISPDEV_HDMIMODE
-			KDRV_VDDO_HDMI_SEL		   hdmi_id;        ///< engine select of HDMI device
 			KDRV_VDDO_HDMI            video_id;        ///< Select HDMI default Video Mode ID
 			KDRV_VDDO_HDMI_AUDIOFMT   audio_id;        ///< Select HDMI default Audio Mode ID
 		} KDRV_VDDO_HDMIMODE;
@@ -548,8 +474,8 @@ typedef struct {
 		\n  kdrv_vddo_set(handel, VDDO_DISPDEV_OUTPUT_DRAM, &disp_dev);
 		*/
 		struct { // VDDO_DISPDEV_OUTPUT_DRAM
-			IDEDATA_TYPE      y_addr;                  ///< Output Y address
-			IDEDATA_TYPE      uv_addr;                 ///< Output UV address
+			UINT32      y_addr;                  ///< Output Y address
+			UINT32      uv_addr;                 ///< Output UV address
 			UINT32      output_width;            ///< Output width
 			UINT32      output_height;           ///< Output height
 			UINT32      output_line_ofs;         ///< Output line offset(unit:byte)
@@ -603,9 +529,8 @@ typedef struct {
             This structure is used for display device control operation code "VDDO_DISPDEV_HDMI_ABI"
         */
         struct {
-        	KDRV_VDDO_HDMI_VDOABI  video_abi[60]; ///< The structure of the supported video format and its 3D ability.
+        	KDRV_VDDO_HDMI_VDOABI  video_abi[32]; ///< The structure of the supported video format and its 3D ability.
         	UINT32          len;              ///< Number of video formats supported by the TV/Display.
-        	UINT8           *data;
         } KDRV_VDDO_HDMI_ABILITY;
 
 	} SEL;
@@ -648,8 +573,8 @@ typedef struct {
 		    @note This control operation is VD Latached, so the user must set kdrv_vddo_trigger(handler) to validate the configurations.
 		*/
 		struct { // VDDO_DISPLAYER_BUFADDR
-			IDEDATA_TYPE              addr_y;       ///< Buffer Starting Address for  Y(or RGB) plane
-			IDEDATA_TYPE              addr_cbcr;    ///< Buffer Starting Address for  CbCR(or A)  plane
+			UINT32                 addr_y;       ///< Buffer Starting Address for  Y(or RGB) plane
+			UINT32                 addr_cbcr;    ///< Buffer Starting Address for  CbCR(or A)  plane
 			KDRV_VDDO_DISPLAYER    layer;
 		} KDRV_VDDO_BUFADDR;
 
@@ -798,125 +723,6 @@ typedef struct {
 			UINT8    alpha;     ///< Use for align to 4 byte (alpha here is useless)
 		} KDRV_VDDO_CST_OF_RGB_TO_YUV;
 
-		/**
-		    Set Specified Display Layer YCC enable/disable.
-		*/
-		struct { // VDDO_DISPLAYER_OP_YCCEN
-			BOOL          ycc_en;       ///< The display Video layer Ycc enable/disable
-			KDRV_VDDO_DISPLAYER    layer;
-		} KDRV_VDDO_YCCEN;
-		/**
-		    Set Specified Display Layer RLD enable/disable.
-		*/
-		struct { // VDDO_DISPLAYER_OP_RLDEN
-			BOOL          rld_en;       ///< The display Video layer RLD enable/disable
-			KDRV_VDDO_DISPLAYER    layer;
-		} KDRV_VDDO_RLDEN;
-		/**
-		    Set Specified Display Layer RLD control
-		*/
-		struct { // VDDO_DISPLAYER_OP_RLDCTRL
-			KDRV_VDDO_DISPRLDCNT rld_cnt;     ///< The display Video layer RLD enable/disable
-			KDRV_VDDO_DISPRLDLEN rld_len;     ///< The display Video layer RLD enable/disable
-			UINT32 readsize;                  ///< The display Video layer RLD enable/disable
-			UINT32 areadsize;                 ///< The display Video layer RLD enable/disable
-			KDRV_VDDO_DISPLAYER    layer;
-		} KDRV_VDDO_RLDCTRL;
-		/**
-		    Set Specified Display Layer RLD enable/disable.
-		*/
-		struct { // VDDO_DISPLAYER_OP_AFBCEN
-			BOOL          afbc_en;       ///< The display Video layer AFBC enable/disable
-			KDRV_VDDO_DISPLAYER    layer;
-		} KDRV_VDDO_AFBCEN;
-		/**
-		    Set Specified Display Layer RLD control
-		*/
-		struct { // VDDO_DISPLAYER_OP_AFBCCTRL
-			IDEDATA_TYPE           afbc_hdr_addr;      ///< AFBC HEADER ADDR
-			KDRV_VDDO_DISPLAYER    layer;
-		} KDRV_VDDO_AFBCCTRL;
-
-		/**
-		    Set Specified Display Layer Bilinear scale enable/disable.
-		*/
-		struct { // VDDO_DISPLAYER_OP_BILINEAR
-			BOOL          b_bilinear;       ///< The display Video layer vertical bilinear scale enable/disable
-			KDRV_VDDO_DISPLAYER    layer;
-		} KDRV_VDDO_V_BILINEAR;
-		struct { // VDDO_DISPLAYER_OP_BILINEAR
-			BOOL          b_bilinear;       ///< The display Video layer horizontal bilinear scale enable/disable
-			KDRV_VDDO_DISPLAYER    layer;
-		} KDRV_VDDO_H_BILINEAR;
-		/**
-		    Set HWcursor Layer
-
-		    This structure is used for layer operation code "VDDO_DISPLAYER_HWC_CONFIG"
-		    to set the specified "HWC". This structure shuld be used like this:
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_CONFIG.hwc_en = TRUE;
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_CONFIG.hwc_x = 0;
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_CONFIG.hwc_y = 0;
-		\n  kdrv_vddo_set(handel, VDDO_DISPLAYER_HWC_CONFIG, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set kdrv_vddo_trigger(handler) to validate the configurations.
-		*/
-		struct { // VDDO_DISPLAYER_HWC_CONFIG
-			UINT32              hwc_x;         ///< HWC channel position X
-			UINT32              hwc_y;         ///< HWC channel position Y
-			BOOL          		hwc_en;        ///< The display HW cursor layer enable/disable
-			UINT8               hwc_height;   ///< HWC height
-			UINT8               hwc_width;    ///< HWC width
-			IDEDATA_TYPE           hwc_buf;      ///< HWC address
-			UINT8               hwc_fmt;      ///< HWC format
-		} KDRV_VDDO_HWC_CONFIG;
-#if 1
-		/**
-		    Set HWcursor Layer palette
-
-		    This structure is used for layer operation code "VDDO_DISPLAYER_HWC_PAL"
-		    to set the specified "HWC". This structure shuld be used like this:
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_PAL.hwc_pal_index = VDDO_DISPHWC_NUM1;		//1~15
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_PAL.hwc_color_y = 0;
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_PAL.hwc_color_cb = 0;
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_PAL.hwc_color_cr = 0;
-		\n  kdrv_vddo_set(handel, VDDO_DISPLAYER_HWC_PAL, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set kdrv_vddo_trigger(handler) to validate the configurations.
-		*/
-		struct { // VDDO_DISPLAYER_HWC_PAL
-			KDRV_VDDO_DISPHWCNUM  pal_idx;      ///< HWC channel palette index
-			UINT32              color_y;         ///< HWC channel position X
-			UINT32              color_cb;         ///< HWC channel position Y
-			UINT32         		color_cr;        ///< The display HW cursor layer enable/disable
-		} KDRV_VDDO_HWCPAL;
-		/**
-		    Set HWcursor Layer font
-
-		    This structure is used for layer operation code "VDDO_DISPLAYER_HWC_FONT"
-		    to set the specified "HWC FONT". This structure shuld be used like this:
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_FONT.hwc_font_entry = 0;		//0~512
-		\n  disp_lyr.SEL.KDRV_VDDO_HWC_FONT.hwc_font_value = 0;		//4bit represent one pixel, 32bit represetn 8 pixels, value 0 is transparent.
-		\n  kdrv_vddo_set(handel, VDDO_DISPLAYER_HWC_CONFIG, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set kdrv_vddo_trigger(handler) to validate the configurations.
-		*/
-		struct { // VDDO_DISPLAYER_HWC_FONT
-			UINT32              font_entry;      ///< HWC font entry, 0~512
-			UINT32              font_data;         ///< HWC font value
-		} KDRV_VDDO_HWCFONT;
-#endif
-		struct { // VDDO_DISPLAYER_MG
-			BOOL                mg_en;
-			UINT32              mg_idx;
-			UINT16              mg_sx;         ///<
-			UINT16              mg_sy;         ///<
-			UINT16              mg_ex;         ///<
-			UINT16              mg_ey;         ///<
-			UINT16              mg_width;      ///<
-			UINT16              mg_height;     ///<
-			UINT16              mg_lofs;       ///<
-			UINT16              mg_stx;        ///<
-			uintptr_t           mg_yaddr;
-			uintptr_t           mg_uvaddr;
-		} KDRV_VDDO_MG;
-
 	} SEL;
 } KDRV_VDDO_DISPLAYER_PARAM;
 
@@ -937,13 +743,7 @@ typedef enum {
 	VDDO_DISPCTRL_ALL_LYR_EN,                    ///< [set/get] Set ALL selected display layers Enable/Disable.
 	VDDO_DISPCTRL_BACKGROUND,                    ///< [set/get] Set Display background color.
 	VDDO_DISPCTRL_DMA_ABORT,                    ///< [set/get] Set Display DMA ABORT.
-	VDDO_DISPCTRL_VPI_EN,                        ///< [set/get] Set Display PI filter Enable/Disable.
-	VDDO_DISPCTRL_VPI_COEF,                      ///< [set/get] Set Display PI filter coefficient.
-	VDDO_DISPCTRL_PA_EN,                         ///< [set/get] Set PA enable.
-	VDDO_DISPCTRL_CCA_HUE_EN,                    ///< [set/get] Set cca hue enable.
-	VDDO_DISPCTRL_CCA_HUE_TBL,                   ///< [set/get] Set cca hue tbl.
- 	VDDO_DISPCTRL_MGEN,                          ///< [set/get] Set MG enable, format.
- 	VDDO_DISPCTRL_CHEN,
+	
 	/*
 		dispaly device group
 	*/
@@ -951,22 +751,14 @@ typedef enum {
 	VDDO_DISPDEV_OPEN_DEVICE,                    ///< [set/get] Open spcified display device.
 	VDDO_DISPDEV_CLOSE_DEVICE,                   ///< [set]     Close current display active device.
 	VDDO_DISPDEV_REG_IF,                         ///< [set/get] Set current display device control interface. Please set before VDDO_DISPDEV_OPEN_DEVICE.
-	VDDO_DISPDEV_HDMIMODE,                       ///< [set/get] Change the HDMI Audio/Video Mode.
+	VDDO_DISPDEV_HDMIMODE,                       ///< [set/get] Change the HDMI Audio/Video Mode.(not support)
 	VDDO_DISPDEV_ROTATE,                         ///< [set]     Set display Device rotation for panel.
 	VDDO_DISPDEV_LCDMODE,                        ///< [set/get] Change the Panel's mode
 	VDDO_DISPDEV_POWERDOWN,                      ///< [set/get] Set Powerdown for HDMI and TV
 	VDDO_DISPDEV_OUTPUT_DRAM,                    ///< [set]     Set IDE data output to dram(only available in IDE1 with VDO2 disable)
 	VDDO_DISPDEV_TVFULL,                         ///< [set]     Set TV full screen(not support)
 	VDDO_DISPDEV_DISPSIZE,                       ///< [get] Pre Get display device optimal buffer/window size before open device.
-	VDDO_DISPDEV_HDMI_ABI,                       ///< [get] Get hdmi dev display ability.
-	VDDO_DISPDEV_HDMI_FORCE_RGB,                 ///< [set] Set hdmi dev display output format forced as RGB.
-	VDDO_DISPDEV_HDMI_FORCE_YUV444,              ///< [set] Set hdmi dev display output format forced as YUV444.
-	VDDO_DISPDEV_HDMI_FORCE_YUV422,              ///< [set] Set hdmi dev display output format forced as YUV422.
-	VDDO_DISPDEV_HDMI_FORCE_YUV420,              ///< [set] Set hdmi dev display output format forced as YUV420.
-	VDDO_DISPDEV_HDMI_FORCE_CLR,                 ///< [set] Set hdmi dev display output format forced RGB/YUV ALL Clear.
-	VDDO_DISPDEV_HDMI_TIMING_FACTOR_ENBLE,       ///< [set] Set hdmi timing factor enable.
-	VDDO_DISPDEV_HDMI_TIMING_FACTOR_DISABLE,     ///< [set] Set hdmi timing factor disable.
-	VDDO_DISPDEV_HDMI_EDID_RAW,                  ///< [set] Set hdmi edid raw.
+	VDDO_DISPDEV_HDMI_ABI,                       ///< [get] Get hdmi dev display ability.(not support)
 
 	/*
 		dispaly layer group
@@ -984,17 +776,7 @@ typedef enum {
 
 	VDDO_DISPLAYER_BUFWINSIZE,                   ///< [set/get] Set the layer's buffer size format and window size
 	VDDO_DISPLAYER_CST_FROM_RGB_TO_YUV,          ///< [get] Get the OSD layer's YUV data of color key(RGB->YUV)(Only for OSD1)
-	VDDO_DISPLAYER_YCCEN,                        ///<[set/get] Set specified display Layer YCC Enable/Disable.
-	VDDO_DISPLAYER_RLDEN,                        ///<[set/get] Set specified display Layer RLD Enable/Disable.
-	VDDO_DISPLAYER_RLDCTRL,                      ///<[set/get] Set specified display Layer RLD control.
-	VDDO_DISPLAYER_HWC_CONFIG,                   ///<[set/get] Set specified display Layer HWC Enable/Disable, x/y.
-	VDDO_DISPLAYER_HWC_PAL,                      ///<[set/get] Set specified display Layer HWC palette.
-	VDDO_DISPLAYER_HWC_FONT,                     ///<[set/get] Set specified display Layer HWC font.
-	VDDO_DISPLAYER_H_BILINEAR,                   ///<[set/get] Set specified display Layer scale horizontal bilinear Enable/Disable.
-	VDDO_DISPLAYER_V_BILINEAR,                   ///<[set/get] Set specified display Layer scale vertical bilinear Enable/Disable.
-	VDDO_DISPLAYER_MG_CONFIG,                    ///< [set/get] Set the MG rect. size
-	VDDO_DISPLAYER_AFBCEN,                      ///<[set/get] Set specified display Layer AFBC Enable/Disable.
-	VDDO_DISPLAYER_AFBCCTRL,                      ///<[set/get] Set specified display Layer AFBC control.
+
 	ENUM_DUMMY4WORD(KDRV_VDDO_PARAM_ID)
 } KDRV_VDDO_PARAM_ID;
 

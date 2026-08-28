@@ -28,7 +28,6 @@
  *    all clock and reset signals to the HW block.
  */
 
-#include <cpu_func.h>
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
@@ -38,34 +37,19 @@
 #include <phy.h>
 #include <asm/io.h>
 #include <malloc.h>
-#include <asm/arch/gpio.h>
+#include <asm/gpio.h>
 #include <asm/arch/IOAddress.h>
 #include <asm/arch/hardware.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/nvt_common.h>
 #include <linux/libfdt.h>
-#include <linux/delay.h>
 
-#define ETHVERSION "1.0.0.1"
+#define ETHVERSION "1.0.0.4"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
 #define PLLREGWR_MASK        0x00000008
 #define REG32_MASK          0x00000000FFFFFFFF
-#define PHYAD                0x1
-
-#define phy_set_mdio_addr(base_addr, phyaddr) do { \
-	unsigned long v; \
-	v = readl((void *)((base_addr) + 0x3800));\
-	v |= (0x1 << 1); \
-	writel(v, (void *)((base_addr) + 0x3800));\
-	v = readl((void *)((base_addr) + 0x381C));\
-	v |= (phyaddr << 0); \
-	writel(v, (void *)((base_addr) + 0x381C));\
-	v = readl((void *)((base_addr) + 0x3800));\
-	v &= ~(0x1 << 1); \
-	writel(v, (void *)((base_addr) + 0x3800));\
-} while(0)
 
 #define phy_sw_reset_enable(base_addr) do { \
         unsigned long v; \
@@ -324,13 +308,12 @@ struct eqos_desc {
 #define EQOS_DESC3_LD		BIT(28)
 #define EQOS_DESC3_BUF1V	BIT(24)
 
-//#define debug(fmt, args...)	printf(fmt, ##args)
 struct eqos_config {
 	bool reg_access_always_ok;
 };
 
 struct eqos_priv {
-	struct udevice *dev;
+	struct eth_device *dev;
 	const struct eqos_config *config;
 	unsigned long regs;
 	struct eqos_mac_regs *mac_regs;
@@ -375,7 +358,7 @@ static void *eqos_alloc_descs(unsigned int num)
 {
 #ifdef CONFIG_SYS_NONCACHED_MEMORY
 	return (void *)noncached_alloc(EQOS_DESCRIPTORS_SIZE,
-				       EQOS_DESCRIPTOR_ALIGN);
+				      EQOS_DESCRIPTOR_ALIGN);
 #else
 	return memalign(EQOS_DESCRIPTOR_ALIGN, EQOS_DESCRIPTORS_SIZE);
 #endif
@@ -475,14 +458,14 @@ static int eqos_mdio_read(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 
 	val = readl(&eqos->mac_regs->mdio_address);
 	val &= EQOS_MAC_MDIO_ADDRESS_SKAP |
-	       EQOS_MAC_MDIO_ADDRESS_C45E;
+		EQOS_MAC_MDIO_ADDRESS_C45E;
 	val |= (mdio_addr << EQOS_MAC_MDIO_ADDRESS_PA_SHIFT) |
-	       (mdio_reg << EQOS_MAC_MDIO_ADDRESS_RDA_SHIFT) |
-	       (mdc_div <<
-		EQOS_MAC_MDIO_ADDRESS_CR_SHIFT) |
-	       (EQOS_MAC_MDIO_ADDRESS_GOC_READ <<
-		EQOS_MAC_MDIO_ADDRESS_GOC_SHIFT) |
-	       EQOS_MAC_MDIO_ADDRESS_GB;
+		(mdio_reg << EQOS_MAC_MDIO_ADDRESS_RDA_SHIFT) |
+		(mdc_div <<
+		 EQOS_MAC_MDIO_ADDRESS_CR_SHIFT) |
+		(EQOS_MAC_MDIO_ADDRESS_GOC_READ <<
+		 EQOS_MAC_MDIO_ADDRESS_GOC_SHIFT) |
+		EQOS_MAC_MDIO_ADDRESS_GB;
 	writel(val, &eqos->mac_regs->mdio_address);
 
 	udelay(10);
@@ -521,14 +504,14 @@ static int eqos_mdio_write(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 
 	val = readl(&eqos->mac_regs->mdio_address);
 	val &= EQOS_MAC_MDIO_ADDRESS_SKAP |
-	       EQOS_MAC_MDIO_ADDRESS_C45E;
+		EQOS_MAC_MDIO_ADDRESS_C45E;
 	val |= (mdio_addr << EQOS_MAC_MDIO_ADDRESS_PA_SHIFT) |
-	       (mdio_reg << EQOS_MAC_MDIO_ADDRESS_RDA_SHIFT) |
-	       (mdc_div <<
-		EQOS_MAC_MDIO_ADDRESS_CR_SHIFT) |
-	       (EQOS_MAC_MDIO_ADDRESS_GOC_WRITE <<
-		EQOS_MAC_MDIO_ADDRESS_GOC_SHIFT) |
-	       EQOS_MAC_MDIO_ADDRESS_GB;
+		(mdio_reg << EQOS_MAC_MDIO_ADDRESS_RDA_SHIFT) |
+		(mdc_div <<
+		 EQOS_MAC_MDIO_ADDRESS_CR_SHIFT) |
+		(EQOS_MAC_MDIO_ADDRESS_GOC_WRITE <<
+		 EQOS_MAC_MDIO_ADDRESS_GOC_SHIFT) |
+		EQOS_MAC_MDIO_ADDRESS_GB;
 	writel(val, &eqos->mac_regs->mdio_address);
 
 	udelay(10);
@@ -542,9 +525,9 @@ static int eqos_mdio_write(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 	return 0;
 }
 
-static int eqos_set_full_duplex(struct udevice *dev)
+static int eqos_set_full_duplex(struct eth_device *dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = dev->priv;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -553,9 +536,9 @@ static int eqos_set_full_duplex(struct udevice *dev)
 	return 0;
 }
 
-static int eqos_set_half_duplex(struct udevice *dev)
+static int eqos_set_half_duplex(struct eth_device *dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = dev->priv;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -568,9 +551,9 @@ static int eqos_set_half_duplex(struct udevice *dev)
 	return 0;
 }
 
-static int eqos_set_gmii_speed(struct udevice *dev)
+static int eqos_set_gmii_speed(struct eth_device *dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = dev->priv;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -580,9 +563,9 @@ static int eqos_set_gmii_speed(struct udevice *dev)
 	return 0;
 }
 
-static int eqos_set_mii_speed_100(struct udevice *dev)
+static int eqos_set_mii_speed_100(struct eth_device *dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = dev->priv;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -592,9 +575,9 @@ static int eqos_set_mii_speed_100(struct udevice *dev)
 	return 0;
 }
 
-static int eqos_set_mii_speed_10(struct udevice *dev)
+static int eqos_set_mii_speed_10(struct eth_device *dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = dev->priv;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -604,9 +587,9 @@ static int eqos_set_mii_speed_10(struct udevice *dev)
 	return 0;
 }
 
-static int eqos_adjust_link(struct udevice *dev)
+static int eqos_adjust_link(struct eth_device *dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = dev->priv;
 	int ret;
 
 	debug("%s(dev=%p):\n", __func__, dev);
@@ -642,10 +625,9 @@ static int eqos_adjust_link(struct udevice *dev)
 	return 0;
 }
 
-static int eqos_write_hwaddr(struct udevice *dev)
+static int eqos_write_hwaddr(struct eth_device *eth_dev)
 {
-	struct eth_pdata *plat = dev_get_plat(dev);
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = eth_dev->priv;
 	uint32_t val;
 
 	/*
@@ -674,27 +656,27 @@ static int eqos_write_hwaddr(struct udevice *dev)
 		return 0;
 
 	/* Update the MAC address */
-	val = (plat->enetaddr[5] << 8) |
-	      (plat->enetaddr[4]);
+	val = (eth_dev->enetaddr[5] << 8) |
+		(eth_dev->enetaddr[4]);
 	writel(val, &eqos->mac_regs->address0_high);
-	val = (plat->enetaddr[3] << 24) |
-	      (plat->enetaddr[2] << 16) |
-	      (plat->enetaddr[1] << 8) |
-	      (plat->enetaddr[0]);
+	val = (eth_dev->enetaddr[3] << 24) |
+		(eth_dev->enetaddr[2] << 16) |
+		(eth_dev->enetaddr[1] << 8) |
+		(eth_dev->enetaddr[0]);
 	writel(val, &eqos->mac_regs->address0_low);
 
 	return 0;
 }
 
-static int eqos_start(struct udevice *dev)
+static int eqos_start(struct eth_device *eth_dev, bd_t *bis)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = eth_dev->priv;
 	int ret, i;
 	u32 val, tx_fifo_sz, rx_fifo_sz, tqs, rqs, pbl;
 	ulong last_rx_desc;
-	ulong addr;
+    ulong addr;
 
-	debug("%s(dev=%p):\n", __func__, dev);
+	debug("%s(eth_dev=%p):\n", __func__, eth_dev);
 
 	if (!eqos->phy) {
 		ret = -1;
@@ -726,7 +708,7 @@ static int eqos_start(struct udevice *dev)
 		goto err;
 	}
 
-	ret = eqos_adjust_link(dev);
+	ret = eqos_adjust_link(eth_dev);
 	if (ret < 0) {
 		pr_err("eqos_adjust_link() failed: %d", ret);
 		goto err;
@@ -752,9 +734,9 @@ static int eqos_start(struct udevice *dev)
 	/* Transmit/Receive queue fifo size; use all RAM for 1 queue */
 	val = readl(&eqos->mac_regs->hw_feature1);
 	tx_fifo_sz = (val >> EQOS_MAC_HW_FEATURE1_TXFIFOSIZE_SHIFT) &
-		     EQOS_MAC_HW_FEATURE1_TXFIFOSIZE_MASK;
+		EQOS_MAC_HW_FEATURE1_TXFIFOSIZE_MASK;
 	rx_fifo_sz = (val >> EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_SHIFT) &
-		     EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_MASK;
+		EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_MASK;
 
 	/*
 	 * r/tx_fifo_sz is encoded as log2(n / 128). Undo that by shifting.
@@ -826,7 +808,7 @@ static int eqos_start(struct udevice *dev)
 	/* Set TX flow control parameters */
 	/* Set Pause Time */
 	setbits_le32(&eqos->mac_regs->q0_tx_flow_ctrl,
-		     0xffff << EQOS_MAC_Q0_TX_FLOW_CTRL_PT_SHIFT);
+		      0xffff << EQOS_MAC_Q0_TX_FLOW_CTRL_PT_SHIFT);
 	setbits_le32(&eqos->mac_regs->q0_tx_flow_ctrl,
 		     0x0 << EQOS_MAC_Q0_TX_FLOW_CTRL_PT_SHIFT);
 //		/* Assign priority for TX flow control */
@@ -855,7 +837,7 @@ static int eqos_start(struct udevice *dev)
 			EQOS_MAC_CONFIGURATION_CST |
 			EQOS_MAC_CONFIGURATION_ACS);
 
-	eqos_write_hwaddr(dev);
+	eqos_write_hwaddr(eth_dev);
 
 	/* Configure DMA */
 
@@ -871,7 +853,7 @@ static int eqos_start(struct udevice *dev)
 			EQOS_DMA_CH0_RX_CONTROL_RBSZ_SHIFT);
 
 	setbits_le32(&eqos->dma_regs->ch0_control,
-		     (EQOS_DMA_CH0_CONTROL_PBLX8 | ((EQOS_DESCRIPTOR_DUMMY / 8) << 18)));
+		     (EQOS_DMA_CH0_CONTROL_PBLX8 | ((EQOS_DESCRIPTOR_DUMMY/8)<<18)));
 
 	/*
 	 * Burst length must be < 1/2 FIFO size.
@@ -895,7 +877,7 @@ static int eqos_start(struct udevice *dev)
 
 	/* DMA performance configuration */
 	val = (2 << EQOS_DMA_SYSBUS_MODE_RD_OSR_LMT_SHIFT) |
-	      EQOS_DMA_SYSBUS_MODE_AALE;
+		EQOS_DMA_SYSBUS_MODE_AALE;
 
 //		val = (2 << EQOS_DMA_SYSBUS_MODE_RD_OSR_LMT_SHIFT) |
 //			EQOS_DMA_SYSBUS_MODE_EAME | EQOS_DMA_SYSBUS_MODE_BLEN16 |
@@ -911,21 +893,21 @@ static int eqos_start(struct udevice *dev)
 		rx_desc->des0 = (u32)(ulong)(eqos->rx_dma_buf +
 					     (i * EQOS_MAX_PACKET_SIZE));
 		rx_desc->des3 |= EQOS_DESC3_OWN | EQOS_DESC3_BUF1V;
-		eqos_inval_buffer((void *)(uintptr_t)rx_desc->des0, EQOS_MAX_PACKET_SIZE);
+        eqos_inval_buffer((void *)(uintptr_t)rx_desc->des0, EQOS_MAX_PACKET_SIZE);
 	}
 	flush_cache((unsigned long)eqos->descs, EQOS_DESCRIPTORS_SIZE);
 
-	addr = (ulong)eqos->tx_descs;
-	writel(addr & REG32_MASK, &eqos->dma_regs->ch0_txdesc_list_address);
-	writel( addr >> 32 , &eqos->dma_regs->ch0_txdesc_list_haddress);
-	writel(EQOS_DESCRIPTORS_TX - 1,
-	       &eqos->dma_regs->ch0_txdesc_ring_length);
+    addr = (ulong)eqos->tx_descs;
+    writel( addr & REG32_MASK, &eqos->dma_regs->ch0_txdesc_list_address);
+//    writel( addr >> 32 , &eqos->dma_regs->ch0_txdesc_list_haddress);
+    writel(EQOS_DESCRIPTORS_TX - 1,
+        &eqos->dma_regs->ch0_txdesc_ring_length);
 
-	addr = (ulong)eqos->rx_descs;
-	writel(addr & REG32_MASK, &eqos->dma_regs->ch0_rxdesc_list_address);
-	writel( addr >>32, &eqos->dma_regs->ch0_rxdesc_list_haddress);
-	writel(EQOS_DESCRIPTORS_RX - 1,
-	       &eqos->dma_regs->ch0_rxdesc_ring_length);
+    addr = (ulong)eqos->rx_descs;
+    writel( addr & REG32_MASK, &eqos->dma_regs->ch0_rxdesc_list_address);
+//    writel( addr >>32, &eqos->dma_regs->ch0_rxdesc_list_haddress);
+    writel(EQOS_DESCRIPTORS_RX - 1,
+        &eqos->dma_regs->ch0_rxdesc_ring_length);
 
 	/* Enable everything */
 
@@ -944,7 +926,7 @@ static int eqos_start(struct udevice *dev)
 	 * that's not distinguishable from none of the descriptors being
 	 * available.
 	 */
-	last_rx_desc = (ulong) & (eqos->rx_descs[(EQOS_DESCRIPTORS_RX - 1)]);
+	last_rx_desc = (ulong)&(eqos->rx_descs[(EQOS_DESCRIPTORS_RX - 1)]);
 	writel(last_rx_desc, &eqos->dma_regs->ch0_rxdesc_tail_pointer);
 
 	eqos->started = true;
@@ -953,16 +935,16 @@ static int eqos_start(struct udevice *dev)
 	return 0;
 
 err:
-	printf("ERROR: %s FAILED: %d\n", dev->name, ret);
+	printf("ERROR: %s FAILED: %d\n", eth_dev->name, ret);
 	return ret;
 }
 
-static void eqos_stop(struct udevice *dev)
+static void eqos_stop(struct eth_device *eth_dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = eth_dev->priv;
 	int i;
 
-	debug("%s(dev=%p):\n", __func__, dev);
+	debug("%s(eth_dev=%p):\n", __func__, eth_dev);
 
 	if (!eqos->started)
 		return;
@@ -978,7 +960,7 @@ static void eqos_stop(struct udevice *dev)
 	for (i = 0; i < 1000000; i++) {
 		u32 val = readl(&eqos->mtl_regs->txq0_debug);
 		u32 trcsts = (val >> EQOS_MTL_TXQ0_DEBUG_TRCSTS_SHIFT) &
-			     EQOS_MTL_TXQ0_DEBUG_TRCSTS_MASK;
+			EQOS_MTL_TXQ0_DEBUG_TRCSTS_MASK;
 		u32 txqsts = val & EQOS_MTL_TXQ0_DEBUG_TXQSTS;
 		if ((trcsts != 1) && (!txqsts))
 			break;
@@ -992,9 +974,9 @@ static void eqos_stop(struct udevice *dev)
 	for (i = 0; i < 1000000; i++) {
 		u32 val = readl(&eqos->mtl_regs->rxq0_debug);
 		u32 prxq = (val >> EQOS_MTL_RXQ0_DEBUG_PRXQ_SHIFT) &
-			   EQOS_MTL_RXQ0_DEBUG_PRXQ_MASK;
+			EQOS_MTL_RXQ0_DEBUG_PRXQ_MASK;
 		u32 rxqsts = (val >> EQOS_MTL_RXQ0_DEBUG_RXQSTS_SHIFT) &
-			     EQOS_MTL_RXQ0_DEBUG_RXQSTS_MASK;
+			EQOS_MTL_RXQ0_DEBUG_RXQSTS_MASK;
 		if ((!prxq) && (!rxqsts))
 			break;
 	}
@@ -1005,13 +987,13 @@ static void eqos_stop(struct udevice *dev)
 
 }
 
-static int eqos_send(struct udevice *dev, void *packet, int length)
+static int eqos_send(struct eth_device *eth_dev, void *packet, int length)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = eth_dev->priv;
 	struct eqos_desc *tx_desc;
 	int i;
 
-	debug("%s(dev=%p, packet=%p, length=%d):\n", __func__, dev, packet,
+	debug("%s(eth_dev=%p, packet=%p, length=%d):\n", __func__, eth_dev, packet,
 	      length);
 
 	memcpy(eqos->tx_dma_buf, packet, length);
@@ -1036,7 +1018,8 @@ static int eqos_send(struct udevice *dev, void *packet, int length)
 
 	for (i = 0; i < 1000000; i++) {
 		eqos_inval_desc(tx_desc);
-		if (!(readl(&tx_desc->des3) & EQOS_DESC3_OWN)) {
+		if (!(readl(&tx_desc->des3) & EQOS_DESC3_OWN))
+		{
 			return 0;
 		}
 		udelay(1);
@@ -1047,30 +1030,23 @@ static int eqos_send(struct udevice *dev, void *packet, int length)
 	return -ETIMEDOUT;
 }
 
-static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
+static int eqos_free_pkt(struct eth_device *eth_dev, uchar *packet, int length)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = eth_dev->priv;
 	uchar *packet_expected;
 	struct eqos_desc *rx_desc;
 
 	debug("%s(rx_desc_idx=%d, packet=%p, length=%d)\n", __func__, eqos->rx_desc_idx, packet, length);
 
 	packet_expected = eqos->rx_dma_buf +
-			  (eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
+		(eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
 	if (packet != packet_expected) {
 		debug("%s: Unexpected packet (expected %p)\n", __func__,
 		      packet_expected);
 		return -EINVAL;
 	}
 
-	eqos_inval_buffer((void *)packet, length);
-
 	rx_desc = &(eqos->rx_descs[eqos->rx_desc_idx]);
-
-	rx_desc->des0 = 0;
-	mb();
-	eqos_flush_desc(rx_desc);
-	eqos_inval_buffer((void *)packet, length);
 	rx_desc->des0 = (u32)(ulong)packet;
 	rx_desc->des1 = 0;
 	rx_desc->des2 = 0;
@@ -1091,55 +1067,39 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 }
 
 
-static int eqos_recv(struct udevice *dev, int flags, uchar **packetp)
+static int eqos_recv(struct eth_device *eth_dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = eth_dev->priv;
 	struct eqos_desc *rx_desc;
 	int length;
-	/*	int i, j=0;
-		struct ethernet_hdr *et;
-		int eth_proto;
-	*/
-	debug("%s(dev=%p: des indx 0x%x, flags=%x), DESC_SIZE=%d\n", __func__, dev, eqos->rx_desc_idx, flags, EQOS_DESCRIPTOR_SIZE);
+	uintptr_t packetp;
+
+	debug("%s(dev=%p: des indx 0x%x\n", __func__, eth_dev, eqos->rx_desc_idx);
 
 	rx_desc = &(eqos->rx_descs[eqos->rx_desc_idx]);
-//	eqos_inval_desc(rx_desc);
-	eqos_inval_buffer((void *)rx_desc, EQOS_DESCRIPTOR_SIZE);
+	eqos_inval_buffer((void*)rx_desc, EQOS_DESCRIPTOR_SIZE);
 
-	debug("(desc [0x%x][0x%x][0x%x][0x%x])\n", rx_desc->des0, rx_desc->des1, rx_desc->des2, rx_desc->des3);
 	if (rx_desc->des3 & EQOS_DESC3_OWN) {
 		debug("%s: RX packet not available\n", __func__);
 		return -EAGAIN;
 	}
 
-	*packetp = (uchar *) eqos->rx_dma_buf +
-		   (eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
-//	debug("%s: rx_dma_buf=%p, size:%d\n", __func__, eqos->rx_dma_buf, eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
+	packetp = (uintptr_t) eqos->rx_dma_buf +
+		(eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE);
 	length = rx_desc->des3 & 0x7fff;
-//	debug("len=%d *packetp = %p rx_dma = %p\n", length, *packetp, eqos->rx_dma_buf +(eqos->rx_desc_idx * EQOS_MAX_PACKET_SIZE) );
 
-	eqos_inval_buffer((void *)*packetp, EQOS_MAX_PACKET_SIZE);
+	eqos_inval_buffer((void*)packetp, EQOS_MAX_PACKET_SIZE);
 	mb();
+	net_process_received_packet((void*)packetp, length);
 
-	/* debug message */
-	/*	et = (struct ethernet_hdr *)*packetp;
-		eth_proto = ntohs(et->et_protlen);
-		printf("%s,%d eth_proto_len=0x%x\n",__func__,__LINE__, eth_proto);
+	eqos_free_pkt(eth_dev, (void*)packetp, length);
 
-		for (i = 0; i < 6; i++)
-			printk("%#.2x%s", et->et_src[i], (((i == 5) ? "" : ":")));
-		printf("\nSrc MAC addr(6 bytes)\n");
-		for (i = 0; i <= 5; i++)
-			printk("%#.2x%s", et->et_dest[i], (((i == 5) ? "" : ":")));
-
-		printf("*************************************************************\n\n");
-	*/
 	return length;
 }
 
-static int eqos_probe_resources_core(struct udevice *dev)
+static int eqos_probe_resources_core(struct eth_device *dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = dev->priv;
 	int ret;
 
 	debug("%s(dev=%p):\n", __func__, dev);
@@ -1147,17 +1107,16 @@ static int eqos_probe_resources_core(struct udevice *dev)
 	eqos->descs = eqos_alloc_descs(EQOS_DESCRIPTORS_TX +
 				       EQOS_DESCRIPTORS_RX);
 
-	if (!eqos->descs || !IS_ALIGNED((uintptr_t)eqos->descs, EQOS_DESCRIPTOR_ALIGN)) {
+	if (!eqos->descs) {
 		debug("%s: eqos_alloc_descs() failed\n", __func__);
 		ret = -ENOMEM;
 		goto err;
 	}
 
-
-	if ((ulong)eqos->descs > REG32_MASK) {
-		pr_err("<---------Warn desc alloc over 32 bit -------------> %p \r\n", eqos->descs);
-		goto err_free_tx_dma_buf;
-	}
+    if((ulong)eqos->descs > REG32_MASK ){
+        pr_err("<---------Warn desc alloc over 32 bit -------------> %p \r\n", eqos->descs);
+        goto err_free_tx_dma_buf;
+    }
 
 	eqos->tx_descs = (struct eqos_desc *)eqos->descs;
 	eqos->rx_descs = (eqos->tx_descs + EQOS_DESCRIPTORS_TX);
@@ -1165,30 +1124,30 @@ static int eqos_probe_resources_core(struct udevice *dev)
 	      eqos->rx_descs);
 
 	eqos->tx_dma_buf = memalign(EQOS_BUFFER_ALIGN, EQOS_MAX_PACKET_SIZE);
-	if (!eqos->tx_dma_buf || !IS_ALIGNED((uintptr_t)eqos->tx_dma_buf, EQOS_BUFFER_ALIGN)) {
+	if (!eqos->tx_dma_buf) {
 		debug("%s: memalign(tx_dma_buf) failed\n", __func__);
 		ret = -ENOMEM;
 		goto err_free_descs;
 	}
-	debug("%s: tx_dma_buf=%p, size:%d\n", __func__, eqos->tx_dma_buf, EQOS_MAX_PACKET_SIZE);
+	debug("%s: tx_dma_buf=%p\n", __func__, eqos->tx_dma_buf);
 
-	if ((ulong)eqos->tx_dma_buf > REG32_MASK) {
-		pr_err("<---------fail Tx Buffer alloc over 32 bit -------------> %p \r\n", eqos->tx_dma_buf);
-		goto err_free_tx_dma_buf;
-	}
+    if((ulong)eqos->tx_dma_buf > REG32_MASK ){
+        pr_err("<---------fail Tx Buffer alloc over 32 bit -------------> %p \r\n", eqos->tx_dma_buf);
+        goto err_free_tx_dma_buf;
+    }
 
 	eqos->rx_dma_buf = memalign(EQOS_BUFFER_ALIGN, EQOS_RX_BUFFER_SIZE);
-	if (!eqos->rx_dma_buf || !IS_ALIGNED((uintptr_t)eqos->rx_dma_buf, EQOS_BUFFER_ALIGN)) {
+	if (!eqos->rx_dma_buf) {
 		debug("%s: memalign(rx_dma_buf) failed\n", __func__);
 		ret = -ENOMEM;
 		goto err_free_tx_dma_buf;
 	}
-	debug("%s: rx_dma_buf=%p, size:%d\n", __func__, eqos->rx_dma_buf, EQOS_RX_BUFFER_SIZE);
+	debug("%s: rx_dma_buf=%p\n", __func__, eqos->rx_dma_buf);
 
-	if ((ulong)eqos->tx_dma_buf > REG32_MASK) {
-		pr_err("<---------fail Rx Buffer alloc over 32 bit -------------> %p \r\n", eqos->rx_dma_buf);
-		goto err_free_rx_dma_buf;
-	}
+    if((ulong)eqos->tx_dma_buf > REG32_MASK ){
+        pr_err("<---------fail Rx Buffer alloc over 32 bit -------------> %p \r\n", eqos->rx_dma_buf);
+        goto err_free_rx_dma_buf;
+    }
 
 	eqos->rx_pkt = malloc(EQOS_MAX_PACKET_SIZE);
 	if (!eqos->rx_pkt) {
@@ -1197,9 +1156,6 @@ static int eqos_probe_resources_core(struct udevice *dev)
 		goto err_free_rx_dma_buf;
 	}
 	debug("%s: rx_pkt=%p\n", __func__, eqos->rx_pkt);
-
-	eqos_inval_buffer((void *)eqos->rx_dma_buf,
-			  EQOS_MAX_PACKET_SIZE * EQOS_DESCRIPTORS_RX);
 
 	debug("%s: OK\n", __func__);
 	return 0;
@@ -1216,11 +1172,11 @@ err:
 	return ret;
 }
 
-static int eqos_remove_resources_core(struct udevice *dev)
+static int eqos_remove_resources_core(struct eth_device *eth_dev)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_priv *eqos = eth_dev->priv;
 
-	debug("%s(dev=%p):\n", __func__, dev);
+	debug("%s(dev=%p):\n", __func__, eth_dev);
 
 	free(eqos->rx_pkt);
 	free(eqos->rx_dma_buf);
@@ -1236,129 +1192,129 @@ static void eth_phy_poweron(unsigned long base_addr)
 	unsigned long reg;
 
 	reg = readl(base_addr + 0x3800 + 0xF8);
-	writel(reg | (1 << 7), base_addr + 0x3800 + 0xF8);
+	writel(reg | (1<<7), base_addr + 0x3800 + 0xF8);
 	udelay(20);
 	reg = readl(base_addr + 0x3800 + 0xC8);
-	writel(reg & (~(1 << 0)), base_addr + 0x3800 + 0xC8);
+	writel(reg & (~(1<<0)), base_addr + 0x3800 + 0xC8);
 	udelay(200);
 	reg = readl(base_addr + 0x3800 + 0xC8);
-	writel(reg & (~(1 << 1)), base_addr + 0x3800 + 0xC8);
+	writel(reg & (~(1<<1)), base_addr + 0x3800 + 0xC8);
 	udelay(250);
 	reg = readl(base_addr + 0x3800 + 0x2E8);
-	writel(reg & (~(1 << 0)), base_addr + 0x3800 + 0x2E8);
+	writel(reg & (~(1<<0)), base_addr + 0x3800 + 0x2E8);
 	reg = readl(base_addr + 0x3800 + 0xCC);
-	writel(reg & (~(1 << 0)), base_addr + 0x3800 + 0xCC);
+	writel(reg & (~(1<<0)), base_addr + 0x3800 + 0xCC);
 	reg = readl(base_addr + 0x3800 + 0xDC);
-	writel(reg | (1 << 0), base_addr + 0x3800 + 0xDC);
+	writel(reg | (1<<0), base_addr + 0x3800 + 0xDC);
 	reg = readl(base_addr + 0x3800 + 0x9C);
-	writel(reg & (~(1 << 0)), base_addr + 0x3800 + 0x9C);
+	writel(reg & (~(1<<0)), base_addr + 0x3800 + 0x9C);
 }
 
 typedef enum {
-	PIN_ETH_CFG_NONE,
+    PIN_ETH_CFG_NONE,
 
-	PIN_ETH_CFG_RGMII_1ST_PINMUX  = 0x001,    ///< Enable RGMII.
-	PIN_ETH_CFG_RGMII_2ND_PINMUX  = 0x002,    ///< Enable RGMII.
+    PIN_ETH_CFG_RGMII_1ST_PINMUX  = 0x001,    ///< Enable RGMII.
+    PIN_ETH_CFG_RGMII_2ND_PINMUX  = 0x002,    ///< Enable RGMII.
 
-	PIN_ETH_CFG_RMII_1ST_PINMUX   = 0x010,    ///< Enable RMII.
-	PIN_ETH_CFG_RMII_2ND_PINMUX   = 0x020,    ///< Enable RMII.
+    PIN_ETH_CFG_RMII_1ST_PINMUX   = 0x010,    ///< Enable RMII.
+    PIN_ETH_CFG_RMII_2ND_PINMUX   = 0x020,    ///< Enable RMII.
 
-	PIN_ETH_CFG_REFCLK_PINMUX     = 0x100,    ///< Enable REFCLK. (E_GPIO[0] or S_GPIO[0])
-	PIN_ETH_CFG_RST_PINMUX        = 0x200,    ///< Enable RST. (E_GPIO[1] or S_GPIO[1])
-	PIN_ETH_CFG_MDC_MDIO_PINMUX   = 0x400,    ///< Enable MDC/MDIO. (E_GPIO[15..14] or S_GPIO[15..14])
+    PIN_ETH_CFG_REFCLK_PINMUX     = 0x100,    ///< Enable REFCLK. (E_GPIO[0] or S_GPIO[0])
+    PIN_ETH_CFG_RST_PINMUX        = 0x200,    ///< Enable RST. (E_GPIO[1] or S_GPIO[1])
+    PIN_ETH_CFG_MDC_MDIO_PINMUX   = 0x400,    ///< Enable MDC/MDIO. (E_GPIO[15..14] or S_GPIO[15..14])
 
-	PIN_ETH2_CFG_RGMII_1ST_PINMUX  = 0x1000,  ///< Enable RGMII.
-	PIN_ETH2_CFG_RGMII_2ND_PINMUX  = 0x2000,  ///< Enable RGMII.
+    PIN_ETH2_CFG_RGMII_1ST_PINMUX  = 0x1000,  ///< Enable RGMII.
+    PIN_ETH2_CFG_RGMII_2ND_PINMUX  = 0x2000,  ///< Enable RGMII.
 
-	PIN_ETH2_CFG_RMII_1ST_PINMUX   = 0x10000, ///< Enable RMII.
-	PIN_ETH2_CFG_RMII_2ND_PINMUX   = 0x20000, ///< Enable RMII.
+    PIN_ETH2_CFG_RMII_1ST_PINMUX   = 0x10000, ///< Enable RMII.
+    PIN_ETH2_CFG_RMII_2ND_PINMUX   = 0x20000, ///< Enable RMII.
 
-	PIN_ETH2_CFG_REFCLK_PINMUX     = 0x100000,///< Enable REFCLK. (E_GPIO[16] or S_GPIO[18])
-	PIN_ETH2_CFG_RST_PINMUX        = 0x200000,///< Enable RST. (E_GPIO[17] or S_GPIO[19])
-	PIN_ETH2_CFG_MDC_MDIO_PINMUX   = 0x400000,///< Enable MDC/MDIO. (E_GPIO[31..30] or S_GPIO[33..32])
+    PIN_ETH2_CFG_REFCLK_PINMUX     = 0x100000,///< Enable REFCLK. (E_GPIO[16] or S_GPIO[18])
+    PIN_ETH2_CFG_RST_PINMUX        = 0x200000,///< Enable RST. (E_GPIO[17] or S_GPIO[19])
+    PIN_ETH2_CFG_MDC_MDIO_PINMUX   = 0x400000,///< Enable MDC/MDIO. (E_GPIO[31..30] or S_GPIO[33..32])
 
-	PIN_ETH_CFG_ACT_LED_1ST_PINMUX  = 0x1000000, ///< ETH_ACT_LED (J_GPIO[1])
-	PIN_ETH_CFG_ACT_LED_2ND_PINMUX  = 0x2000000, ///< ETH_2_ACT_LED (D_GPIO[8])
-	PIN_ETH_CFG_LINK_LED_1ST_PINMUX = 0x4000000, ///< ETH_LINK_LED (J_GPIO[2])
-	PIN_ETH_CFG_LINK_LED_2ND_PINMUX = 0x8000000, ///< ETH_2_LINK_LED (D_GPIO[9])
+    PIN_ETH_CFG_ACT_LED_1ST_PINMUX  = 0x1000000, ///< ETH_ACT_LED (J_GPIO[1])
+    PIN_ETH_CFG_ACT_LED_2ND_PINMUX  = 0x2000000, ///< ETH_2_ACT_LED (D_GPIO[8])
+    PIN_ETH_CFG_LINK_LED_1ST_PINMUX = 0x4000000, ///< ETH_LINK_LED (J_GPIO[2])
+    PIN_ETH_CFG_LINK_LED_2ND_PINMUX = 0x8000000, ///< ETH_2_LINK_LED (D_GPIO[9])
 
-	PIN_ETH_CFG_PHY_SEL             = 0x10000000, ///< ETH PHY Sel from GMAC0 or GMAC1
+    PIN_ETH_CFG_PHY_SEL             = 0x10000000, ///< ETH PHY Sel from GMAC0 or GMAC1
 
-} PIN_ETH_CFG;
+}PIN_ETH_CFG;
 
 static void mac0_clk_en(phy_interface_t phy_intf)
 {
 
 	UINT reg;
-	/*
+/*
 
-		reg = readl(IOADDR_CG_REG_BASE + 0x54);
-		reg &= ~(1<<1);	// assert ETH0 AXI reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x54);
+	reg = readl(IOADDR_CG_REG_BASE + 0x54);
+	reg &= ~(1<<1);	// assert ETH0 AXI reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x54);
 
-		reg = readl(IOADDR_CG_REG_BASE + 0x58);
-		reg &= ~(1<<9);	// assert ETH0 module reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x58);
+	reg = readl(IOADDR_CG_REG_BASE + 0x58);
+	reg &= ~(1<<9);	// assert ETH0 module reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x58);
 
-		reg = readl(IOADDR_CG_REG_BASE + 0xE4);
-		reg &= ~(1<<8);	// assert ETH0 glue reset
-		writel(reg, IOADDR_CG_REG_BASE + 0xE4);
+	reg = readl(IOADDR_CG_REG_BASE + 0xE4);
+	reg &= ~(1<<8);	// assert ETH0 glue reset
+	writel(reg, IOADDR_CG_REG_BASE + 0xE4);
 
-		reg = readl(IOADDR_CG_REG_BASE + 0x60);
-		reg &= ~(1<<16);// release ETH0 bus clk gating
-		writel(reg, IOADDR_CG_REG_BASE + 0x60);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x70);
-		reg &= ~(1<<9);// release ETH0 gating
-		writel(reg, IOADDR_CG_REG_BASE + 0x70);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x74);
-		reg &= ~(1<<5);// release GPIO2 gating
-		writel(reg, IOADDR_CG_REG_BASE + 0x74);
-
-		switch (phy_intf) {
-		case PHY_INTERFACE_MODE_RMII:
-			break;
-		case PHY_INTERFACE_MODE_RGMII:
-			break;
-		default: // embedded phy (MII)
-			reg = readl(IOADDR_CG_REG_BASE + 0xE4);
-			reg |= (1<<4);	// REF_CLK_I gating
-			writel(reg, IOADDR_CG_REG_BASE + 0xE4);
-			break;
-		}
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x54);
-		reg |= (1<<1);	// release ETH0 AXI reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x54);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x58);
-		reg |= (1<<9);	// release ETH0 module reset
-		reg |= (1<<29);	// release GPIO2 module reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x58);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0xE4);
-		reg |= (1<<8);	// release ETH0 glue reset
-		writel(reg, IOADDR_CG_REG_BASE + 0xE4);
-	*/
-
-	reg = readl(IOADDR_CG_REG_BASE + 0x0);
-	reg |= (1 << 7);	// ENABLE PLL7
-	writel(reg, IOADDR_CG_REG_BASE + 0x0);
-
-	udelay(10);
+	reg = readl(IOADDR_CG_REG_BASE + 0x60);
+	reg &= ~(1<<16);// release ETH0 bus clk gating
+	writel(reg, IOADDR_CG_REG_BASE + 0x60);
 
 	reg = readl(IOADDR_CG_REG_BASE + 0x70);
-	reg |= (1 << 27);	// ENABLE ETH0 Module CLK
+	reg &= ~(1<<9);// release ETH0 gating
 	writel(reg, IOADDR_CG_REG_BASE + 0x70);
 
-	udelay(10);
+	reg = readl(IOADDR_CG_REG_BASE + 0x74);
+	reg &= ~(1<<5);// release GPIO2 gating
+	writel(reg, IOADDR_CG_REG_BASE + 0x74);
 
-	reg = readl(IOADDR_CG_REG_BASE + 0x94);
-	reg |= (1 << 16);	// realse eth0 rst
+	switch (phy_intf) {
+	case PHY_INTERFACE_MODE_RMII:
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+		break;
+	default: // embedded phy (MII)
+		reg = readl(IOADDR_CG_REG_BASE + 0xE4);
+		reg |= (1<<4);	// REF_CLK_I gating
+		writel(reg, IOADDR_CG_REG_BASE + 0xE4);
+		break;
+	}
+
+	reg = readl(IOADDR_CG_REG_BASE + 0x54);
+	reg |= (1<<1);	// release ETH0 AXI reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x54);
+
+	reg = readl(IOADDR_CG_REG_BASE + 0x58);
+	reg |= (1<<9);	// release ETH0 module reset
+	reg |= (1<<29);	// release GPIO2 module reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x58);
+
+	reg = readl(IOADDR_CG_REG_BASE + 0xE4);
+	reg |= (1<<8);	// release ETH0 glue reset
+	writel(reg, IOADDR_CG_REG_BASE + 0xE4);
+*/
+
+    reg = readl(IOADDR_CG_REG_BASE + 0x0);
+	reg |= (1<<7);	// ENABLE PLL7
+	writel(reg, IOADDR_CG_REG_BASE + 0x0);
+
+    udelay(10);
+
+    reg = readl(IOADDR_CG_REG_BASE + 0x70);
+	reg |= (1<<27);	// ENABLE ETH0 Module CLK
+	writel(reg, IOADDR_CG_REG_BASE + 0x70);
+
+    udelay(10);
+
+    reg = readl(IOADDR_CG_REG_BASE + 0x94);
+	reg |= (1<<16);	// realse eth0 rst
 	writel(reg, IOADDR_CG_REG_BASE + 0x94);
 
-	udelay(10);
+    udelay(10);
 
 
 
@@ -1368,75 +1324,75 @@ static void mac0_clk_en(phy_interface_t phy_intf)
 static void mac1_clk_en(phy_interface_t phy_intf)
 {
 	UINT reg;
-	/*
-		reg = readl(IOADDR_CG_REG_BASE + 0x54);
-		reg &= ~(1<<2);	// assert ETH1 AXI reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x54);
+/*
+	reg = readl(IOADDR_CG_REG_BASE + 0x54);
+	reg &= ~(1<<2);	// assert ETH1 AXI reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x54);
 
-		reg = readl(IOADDR_CG_REG_BASE + 0x58);
-		reg &= ~(1<<10);// assert ETH1 module reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x58);
+	reg = readl(IOADDR_CG_REG_BASE + 0x58);
+	reg &= ~(1<<10);// assert ETH1 module reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x58);
 
-		reg = readl(IOADDR_CG_REG_BASE + 0xE4);
-		reg &= ~(1<<24);// assert ETH1 glue reset
-		writel(reg, IOADDR_CG_REG_BASE + 0xE4);
+	reg = readl(IOADDR_CG_REG_BASE + 0xE4);
+	reg &= ~(1<<24);// assert ETH1 glue reset
+	writel(reg, IOADDR_CG_REG_BASE + 0xE4);
 
-		reg = readl(IOADDR_CG_REG_BASE + 0x60);
-		reg &= ~(1<<17);// release ETH1 bus clk gating
-		writel(reg, IOADDR_CG_REG_BASE + 0x60);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x70);
-		reg &= ~(1<<10);// release ETH1 gating
-		writel(reg, IOADDR_CG_REG_BASE + 0x70);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x74);
-		reg &= ~(1<<4);// release GPIO1 gating
-		writel(reg, IOADDR_CG_REG_BASE + 0x74);
-
-		switch (phy_intf) {
-		case PHY_INTERFACE_MODE_RMII:
-			break;
-		case PHY_INTERFACE_MODE_RGMII:
-			break;
-		default: // embedded phy (MII)
-			reg = readl(IOADDR_CG_REG_BASE + 0xE4);
-			reg &= ~(1<<20);	// REF_CLK_I gating
-			writel(reg, IOADDR_CG_REG_BASE + 0xE4);
-			break;
-		}
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x54);
-		reg |= (1<<2);	// release ETH1 AXI reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x54);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0x58);
-		reg |= (1<<10);	// release ETH1 module reset
-		reg |= (1<<28);	// release GPIO1 module reset
-		writel(reg, IOADDR_CG_REG_BASE + 0x58);
-
-		reg = readl(IOADDR_CG_REG_BASE + 0xE4);
-		reg |= (1<<24);	// release ETH1 glue reset
-		writel(reg, IOADDR_CG_REG_BASE + 0xE4);
-
-		*/
-
-	reg = readl(IOADDR_CG_REG_BASE + 0x0);
-	reg |= (1 << 7);	// ENABLE PLL7
-	writel(reg, IOADDR_CG_REG_BASE + 0x0);
-
-	udelay(10);
+	reg = readl(IOADDR_CG_REG_BASE + 0x60);
+	reg &= ~(1<<17);// release ETH1 bus clk gating
+	writel(reg, IOADDR_CG_REG_BASE + 0x60);
 
 	reg = readl(IOADDR_CG_REG_BASE + 0x70);
-	reg |= (1 << 28);	// ENABLE ETH1 Module CLK
+	reg &= ~(1<<10);// release ETH1 gating
 	writel(reg, IOADDR_CG_REG_BASE + 0x70);
 
-	udelay(10);
+	reg = readl(IOADDR_CG_REG_BASE + 0x74);
+	reg &= ~(1<<4);// release GPIO1 gating
+	writel(reg, IOADDR_CG_REG_BASE + 0x74);
 
-	reg = readl(IOADDR_CG_REG_BASE + 0x94);
-	reg |= (1 << 18);	// realse eth1 rst
+	switch (phy_intf) {
+	case PHY_INTERFACE_MODE_RMII:
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+		break;
+	default: // embedded phy (MII)
+		reg = readl(IOADDR_CG_REG_BASE + 0xE4);
+		reg &= ~(1<<20);	// REF_CLK_I gating
+		writel(reg, IOADDR_CG_REG_BASE + 0xE4);
+		break;
+	}
+
+	reg = readl(IOADDR_CG_REG_BASE + 0x54);
+	reg |= (1<<2);	// release ETH1 AXI reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x54);
+
+	reg = readl(IOADDR_CG_REG_BASE + 0x58);
+	reg |= (1<<10);	// release ETH1 module reset
+	reg |= (1<<28);	// release GPIO1 module reset
+	writel(reg, IOADDR_CG_REG_BASE + 0x58);
+
+	reg = readl(IOADDR_CG_REG_BASE + 0xE4);
+	reg |= (1<<24);	// release ETH1 glue reset
+	writel(reg, IOADDR_CG_REG_BASE + 0xE4);
+
+	*/
+
+    reg = readl(IOADDR_CG_REG_BASE + 0x0);
+	reg |= (1<<7);	// ENABLE PLL7
+	writel(reg, IOADDR_CG_REG_BASE + 0x0);
+
+    udelay(10);
+
+    reg = readl(IOADDR_CG_REG_BASE + 0x70);
+	reg |= (1<<28);	// ENABLE ETH1 Module CLK
+	writel(reg, IOADDR_CG_REG_BASE + 0x70);
+
+    udelay(10);
+
+    reg = readl(IOADDR_CG_REG_BASE + 0x94);
+	reg |= (1<<18);	// realse eth1 rst
 	writel(reg, IOADDR_CG_REG_BASE + 0x94);
 
-	udelay(10);
+    udelay(10);
 
 
 }
@@ -1448,36 +1404,36 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 	switch (phy_intf) {
 	case PHY_INTERFACE_MODE_RMII:
 		reg = readl(IOADDR_ETH_REG_BASE + 0x3014);
-		// pre-assume refclk: phy--> mac
+        // pre-assume refclk: phy--> mac
 
-		reg |= 1 << 0;
-		reg &= ~(1 << 4);
-		reg |= (1 << 5);
+        reg |= 1<<0;
+        reg &= ~(1<<4);
+        reg |=  (1<<5);
 
-		reg &= ~(1 << 2); // refclk referenced from pad
-		reg &= ~(0x3 << 30);	// TXD_SRC: RMII
+		reg &= ~(1<<2);// refclk referenced from pad
+		reg &= ~(0x3<<30);	// TXD_SRC: RMII
 		if (ref_clk_out) {
-			reg &= ~(1 << 0);
-			reg |= 1 << 4;
+			reg &= ~(1<<0);
+			reg |= 1<<4;
 		}
 		writel(reg, IOADDR_ETH_REG_BASE + 0x3014);
 
-		reg = readl(IOADDR_ETH_REG_BASE + 0x3004);
-		reg |= (1 << 4);	// select external phy
-		writel(reg, IOADDR_ETH_REG_BASE + 0x3004);
+        reg = readl(IOADDR_ETH_REG_BASE + 0x3004);
+        reg |= (1<<4);	// select external phy
+        writel(reg, IOADDR_ETH_REG_BASE + 0x3004);
 
-	// fall through
+		// fall through
 	case PHY_INTERFACE_MODE_RGMII:
 		if (phy_intf == PHY_INTERFACE_MODE_RGMII) {
 			reg = readl(IOADDR_ETH_REG_BASE + 0x3014);
-			reg &= (0x3 << 30);
-			reg |= (0x1 << 30);	// TXD_SRC: RGMII
-			reg |= (3 << 4); // select external phy
+            reg &= (0x3<<30);
+			reg |= (0x1<<30);	// TXD_SRC: RGMII
+			reg |= (3<<4);// select external phy
 			writel(reg, IOADDR_ETH_REG_BASE + 0x3014);
 		}
 
 		reg = readl(IOADDR_ETH_REG_BASE + 0x3004);
-		reg |= (1 << 4); // select external phy
+        reg |= (1<<4);// select external phy
 
 		writel(reg, IOADDR_ETH_REG_BASE + 0x3004);
 		writel(0x1FF, IOADDR_ETH_REG_BASE + 0x300C);
@@ -1503,11 +1459,10 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 	default:
 
 		reg = readl(IOADDR_ETH_REG_BASE + 0x3004);
-		reg &= ~(0x3 << 4); // select embedded phy
+		reg &= ~(0x3<<4);// select embedded phy
 		writel(reg, IOADDR_ETH_REG_BASE + 0x3004);
 
 		eth_phy_poweron(IOADDR_ETH_REG_BASE);
-		phy_set_mdio_addr(IOADDR_ETH_REG_BASE, PHYAD);
 		// phy setting
 		phy_sw_reset_enable(IOADDR_ETH_REG_BASE);
 		set_break_link_timer(IOADDR_ETH_REG_BASE);
@@ -1518,82 +1473,82 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		break;
 	}
 
-	if (phy_clk > 0) {
-		reg = readl(IOADDR_CG_REG_BASE + 0x74); // CG EXT PHY EN
-		reg |= (1 << 7);
-		writel(reg, IOADDR_CG_REG_BASE + 0x74);
+    if (phy_clk > 0) {
+        reg = readl(IOADDR_CG_REG_BASE + 0x74); // CG EXT PHY EN
+        reg |= (1<<7);
+        writel(reg, IOADDR_CG_REG_BASE + 0x74);
 
-		reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
-		reg |= (1 << 8);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+        reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
+        reg |= (1<<8);
+        writel(reg, IOADDR_TOP_REG_BASE + 0xC);
 
-		if (pin_num == 1) {
-			reg = readl(IOADDR_TOP_REG_BASE + 0xB0); // TOP EXT PHY GPIO FUNCTION NORMAL
-			reg &= ~(1 << 0);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
-		}/*else if(pin_num == 2){
+        if(pin_num == 1){
+            reg = readl(IOADDR_TOP_REG_BASE + 0xB0); // TOP EXT PHY GPIO FUNCTION NORMAL
+            reg &= ~(1<<0);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+        }/*else if(pin_num == 2){
             reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // TOP EXT PHY GPIO FUNCTION NORMAL
             reg &= ~(1<<0);
             writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
         }*/
 
-	}
-	if (pin_num == 1) {
-		// reset external phy
-		gpio_request(E_GPIO(1), "PHY0_RST");
-		gpio_direction_output(E_GPIO(1), 0);
-		mdelay(10);	// assert low at least 10ms
-		gpio_set_value(E_GPIO(1), 1);
-		mdelay(50);	// wait 50ms before access phy register
-		gpio_free(E_GPIO(1));
-	}
-	/*else if(pin_num == 2){
-	    gpio_request(S_GPIO(1), "PHY1_RST");
-	    gpio_direction_output(S_GPIO(1), 0);
-	    mdelay(10);	// assert low at least 10ms
-	    gpio_set_value(S_GPIO(1), 1);
-	    mdelay(50);	// wait 50ms before access phy register
-	    gpio_free(S_GPIO(1));
+    }
+    if(pin_num == 1){
+        // reset external phy
+        gpio_request(E_GPIO(1), "PHY0_RST");
+        gpio_direction_output(E_GPIO(1), 0);
+        mdelay(10);	// assert low at least 10ms
+        gpio_set_value(E_GPIO(1), 1);
+        mdelay(50);	// wait 50ms before access phy register
+        gpio_free(E_GPIO(1));
+    }
+    /*else if(pin_num == 2){
+        gpio_request(S_GPIO(1), "PHY1_RST");
+        gpio_direction_output(S_GPIO(1), 0);
+        mdelay(10);	// assert low at least 10ms
+        gpio_set_value(S_GPIO(1), 1);
+        mdelay(50);	// wait 50ms before access phy register
+        gpio_free(S_GPIO(1));
 	}*/
 }
 
-static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_out, int pin_num)
+static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_out , int pin_num)
 {
 	UINT reg;
 
 	switch (phy_intf) {
 	case PHY_INTERFACE_MODE_RMII:
 		reg = readl(IOADDR_ETH1_REG_BASE + 0x3014);
-		// pre-assume refclk: phy--> mac
+        // pre-assume refclk: phy--> mac
 
-		reg |= 1 << 0;
-		reg &= ~(1 << 4);
-		reg |= (1 << 5);
+        reg |= 1<<0;
+        reg &= ~(1<<4);
+        reg |=  (1<<5);
 
-		reg &= ~(1 << 2); // refclk referenced from pad
-		reg &= ~(0x3 << 30);	// TXD_SRC: RMII
+		reg &= ~(1<<2);// refclk referenced from pad
+		reg &= ~(0x3<<30);	// TXD_SRC: RMII
 		if (ref_clk_out) {
-			reg &= ~(1 << 0);
-			reg |= 1 << 4;
+			reg &= ~(1<<0);
+			reg |= 1<<4;
 		}
 		writel(reg, IOADDR_ETH1_REG_BASE + 0x3014);
 
-		reg = readl(IOADDR_ETH1_REG_BASE + 0x3004);
-		reg |= (1 << 4);	// select external phy
-		writel(reg, IOADDR_ETH1_REG_BASE + 0x3004);
+        reg = readl(IOADDR_ETH1_REG_BASE + 0x3004);
+        reg |= (1<<4);	// select external phy
+        writel(reg, IOADDR_ETH1_REG_BASE + 0x3004);
 
-	// fall through
+		// fall through
 	case PHY_INTERFACE_MODE_RGMII:
 		if (phy_intf == PHY_INTERFACE_MODE_RGMII) {
 			reg = readl(IOADDR_ETH1_REG_BASE + 0x3014);
-			reg &= (0x3 << 30);
-			reg |= (0x1 << 30);	// TXD_SRC: RGMII
-			reg |= (3 << 4); // select external phy
+            reg &= (0x3<<30);
+			reg |= (0x1<<30);	// TXD_SRC: RGMII
+			reg |= (3<<4);// select external phy
 			writel(reg, IOADDR_ETH1_REG_BASE + 0x3014);
 		}
 
 		reg = readl(IOADDR_ETH1_REG_BASE + 0x3004);
-		reg |= (1 << 4); // select external phy
+        reg |= (1<<4);// select external phy
 
 		writel(reg, IOADDR_ETH1_REG_BASE + 0x3004);
 		writel(0x1FF, IOADDR_ETH1_REG_BASE + 0x300C);
@@ -1619,7 +1574,7 @@ static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 	default:
 
 		reg = readl(IOADDR_ETH1_REG_BASE + 0x3004);
-		reg &= ~(0x3 << 4); // select embedded phy
+		reg &= ~(0x3<<4);// select embedded phy
 		writel(reg, IOADDR_ETH1_REG_BASE + 0x3004);
 
 		eth_phy_poweron(IOADDR_ETH1_REG_BASE);
@@ -1633,43 +1588,43 @@ static void extphy1_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		break;
 	}
 
-	if (phy_clk > 0) {
-		reg = readl(IOADDR_CG_REG_BASE + 0x74); // CG EXT PHY EN
-		reg |= (1 << 8);
-		writel(reg, IOADDR_CG_REG_BASE + 0x74);
+    if (phy_clk > 0) {
+        reg = readl(IOADDR_CG_REG_BASE + 0x74); // CG EXT PHY EN
+        reg |= (1<<8);
+        writel(reg, IOADDR_CG_REG_BASE + 0x74);
 
-		reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
-		reg |= (1 << 16);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+        reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
+        reg |= (1<<16);
+        writel(reg, IOADDR_TOP_REG_BASE + 0xC);
 
-		if (pin_num == 1) {
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // TOP EXT PHY GPIO FUNCTION NORMAL
-			reg &= ~(1 << 0);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
-		}/*else if(pin_num == 2){
+        if(pin_num == 1){
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // TOP EXT PHY GPIO FUNCTION NORMAL
+            reg &= ~(1<<0);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
+        }/*else if(pin_num == 2){
             reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // TOP EXT PHY GPIO FUNCTION NORMAL
             reg &= ~(1<<18);
             writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
         }*/
-	}
-	if (pin_num == 1) {
-		// reset external phy
-		gpio_request(S_GPIO(1), "PHY1_RST");
-		gpio_direction_output(S_GPIO(1), 0);
-		mdelay(10);	// assert low at least 10ms
-		gpio_set_value(S_GPIO(1), 1);
-		mdelay(50);	// wait 50ms before access phy register
-		gpio_free(S_GPIO(1));
-	}
-	/*else if(pin_num == 2){
-	    // reset external phy
-	    gpio_request(S_GPIO(1), "PHY1_RST");
-	    gpio_direction_output(S_GPIO(1), 0);
-	    mdelay(10);	// assert low at least 10ms
-	    gpio_set_value(S_GPIO(1), 1);
-	    mdelay(50);	// wait 50ms before access phy register
-	    gpio_free(S_GPIO(1));
-	}*/
+    }
+    if(pin_num == 1){
+        // reset external phy
+        gpio_request(S_GPIO(1), "PHY1_RST");
+        gpio_direction_output(S_GPIO(1), 0);
+        mdelay(10);	// assert low at least 10ms
+        gpio_set_value(S_GPIO(1), 1);
+        mdelay(50);	// wait 50ms before access phy register
+        gpio_free(S_GPIO(1));
+    }
+    /*else if(pin_num == 2){
+        // reset external phy
+        gpio_request(S_GPIO(1), "PHY1_RST");
+        gpio_direction_output(S_GPIO(1), 0);
+        mdelay(10);	// assert low at least 10ms
+        gpio_set_value(S_GPIO(1), 1);
+        mdelay(50);	// wait 50ms before access phy register
+        gpio_free(S_GPIO(1));
+    }*/
 
 }
 
@@ -1679,135 +1634,135 @@ static void mac0_pinmux_en(phy_interface_t phy_intf, int pin_num)
 
 	switch (phy_intf) {
 	case PHY_INTERFACE_MODE_RMII:
-		/*
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
-			reg &= ~((0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<4) | (0x3<<0));
-			writel(reg | 0x01, IOADDR_PAD_REG_BASE + 0xC0);	// PHYCLK (25M) 8 mA, others 4 mA
-			*/
-		if (pin_num == 1) {
+        /*
+		// set pad driving
+		reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
+		reg &= ~((0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<4) | (0x3<<0));
+		writel(reg | 0x01, IOADDR_PAD_REG_BASE + 0xC0);	// PHYCLK (25M) 8 mA, others 4 mA
+		*/
+        if(pin_num == 1){
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
-			reg &= ~(0x7 << 0);
-			writel(reg | (0x2 << 0), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
+            reg &= ~(0x7<<0);
+            writel(reg | (0x2<<0), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 12);
-			writel(reg | (0x1 << 12), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<12);
+            writel(reg| (0x1<<12), IOADDR_TOP_REG_BASE + 0x0C);
 
 			reg = readl(IOADDR_TOP_REG_BASE + 0xB0); // GPIO EN
-			reg &= ~(0x0000CE3C);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+            reg &= ~(0x0000CE3C);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
 
-		}
+        }
 #if 0
-		else if (pin_num == 2) {
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
-			reg &= ~(0x7 << 0);
-			writel(reg | (0x4 << 0), IOADDR_TOP_REG_BASE + 0x0C);
+        else if(pin_num == 2){
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
+            reg &= ~(0x7<<0);
+            writel(reg | (0x4<<0), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 12);
-			writel(reg | (0x2 << 12), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<12);
+            writel(reg| (0x2<<12), IOADDR_TOP_REG_BASE + 0x0C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
-			reg &= ~(0xCE3C);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
-		}
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
+            reg &= ~(0xCE3C);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
+        }
 #endif
 
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
-		/*
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
-			// PHYCLK, TXCLK, TXCTL, TXD 8 mA
-			reg &= ~((0x3<<26) | (0x3<<24) | (0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<0));
-			reg |= (0x1<<26) | (0x1<<24) | (0x1<<22) | (0x1<<20) | (0x1<<18) | (0x1<<0);
-			writel(reg, IOADDR_PAD_REG_BASE + 0xC0);
-			*/
+        /*
+		// set pad driving
+		reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
+		// PHYCLK, TXCLK, TXCTL, TXD 8 mA
+		reg &= ~((0x3<<26) | (0x3<<24) | (0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<0));
+		reg |= (0x1<<26) | (0x1<<24) | (0x1<<22) | (0x1<<20) | (0x1<<18) | (0x1<<0);
+		writel(reg, IOADDR_PAD_REG_BASE + 0xC0);
+		*/
 
 		// set pinmux
-		if (pin_num == 1) {
+        if(pin_num == 1){
 
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0x90);
-			// PHYCLK 8 mA
-			reg &= ~(0xf << 0);
-			reg |= (0x1 << 0);
-			writel(reg, IOADDR_PAD_REG_BASE + 0x90);
-			reg = readl(IOADDR_PAD_REG_BASE + 0x94);
-			// TXCLK, TXCTL, TXD 8 mA
-			reg &= ~((0xf << 20) | (0xf << 16) | (0xf << 12) | (0xf << 8) | (0xf << 4) | (0xf << 0));
-			reg |= (0x1 << 20) | (0x1 << 16) | (0x1 << 12) | (0x1 << 8) | (0x1 << 4) | (0x1 << 0);
-			writel(reg, IOADDR_PAD_REG_BASE + 0x94);
+            // set pad driving
+            reg = readl(IOADDR_PAD_REG_BASE + 0x90);
+            // PHYCLK 8 mA
+            reg &= ~ (0xf<<0);
+            reg |= (0x1<<0);
+            writel(reg, IOADDR_PAD_REG_BASE + 0x90);
+            reg = readl(IOADDR_PAD_REG_BASE + 0x94);
+            // TXCLK, TXCTL, TXD 8 mA
+            reg &= ~((0xf<<20) | (0xf<<16) | (0xf<<12) | (0xf<<8) | (0xf<<4) | (0xf<<0));
+            reg |= (0x1<<20) | (0x1<<16) | (0x1<<12) | (0x1<<8) | (0x1<<4) | (0x1<<0);
+            writel(reg, IOADDR_PAD_REG_BASE + 0x94);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
-			reg &= ~(0x7 << 0);
-			writel(reg | (0x1 << 0), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
+            reg &= ~(0x7<<0);
+            writel(reg | (0x1<<0), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 12);
-			writel(reg | (0x1 << 12), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<12);
+            writel(reg| (0x1<<12), IOADDR_TOP_REG_BASE + 0x0C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xB0); // GPIO EN
-			reg &= ~(0x0000FFFC);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
+            reg = readl(IOADDR_TOP_REG_BASE + 0xB0); // GPIO EN
+            reg &= ~(0x0000FFFC);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xB0);
 
-		}
+        }
 #if 0
-		else if (pin_num == 2) {
+        else if(pin_num == 2){
 
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0xA0);
-			// PHYCLK 8 mA
-			reg &= ~(0xf << 0);
-			reg |= (0x1 << 0);
-			writel(reg, IOADDR_PAD_REG_BASE + 0xA0);
-			reg = readl(IOADDR_PAD_REG_BASE + 0xA4);
-			// TXCLK, TXCTL, TXD 8 mA
-			reg &= ~((0xf << 20) | (0xf << 16) | (0xf << 12) | (0xf << 8) | (0xf << 4) | (0xf << 0));
-			reg |= (0x1 << 20) | (0x1 << 16) | (0x1 << 12) | (0x1 << 8) | (0x1 << 4) | (0x1 << 0);
-			writel(reg, IOADDR_PAD_REG_BASE + 0xA4);
+            // set pad driving
+            reg = readl(IOADDR_PAD_REG_BASE + 0xA0);
+            // PHYCLK 8 mA
+            reg &= ~ (0xf<<0);
+            reg |= (0x1<<0);
+            writel(reg, IOADDR_PAD_REG_BASE + 0xA0);
+            reg = readl(IOADDR_PAD_REG_BASE + 0xA4);
+            // TXCLK, TXCTL, TXD 8 mA
+            reg &= ~((0xf<<20) | (0xf<<16) | (0xf<<12) | (0xf<<8) | (0xf<<4) | (0xf<<0));
+            reg |= (0x1<<20) | (0x1<<16) | (0x1<<12) | (0x1<<8) | (0x1<<4) | (0x1<<0);
+            writel(reg, IOADDR_PAD_REG_BASE + 0xA4);
 
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
-			reg &= ~(0x7 << 0);
-			writel(reg | (0x3 << 0), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
+            reg &= ~(0x7<<0);
+            writel(reg | (0x3<<0), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 12);
-			writel(reg | (0x2 << 12), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<12);
+            writel(reg| (0x2<<12), IOADDR_TOP_REG_BASE + 0x0C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
-			reg &= ~(0xFFFC);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
-		}
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
+            reg &= ~(0xFFFC);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
+        }
 #endif
 
 		break;
 	default: // embedded phy (MII)
 
 		reg = readl(IOADDR_TOP_REG_BASE + 0xC);
-		reg &= ~(0x1 << 31);
-		reg |= 1 << 31;	// connect EMB phy to MAC0
+		reg &= ~(0x1<<31);
+		reg |= 1<<31;	// connect EMB phy to MAC0
 		writel(reg, IOADDR_TOP_REG_BASE + 0xC);
 		break;
 	}
@@ -1819,139 +1774,139 @@ static void mac1_pinmux_en(phy_interface_t phy_intf, int pin_num)
 
 	switch (phy_intf) {
 	case PHY_INTERFACE_MODE_RMII:
-		/*
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
-			reg &= ~((0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<4) | (0x3<<0));
-			writel(reg | 0x01, IOADDR_PAD_REG_BASE + 0xC0);	// PHYCLK (25M) 8 mA, others 4 mA
-			*/
-		if (pin_num == 1) {
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
-			reg &= ~(0x7 << 4);
-			writel(reg | (0x2 << 4), IOADDR_TOP_REG_BASE + 0x0C);
+        /*
+		// set pad driving
+		reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
+		reg &= ~((0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<4) | (0x3<<0));
+		writel(reg | 0x01, IOADDR_PAD_REG_BASE + 0xC0);	// PHYCLK (25M) 8 mA, others 4 mA
+		*/
+        if(pin_num == 1){
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
+            reg &= ~(0x7<<4);
+            writel(reg | (0x2<<4), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 20);
-			writel(reg | (0x1 << 20), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<20);
+            writel(reg| (0x1<<20), IOADDR_TOP_REG_BASE + 0x0C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
-			reg &= ~(0x0000CE3C);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
+            reg &= ~(0x0000CE3C);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
 
-		}
+        }
 
 #if 0
-		else if (pin_num == 2) {
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
-			reg &= ~(0x7 << 4);
-			writel(reg | (0x4 << 4), IOADDR_TOP_REG_BASE + 0x0C);
+        else if(pin_num == 2){
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RMII mode
+            reg &= ~(0x7<<4);
+            writel(reg | (0x4<<4), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 20);
-			writel(reg | (0x2 << 20), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<20);
+            writel(reg| (0x2<<20), IOADDR_TOP_REG_BASE + 0x0C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
-			reg &= ~(0x38F00000);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
+            reg &= ~(0x38F00000);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC4); // GPIO EN
-			reg &= ~(0x3);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC4);
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC4); // GPIO EN
+            reg &= ~(0x3);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC4);
 
-		}
+        }
 #endif
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
-		/*
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
-			// PHYCLK, TXCLK, TXCTL, TXD 8 mA
-			reg &= ~((0x3<<26) | (0x3<<24) | (0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<0));
-			reg |= (0x1<<26) | (0x1<<24) | (0x1<<22) | (0x1<<20) | (0x1<<18) | (0x1<<0);
-			writel(reg, IOADDR_PAD_REG_BASE + 0xC0);
-			*/
+        /*
+		// set pad driving
+		reg = readl(IOADDR_PAD_REG_BASE + 0xC0);
+		// PHYCLK, TXCLK, TXCTL, TXD 8 mA
+		reg &= ~((0x3<<26) | (0x3<<24) | (0x3<<22) | (0x3<<20) | (0x3<<18) | (0x3<<0));
+		reg |= (0x1<<26) | (0x1<<24) | (0x1<<22) | (0x1<<20) | (0x1<<18) | (0x1<<0);
+		writel(reg, IOADDR_PAD_REG_BASE + 0xC0);
+		*/
 
 		// set pinmux
-		if (pin_num == 1) {
+        if(pin_num == 1){
 
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0x98);
-			// PHYCLK 8 mA
-			reg &= ~(0xf << 0);
-			reg |= (0x1 << 0);
-			writel(reg, IOADDR_PAD_REG_BASE + 0x98);
-			reg = readl(IOADDR_PAD_REG_BASE + 0x9C);
-			// TXCLK, TXCTL, TXD 8 mA
-			reg &= ~((0xf << 20) | (0xf << 16) | (0xf << 12) | (0xf << 8) | (0xf << 4) | (0xf << 0));
-			reg |= (0x1 << 20) | (0x1 << 16) | (0x1 << 12) | (0x1 << 8) | (0x1 << 4) | (0x1 << 0) ;
-			writel(reg, IOADDR_PAD_REG_BASE + 0x9C);
+            // set pad driving
+            reg = readl(IOADDR_PAD_REG_BASE + 0x98);
+            // PHYCLK 8 mA
+            reg &= ~ (0xf<<0);
+            reg |= (0x1<<0);
+            writel(reg, IOADDR_PAD_REG_BASE + 0x98);
+            reg = readl(IOADDR_PAD_REG_BASE + 0x9C);
+            // TXCLK, TXCTL, TXD 8 mA
+            reg &= ~((0xf<<20) | (0xf<<16) | (0xf<<12) | (0xf<<8) | (0xf<<4) | (0xf<<0));
+            reg |=  (0x1<<20) | (0x1<<16) | (0x1<<12) | (0x1<<8) | (0x1<<4) | (0x1<<0) ;
+            writel(reg, IOADDR_PAD_REG_BASE + 0x9C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
-			reg &= ~(0x7 << 4);
-			writel(reg | (0x1 << 4), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
+            reg &= ~(0x7<<4);
+            writel(reg | (0x1<<4), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 20);
-			writel(reg | (0x1 << 20), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<20);
+            writel(reg| (0x1<<20), IOADDR_TOP_REG_BASE + 0x0C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
-			reg &= ~(0x0000FFFC);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
-		}
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
+            reg &= ~(0x0000FFFC);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
+        }
 #if 0
-		else if (pin_num == 2) {
+        else if(pin_num == 2){
 
-			// set pad driving
-			reg = readl(IOADDR_PAD_REG_BASE + 0xA8);
-			// PHYCLK 8 mA
-			reg &= ~(0xf << 8);
-			reg |= (0x1 << 8);
-			writel(reg, IOADDR_PAD_REG_BASE + 0xA8);
-			reg = readl(IOADDR_PAD_REG_BASE + 0xAC);
-			// TXCLK, TXCTL, TXD 8 mA
-			reg &= ~((0xf << 28) | (0xf << 24) | (0xf << 20) | (0xf << 16) | (0xf << 12) | (0xf << 8));
-			reg |= (0x1 << 28) | (0x1 << 24) | (0x1 << 20) | (0x1 << 16) | (0x1 << 12) | (0x1 << 8);
-			writel(reg, IOADDR_PAD_REG_BASE + 0xAC);
+            // set pad driving
+            reg = readl(IOADDR_PAD_REG_BASE + 0xA8);
+            // PHYCLK 8 mA
+            reg &= ~ (0xf<<8);
+            reg |= (0x1<<8);
+            writel(reg, IOADDR_PAD_REG_BASE + 0xA8);
+            reg = readl(IOADDR_PAD_REG_BASE + 0xAC);
+            // TXCLK, TXCTL, TXD 8 mA
+            reg &= ~((0xf<<28) | (0xf<<24) | (0xf<<20) | (0xf<<16) | (0xf<<12) | (0xf<<8));
+            reg |=  (0x1<<28) | (0x1<<24) | (0x1<<20) | (0x1<<16) | (0x1<<12) | (0x1<<8);
+            writel(reg, IOADDR_PAD_REG_BASE + 0xAC);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
-			reg &= ~(0x7 << 4);
-			writel(reg | (0x3 << 4), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // RGMII mode
+            reg &= ~(0x7<<4);
+            writel(reg | (0x3<<4), IOADDR_TOP_REG_BASE + 0x0C);
 
-			/*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
-			reg |= (0x1<<8);
-			writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
+            /*reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // REF CLK EN
+            reg |= (0x1<<8);
+            writel(reg , IOADDR_TOP_REG_BASE + 0x0C);*/
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
-			reg &= ~(0x3 << 20);
-			writel(reg | (0x2 << 20), IOADDR_TOP_REG_BASE + 0x0C);
+            reg = readl(IOADDR_TOP_REG_BASE + 0x0C); // MDIO EN
+            reg &= ~(0x3<<20);
+            writel(reg| (0x2<<20), IOADDR_TOP_REG_BASE + 0x0C);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
-			reg &= ~(0xFFF00000);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC0); // GPIO EN
+            reg &= ~(0xFFF00000);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC0);
 
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC4); // GPIO EN
-			reg &= ~(0x3);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC4);
-		}
+            reg = readl(IOADDR_TOP_REG_BASE + 0xC4); // GPIO EN
+            reg &= ~(0x3);
+            writel(reg, IOADDR_TOP_REG_BASE + 0xC4);
+        }
 #endif
 		break;
 	default: // embedded phy (MII)
 
 		reg = readl(IOADDR_TOP_REG_BASE + 0xC);
-		reg &= ~(0x1 << 31);
-		reg &= ~(1 << 31); // connect EMB phy to MAC1
+		reg &= ~(0x1<<31);
+		reg &= ~(1<<31);// connect EMB phy to MAC1
 		writel(reg, IOADDR_TOP_REG_BASE + 0xC);
 		break;
 	}
@@ -1968,18 +1923,18 @@ struct NVT_PLAT_INFO {
 	char	*txclk_i_name;
 	char	*ext_phy_clk_name;
 
-	UINT    pinmux_ext_phy;
+    UINT    pinmux_ext_phy;
 
 	UINT	pinmux_rgmii;
-	UINT	pinmux_rgmii_2;
+    UINT	pinmux_rgmii_2;
 
 	UINT	pinmux_rmii;
-	UINT	pinmux_rmii_2;
+    UINT	pinmux_rmii_2;
 
 	UINT	pinmux_emb;
 
 	UINT	gpio_reset;
-	UINT	gpio_reset_2;
+    UINT	gpio_reset_2;
 };
 
 static const struct NVT_PLAT_INFO v_nvt_plat_info[2] = {
@@ -2000,7 +1955,7 @@ static const struct NVT_PLAT_INFO v_nvt_plat_info[2] = {
 		"eth0_txclk_i",
 		"eth0_extphy_clk",
 
-		PIN_ETH_CFG_REFCLK_PINMUX,
+        PIN_ETH_CFG_REFCLK_PINMUX,
 
 		PIN_ETH_CFG_RGMII_1ST_PINMUX,
 		PIN_ETH_CFG_RGMII_2ND_PINMUX,
@@ -2030,7 +1985,7 @@ static const struct NVT_PLAT_INFO v_nvt_plat_info[2] = {
 		"eth1_txclk_i",
 		"eth1_extphy_clk",
 
-		PIN_ETH2_CFG_REFCLK_PINMUX,
+        PIN_ETH2_CFG_REFCLK_PINMUX,
 
 		PIN_ETH2_CFG_RGMII_1ST_PINMUX,
 		PIN_ETH2_CFG_RGMII_2ND_PINMUX,
@@ -2050,14 +2005,13 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	UINT ETH_QOS_INDEX;	// index to MAC (0: MAC0, 1: MAC1);
 	UINT ETH_PHY_INTF = 0;
 	/* Enable it after dts parsing ready*/
-	ulong fdt_addr = nvt_readl((ulong)nvt_shminfo_boot_fdt_addr);
 	int nodeoffset;
 	u32 *cell = NULL;
 	char path[20] = {0};
 	int len;
-	int pin_num = 0;
+    int pin_num = 0;
 //	u32 phy_intf, led_intf; no embd phy so do not control led.
-	u32 phy_intf;
+    u32 phy_intf;
 	u32 phy_clk = 0;
 	u32 ref_clk_out = 0;
 
@@ -2068,83 +2022,48 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	}
 	printf("%s: get IO MEM 0x%lx\r\n", __func__, base_addr);
 
-	/*	sprintf(path,"/%s", v_nvt_plat_info[ETH_QOS_INDEX].dtb_name);
-		nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
-		if (nodeoffset < 0) {
-			printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
-			return -1;
-		}
-		printf("DTS %s found\r\n", path);
-	*/
-	/*
-		sprintf(path,"/top@%lx/misc",IOADDR_TOP_REG_BASE);
-
-		nodeoffset = fdt_path_offset((const void*)fdt_addr, path);
-		if (nodeoffset < 0) {
-			printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
-			printf("%s: path %s not found\n", __func__, path);
-			return -1;
-		}
-	*/
-	/* no embd phy so do not control led.
-		cell = (u32*)fdt_getprop((const void*)fdt_addr, nodeoffset, "pinmux", &len);
-		if (len == 0) {
-			printf("%s(%d) len = 0\n",__func__, __LINE__);
-			return -1;
-		}
-		led_intf = __be32_to_cpu(cell[0]);
-
-		if (led_intf & 0x100000) {
-			UINT reg;
-
-			printf("LED1 pinmux 0x%x\r\n", (int)led_intf);
-			reg = readl(IOADDR_TOP_REG_BASE + 0x20);
-			reg &= ~(0xFF0);
-			writel(reg | 0x550, IOADDR_TOP_REG_BASE + 0x20);
-		} else if (led_intf & 0x200000) {
-			UINT reg;
-
-			printf("LED2 pinmux 0x%x\r\n", (int)led_intf);
-			reg = readl(IOADDR_TOP_REG_BASE + 0x44);
-			reg &= ~(0xFF);
-			writel(reg | 0x33, IOADDR_TOP_REG_BASE + 0x44);
-		}
-	*/
+	sprintf(path,"/%s", v_nvt_plat_info[ETH_QOS_INDEX].dtb_name);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+	if (nodeoffset < 0) {
+		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
+		return -1;
+	}
+	printf("DTS %s found\r\n", path);
 
 #ifdef CONFIG_TARGET_NA51103
-	sprintf(path, "/top@%x/eth", ((u32)(REG32_MASK & IOADDR_TOP_REG_BASE)));
+	sprintf(path,"/top@%x/eth",( (u32)(REG32_MASK&IOADDR_TOP_REG_BASE)));
 #else
-	sprintf(path, "/top@2,%x/eth", ((u32)(REG32_MASK & IOADDR_TOP_REG_BASE)));
+	sprintf(path,"/top@2,%x/eth",( (u32)(REG32_MASK&IOADDR_TOP_REG_BASE)));
 #endif
 
-	nodeoffset = fdt_path_offset((const void *)fdt_addr, path);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
-		printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
+		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
 		printf("%s: path %s not found\n", __func__, path);
 		return -1;
 	}
 
-	cell = (u32 *)fdt_getprop((const void *)fdt_addr, nodeoffset, "pinmux", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
 	if (len == 0) {
-		printf("%s(%d) len = 0\n", __func__, __LINE__);
+		printf("%s(%d) len = 0\n",__func__, __LINE__);
 		return -1;
 	}
 	phy_intf = __be32_to_cpu(cell[0]);
 
-	sprintf(path, "/%s", v_nvt_plat_info[ETH_QOS_INDEX].dtb_name);
-	nodeoffset = fdt_path_offset((const void *)fdt_addr, path);
+	sprintf(path,"/%s", v_nvt_plat_info[ETH_QOS_INDEX].dtb_name);
+	nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
 	if (nodeoffset < 0) {
-		printf("%s(%d) nodeoffset < 0\n", __func__, __LINE__);
+		printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
 		printf("%s: path %s not found\n", __func__, path);
 		return -1;
 	}
 
-	cell = (u32 *)fdt_getprop((const void *)fdt_addr, nodeoffset, "sp-clk", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
 	if (len != 0) {
 		phy_clk = __be32_to_cpu(cell[0]);
 	}
 
-	cell = (u32 *)fdt_getprop((const void *)fdt_addr, nodeoffset, "ref-clk-out", &len);
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "ref-clk-out", &len);
 	if (len != 0) {
 		ref_clk_out = __be32_to_cpu(cell[0]);
 	}
@@ -2153,28 +2072,29 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_rmii) {
 		printf("%s: pinmux detect RMII 0x%x\r\n", __func__, phy_intf);
 		ETH_PHY_INTF = PHY_INTERFACE_MODE_RMII;
-		pin_num = 1;
+        pin_num = 1;
 	} else if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_rmii_2) {
 		printf("%s: pinmux detect RMII_2 0x%x\r\n", __func__, phy_intf);
 		ETH_PHY_INTF = PHY_INTERFACE_MODE_RMII;
-		pin_num = 2;
+        pin_num = 2;
 	} else if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_rgmii) {
 		printf("%s: pinmux detect RGMII 0x%x\r\n", __func__, phy_intf);
 		ETH_PHY_INTF = PHY_INTERFACE_MODE_RGMII;
-		pin_num = 1;
+        pin_num = 1;
 	} else if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_rgmii_2) {
 		printf("%s: pinmux detect RGMII 0x%x\r\n", __func__, phy_intf);
 		ETH_PHY_INTF = PHY_INTERFACE_MODE_RGMII;
-		pin_num = 2;
-	} else if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_emb) {
+        pin_num = 2;
+	} else if( phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_emb){
 		printf("%s: pinmux detect emb phy 0x%x\r\n", __func__, phy_intf);
-		ETH_PHY_INTF = PHY_INTERFACE_MODE_MII;
-	} else {
+                ETH_PHY_INTF = PHY_INTERFACE_MODE_MII;
+	}
+	else {
 		printf("%s: pinmux not detect, use emb phy 0x%x\r\n", __func__, phy_intf);
 		ETH_PHY_INTF = PHY_INTERFACE_MODE_MII;
 	}
 
-	if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_ext_phy) {
+	if (phy_intf & v_nvt_plat_info[ETH_QOS_INDEX].pinmux_ext_phy){
 		phy_clk = 1;
 	}
 
@@ -2189,7 +2109,7 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 
 		reg = readl(IOADDR_TOP_REG_BASE + 0xA4);
 		reg &= ~(0x2);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xA4);
+		writel(reg , IOADDR_TOP_REG_BASE + 0xA4);
 	} else if (phy_intf & PIN_ETH_CFG_ACT_LED_2ND_PINMUX) {
 		UINT reg;
 
@@ -2200,11 +2120,11 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 
 		reg = readl(IOADDR_TOP_REG_BASE + 0xB4);
 		reg &= ~(0x100);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB4);
+		writel(reg , IOADDR_TOP_REG_BASE + 0xB4);
 	}
 
 	//LED LINK MUX
-	if (phy_intf & PIN_ETH_CFG_LINK_LED_1ST_PINMUX) {
+	if (phy_intf & PIN_ETH_CFG_LINK_LED_1ST_PINMUX   ) {
 		UINT reg;
 
 		printf("LED_LINK 1st(JGPIO2) pinmux 0x%x\r\n", (int)phy_intf);
@@ -2214,8 +2134,8 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 
 		reg = readl(IOADDR_TOP_REG_BASE + 0xA4);
 		reg &= ~(0x4);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xA4);
-	} else if (phy_intf & PIN_ETH_CFG_LINK_LED_2ND_PINMUX) {
+		writel(reg , IOADDR_TOP_REG_BASE + 0xA4);
+	} else if (phy_intf & PIN_ETH_CFG_LINK_LED_2ND_PINMUX   ) {
 		UINT reg;
 
 		printf("LED_LINK 2nd(DGPIO9) pinmux 0x%x\r\n", (int)phy_intf);
@@ -2225,7 +2145,7 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 
 		reg = readl(IOADDR_TOP_REG_BASE + 0xB4);
 		reg &= ~(0x200);
-		writel(reg, IOADDR_TOP_REG_BASE + 0xB4);
+		writel(reg , IOADDR_TOP_REG_BASE + 0xB4);
 	}
 
 	v_nvt_plat_info[ETH_QOS_INDEX].mac_pinmux_en(ETH_PHY_INTF, pin_num);
@@ -2234,29 +2154,29 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 #if 0
 	if (phy_intf & 0x1) {
 		printf("phy interface: RMII\n");
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0x18) |= 0x3000;      /*Enable Pinmux*/
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0xB8) &= ~0x40077F;   /*Enable Pinmux*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0x18) |= 0x3000;      /*Enable Pinmux*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0xB8) &= ~0x40077F;   /*Enable Pinmux*/
 	}
 
 	if (phy_intf & 0x02) {
 		printf("phy interface: INTERNAL MII\n");
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0x18) &= ~0x10000000; /*Enable Pinmux*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0x18) &= ~0x10000000; /*Enable Pinmux*/
 	} else if (phy_intf & 0x04) {
 		printf("phy interface: EXT PHY CLK\n");
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0x18) |= 0x10000000;  /*Enable Pinmux*/
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0xB8) &= ~0x80;       /*Enable Pinmux*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0x18) |= 0x10000000;  /*Enable Pinmux*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0xB8) &= ~0x80;       /*Enable Pinmux*/
 	}
 
 	if (phy_intf & 0x10) {
 		printf("phy interface: LED1\n");
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0xD0) &= ~0x3;       /*Enable Pinmux*/
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0x18) &= ~0x6000;    /*Enable LED 1*/
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0x18) |= 0x2000;     /*Enable LED 1*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0xD0) &= ~0x3;       /*Enable Pinmux*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0x18) &= ~0x6000;    /*Enable LED 1*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0x18) |= 0x2000;     /*Enable LED 1*/
 	} else if (phy_intf & 0x20) {
 		printf("phy interface: LED2\n");
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0xD0) &= ~0x40;      /*Enable Pinmux*/
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0x18) &= ~0x6000;    /*Enable LED 2*/
-		*(uint32_t *)(IOADDR_TOP_REG_BASE + 0x18) |= 0x4000;     /*Enable LED 2*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0xD0) &= ~0x40;      /*Enable Pinmux*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0x18) &= ~0x6000;    /*Enable LED 2*/
+		*(uint32_t*) (IOADDR_TOP_REG_BASE + 0x18) |= 0x4000;     /*Enable LED 2*/
 	}
 #endif
 	udelay(1);
@@ -2264,28 +2184,53 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	return 0;
 }
 
-static int eqos_initialize(struct udevice *dev, unsigned long base_addr)
+static int eqos_initialize(bd_t *bis, unsigned long base_addr)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
-	struct eth_pdata *plat = dev_get_plat(dev);
+	struct eth_device *dev;
+	struct eqos_priv *eqos;
 	int ret;
 	u8 phyaddr = 0;
 	u32 phyval = 0, i;
 #ifndef FIXED_ETH_PARAMETER
 	u8 default_mac_addr[6] = DEFAULT_MAC_ADDRESS;
 #else
-	u8 default_mac_addr[6] = CFG_ETHADDR;
-	u8 default_mac1_addr[6] = CFG_ETH1ADDR;
+	u8 default_mac_addr[6] = CONFIG_ETHADDR;
+	u8 default_mac1_addr[6] = CONFIG_ETH1ADDR;
 #endif
 
-	printf("%s 0x%lx\n", __func__, base_addr);
-
-	eqos->dev = dev;
-	eqos->config = (void *)dev_get_driver_data(dev);
+	printf("%s 0x%lx\n",__func__, base_addr);
 
 	ret = eth_parse_phy_intf(base_addr);
 	if (ret < 0) return ret;
 
+	dev = malloc(sizeof *dev);
+
+	if (dev == NULL)
+		return -1;
+
+	memset(dev, 0, sizeof *dev);
+
+	if (base_addr == IOADDR_ETH_REG_BASE)
+		sprintf(dev->name, "eth0");
+	else
+		sprintf(dev->name, "eth1");
+	dev->iobase = base_addr;
+	dev->init = eqos_start;
+	dev->halt = eqos_stop;
+	dev->send = eqos_send;
+	dev->recv = eqos_recv;
+	dev->write_hwaddr = eqos_write_hwaddr;
+	eth_register(dev);
+
+	eqos = malloc(sizeof *eqos);
+
+	if (eqos == NULL)
+		return -1;
+
+	memset(eqos, 0, sizeof *eqos);
+
+	dev->priv = eqos;
+	eqos->dev = dev;
 	eqos->regs = base_addr;
 	eqos->mac_regs = (void *)(eqos->regs + EQOS_MAC_REGS_BASE);
 	eqos->mtl_regs = (void *)(eqos->regs + EQOS_MTL_REGS_BASE);
@@ -2317,13 +2262,13 @@ static int eqos_initialize(struct udevice *dev, unsigned long base_addr)
 	}
 
 	if (base_addr == IOADDR_ETH_REG_BASE)
-		memcpy(plat->enetaddr, default_mac_addr, 6);
+		memcpy(dev->enetaddr, default_mac_addr, 6);
 	else
-		memcpy(plat->enetaddr, default_mac1_addr, 6);
+		memcpy(dev->enetaddr, default_mac1_addr, 6);
 
 	// scan phy address
 	for (i = 0; i < 32; i++) {
-		phyval = eqos_mdio_read(eqos->mii, i, 0, MII_BMSR);
+		phyval = eqos_mdio_read(eqos->mii,i, 0, MII_BMSR);
 		if (phyval != 0x0000 && phyval != 0xffff) {
 			phyaddr = i;
 			break;
@@ -2364,63 +2309,29 @@ static void eqos_probe_hwinit(void)
 }
 */
 
-int eqos_probe(struct udevice *dev)
+int na51103_eth_initialize(bd_t *bis)
 {
-	struct eqos_priv *eqos = dev_get_priv(dev);
 	int ret = 0;
-	const void *fdt_addr = gd->fdt_blob;
+	u32 i;
+	char path[20] = {0};
+	int nodeoffset;
 
-	printf("%s %s\n", __func__, ETHVERSION);
+	printf("%s %s\n",__func__, ETHVERSION);
 
-	eqos->regs = fdtdec_get_addr(fdt_addr, dev_of_offset(dev), "reg");
-
-	if (eqos->regs == FDT_ADDR_T_NONE) {
-		pr_err("fdtdec_get_addr() failed");
-		return -ENODEV;
-	}
-	printf("DTS %s found\r\n", dev->name);
 	//eqos_probe_hwinit();
 
-	eqos_initialize(dev, eqos->regs);
+	for (i=0; i<ARRAY_SIZE(v_nvt_plat_info); i++) {
+		sprintf(path,"/%s", v_nvt_plat_info[i].dtb_name);
+		nodeoffset = fdt_path_offset((const void*)nvt_fdt_buffer, path);
+		if (nodeoffset < 0) {
+			printf("%s(%d) nodeoffset < 0\n",__func__, __LINE__);
+			printf("%s: path %s not found\n", __func__, path);
+			continue;
+		}
+
+		printf("%s: dtb node %s found\n", __func__, path);
+		eqos_initialize(bis, v_nvt_plat_info[i].base_pa);
+	}
 
 	return ret;
 }
-
-static int eqos_remove(struct udevice *dev)
-{
-	struct eqos_priv *eqos = dev_get_priv(dev);
-
-	debug("%s(dev=%p):\n", __func__, dev);
-
-	mdio_unregister(eqos->mii);
-	mdio_free(eqos->mii);
-	eqos_probe_resources_core(dev);
-
-	debug("%s: OK\n", __func__);
-	return 0;
-}
-
-static const struct eth_ops eqos_ops = {
-	.start = eqos_start,
-	.stop = eqos_stop,
-	.send = eqos_send,
-	.recv = eqos_recv,
-	.free_pkt = eqos_free_pkt,
-	.write_hwaddr = eqos_write_hwaddr,
-};
-
-static const struct udevice_id eqos_ids[] = {
-	{ .compatible = "nvt,synopsys_eth" },
-	{},
-};
-
-U_BOOT_DRIVER(na51102_eth_eqos) = {
-	.name = "na51102_eth_eqos",
-	.id = UCLASS_ETH,
-	.of_match = eqos_ids,
-	.probe = eqos_probe,
-	.remove = eqos_remove,
-	.ops = &eqos_ops,
-	.priv_auto = sizeof(struct eqos_priv),
-	.plat_auto = sizeof(struct eth_pdata),
-};

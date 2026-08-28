@@ -10,76 +10,6 @@
 #ifndef _NVT_UDC_H
 #define _NVT_UDC_H
 
-#ifdef CONFIG_USB_GADGET_NVTIVOT_525
-struct nvt_udc_ext_regs {
-	/* USB Host Controller */
-	struct {
-		uint32_t data[4];
-	} hccr;                 /* 0x00 - 0x0f: hccr */
-	struct {
-		uint32_t data[9];
-	} hcor;                 /* 0x10 - 0x33: hcor */
-	uint32_t rsvd1[3];
-	uint32_t miscr; /* 0x40: Miscellaneous Register */
-	uint32_t rsvd2[15];
-	/* USB OTG Controller */
-	uint32_t otgcsr;/* 0x80: OTG Control Status Register */
-	uint32_t otgisr;/* 0x84: OTG Interrupt Status Register */
-	uint32_t otgier;/* 0x88: OTG Interrupt Enable Register */
-	uint32_t rsvd3[13];
-	uint32_t isr;   /* 0xC0: Global Interrupt Status Register */
-	uint32_t imr;   /* 0xC4: Global Interrupt Mask Register */
-	uint32_t rsvd4[14];
-	/* USB Device Controller */
-	uint32_t dev_ctrl;/* 0x100: Device Control Register */
-	uint32_t dev_addr;/* 0x104: Device Address Register */
-	uint32_t dev_test;/* 0x108: Device Test Register */
-	uint32_t sof_fnr; /* 0x10c: SOF Frame Number Register */
-	uint32_t sof_mtr; /* 0x110: SOF Mask Timer Register */
-	uint32_t phy_tmsr;/* 0x114: PHY Test Mode Selector Register */
-	uint32_t rsvd5[2];
-	uint32_t cxfifo;/* 0x120: CX FIFO Register */
-	uint32_t idle;  /* 0x124: IDLE Counter Register */
-	uint32_t ep0_data; /* 0x128: EP0 Setup Packet PIO Register */
-	uint32_t rsvd6[1];
-	uint32_t gimr;  /* 0x130: Group Interrupt Mask Register */
-	uint32_t gimr0; /* 0x134: Group Interrupt Mask Register 0 */
-	uint32_t gimr1; /* 0x138: Group Interrupt Mask Register 1 */
-	uint32_t gimr2; /* 0x13c: Group Interrupt Mask Register 2 */
-	uint32_t gisr;  /* 0x140: Group Interrupt Status Register */
-	uint32_t gisr0; /* 0x144: Group Interrupt Status Register 0 */
-	uint32_t gisr1; /* 0x148: Group Interrupt Status Register 1 */
-	uint32_t gisr2; /* 0x14c: Group Interrupt Status Register 2 */
-	uint32_t rxzlp; /* 0x150: Receive Zero-Length-Packet Register */
-	uint32_t txzlp; /* 0x154: Transfer Zero-Length-Packet Register */
-	uint32_t isoeasr;/* 0x158: ISOC Error/Abort Status Register */
-	uint32_t rsvd7[1];
-	uint32_t ep[15]; /* 0x160 - 0x19B: Endpoint Register */
-	uint32_t rsvd8[3];
-	uint32_t fifocfg0; /* 0x1a8: Buffer Configuration 0 Register */
-	uint32_t fifocfg1; /* 0x1aC: Buffer Configuration 1 Register */
-	uint32_t fifocsr[4]; /* 0x1b0 - 0x1bf: FIFO Control Status Register */
-	uint32_t dma_fifo; /* 0x1c0: DMA Target FIFO Register */
-	uint32_t rsvd9[1];
-	uint32_t dma_ctrl; /* 0x1c8: DMA0 Control Register */
-	uint32_t dma_addr; /* 0x1cc: DMA0 Address Register */
-	uint32_t rsvd10[1];
-	uint32_t dma0_status; /* 0x1d4: DMA0 Controller Status Register */
-	uint32_t dma1_status; /* 0x1d8: DMA1 Controller Status Register */
-	uint32_t dma2_status; /* 0x1dc: DMA2 Controller Status Register */
-	uint32_t dma3_status; /* 0x1e0: DMA3 Controller Status Register */
-	uint32_t dma4_status; /* 0x1e4: DMA4 Controller Status Register */
-	uint32_t rsvd11[6];
-	uint32_t dma0_ctrl; /* 0x200: DMA1 Control Register */
-	uint32_t dma0_addr; /* 0x204: DMA1 Address Register */
-	uint32_t dma1_ctrl; /* 0x208: DMA2 Control Register */
-	uint32_t dma1_addr; /* 0x20C: DMA2 Address Register */
-	uint32_t dma2_ctrl; /* 0x210: DMA3 Control Register */
-	uint32_t dma2_addr; /* 0x214: DMA3 Address Register */
-	uint32_t dma3_ctrl; /* 0x218: DMA4 Control Register */
-	uint32_t dma3_addr; /* 0x21C: DMA4 Address Register */
-};
-#else
 struct nvt_udc_ext_regs {
 	/* USB Host Controller */
 	struct {
@@ -136,7 +66,6 @@ struct nvt_udc_ext_regs {
 	uint32_t dma_addr; /* 0x1cc: DMA Address Register */
 	uint32_t ep0_setup_data; /* 0x1d0: EP0 Setup Packet PIO Register */
 };
-#endif
 
 /* Miscellaneous Register */
 #define MISCR_SUSPEND  (1 << 6) /* Put transceiver in suspend mode */
@@ -470,12 +399,13 @@ struct nvt_udc_ext_regs {
 #define FIFOCSR_EXT_RESET      (1 << 12) /* FIFO Reset */
 #define FIFOCSR_BYTES(x)       ((x) & 0x7ff) /* Length(bytes) for OUT-EP/FIFO */
 
-/* DMA Target FIFO Register */
 #if defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
+/* DMA Target FIFO Register */
 #define DMAFIFO_CX_NO       0x4
 #define DMAFIFO_CX          (1 << 4) /* DMA FIFO = CX FIFO */
 #define DMAFIFO_FIFO(x)     (1 << ((x) & 0x1f)) /* DMA FIFO = FIFOx */
-#else
+#elif defined(CONFIG_TARGET_NA51102_A64)
+/* DMA Target FIFO Register */
 #define DMAFIFO_CX_NO       0x10
 #define DMAFIFO_CX          (1 << 16) /* DMA FIFO = CX FIFO */
 #define DMAFIFO_FIFO(x)     (1 << ((x) & 0x1f)) /* DMA FIFO = FIFOx */
@@ -492,80 +422,18 @@ struct nvt_udc_ext_regs {
 #define DMACTRL_START       (1 << 0) /* DMA start */
 
 /* Controller Init Related Register */
-#if defined(CONFIG_TARGET_NS02201_A64)
-/* NS02201 */
-#define USB_CG_RST_OFS 0x94
-#define USB_RST_BIT    (0x1<<25)
-#define USB_SRAM_SD_OFS 0x1000
-#define USB_SRAM_SD_BIT 12
-#define USB_PHYTOP_REG_OFS 0x400
-#define USB_ID_BIT 20
-
-#elif defined(CONFIG_TARGET_NS02401_A64)
-/* NS02401 */
-#define USB_CG_RST_OFS 0x9C
-#define USB_RST_BIT (0x1<<0)
-#define USB_CG_PHYRST_OFS 0x9C
-#define USB_PHYRST_BIT (0x1<<2)
-#define USB_SRAM_SD_OFS 0x1000
-#define USB_SRAM_SD_BIT 22
-#define USB_PHYTOP_REG_OFS 0x400
-#define USB_ID_BIT 20
-
-#elif defined(CONFIG_TARGET_NA51102_A64)
-/* NA51102 */
-#define USB_CG_RST_OFS 0x94
-#define USB_RST_BIT    (0x1<<25)
-#define USB_SRAM_SD_OFS 0x1000
-#define USB_SRAM_SD_BIT 12
-#define USB_PHYTOP_REG_OFS 0x400
-#define USB_ID_BIT 20
-
-#elif defined(CONFIG_TARGET_NS02301)
-/* NS02301 */
-#define USB_CG_RST_OFS 0x84
-#define USB_RST_BIT    (0x1<<19)
-#define USB_SRAM_SD_OFS 0x1000
-#define USB_SRAM_SD_BIT 26
-#define USB_PHYTOP_REG_OFS 0x400
-#define USB_ID_BIT 20
-#define USB_CG_PHYRST_OFS 0x88
-#define USB_PHYRST_BIT (0x1<<19)
-
-
-#elif defined(CONFIG_TARGET_NA51089)
-/* NA51089 */
-#define USB_CG_RST_OFS 0x84
-#define USB_RST_BIT    (0x1<<19)
-#define USB_SRAM_SD_OFS 0x1000
-#define USB_SRAM_SD_BIT 19
-#define USB_PHYTOP_REG_OFS 0x400
-#define USB_ID_BIT 20
-
-#elif defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
-/* NA51103 */
+#if defined(CONFIG_TARGET_NA51103) || defined(CONFIG_TARGET_NA51103_A64)
 #define USB_CG_RST_OFS 0x98
 #define USB_RST_BIT    (0x1<<15)
 #define USB_SRAM_SD_OFS 0x1000
 #define USB_SRAM_SD_BIT 7
 #define USB_PHYTOP_REG_OFS 0x1D8
-#define USB_ID_BIT 20
-
-#elif defined(CONFIG_TARGET_NA51055)
-/* NA51055: 528 */
-#define USB_CG_RST_OFS 0x84
-#define USB_RST_BIT    (0x1<<19)
-
-#ifndef CONFIG_USB_GADGET_NVTIVOT_525
-/* NA51055: 528 */
-#define USB_PHYTOP_REG_OFS  0x400
-#define USB_ID_BIT 20
-#else
-/* NA51055: 525 */
-#define USB_PHYTOP_REG_OFS  0x310
-#define USB_ID_BIT 0
-#endif
-
+#elif defined(CONFIG_TARGET_NA51102_A64)
+#define USB_CG_RST_OFS 0x94
+#define USB_RST_BIT    (0x1<<25)
+#define USB_SRAM_SD_OFS 0x1000
+#define USB_SRAM_SD_BIT 12
+#define USB_PHYTOP_REG_OFS 0x400
 #else
 #endif
 #endif

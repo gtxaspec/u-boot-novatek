@@ -13,14 +13,28 @@
 #ifndef _NVT_IDE_H
 #define _NVT_IDE_H
 
-
+#if 0
+#if defined __KERNEL__
+#include "kwrap/type.h"
+#include "kdrv_type.h"
+#elif defined __FREERTOS
+#include "kwrap/type.h"
+#include "kdrv_type.h"
+#else
+#include "Type.h"
+#endif
+#else
 #include <asm/arch/kdrv_type.h>
 #include <asm/nvt-common/nvt_types.h>
+#endif
 
-#define IDEDATA_TYPE	UINT32
-
-
-
+/*
+typedef struct {
+        INT32 (*callback)(VOID *callback_info, VOID *user_data);
+        INT32 (*reserve_buf)(UINT32 phy_addr);
+        INT32 (*free_buf)(UINT32 phy_addr);
+} KDRV_CALLBACK_FUNC;
+*/
 /**
     @addtogroup mIDrvDisp_IDE
 */
@@ -56,9 +70,8 @@ typedef enum {
 	DISPLAY_DEVICE_CCIR656          = 0x4,
 	DISPLAY_DEVICE_CCIR601          = 0x5,
 	DISPLAY_DEVICE_TV               = 0x6,
-	DISPLAY_DEVICE_HDMI_YUV420      = 0x6,
-	DISPLAY_DEVICE_HDMI_YUV444      = 0x7,
-	DISPLAY_DEVICE_HDMI_YUV422      = 0x8,
+	DISPLAY_DEVICE_HDMI_24BIT       = 0x7,
+	DISPLAY_DEVICE_HDMI_16BIT       = 0x8,
 	DISPALY_DEVICE_PARALLEL         = 0x9,
 	DISPLAY_DEVICE_CCIR656_16BIT    = 0xA,
 	DISPLAY_DEVICE_CCIR601_16BIT    = 0xB,
@@ -212,15 +225,6 @@ typedef enum {
 
 	ENUM_DUMMY4WORD(IDE_OSDID)
 } IDE_OSDID;
-
-typedef enum {
-	LCD_VIDEOID_1 = 1,                      ///< ide VIDEO plane 1
-	LCD_VIDEOID_2 = 2,                      ///< ide VIDEO plane 2
-	LCD_OSDID_1   = 3,
-
-	ENUM_DUMMY4WORD(LCD_LAYERID)
-} LCD_LAYERID;
-
 //@}
 
 /**
@@ -435,31 +439,6 @@ typedef enum {
 
 	ENUM_DUMMY4WORD(IDE_COLOR_FORMAT)
 } IDE_COLOR_FORMAT;
-
-/**
-    ide OSD RLD count.
-*/
-//@{
-typedef enum {
-	RLD_CNT_3_BIT             = 0,    // run length decoder count 3 bit
-	RLD_CNT_4_BIT             = 1,    // run length decoder count 4 bit
-	RLD_CNT_5_BIT             = 2,    // run length decoder count 5 bit
-	RLD_CNT_6_BIT             = 3,    // run length decoder count 6 bit
-	RLD_CNT_7_BIT             = 4,    // run length decoder count 7 bit
-	ENUM_DUMMY4WORD(IDE_RLD_COUNT)
-} IDE_RLD_COUNT;
-
-/**
-    ide OSD RLD count.
-*/
-//@{
-typedef enum {
-	RLD_LEN_1_BYTE             = 0,    // run length decoder length 1 byte
-	RLD_LEN_2_BYTE             = 1,    // run length decoder length 2 byte
-	RLD_LEN_4_BYTE             = 2,    // run length decoder length 4 byte
-	ENUM_DUMMY4WORD(IDE_RLD_LENGTH)
-} IDE_RLD_LENGTH;
-
 //@}
 
 /**
@@ -703,47 +682,11 @@ typedef enum {
 */
 //@{
 typedef enum {
-	LCD_ID_1=0,                          ///< LCD1 Controller
-	LCD_ID_2=1,                          ///< LCD2 controller
-	LCD_ID_3=2,                          /// < LCD lite
+	IDE_ID_1,                          ///< ide Controller
+	IDE_ID_2,                          ///< IDE2 Controller
+
 	ENUM_DUMMY4WORD(IDE_ID)
 } IDE_ID;
-#define IDE_ID_1 LCD_ID_1
-#define IDE_ID_2 LCD_ID_2
-#define IDE_ID_3 LCD_ID_3
-
-typedef enum {
-	LCD_CH_0=0,
-	LCD_CH_1,
-	LCD_CH_2,
-	ENUM_DUMMY4WORD(CH_ID)
-} CH_ID;
-
-typedef enum {
-	LCD_CH_MODE_RAW,
-	LCD_CH_MODE_RLD,
-	LCD_CH_MODE_AFBC,
-	LCD_CH_MODE_YCC,
-	ENUM_DUMMY4WORD(CH_MODE)
-} CH_MODE;
-
-typedef enum {
-	LCD_RES_0,
-	ENUM_DUMMY4WORD(RES_ID)
-} RES_ID;
-
-
-typedef enum {
-	LCD_CSC_CH0,
-	LCD_CSC_CH1,
-	LCD_CSC_CH2,
-	LCD_CSC_CURSOR,
-	LCD_CSC_CSC1,
-	LCD_CSC_CSC2,
-	LCD_CSC_CSC3,
-	ENUM_DUMMY4WORD(CSC_ID)
-} CSC_ID;
-
 //@}
 
 /**
@@ -882,18 +825,18 @@ typedef struct {
 */
 //@{
 typedef struct {
-	IDEDATA_TYPE   b0_y;          ///<Buffer0 Y starting address
-	IDEDATA_TYPE   b0_cb;         ///<Buffer0 Cb/CbCrPack starting address
-	IDEDATA_TYPE   b0_cr;         ///<Buffer0 Cr starting address (not used in CbCr packed format)
-	IDEDATA_TYPE   b1_y;          ///<Buffer1 Y starting address
-	IDEDATA_TYPE   b1_cb;         ///<Buffer1 Cb/CbCrPack starting address
-	IDEDATA_TYPE   b1_cr;         ///<Buffer1 Cr starting address (not used in CbCr packed format)
-	IDEDATA_TYPE   b2_y;          ///<Buffer2 Y starting address
-	IDEDATA_TYPE   b2_cb;         ///<Buffer2 Cb/CbCrPack starting address
-	IDEDATA_TYPE   b2_cr;         ///<Buffer2 Cr starting address (not used in CbCr packed format)
-	IDEDATA_TYPE   B3_Y;          ///<Buffer3 Y starting address
-	IDEDATA_TYPE   B3_CB;         ///<Buffer3 Cb/CbCrPack starting address
-	IDEDATA_TYPE   B3_CR;         ///<Buffer3 Cr starting address (not used in UVP format)
+	UINT32   b0_y;          ///<Buffer0 Y starting address
+	UINT32   b0_cb;         ///<Buffer0 Cb/CbCrPack starting address
+	UINT32   b0_cr;         ///<Buffer0 Cr starting address (not used in CbCr packed format)
+	UINT32   b1_y;          ///<Buffer1 Y starting address
+	UINT32   b1_cb;         ///<Buffer1 Cb/CbCrPack starting address
+	UINT32   b1_cr;         ///<Buffer1 Cr starting address (not used in CbCr packed format)
+	UINT32   b2_y;          ///<Buffer2 Y starting address
+	UINT32   b2_cb;         ///<Buffer2 Cb/CbCrPack starting address
+	UINT32   b2_cr;         ///<Buffer2 Cr starting address (not used in CbCr packed format)
+	UINT32   B3_Y;          ///<Buffer3 Y starting address
+	UINT32   B3_CB;         ///<Buffer3 Cb/CbCrPack starting address
+	UINT32   B3_CR;         ///<Buffer3 Cr starting address (not used in UVP format)
 	UINT8    ui_buf_sel;      ///<individual buffer number selection. It must be the logic OR operation of IDE_VIDEO_ADDR_SEL_BUFFER0, IDE_VIDEO_ADDR_SEL_BUFFER1 and IDE_VIDEO_ADDR_SEL_BUFFER2
 } VIDEO_BUF_ADDR;
 //@}
@@ -972,7 +915,6 @@ typedef struct {
 	UINT32   win_x;             ///<Window start position X
 	UINT32   win_y;             ///<Window start position Y
 	UINT32   high_addr;         ///<select palette
-	UINT8    alpha[3];        /// alpha value.
 } VOSD_WINDOW_ATTR;
 //@}
 
@@ -1002,11 +944,10 @@ typedef void (*fp_ide_interrupt_callback)(void);
 //new API
 extern ER    idec_open(IDE_ID id);
 extern BOOL  idec_is_opened(IDE_ID id);
-extern void idec_clear_log_cnt(IDE_ID id);
 extern ER    idec_close(IDE_ID id);
 extern ER    idec_set_config(IDE_ID IDEID, IDE_CONFIG_ID config_id, UINT32 config_context);
 extern ER    idec_set_callback(IDE_ID id, KDRV_CALLBACK_FUNC *p_cb_func);
-extern void idec_interrupt_enable(IDE_ID id);
+
 
 
 //-------------------------------------------------
@@ -1016,7 +957,6 @@ extern void idec_interrupt_enable(IDE_ID id);
 // ide control
 void idec_set_dithering(IDE_ID id, BOOL b_en, BOOL b_freerun);
 void idec_set_device(IDE_ID id, IDE_DEVICE_TYPE uidevice);
-void idec_set_hdmi_fmt(IDE_ID id, UINT8 hdmi_fmt);
 void idec_set_pdir(IDE_ID id, IDE_PDIR b_pdir);
 void idec_set_odd(IDE_ID id, IDE_PORDER ui_odd);
 void idec_set_even(IDE_ID id, IDE_PORDER ui_even);
@@ -1029,26 +969,16 @@ void idec_set_fld_inv(IDE_ID id, BOOL b_inv);
 void idec_set_de_inv(IDE_ID id, BOOL b_inv);
 void idec_set_rgbd(IDE_ID id, BOOL b_en);
 void idec_set_through(IDE_ID id, BOOL b_en);
-void idec_set_ddr(IDE_ID id, BOOL b_en);
 void idec_set_hdmi_ddr(IDE_ID id, BOOL b_en);
 void idec_set_dram_out_format(IDE_ID id, BOOL is_yuv422);
-void idec_set_dram_out(IDE_ID id, BOOL b_en);
-void idec_set_dram_out_uvswap(IDE_ID id, BOOL b_en);
 void idec_set_rgbd_swap(IDE_ID id, BOOL b_en);
-BOOL idec_get_dram_out(IDE_ID id);
-BOOL idec_get_dram_out_uvswap(IDE_ID id);
-BOOL idec_get_dram_out_format(IDE_ID id);
-void idec_get_hdmi_fmt(IDE_ID id, UINT8 *hdmi_fmt);
+
 
 #if 0
 void idec_set_reset(IDE_ID id);
 #endif
 void idec_set_dmach_dis(IDE_ID id, BOOL b_en);
 void idec_set_en(IDE_ID id, BOOL b_en);
-void idec_set_frm_reset_delay_count(IDE_ID id, UINT16 counter);
-void idec_set_axien(IDE_ID id, BOOL b_en);
-void idec_set_axi_wrp_outstanding(IDE_ID id, UINT32 wrp_os);
-void idec_set_swreset(IDE_ID id, BOOL b_en);
 void idec_set_load(IDE_ID id);
 void idec_set_dev_no(IDE_ID id, BOOL b_no);
 void idec_set_clk1_2(IDE_ID id, BOOL b_en);
@@ -1062,8 +992,6 @@ BOOL idec_get_load(IDE_ID id);
 BOOL idec_get_through(IDE_ID id);
 BOOL idec_get_rgbd(IDE_ID id);
 IDE_DEVICE_TYPE idec_get_device(IDE_ID id);
-BOOL idec_get_dram_out(IDE_ID id);
-BOOL idec_get_dram_out_uvswap(IDE_ID id);
 
 UINT32 idec_get_window_en(IDE_ID id);
 void idec_set_all_window_dis(IDE_ID id);
@@ -1082,33 +1010,7 @@ void idec_get_palette_group(IDE_ID id, UINT32 ui_start, UINT32 ui_number, UINT32
 void idec_set_palette_group_a_cr_cb_y(IDE_ID id, UINT32 ui_start, UINT32 ui_number, UINT32 *p_palette_entry);
 void idec_get_palette_group_a_cr_cb_y(IDE_ID id, UINT32 ui_start, UINT32 ui_number, UINT32 *p_palette_entry);
 void idec_set_pal(IDE_ID id, UINT32 ui_entry, UINT32 ui_palette);
-void idec_set_pal_shadow(IDE_ID id, UINT32 ui_entry, UINT32 ui_palette);
 void idec_get_pal(IDE_ID id, UINT32 ui_entry, UINT32 *ui_palette);
-void idec_set_hwcur_pal(IDE_ID id, UINT32 ui_entry, UINT8 ui_color_y, UINT8 ui_color_cb, UINT8 ui_color_cr);
-void idec_get_hwcur_pal(IDE_ID id, UINT32 ui_entry, UINT8 *ui_color_y, UINT8 *ui_color_cb, UINT8 *ui_color_cr);
-void idec_set_hwcur_rw(IDE_ID id, BOOL b_sel);
-BOOL idec_get_hwcur_rw(IDE_ID id);
-void idec_set_hwcur_pos(IDE_ID id, UINT32 ui_x, UINT32 ui_y);
-void idec_get_hwcur_pos(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y);
-void idec_set_hwcur_font(IDE_ID id, UINT32 ui_entry, UINT32 ui_font);
-void idec_get_hwcur_font(IDE_ID id, UINT32 ui_entry, UINT32 *ui_font);
-void idec_set_hwcur_en(IDE_ID id, BOOL ui_en);
-BOOL idec_get_hwcur_en(IDE_ID id);
-void idec_set_hwcur_addr(IDE_ID id, IDEDATA_TYPE ui_addr);
-void idec_get_hwcur_addr(IDE_ID id, IDEDATA_TYPE *ui_addr);
-void idec_get_hwcur_haddr(IDE_ID id, UINT8 *ui_addr);
-void idec_set_hwcur_buf_dim(IDE_ID id, UINT8 ui_bw, UINT8 ui_bh);
-void idec_get_hwcur_buf_dim(IDE_ID id, UINT8 *ui_bw, UINT8 *ui_bh);
-void idec_set_hwcur_fmt(IDE_ID id, UINT8 ui_fmt);
-void idec_get_hwcur_fmt(IDE_ID id, UINT8 *ui_fmt);
-
-
-BOOL idec_get_vpi_en(IDE_ID id);
-void idec_get_vpi_coef(IDE_ID id, UINT8 *ui_coef0, UINT8 *ui_coef1);
-void idec_set_vpi_en(IDE_ID id, BOOL ui_en);
-void idec_set_vpi_coef(IDE_ID id, UINT8 ui_coef0, UINT8 ui_coef1);
-
-
 
 // Misc
 void idec_set_background(IDE_ID id, UINT8 ui_color_y, UINT8 ui_color_cb, UINT8 ui_color_cr);
@@ -1124,15 +1026,12 @@ void idec_get_ver_timing(IDE_ID id, UINT32 *pui_vsynct, UINT32 *pui_vtotal, UINT
 void idec_set_inter_load_mode(IDE_ID id, BOOL b2field);
 
 void idec_set_sync_delay(IDE_ID id, UINT8 ui_hs_delay, UINT8 ui_vs_delay);
-void idec_get_sync_delay(IDE_ID id, UINT8 *ui_hs_delay, UINT8 *ui_vs_delay);
 void idec_set_interlace(IDE_ID id, BOOL b_inter);
 void idec_set_start_field(IDE_ID id, BOOL b_oddst);
 BOOL idec_get_interlace(IDE_ID id);
 BOOL idec_get_start_field(IDE_ID id);
 BOOL idec_get_cur_field(IDE_ID id);
 void idec_set_digital_timing(IDE_ID id, UINT32 ui_codd_blk_st, UINT32 ui_codd_blk_ed, UINT32 ui_ceven_blk_st, UINT32 ui_ceven_blk_ed, UINT32 ui_cfid_st, UINT32 ui_cfid_ed);
-void idec_get_digital_timing(IDE_ID id, UINT32 *ui_codd_blk_st, UINT32 *ui_codd_blk_ed, UINT32 *ui_ceven_blk_st, UINT32 *ui_ceven_blk_ed, UINT32 *ui_cfid_st, UINT32 *ui_cfid_ed);
-
 
 // CSB
 void idec_fill_gamma(IDE_ID id, UINT8 *uipgamma);
@@ -1218,9 +1117,6 @@ void idec_get_icst0_coef(IDE_ID id, INT32 *ui_pcoef);
 void idec_set_out_offset(IDE_ID id, UINT32 ui_y, UINT32 ui_cb, UINT32 ui_cr);
 void idec_get_out_offset(IDE_ID id, INT32 *ui_y, INT32 *ui_cb, INT32 *ui_cr);
 void idec_set_out_limit(IDE_ID id, UINT8 ui_y_low, UINT8 ui_y_up, UINT8 ui_cb_low, UINT8 ui_cb_up, UINT8 ui_cr_low, UINT8 ui_cr_up);
-void idec_config_chx_csc(IDE_ID id,CH_ID ch_id);
-void idec_config_cursor_csc(IDE_ID id);
-void idec_set_csc_coef(IDE_ID id, CSC_ID cscid, UINT32 *ui_pcoef);
 
 // ICST
 void idec_set_icst_coef(IDE_ID id, UINT32 *ui_pcoef);
@@ -1268,10 +1164,6 @@ ER idec_set_line_source_alpha(IDE_ID id, IDE_LINE_NUM ui_num, UINT8 source_alpha
 
 ER idec_draw_line(IDE_ID id, IDE_LINE_NUM ui_num, UINT32 ui_x1, UINT32 ui_y1, UINT32 ui_x2, UINT32 ui_y2, UINT32 ui_boarder, UINT8 ui_y, UINT8 ui_cb, UINT8 ui_cr);
 
-void idec_set_line_mon1(IDE_ID id, UINT16 ui_idx);
-void idec_set_line_mon2(IDE_ID id, UINT32 ui_idx);
-void idec_get_frame_cnt(IDE_ID id, UINT32 *ui_frame_cnt);
-
 
 //-------------------------------------------------
 // ide Video register programm APIs
@@ -1284,9 +1176,9 @@ BOOL idec_get_v1_en(IDE_ID id);
 BOOL idec_get_v2_en(IDE_ID id);
 
 // Video buffer
-void idec_set_v1_buf0_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr);
-void idec_set_v1_buf1_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr);
-void idec_set_v1_buf2_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr);
+void idec_set_v1_buf0_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr);
+void idec_set_v1_buf1_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr);
+void idec_set_v1_buf2_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr);
 void idec_set_v1_buf0_odd(IDE_ID id, BOOL b_odd);
 void idec_set_v1_buf1_odd(IDE_ID id, BOOL b_odd);
 void idec_set_v1_buf2_odd(IDE_ID id, BOOL b_odd);
@@ -1297,9 +1189,9 @@ void idec_ch_v1_buf(IDE_ID id, IDE_OP_BUF ui_optbuf);
 //void idec_setV1Cst(IDE_ID id, BOOL b_en, CST_SEL b_sel);
 void idec_set_v1_src(IDE_ID id, IDE_SYNC_SRC b_sel);
 
-void idec_set_v2_buf0_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr);
-void idec_set_v2_buf1_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr);
-void idec_set_v2_buf2_addr(IDE_ID id, IDEDATA_TYPE ui_y_addr, IDEDATA_TYPE ui_cb_addr, IDEDATA_TYPE ui_cr_addr);
+void idec_set_v2_buf0_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr);
+void idec_set_v2_buf1_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr);
+void idec_set_v2_buf2_addr(IDE_ID id, UINT32 ui_y_addr, UINT32 ui_cb_addr, UINT32 ui_cr_addr);
 void idec_set_v2_buf0_odd(IDE_ID id, BOOL b_odd);
 void idec_set_v2_buf1_odd(IDE_ID id, BOOL b_odd);
 void idec_set_v2_buf2_odd(IDE_ID id, BOOL b_odd);
@@ -1310,9 +1202,9 @@ void idec_ch_v2_buf(IDE_ID id, IDE_OP_BUF ui_optbuf);
 //void idec_setV2Cst(IDE_ID id, BOOL b_en, CST_SEL b_sel);
 void idec_set_v2_src(IDE_ID id, IDE_SYNC_SRC b_sel);
 
-void idec_get_v1_buf0_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr);
-void idec_get_v1_buf1_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr);
-void idec_get_v1_buf2_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr);
+void idec_get_v1_buf0_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr);
+void idec_get_v1_buf1_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr);
+void idec_get_v1_buf2_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr);
 void idec_get_v1_buf0_odd(IDE_ID id, BOOL *b_odd);
 void idec_get_v1_buf1_odd(IDE_ID id, BOOL *b_odd);
 void idec_get_v1_buf2_odd(IDE_ID id, BOOL *b_odd);
@@ -1320,9 +1212,9 @@ void idec_get_v1_buf_dim(IDE_ID id, UINT32 *pui_bw, UINT32 *pui_bh, UINT32 *pui_
 void idec_get_v1_buf_op(IDE_ID id, IDE_BJMODE *pui_bjmode, IDE_OP_BUF *pui_optbuf, IDE_BUF_NUM *pui_bufnum);
 void idec_get_v1_read_order(IDE_ID id, IDE_HOR_READ *pb_l2r, IDE_VER_READ *pb_t2b);
 
-void idec_get_v2_buf0_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr);
-void idec_get_v2_buf1_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr);
-void idec_get_v2_buf2_addr(IDE_ID id, IDEDATA_TYPE *pui_y_addr, IDEDATA_TYPE *pui_cb_addr, IDEDATA_TYPE *pui_cr_addr);
+void idec_get_v2_buf0_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr);
+void idec_get_v2_buf1_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr);
+void idec_get_v2_buf2_addr(IDE_ID id, UINT32 *pui_y_addr, UINT32 *pui_cb_addr, UINT32 *pui_cr_addr);
 void idec_get_v2_buf0_odd(IDE_ID id, BOOL *b_odd);
 void idec_get_v2_buf1_odd(IDE_ID id, BOOL *b_odd);
 void idec_get_v2_buf2_odd(IDE_ID id, BOOL *b_odd);
@@ -1351,13 +1243,11 @@ void idec_get_v1_scale_factor(IDE_ID id, UINT32 *ui_hsf, BOOL *b_sub, UINT32 *ui
 void idec_get_v1_win_dim(IDE_ID id, UINT32 *ui_win_w, UINT32 *ui_win_h);
 void idec_get_v1_win_pos(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y);
 void idec_get_v1_fmt(IDE_ID id, IDE_COLOR_FORMAT *ui_fmt);
-IDE_SCALE_METHOD idec_get_v1_hsm(IDE_ID id);
 
 void idec_get_v2_scale_factor(IDE_ID id, UINT32 *ui_hsf, BOOL *b_sub, UINT32 *ui_vsf, BOOL *b_vsub);
 void idec_get_v2_win_dim(IDE_ID id, UINT32 *ui_win_w, UINT32 *ui_win_h);
 void idec_get_v2_win_pos(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y);
 void idec_get_v2_fmt(IDE_ID id, IDE_COLOR_FORMAT *ui_fmt);
-IDE_SCALE_METHOD idec_get_v2_hsm(IDE_ID id);
 
 // Video color key and Blending
 void idec_set_video_colorkey(IDE_ID id, UINT8 ui_ck_y, UINT8 ui_ck_cb, UINT8 ui_ck_cr);
@@ -1411,25 +1301,6 @@ void idec_set_v2_lowpass_en(IDE_ID id, BOOL b_en);
 BOOL idec_get_v2_lowpass_en(IDE_ID id);
 void idec_set_v2_lowpass_coef(IDE_ID id, UINT8 *ui_pcoef);
 void idec_get_v2_lowpass_coef(IDE_ID id, UINT8 *ui_pcoef);
-void idec_set_v1_yccen(IDE_ID id, BOOL yccen);
-BOOL idec_get_v1_yccen(IDE_ID id);
-void idec_set_v2_yccen(IDE_ID id, BOOL yccen);
-BOOL idec_get_v2_yccen(IDE_ID id);
-
-
-void idec_set_vtc_on(IDE_ID id, BOOL b_on);
-void idec_set_vtc_en(IDE_ID id, BOOL b_en);
-BOOL idec_get_vtc_en(IDE_ID id);
-BOOL idec_get_vtc_on(IDE_ID id);
-BOOL idec_get_csc1_en(IDE_ID id);
-BOOL idec_get_csc2_en(IDE_ID id);
-BOOL idec_get_csc3_en(IDE_ID id);
-BOOL idec_get_rgb_gamma_en(IDE_ID id);
-void idec_set_update(IDE_ID id,BOOL b_en);
-BOOL idec_get_update(IDE_ID id);
-void idec_set_csc1_en(IDE_ID id, BOOL b_en);
-void idec_set_csc2_en(IDE_ID id, BOOL b_en);
-void idec_set_csc3_en(IDE_ID id, BOOL b_en);
 
 
 //-------------------------------------------------
@@ -1443,8 +1314,8 @@ BOOL idec_get_o1_en(IDE_ID id);
 //BOOL idec_getO2En(IDE_ID id);
 
 // OSD buffer
-void idec_set_o1_buf_addr(IDE_ID id, IDEDATA_TYPE ui_addr);
-void idec_set_o1_buf_alpha_addr(IDE_ID id, IDEDATA_TYPE ui_addr);
+void idec_set_o1_buf_addr(IDE_ID id, UINT32 ui_addr);
+void idec_set_o1_buf_alpha_addr(IDE_ID id, UINT32 ui_addr);
 void idec_set_o1_buf_dim(IDE_ID id, UINT32 ui_bw, UINT32 ui_bh, UINT32 ui_lineoffset);
 void idec_set_o1_read_order(IDE_ID id, IDE_HOR_READ b_l2r, IDE_VER_READ b_t2b);
 //void ide_setO1Cst(IDE_ID id, BOOL b_en, CST_SEL b_sel);
@@ -1456,8 +1327,8 @@ void idec_set_o2_read_order(IDE_ID id, IDE_HOR_READ b_l2r, IDE_VER_READ b_t2b);
 //void ide_setO2Cst(IDE_ID id, BOOL b_en, CST_SEL b_sel);
 #endif
 
-void idec_get_o1_buf_addr(IDE_ID id, IDEDATA_TYPE *ui_addr);
-void idec_get_o1_alpha_buf_addr(IDE_ID id, IDEDATA_TYPE *ui_addr);
+void idec_get_o1_buf_addr(IDE_ID id, UINT32 *ui_addr);
+void idec_get_o1_alpha_buf_addr(IDE_ID id, UINT32 *ui_addr);
 void idec_get_o1_buf_dim(IDE_ID id, UINT32 *pui_bw, UINT32 *pui_bh, UINT32 *pui_lineoffset);
 void idec_get_o1_read_order(IDE_ID id, IDE_HOR_READ *pb_l2r, IDE_VER_READ *pb_t2b);
 
@@ -1478,11 +1349,6 @@ void idec_set_o1_win_pos(IDE_ID id, UINT32 ui_x, UINT32 ui_y);
 void idec_set_o1_palette_sel(IDE_ID id, IDE_PALETTE_SEL ui_psel);
 void idec_set_o1_palette_high_addr(IDE_ID id, UINT8 ui_hi_addr);
 void idec_set_o1_fmt(IDE_ID id, IDE_COLOR_FORMAT ui_fmt);
-void idec_set_o1_rld_en(IDE_ID id, BOOL b_en);
-void idec_set_o1_rld_ctrl(IDE_ID id, IDE_RLD_COUNT ui_cnt, IDE_RLD_LENGTH ui_len);
-void idec_set_o1_rld_readsize(IDE_ID id, UINT32 ui_size);
-void idec_set_o1_rld_alpha_readsize(IDE_ID id, UINT32 ui_size);
-
 
 #if 0
 void idec_set_o2_scale_ctrl(IDE_ID id, BOOL b_hscaleup, BOOL b_vscaleup);
@@ -1502,13 +1368,6 @@ void idec_get_o1_win_pos(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y);
 void idec_get_o1_palette_sel(IDE_ID id, IDE_PALETTE_SEL *ui_psel);
 void idec_get_o1_palette_high_addr(IDE_ID id, UINT8 *ui_hi_addr);
 void idec_get_o1_fmt(IDE_ID id, IDE_COLOR_FORMAT *ui_fmt);
-IDE_SCALE_METHOD idec_get_o1_hsm(IDE_ID id);
-IDE_SCALE_METHOD idec_get_o1_vsm(IDE_ID id);
-BOOL idec_get_o1_rld_en(IDE_ID id);
-void idec_get_o1_rld_ctrl(IDE_ID id, IDE_RLD_COUNT *ui_cnt, IDE_RLD_LENGTH *ui_len);
-void idec_get_o1_rld_readsize(IDE_ID id, UINT32 *ui_size);
-void idec_get_o1_rld_alpha_readsize(IDE_ID id, UINT32 *ui_size);
-
 
 #if 0
 void idec_get_o2_scale_factor(IDE_ID id, UINT32 *ui_hsf, BOOL *b_sub, UINT32 *ui_vsf, BOOL *b_vsub);
@@ -1579,8 +1438,8 @@ BOOL idec_set_video_win_attr_ex(IDE_ID id, IDE_VIDEOID video_id, VOSD_WINDOW_ATT
 BOOL idec_set_video_win_attr(IDE_ID id, IDE_VIDEOID video_id, VOSD_WINDOW_ATTR *pv_win_attr);
 void idec_set_video_vsf_init(IDE_ID id, IDE_VIDEOID video_id, UINT32 ui_init0, UINT32 ui_init1);
 
-BOOL idec_set_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, IDEDATA_TYPE ui_osd_addr);
-BOOL idec_get_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, IDEDATA_TYPE *pui_osd_addr);
+BOOL idec_set_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, UINT32 ui_osd_addr);
+BOOL idec_get_osd_buf_addr(IDE_ID id, IDE_OSDID osd_id, UINT32 *pui_osd_addr);
 BOOL idec_set_osd_buf_attr(IDE_ID id, IDE_OSDID osd_id, OSD_BUF_ATTR *p_osd_buf_attr);
 BOOL idec_get_osd_buf_attr(IDE_ID id, IDE_OSDID osd_id, OSD_BUF_ATTR *p_osd_buf_attr);
 BOOL idec_set_osd_win_attr_ex(IDE_ID id, IDE_OSDID osd_id, VOSD_WINDOW_ATTR *p_osd_win_attr, BOOL b_load);
@@ -1594,9 +1453,7 @@ void idec_get_palette_group(IDE_ID id, UINT32 ui_start, UINT32 ui_number, UINT32
 
 void idec_wait_frame_end(IDE_ID id, BOOL wait);
 void idec_wait_yuv_output_done(IDE_ID id);
-#if defined __FREERTOS
-void idec_wait_yuv_output_done_polling(IDE_ID id);
-#endif
+
 
 void idec_disable_video(IDE_ID id, IDE_VIDEOID video_id);
 void idec_enable_video(IDE_ID id, IDE_VIDEOID video_id);
@@ -1618,172 +1475,6 @@ void idec_getconfig_icst(IDE_ID id, BOOL *b_en, CST_SEL *SEL);
 void idec_config_output_limit(IDE_ID id, BOOL b_sel);
 void idec_set_constant_window_offset(IDE_ID id, UINT32 ui_x, UINT32 ui_y);
 void idec_get_constant_window_offset(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y);
-void idec_set_background_res(IDE_ID id, UINT32 ui_bg_hs, UINT32 ui_bg_vs);
-void idec_get_background_res(IDE_ID id, UINT32 *ui_bg_hs, UINT32 *ui_bg_vs);
-
-void idec_set_ch_yaddr(IDE_ID id, CH_ID chid, IDEDATA_TYPE ui_y_addr);
-void idec_set_ch_uvaddr(IDE_ID id, CH_ID chid, IDEDATA_TYPE ui_cb_addr);
-
-void idec_set_ch_dim(IDE_ID id, CH_ID chid, UINT32 ui_bw, UINT32 ui_bh, UINT32 ui_y_lofs, UINT32 ui_uv_lofs);
-void idec_set_ch_xy(IDE_ID id, CH_ID chid, UINT32 ui_y_xy, UINT32 ui_uv_xy);
-void idec_set_ch_alpha(IDE_ID id, CH_ID chid, UINT8 ui_galpha, UINT8 ui_alpha0, UINT8 ui_alpha1);
-void idec_set_ch_en(IDE_ID id, CH_ID chid, BOOL b_en);
-BOOL idec_get_ch_en(IDE_ID id, CH_ID chid);
-void idec_set_ch_flip(IDE_ID id, CH_ID chid, IDE_HOR_READ b_l2r, IDE_VER_READ b_t2b);
-void idec_set_ch_swap(IDE_ID id, CH_ID chid, BOOL b_swap);
-void idec_set_ch_trans444_mode(IDE_ID id, CH_ID chid, BOOL b_t444mode);
-void idec_set_ch_mode(IDE_ID id, CH_ID chid, CH_MODE ui_mode);
-void idec_set_ch_rld_ctrl(IDE_ID id, CH_ID chid, IDE_RLD_COUNT ui_cnt, IDE_RLD_LENGTH ui_len);
-void idec_set_ch_mg_ctrl(IDE_ID id, CH_ID chid, UINT8 b_en, UINT8 ui_fmt);
-void idec_set_mg_pad_color(IDE_ID id, CH_ID chid, UINT32 ui_y, UINT32 ui_cb, UINT32 ui_cr);
-void idec_set_csc_in_offset(IDE_ID id, CSC_ID cscid, UINT16 ui_in_ofs0, UINT16 ui_in_ofs1, UINT16 ui_in_ofs2);
-void idec_set_csc_out_offset(IDE_ID id, CSC_ID cscid, UINT16 ui_out_ofs0, UINT16 ui_out_ofs1, UINT16 ui_out_ofs2);
-void idec_set_csc_coef_ctrl(IDE_ID id, CSC_ID cscid, UINT16 ui_coef0, UINT16 ui_coef1, UINT16 ui_coef2, UINT16 ui_coef3);
-void idec_set_csc_coef_ctrl2(IDE_ID id, CSC_ID cscid, UINT16 ui_coef4, UINT16 ui_coef5, UINT16 ui_coef6, UINT16 ui_coef7);
-void idec_set_csc_coef_ctrl3(IDE_ID id, CSC_ID cscid, UINT16 ui_coef8);
-void idec_set_csc_clip(IDE_ID id, CSC_ID cscid, UINT32 ui_in_clip, UINT32 ui_out_clip);
-void idec_get_ch_flip(IDE_ID id, CH_ID chid, IDE_HOR_READ *pb_l2r, IDE_VER_READ *pb_t2b);
-BOOL idec_get_ch_swap(IDE_ID id, CH_ID chid);
-BOOL idec_get_ch_trans444_mode(IDE_ID id, CH_ID chid);
-void idec_get_ch_mode(IDE_ID id, CH_ID chid, CH_MODE* ui_mode);
-void idec_get_ch_rld_ctrl(IDE_ID id, CH_ID chid, IDE_RLD_COUNT *ui_cnt, IDE_RLD_LENGTH *ui_len);
-void idec_get_ch_mg_ctrl(IDE_ID id, CH_ID chid, BOOL *ui_en, UINT8 *ui_fmt);
-void idec_get_csc_in_offset(IDE_ID id, CSC_ID cscid, UINT32 *ui_in_ofs0, UINT32 *ui_in_ofs1, UINT32 *ui_in_ofs2);
-void idec_get_csc_out_offset(IDE_ID id, CSC_ID cscid, UINT32 *ui_out_ofs0, UINT32 *ui_out_ofs1, UINT32 *ui_out_ofs2);
-void idec_get_csc_coef_ctrl(IDE_ID id, CSC_ID cscid, UINT32 *ui_coef0, UINT32 *ui_coef1, UINT32 *ui_coef2, UINT32 *ui_coef3);
-void idec_get_csc_coef_ctrl2(IDE_ID id, CSC_ID cscid, UINT32 *ui_coef4, UINT32 *ui_coef5, UINT32 *ui_coef6, UINT32 *ui_coef7);
-void idec_get_csc_coef_ctrl3(IDE_ID id, CSC_ID cscid, UINT32 *ui_coef8);
-void idec_get_csc_clip(IDE_ID id, CSC_ID cscid, UINT32 *ui_in_clip, UINT32 *ui_out_clip);
-void idec_set_ch_fmt(IDE_ID id, CH_ID chid, IDE_COLOR_FORMAT ui_fmt);
-void idec_get_ch_fmt(IDE_ID id, CH_ID chid, IDE_COLOR_FORMAT *ui_fmt);
-void idec_set_ch_colorkey(IDE_ID id, CH_ID chid, UINT32 ui_ck_low, UINT32 ui_ck_high);
-void idec_get_ch_colorkey(IDE_ID id, CH_ID chid, UINT32 *ui_ck_low, UINT32 *ui_ck_high);
-void idec_set_ch_colorkey_en(IDE_ID id, CH_ID chid, BOOL b_en);
-BOOL idec_get_ch_colorkey_en(IDE_ID id, CH_ID chid);
-void idec_set_ch_colorkey_mask(IDE_ID id, CH_ID chid, UINT32 ui_mask);
-void idec_get_ch_colorkey_mask(IDE_ID id, CH_ID chid, UINT32 *ui_mask);
-void idec_set_ch_rld_readsize(IDE_ID id, CH_ID chid, UINT32 ui_size);
-void idec_set_ch_rld_alpha_readsize(IDE_ID id, CH_ID chid, UINT32 ui_size);
-void idec_set_mixer_ctrl(IDE_ID id, UINT32 ui_plane);
-void idec_set_mixer_ctrl1(IDE_ID id, UINT32 layerid, UINT32 ui_layer_x, UINT32 ui_layer_y );
-void idec_get_mixer_ctrl(IDE_ID id, UINT32* ui_plane);
-void idec_get_mixer_ctrl1(IDE_ID id, UINT32 layerid, UINT32 *ui_layer_x, UINT32 *ui_layer_y );
-void idec_set_color_bar(IDE_ID id, UINT32 cb_id, UINT32 ui_r, UINT32 ui_g, UINT32 ui_b );
-void idec_set_pattern_gen_ctrl(IDE_ID id, UINT8 ch0_patgen, UINT8 ch1_patgen, UINT8 ch2_patgen);
-void idec_set_pattern_gen_ctrl1(IDE_ID id, UINT8 ui_ch, BOOL b_en);
-void idec_get_pattern_gen_ctrl(IDE_ID id, UINT8 *ch0_patgen, UINT8 *ch1_patgen, UINT8 *ch2_patgen);
-void idec_get_pattern_gen_ctrl1(IDE_ID id, UINT8 *ui_ch, UINT8 *b_en);
-void idec_set_ch_ce_blk_dim(IDE_ID id, CH_ID chid, UINT8 blkid, UINT32 ui_width, UINT32 ui_height);
-void idec_set_ch_ce_recip(IDE_ID id, CH_ID chid, UINT8 blkid, UINT32 ui_recip);
-void idec_set_ch_ce_ctrl(IDE_ID id, CH_ID chid, UINT32 ui_blnrat, UINT32 ui_th, UINT32 ui_strth);
-void idec_set_ch_ce_en(IDE_ID id, CH_ID chid, BOOL b_en);
-void idec_set_ch_ce_pos(IDE_ID id, CH_ID chid, UINT32 ui_sx, UINT32 ui_ex, UINT32 ui_sy, UINT32 ui_ey);
-BOOL idec_get_ch_ce_en(IDE_ID id, CH_ID chid);
-void idec_set_ch_brightness(IDE_ID id, CH_ID chid, BOOL b_en, UINT8 ui_bri);
-void idec_set_ch_contrast(IDE_ID id, CH_ID chid, BOOL b_en, UINT8 ui_cont, UINT8 ui_mode);
-void idec_set_ch_hue_sat_en(IDE_ID id, CH_ID chid, BOOL b_en);
-void idec_set_ch_hue(IDE_ID id, CH_ID chid, UINT8 *ui_hue);
-void idec_set_ch_sat(IDE_ID id, CH_ID chid, UINT8 *ui_sat);
-void idec_set_ch_sdi(IDE_ID id, CH_ID chid, UINT8 ui_bypass, UINT8 ui_cropen, UINT8 ui_mapsel);
-void idec_set_ch_sdi_alg(IDE_ID id, CH_ID chid, UINT8 ui_luma, UINT8 ui_chroma);
-void idec_set_ch_sdi_sc_dim0(IDE_ID id, CH_ID chid, UINT16 ui_src_width, UINT16 ui_src_height);
-void idec_set_ch_sdi_sc_dim1(IDE_ID id, CH_ID chid, UINT16 ui_dst_width, UINT16 ui_dst_height);
-void idec_set_ch_sdi_step(IDE_ID id, CH_ID chid, UINT16 ui_hstep, UINT16 ui_vstep);
-void idec_set_ch_sdi_div(IDE_ID id, CH_ID chid, UINT16 ui_hdiv, UINT16 ui_vdiv);
-void idec_set_ch_sdi_mask(IDE_ID id, CH_ID chid, UINT8 ui_hmsk, UINT8 ui_vmsk, UINT16 ui_kval);
-void idec_set_ch_sdi_crop_width(IDE_ID id, CH_ID chid, UINT16 ui_crop_xst, UINT16 ui_crop_width);
-void idec_set_ch_sdi_crop_height(IDE_ID id, CH_ID chid, UINT16 ui_crop_yst, UINT16 ui_crop_height);
-void idec_set_ch_sdi_alpha_wet(IDE_ID id, CH_ID chid, UINT8 ui_x_alpha_wet, UINT8 ui_y_alpha_wet);
-void idec_set_ch_sdi_hstep_ofs(IDE_ID id, CH_ID chid, UINT32 ui_hstep_ofs);
-void idec_get_ch_sdi(IDE_ID id, CH_ID chid, UINT8 *ui_bypass, UINT8 *ui_cropen, UINT8 *ui_mapsel);
-void idec_get_ch_sdi_alg(IDE_ID id, CH_ID chid, UINT8 *ui_luma, UINT8 *ui_chroma);
-void idec_get_ch_sdi_sc_dim0(IDE_ID id, CH_ID chid, UINT16 *ui_src_width, UINT16 *ui_src_height);
-void idec_get_ch_sdi_sc_dim1(IDE_ID id, CH_ID chid, UINT16 *ui_dst_width, UINT16 *ui_dst_height);
-void idec_get_ch_sdi_step(IDE_ID id, CH_ID chid, UINT16 *ui_hstep, UINT16 *ui_vstep);
-void idec_get_ch_sdi_div(IDE_ID id, CH_ID chid, UINT16 *ui_hdiv, UINT16 *ui_vdiv);
-void idec_get_ch_sdi_mask(IDE_ID id, CH_ID chid, UINT8 *ui_hmsk, UINT8 *ui_vmsk, UINT16 *ui_kval);
-void idec_get_ch_sdi_crop_width(IDE_ID id, CH_ID chid, UINT16 *ui_crop_xst, UINT16 *ui_crop_width);
-void idec_get_ch_sdi_crop_height(IDE_ID id, CH_ID chid, UINT16 *ui_crop_yst, UINT16 *ui_crop_height);
-void idec_get_ch_sdi_alpha_wet(IDE_ID id, CH_ID chid, UINT8 *ui_x_alpha_wet, UINT8 *ui_y_alpha_wet);
-void idec_get_ch_sdi_hstep_ofs(IDE_ID id, CH_ID chid, UINT32 *ui_hstep_ofs);
-void idec_set_sdo(IDE_ID id, UINT8 ui_bypass, UINT8 ui_cropen, UINT8 ui_mapsel, UINT8 ui_en);
-void idec_set_sdo_alg(IDE_ID id, UINT8 ui_luma, UINT8 ui_chroma);
-void idec_set_sdo_sc_dim0(IDE_ID id, UINT16 ui_src_width, UINT16 ui_src_height);
-void idec_set_sdo_sc_dim1(IDE_ID id, UINT16 ui_dst_width, UINT16 ui_dst_height);
-void idec_set_sdo_step(IDE_ID id, UINT16 ui_hstep, UINT16 ui_vstep);
-void idec_set_sdo_div(IDE_ID id, UINT16 ui_hdiv, UINT16 ui_vdiv);
-void idec_set_sdo_mask(IDE_ID id, UINT8 ui_hmsk, UINT8 ui_vmsk, UINT16 ui_kval);
-void idec_set_sdo_crop_width(IDE_ID id, UINT16 ui_crop_xst, UINT16 ui_crop_width);
-void idec_set_sdo_crop_height(IDE_ID id, UINT16 ui_crop_yst, UINT16 ui_crop_height);
-void idec_get_sdo(IDE_ID id, UINT8 *ui_bypass, UINT8 *ui_cropen, UINT8 *ui_mapsel, UINT8 *ui_en);
-void idec_get_sdo_alg(IDE_ID id, UINT8 *ui_luma, UINT8 *ui_chroma);
-void idec_get_sdo_sc_dim0(IDE_ID id, UINT16 *ui_src_width, UINT16 *ui_src_height);
-void idec_get_sdo_sc_dim1(IDE_ID id, UINT16 *ui_dst_width, UINT16 *ui_dst_height);
-void idec_get_sdo_step(IDE_ID id, UINT16 *ui_hstep, UINT16 *ui_vstep);
-void idec_get_sdo_div(IDE_ID id, UINT16 *ui_hdiv, UINT16 *ui_vdiv);
-void idec_get_sdo_mask(IDE_ID id, UINT8 *ui_hmsk, UINT8 *ui_vmsk, UINT16 *ui_kval);
-void idec_get_sdo_crop_width(IDE_ID id, UINT16 *ui_crop_xst, UINT16 *ui_crop_width);
-void idec_get_sdo_crop_height(IDE_ID id, UINT16 *ui_crop_yst, UINT16 *ui_crop_height);
-void idec_set_wb_ctrl(IDE_ID id, UINT8 ui_mode, UINT8 ui_uvswap);
-void idec_set_wb_ctrl1(IDE_ID id, UINT8 ui_shot, UINT8 ui_oneshot, UINT8 ui_sel);
-void idec_set_wb_en(IDE_ID id, BOOL b_en);
-void idec_set_wb_pos(IDE_ID id, UINT32 ui_x, UINT32 ui_y);
-void idec_set_wb_dim(IDE_ID id, UINT32 ui_width, UINT32 ui_height);
-void idec_set_wb_yaddr(IDE_ID id, IDEDATA_TYPE addr);
-void idec_set_wb_uvaddr(IDE_ID id, IDEDATA_TYPE addr);
-void idec_set_wb_fmt(IDE_ID id, UINT8 ui_fmt);
-void idec_set_wb_hstep_ofs(IDE_ID id, UINT32 ui_hstep_ofs);
-void idec_set_wb_lofs(IDE_ID id, UINT32 ui_y_lofs, UINT32 ui_uv_lofs);
-void idec_get_wb_ctrl(IDE_ID id, UINT8 *ui_mode, UINT8 *ui_uvswap);
-void idec_get_wb_ctrl1(IDE_ID id, UINT8 *ui_shot, UINT8 *ui_oneshot, UINT8 *ui_sel);
-BOOL idec_get_wb_en(IDE_ID id);
-void idec_get_wb_pos(IDE_ID id, UINT32 *ui_x, UINT32 *ui_y);
-void idec_get_wb_dim(IDE_ID id, UINT32 *ui_width, UINT32 *ui_height);
-void idec_get_wb_yaddr(IDE_ID id, IDEDATA_TYPE *addr);
-void idec_get_wb_uvaddr(IDE_ID id, IDEDATA_TYPE *addr);
-void idec_get_wb_fmt(IDE_ID id, UINT8 *ui_fmt);
-void idec_set_wb_ctrl_2(IDE_ID id, UINT8 ui_bit6, UINT8 ui_bit7);
-void idec_set_ycc_qtable_0(IDE_ID id, UINT8 tableidx, UINT32 ui_table);
-void idec_get_ycc_qtable_0(IDE_ID id, UINT8 tableidx, UINT32 *ui_table);
-void idec_set_ycc_th_0(IDE_ID id, UINT8 *ui_th);
-void idec_get_ycc_th_0(IDE_ID id, UINT8 *ui_th);
-void idec_set_ygamma_idx(IDE_ID id, CH_ID chid, UINT8 *blk_idx);
-void idec_set_ygamma_split(IDE_ID id, CH_ID chid, UINT32 blk_split);
-void idec_set_ygamma_en(IDE_ID id, CH_ID chid, BOOL b_en);
-void idec_set_ygamma_lut(IDE_ID id, CH_ID chid, UINT32 lutidx, UINT32 lut0,  UINT32 lut1);
-void idec_set_afbc_channel(IDE_ID id, UINT8 ui_channel);
-void idec_set_afbc_block_split(IDE_ID id, BOOL block_split);
-void idec_set_afbc_hdr_addr(IDE_ID id, IDEDATA_TYPE ui_addr);
-void idec_get_afbc_hdr_addr(IDE_ID id, IDEDATA_TYPE *ui_addr);
-void idec_get_afbc_checksum(IDE_ID id, UINT8 ui_type, UINT32 *ui_checksum);
-void idec_get_afbc_channel(IDE_ID id, UINT8 *ui_channel);
-
-void idec_set_mg_en(IDE_ID id, UINT32 ui_idx,BOOL b_en);
-void idec_set_mg_ctrl(IDE_ID id, UINT32 ui_idx,UINT8 ui_stx);
-void idec_set_mg_dim(IDE_ID id, UINT32 ui_idx,UINT16 ui_w, UINT16 ui_h, UINT16 ui_lofs);
-void idec_set_mg_pos(IDE_ID id, UINT32 ui_idx,UINT16 ui_sx, UINT16 ui_sy, UINT16 ui_ex, UINT16 ui_ey);
-void idec_set_mg_buf_addr(IDE_ID id, UINT32 ui_idx,IDEDATA_TYPE ui_yaddr, IDEDATA_TYPE ui_uvaddr);
-void idec_set_mg_buf_haddr(IDE_ID id,UINT32 ui_idx, UINT8 ui_yaddr, UINT8 ui_uvaddr);
-BOOL idec_get_mg_en(IDE_ID id, UINT32 ui_idx);
-void idec_get_mg_ctrl(IDE_ID id, UINT32 ui_idx,UINT8 *ui_stx);
-void idec_get_mg_dim(IDE_ID id, UINT32 ui_idx,UINT16 *ui_w, UINT16 *ui_h, UINT16 *ui_lofs);
-void idec_get_mg_pos(IDE_ID id, UINT32 ui_idx,UINT16 *ui_sx, UINT16 *ui_sy, UINT16 *ui_ex, UINT16 *ui_ey);
-void idec_get_mg_buf_addr(IDE_ID id, UINT32 ui_idx,IDEDATA_TYPE *ui_yaddr, IDEDATA_TYPE *ui_uvaddr);
-
-void idec_set_sw_reset(IDE_ID id, BOOL b_en);
-void idec_get_ch_yaddr(IDE_ID id, CH_ID chid, IDEDATA_TYPE *ui_y_addr);
-void idec_get_ch_uvaddr(IDE_ID id, CH_ID chid, IDEDATA_TYPE *ui_cb_addr);
-void idec_get_ch_dim(IDE_ID id, CH_ID chid, UINT32 *ui_bw, UINT32 *ui_bh, UINT32 *ui_y_lofs);
-void idec_get_ch_rld_readsize(IDE_ID id, CH_ID chid, UINT32 *ui_size);
-void idec_get_ch_rld_alpha_readsize(IDE_ID id, CH_ID chid, UINT32 *ui_size);
-void idec_get_ch_sc_dim(IDE_ID id, CH_ID chid, UINT32 *ui_width, UINT32 *ui_height);
-void idec_set_ch_sc_dim(IDE_ID id, CH_ID chid, UINT32 ui_width, UINT32 ui_height);
-void idec_get_ch_xy(IDE_ID id, CH_ID chid, UINT32 *ui_y_xy, UINT32 *ui_uv_xy);
-void idec_get_ch_alpha(IDE_ID id, CH_ID chid, UINT8 *ui_galpha, UINT8 *ui_alpha0, UINT8 *ui_alpha1);
-void idec_set_axi_ctrl(IDE_ID id, UINT16 channel_en, UINT16 lock_dis);
-void idec_set_axi_ctrl1(IDE_ID id, BOOL axi_dis, UINT8 r_ostd_num, UINT8 w_ostd_num);
-void idec_get_axi_rwcnt(IDE_ID id, UINT8 *r_cnt, UINT8 *w_cnt);
-
 
 
 //-------------------------------------------------
@@ -1791,325 +1482,322 @@ void idec_get_axi_rwcnt(IDE_ID id, UINT8 *r_cnt, UINT8 *w_cnt);
 //-------------------------------------------------
 
 // ide control
-#define ide_set_dithering(b_en, b_freerun)       idec_set_dithering(LCD_ID_1, b_en, b_freerun)
-#define ide_set_device(uidevice)                 idec_set_device(LCD_ID_1, uidevice)
-#define ide_set_dram_out(b_en)                   idec_set_dram_out(LCD_ID_1, b_en)
-#define ide_set_pdir(b_pdir)                     idec_set_pdir(LCD_ID_1, b_pdir)
-#define ide_set_odd(ui_odd)                       idec_set_odd(LCD_ID_1, ui_odd)
-#define ide_set_even(ui_even)                     idec_set_even(LCD_ID_1, ui_even)
-#define ide_set_hs_inv(b_inv)                     idec_set_hs_inv(LCD_ID_1, b_inv)
-#define ide_set_vs_inv(b_inv)                     idec_set_vs_inv(LCD_ID_1, b_inv)
-#define ide_set_hvld_inv(b_inv)                   idec_set_hvld_inv(LCD_ID_1, b_inv)
-#define ide_set_vvld_inv(b_inv)                   idec_set_vvld_inv(LCD_ID_1, b_inv)
-#define ide_set_clk_inv(b_inv)                    idec_set_clk_inv(LCD_ID_1, b_inv)
-#define ide_set_fld_inv(b_inv)                    idec_set_fld_inv(LCD_ID_1, b_inv)
-#define ide_set_de_inv(b_inv)                     idec_set_de_inv(LCD_ID_1, b_inv)
-#define ide_set_rgbd(b_en)                       idec_set_rgbd(LCD_ID_1, b_en)
-#define ide_set_through(b_en)                    idec_set_through(LCD_ID_1, b_en)
-#define ide_set_hdmi_ddr(b_en)                    idec_set_hdmi_ddr(LCD_ID_1, b_en)
-#define ide_set_reset()                          //idec_set_reset(LCD_ID_1)
-#define ide_set_dmach_dis(b_en)                 idec_set_dmach_dis(LCD_ID_1, b_en)
-#define ide_set_en(b_en)                         idec_set_en(LCD_ID_1, b_en)
-#define ide_set_axien(b_en)                       idec_set_axien(LCD_ID_1, b_en)
-#define ide_set_load()                           idec_set_load(LCD_ID_1)
-#define ide_set_dev_no(b_no)                      idec_set_dev_no(LCD_ID_1, b_no)
-#define ide_set_hlpf_en(b_en)                     idec_set_hlpf_en(LCD_ID_1, b_en)
-#define ide_get_hlpf_en()                         idec_get_hlpf_en(LCD_ID_1)
+#define ide_set_dithering(b_en, b_freerun)       idec_set_dithering(IDE_ID_1, b_en, b_freerun)
+#define ide_set_device(uidevice)                 idec_set_device(IDE_ID_1, uidevice)
+#define ide_set_pdir(b_pdir)                     idec_set_pdir(IDE_ID_1, b_pdir)
+#define ide_set_odd(ui_odd)                       idec_set_odd(IDE_ID_1, ui_odd)
+#define ide_set_even(ui_even)                     idec_set_even(IDE_ID_1, ui_even)
+#define ide_set_hs_inv(b_inv)                     idec_set_hs_inv(IDE_ID_1, b_inv)
+#define ide_set_vs_inv(b_inv)                     idec_set_vs_inv(IDE_ID_1, b_inv)
+#define ide_set_hvld_inv(b_inv)                   idec_set_hvld_inv(IDE_ID_1, b_inv)
+#define ide_set_vvld_inv(b_inv)                   idec_set_vvld_inv(IDE_ID_1, b_inv)
+#define ide_set_clk_inv(b_inv)                    idec_set_clk_inv(IDE_ID_1, b_inv)
+#define ide_set_fld_inv(b_inv)                    idec_set_fld_inv(IDE_ID_1, b_inv)
+#define ide_set_de_inv(b_inv)                     idec_set_de_inv(IDE_ID_1, b_inv)
+#define ide_set_rgbd(b_en)                       idec_set_rgbd(IDE_ID_1, b_en)
+#define ide_set_through(b_en)                    idec_set_through(IDE_ID_1, b_en)
+#define ide_set_hdmi_ddr(b_en)                    idec_set_hdmi_ddr(IDE_ID_1, b_en)
+#define ide_set_reset()                          //idec_set_reset(IDE_ID_1)
+#define ide_set_dmach_dis(b_en)                 idec_set_dmach_dis(IDE_ID_1, b_en)
+#define ide_set_en(b_en)                         idec_set_en(IDE_ID_1, b_en)
+#define ide_set_load()                           idec_set_load(IDE_ID_1)
+#define ide_set_dev_no(b_no)                      idec_set_dev_no(IDE_ID_1, b_no)
+#define ide_set_hlpf_en(b_en)                     idec_set_hlpf_en(IDE_ID_1, b_en)
+#define ide_get_hlpf_en()                         idec_get_hlpf_en(IDE_ID_1)
 
-#define ide_get_dmach_dis()                     idec_get_dmach_dis(LCD_ID_1)
-#define ide_get_dmach_idle()                    idec_get_dmach_idle(LCD_ID_1)
-#define ide_get_en()                             idec_get_en(LCD_ID_1)
-#define ide_get_load()                           idec_get_load(LCD_ID_1)
-#define ide_get_through()                        idec_get_through(LCD_ID_1)
-#define ide_get_rgbd()                           idec_get_rgbd(LCD_ID_1)
-#define ide_get_device()                         idec_get_device(LCD_ID_1)
-#define ide_get_dram_out()                       idec_get_dram_out(LCD_ID_1)
-#define ide_get_dram_out_uvswap()                idec_get_dram_out_uvswap(LCD_ID_1)
-#define ide_get_window_en()                       idec_get_window_en(LCD_ID_1)
-#define ide_set_all_window_dis()                   idec_set_all_window_dis(LCD_ID_1)
-#define ide_set_all_window_en(ui_wins)              idec_set_all_window_en(LCD_ID_1, ui_wins)
+#define ide_get_dmach_dis()                     idec_get_dmach_dis(IDE_ID_1)
+#define ide_get_dmach_idle()                    idec_get_dmach_idle(IDE_ID_1)
+#define ide_get_en()                             idec_get_en(IDE_ID_1)
+#define ide_get_load()                           idec_get_load(IDE_ID_1)
+#define ide_get_through()                        idec_get_through(IDE_ID_1)
+#define ide_get_rgbd()                           idec_get_rgbd(IDE_ID_1)
+#define ide_get_device()                         idec_get_device(IDE_ID_1)
+
+#define ide_get_window_en()                       idec_get_window_en(IDE_ID_1)
+#define ide_set_all_window_dis()                   idec_set_all_window_dis(IDE_ID_1)
+#define ide_set_all_window_en(ui_wins)              idec_set_all_window_en(IDE_ID_1, ui_wins)
 
 // Palette Control
-#define ide_set_pal_entry(ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)     idec_set_pal_entry(LCD_ID_1, ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)
-#define ide_get_pal_entry(ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)     idec_get_pal_entry(LCD_ID_1, ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)
-#define ide_set_pal(ui_entry, ui_palette)          idec_set_pal(LCD_ID_1, ui_entry, ui_palette)
-#define ide_get_pal(ui_entry, ui_palette)          idec_get_pal(LCD_ID_1, ui_entry, ui_palette)
+#define ide_set_pal_entry(ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)     idec_set_pal_entry(IDE_ID_1, ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)
+#define ide_get_pal_entry(ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)     idec_get_pal_entry(IDE_ID_1, ui_entry, ui_color_y, ui_color_cb, ui_color_cr, ui_alpha)
+#define ide_set_pal(ui_entry, ui_palette)          idec_set_pal(IDE_ID_1, ui_entry, ui_palette)
+#define ide_get_pal(ui_entry, ui_palette)          idec_get_pal(IDE_ID_1, ui_entry, ui_palette)
 
 // Misc
-#define ide_set_background(ui_color_y, ui_color_cb, ui_color_cr)    idec_set_background(LCD_ID_1, ui_color_y, ui_color_cb, ui_color_cr)
-#define ide_get_background(ui_color_y, ui_color_cb, ui_color_cr)    idec_get_background(LCD_ID_1, ui_color_y, ui_color_cb, ui_color_cr)
+#define ide_set_background(ui_color_y, ui_color_cb, ui_color_cr)    idec_set_background(IDE_ID_1, ui_color_y, ui_color_cb, ui_color_cr)
+#define ide_get_background(ui_color_y, ui_color_cb, ui_color_cr)    idec_get_background(IDE_ID_1, ui_color_y, ui_color_cb, ui_color_cr)
 
 
 // Timing
-#define ide_set_hor_timing(ui_hsynct, ui_htotal, ui_hvalidst, ui_hvalided)      idec_set_hor_timing(LCD_ID_1, ui_hsynct, ui_htotal, ui_hvalidst, ui_hvalided)
-#define ide_set_ver_timing(ui_vsynct, ui_vtotal, ui_odd_vvalidst, ui_odd_vvalided, ui_even_vvalidst, ui_even_vvalided)         idec_set_ver_timing(LCD_ID_1, ui_vsynct, ui_vtotal, ui_odd_vvalidst, ui_odd_vvalided, ui_even_vvalidst, ui_even_vvalided)
-#define ide_get_hor_timing(pui_hsynct, pui_htotal, pui_hvalidst, pui_hvalided)  idec_get_hor_timing(LCD_ID_1, pui_hsynct, pui_htotal, pui_hvalidst, pui_hvalided)
-#define ide_get_ver_timing(pui_vsynct, pui_vtotal, pui_odd_vvalidst, pui_odd_vvalided, pui_even_vvalidst, pui_even_vvalided)   idec_get_ver_timing(LCD_ID_1, pui_vsynct, pui_vtotal, pui_odd_vvalidst, pui_odd_vvalided, pui_even_vvalidst, pui_even_vvalided)
+#define ide_set_hor_timing(ui_hsynct, ui_htotal, ui_hvalidst, ui_hvalided)      idec_set_hor_timing(IDE_ID_1, ui_hsynct, ui_htotal, ui_hvalidst, ui_hvalided)
+#define ide_set_ver_timing(ui_vsynct, ui_vtotal, ui_odd_vvalidst, ui_odd_vvalided, ui_even_vvalidst, ui_even_vvalided)         idec_set_ver_timing(IDE_ID_1, ui_vsynct, ui_vtotal, ui_odd_vvalidst, ui_odd_vvalided, ui_even_vvalidst, ui_even_vvalided)
+#define ide_get_hor_timing(pui_hsynct, pui_htotal, pui_hvalidst, pui_hvalided)  idec_get_hor_timing(IDE_ID_1, pui_hsynct, pui_htotal, pui_hvalidst, pui_hvalided)
+#define ide_get_ver_timing(pui_vsynct, pui_vtotal, pui_odd_vvalidst, pui_odd_vvalided, pui_even_vvalidst, pui_even_vvalided)   idec_get_ver_timing(IDE_ID_1, pui_vsynct, pui_vtotal, pui_odd_vvalidst, pui_odd_vvalided, pui_even_vvalidst, pui_even_vvalided)
 
-#define ide_set_sync_delay(ui_hs_delay, ui_vs_delay)  idec_set_sync_delay(LCD_ID_1, ui_hs_delay, ui_vs_delay)
-#define ide_set_interlace(b_inter)               idec_set_interlace(LCD_ID_1, b_inter)
-#define ide_set_start_field(b_oddst)              idec_set_start_field(LCD_ID_1, b_oddst)
-#define ide_get_interlace()                      idec_get_interlace(LCD_ID_1)
-#define ide_get_start_field()                     idec_get_start_field(LCD_ID_1)
-#define ide_get_cur_field()                       idec_get_cur_field(LCD_ID_1)
-#define ide_set_digital_timing(ui_codd_blk_st, ui_codd_blk_ed, ui_ceven_blk_st, ui_ceven_blk_ed, ui_cfid_st, ui_cfid_ed)             idec_set_digital_timing(LCD_ID_1, ui_codd_blk_st, ui_codd_blk_ed, ui_ceven_blk_st, ui_ceven_blk_ed, ui_cfid_st, ui_cfid_ed)
+#define ide_set_sync_delay(ui_hs_delay, ui_vs_delay)  idec_set_sync_delay(IDE_ID_1, ui_hs_delay, ui_vs_delay)
+#define ide_set_interlace(b_inter)               idec_set_interlace(IDE_ID_1, b_inter)
+#define ide_set_start_field(b_oddst)              idec_set_start_field(IDE_ID_1, b_oddst)
+#define ide_get_interlace()                      idec_get_interlace(IDE_ID_1)
+#define ide_get_start_field()                     idec_get_start_field(IDE_ID_1)
+#define ide_get_cur_field()                       idec_get_cur_field(IDE_ID_1)
+#define ide_set_digital_timing(ui_codd_blk_st, ui_codd_blk_ed, ui_ceven_blk_st, ui_ceven_blk_ed, ui_cfid_st, ui_cfid_ed)             idec_set_digital_timing(IDE_ID_1, ui_codd_blk_st, ui_codd_blk_ed, ui_ceven_blk_st, ui_ceven_blk_ed, ui_cfid_st, ui_cfid_ed)
 
 // CSB
-#define ide_fill_gamma(uipgamma)                 idec_fill_gamma(LCD_ID_1, uipgamma)
-#define ide_get_gamma(uipgamma)                  idec_get_gamma(LCD_ID_1, uipgamma)
-#define ide_set_ctrst(ui_ctrst)                   idec_set_ctrst(LCD_ID_1, ui_ctrst)
-#define ide_get_ctrst()                          idec_get_ctrst(LCD_ID_1)
-#define ide_set_brt(ui_brt)                       idec_set_brt(LCD_ID_1, ui_brt)
-#define ide_get_brt()                            idec_get_brt(LCD_ID_1)
-#define ide_set_cmults(ui_cmults)                 idec_set_cmults(LCD_ID_1, ui_cmults)
-#define ide_get_cmults()                         idec_get_cmults(LCD_ID_1)
-#define ide_set_cex(b_cex)                       idec_set_cex(LCD_ID_1, b_cex)
-#define ide_set_ycex(b_ycex)                     idec_set_ycex(LCD_ID_1, b_ycex)
-#define ide_get_ycex()                           idec_get_ycex(LCD_ID_1)
+#define ide_fill_gamma(uipgamma)                 idec_fill_gamma(IDE_ID_1, uipgamma)
+#define ide_get_gamma(uipgamma)                  idec_get_gamma(IDE_ID_1, uipgamma)
+#define ide_set_ctrst(ui_ctrst)                   idec_set_ctrst(IDE_ID_1, ui_ctrst)
+#define ide_get_ctrst()                          idec_get_ctrst(IDE_ID_1)
+#define ide_set_brt(ui_brt)                       idec_set_brt(IDE_ID_1, ui_brt)
+#define ide_get_brt()                            idec_get_brt(IDE_ID_1)
+#define ide_set_cmults(ui_cmults)                 idec_set_cmults(IDE_ID_1, ui_cmults)
+#define ide_get_cmults()                         idec_get_cmults(IDE_ID_1)
+#define ide_set_cex(b_cex)                       idec_set_cex(IDE_ID_1, b_cex)
+#define ide_set_ycex(b_ycex)                     idec_set_ycex(IDE_ID_1, b_ycex)
+#define ide_get_ycex()                           idec_get_ycex(IDE_ID_1)
 
-#define ide_set_icst0(b_en)                      idec_set_icst0(LCD_ID_1, b_en)
-#define ide_get_icst0()                          idec_get_icst0(LCD_ID_1)
-#define ide_set_icst(b_en)                       idec_set_icst(LCD_ID_1, b_en)
-#define ide_get_icst()                           idec_get_icst(LCD_ID_1)
-#define ide_set_cst1(b_en)                       idec_set_cst1(LCD_ID_1, b_en)
-#define ide_get_cst1()                           idec_get_cst1(LCD_ID_1)
+#define ide_set_icst0(b_en)                      idec_set_icst0(IDE_ID_1, b_en)
+#define ide_get_icst0()                          idec_get_icst0(IDE_ID_1)
+#define ide_set_icst(b_en)                       idec_set_icst(IDE_ID_1, b_en)
+#define ide_get_icst()                           idec_get_icst(IDE_ID_1)
+#define ide_set_cst1(b_en)                       idec_set_cst1(IDE_ID_1, b_en)
+#define ide_get_cst1()                           idec_get_cst1(IDE_ID_1)
 
-#define ide_set_csb_en(b_en)                      idec_set_csb_en(LCD_ID_1, b_en)
-#define ide_get_csb_en()                          idec_get_csb_en(LCD_ID_1)
-#define ide_set_gamma_en(b_en)                    idec_set_gamma_en(LCD_ID_1, b_en)
-#define ide_get_gamma_en()                        idec_get_gamma_en(LCD_ID_1)
-#define ide_set_dither_vbits(b_rsel, b_gsel, b_bsel)    idec_set_dither_vbits(LCD_ID_1, b_rsel, b_gsel, b_bsel)
-#define ide_set_out_comp(ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)    idec_set_out_comp(LCD_ID_1, ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)
-#define ide_get_out_comp(ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)    idec_get_out_comp(LCD_ID_1, ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)
+#define ide_set_csb_en(b_en)                      idec_set_csb_en(IDE_ID_1, b_en)
+#define ide_get_csb_en()                          idec_get_csb_en(IDE_ID_1)
+#define ide_set_gamma_en(b_en)                    idec_set_gamma_en(IDE_ID_1, b_en)
+#define ide_get_gamma_en()                        idec_get_gamma_en(IDE_ID_1)
+#define ide_set_dither_vbits(b_rsel, b_gsel, b_bsel)    idec_set_dither_vbits(IDE_ID_1, b_rsel, b_gsel, b_bsel)
+#define ide_set_out_comp(ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)    idec_set_out_comp(IDE_ID_1, ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)
+#define ide_get_out_comp(ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)    idec_get_out_comp(IDE_ID_1, ui_comp0, ui_comp1, ui_comp2, b_bit_swp, b_len)
 
 // Interrupt
-#define ide_get_interrupt_status()                idec_get_interrupt_status(LCD_ID_1)
-#define ide_clear_interrupt_status(ui_int_status)   idec_clear_interrupt_status(LCD_ID_1, ui_int_status)
-#define ide_set_interrupt_en(ui_int_en)             idec_set_interrupt_en(LCD_ID_1, ui_int_en)
-#define ide_clr_interrupt_en(ui_int)               idec_clr_interrupt_en(LCD_ID_1, ui_int)
+#define ide_get_interrupt_status()                idec_get_interrupt_status(IDE_ID_1)
+#define ide_clear_interrupt_status(ui_int_status)   idec_clear_interrupt_status(IDE_ID_1, ui_int_status)
+#define ide_set_interrupt_en(ui_int_en)             idec_set_interrupt_en(IDE_ID_1, ui_int_en)
+#define ide_clr_interrupt_en(ui_int)               idec_clr_interrupt_en(IDE_ID_1, ui_int)
 
 // color Space Transform
-#define ide_set_fcst_coef(ui_pcoef)                idec_set_fcst_coef(LCD_ID_1, ui_pcoef)
+#define ide_set_fcst_coef(ui_pcoef)                idec_set_fcst_coef(IDE_ID_1, ui_pcoef)
 
 // ICST0
-#define ide_set_icst0_pre_offset(ui_y, ui_cb, ui_cr)  idec_set_icst0_pre_offset(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_icst0_pre_offset(ui_y, ui_cb, ui_cr)  idec_get_icst0_pre_offset(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_icst0_coef(ui_pcoef)               idec_set_icst0_coef(LCD_ID_1, ui_pcoef)
-#define ide_get_icst0_coef(ui_pcoef)               idec_get_icst0_coef(LCD_ID_1, ui_pcoef)
-#define ide_set_out_offset(ui_y, ui_cb, ui_cr)       idec_set_out_offset(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_out_offset(ui_y, ui_cb, ui_cr)       idec_get_out_offset(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_out_limit(ui_y_low, ui_y_up, ui_cb_low, ui_cb_up, ui_cr_low, ui_cr_up)    idec_set_out_limit(LCD_ID_1, ui_y_low, ui_y_up, ui_cb_low, ui_cb_up, ui_cr_low, ui_cr_up)
+#define ide_set_icst0_pre_offset(ui_y, ui_cb, ui_cr)  idec_set_icst0_pre_offset(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_icst0_pre_offset(ui_y, ui_cb, ui_cr)  idec_get_icst0_pre_offset(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_icst0_coef(ui_pcoef)               idec_set_icst0_coef(IDE_ID_1, ui_pcoef)
+#define ide_get_icst0_coef(ui_pcoef)               idec_get_icst0_coef(IDE_ID_1, ui_pcoef)
+#define ide_set_out_offset(ui_y, ui_cb, ui_cr)       idec_set_out_offset(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_out_offset(ui_y, ui_cb, ui_cr)       idec_get_out_offset(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_out_limit(ui_y_low, ui_y_up, ui_cb_low, ui_cb_up, ui_cr_low, ui_cr_up)    idec_set_out_limit(IDE_ID_1, ui_y_low, ui_y_up, ui_cb_low, ui_cb_up, ui_cr_low, ui_cr_up)
 
 // ICST
-#define ide_set_icst_coef(ui_pcoef)                idec_set_icst_coef(LCD_ID_1, ui_pcoef)
-#define ide_get_icst_coef(ui_pcoef)                idec_get_icst_coef(LCD_ID_1, ui_pcoef)
+#define ide_set_icst_coef(ui_pcoef)                idec_set_icst_coef(IDE_ID_1, ui_pcoef)
+#define ide_get_icst_coef(ui_pcoef)                idec_get_icst_coef(IDE_ID_1, ui_pcoef)
 
 
 // Alpha Blending
-#define ide_set_alpha_blending(ui_layer, ui_alhpa_type, ui_global_alpha)    idec_set_alpha_blending(LCD_ID_1, ui_layer, ui_alhpa_type, ui_global_alpha)
+#define ide_set_alpha_blending(ui_layer, ui_alhpa_type, ui_global_alpha)    idec_set_alpha_blending(IDE_ID_1, ui_layer, ui_alhpa_type, ui_global_alpha)
 
 // Sub-Pixel interpolation
-#define ide_set_subpixel(b_odd_line, b_r, b_g, b_b)   idec_set_subpixel(LCD_ID_1, b_odd_line, b_r, b_g, b_b)
-#define ide_get_subpixel(b_odd_line, b_r, b_g, b_b)   idec_get_subpixel(LCD_ID_1, b_odd_line, b_r, b_g, b_b)
+#define ide_set_subpixel(b_odd_line, b_r, b_g, b_b)   idec_set_subpixel(IDE_ID_1, b_odd_line, b_r, b_g, b_b)
+#define ide_get_subpixel(b_odd_line, b_r, b_g, b_b)   idec_get_subpixel(IDE_ID_1, b_odd_line, b_r, b_g, b_b)
 
 //-------------------------------------------------
 // ide Video register programm APIs
 //-------------------------------------------------
 
 // Video control
-#define ide_set_v1_en(b_en)                       idec_set_v1_en(LCD_ID_1, b_en)
-#define ide_set_v2_en(b_en)                       idec_set_v2_en(LCD_ID_1, b_en)
-#define ide_get_v1_en()                           idec_get_v1_en(LCD_ID_1)
-#define ide_get_v2_en()                           idec_get_v2_en(LCD_ID_1)
+#define ide_set_v1_en(b_en)                       idec_set_v1_en(IDE_ID_1, b_en)
+#define ide_set_v2_en(b_en)                       idec_set_v2_en(IDE_ID_1, b_en)
+#define ide_get_v1_en()                           idec_get_v1_en(IDE_ID_1)
+#define ide_get_v2_en()                           idec_get_v2_en(IDE_ID_1)
 
 // Video buffer
-#define ide_set_v1_buf0_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v1_buf0_addr(LCD_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
-#define ide_set_v1_buf1_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v1_buf1_addr(LCD_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
-#define ide_set_v1_buf2_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v1_buf2_addr(LCD_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
-#define ide_set_v1_buf0_odd(b_odd)                 idec_set_v1_buf0_odd(LCD_ID_1, b_odd)
-#define ide_set_v1_buf1_odd(b_odd)                 idec_set_v1_buf1_odd(LCD_ID_1, b_odd)
-#define ide_set_v1_buf2_odd(b_odd)                 idec_set_v1_buf2_odd(LCD_ID_1, b_odd)
-#define ide_set_v1_buf_dim(ui_bw, ui_bh, ui_lineoffset)         idec_set_v1_buf_dim(LCD_ID_1, ui_bw, ui_bh, ui_lineoffset)
-#define ide_set_v1_read_order(b_l2r, b_t2b)        idec_set_v1_read_order(LCD_ID_1, b_l2r, b_t2b)
-#define ide_set_v1_buf_op(ui_bjmode, ui_optbuf, ui_buf_num)      idec_set_v1_buf_op(LCD_ID_1, ui_bjmode, ui_optbuf, ui_buf_num)
-#define ide_ch_v1_buf(ui_optbuf)                   idec_ch_v1_buf(LCD_ID_1, ui_optbuf)
-#define ide_set_v1_src(b_sel)                     idec_set_v1_src(LCD_ID_1, b_sel)
+#define ide_set_v1_buf0_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v1_buf0_addr(IDE_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
+#define ide_set_v1_buf1_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v1_buf1_addr(IDE_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
+#define ide_set_v1_buf2_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v1_buf2_addr(IDE_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
+#define ide_set_v1_buf0_odd(b_odd)                 idec_set_v1_buf0_odd(IDE_ID_1, b_odd)
+#define ide_set_v1_buf1_odd(b_odd)                 idec_set_v1_buf1_odd(IDE_ID_1, b_odd)
+#define ide_set_v1_buf2_odd(b_odd)                 idec_set_v1_buf2_odd(IDE_ID_1, b_odd)
+#define ide_set_v1_buf_dim(ui_bw, ui_bh, ui_lineoffset)         idec_set_v1_buf_dim(IDE_ID_1, ui_bw, ui_bh, ui_lineoffset)
+#define ide_set_v1_read_order(b_l2r, b_t2b)        idec_set_v1_read_order(IDE_ID_1, b_l2r, b_t2b)
+#define ide_set_v1_buf_op(ui_bjmode, ui_optbuf, ui_buf_num)      idec_set_v1_buf_op(IDE_ID_1, ui_bjmode, ui_optbuf, ui_buf_num)
+#define ide_ch_v1_buf(ui_optbuf)                   idec_ch_v1_buf(IDE_ID_1, ui_optbuf)
+#define ide_set_v1_src(b_sel)                     idec_set_v1_src(IDE_ID_1, b_sel)
 
-#define ide_set_v2_buf0_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v2_buf0_addr(LCD_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
-#define ide_set_v2_buf1_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v2_buf1_addr(LCD_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
-#define ide_set_v2_buf2_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v2_buf2_addr(LCD_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
-#define ide_set_v2_buf0_odd(b_odd)                 idec_set_v2_buf0_odd(LCD_ID_1, b_odd)
-#define ide_set_v2_buf1_odd(b_odd)                 idec_set_v2_buf1_odd(LCD_ID_1, b_odd)
-#define ide_set_v2_buf2_odd(b_odd)                 idec_set_v2_buf2_odd(LCD_ID_1, b_odd)
-#define ide_set_v2_buf_dim(ui_bw, ui_bh, ui_lineoffset)         idec_set_v2_buf_dim(LCD_ID_1, ui_bw, ui_bh, ui_lineoffset)
-#define ide_set_v2_read_order(b_l2r, b_t2b)        idec_set_v2_read_order(LCD_ID_1, b_l2r, b_t2b)
-#define ide_set_v2_buf_op(ui_bjmode, ui_optbuf, ui_buf_num)      idec_set_v2_buf_op(LCD_ID_1, ui_bjmode, ui_optbuf, ui_buf_num)
-#define ide_ch_v2_buf(ui_optbuf)                   idec_ch_v2_buf(LCD_ID_1, ui_optbuf)
-#define ide_set_v2_src(b_sel)                     idec_set_v2_src(LCD_ID_1, b_sel)
+#define ide_set_v2_buf0_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v2_buf0_addr(IDE_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
+#define ide_set_v2_buf1_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v2_buf1_addr(IDE_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
+#define ide_set_v2_buf2_addr(ui_y_addr, ui_cb_addr, ui_cr_addr)    idec_set_v2_buf2_addr(IDE_ID_1, ui_y_addr, ui_cb_addr, ui_cr_addr)
+#define ide_set_v2_buf0_odd(b_odd)                 idec_set_v2_buf0_odd(IDE_ID_1, b_odd)
+#define ide_set_v2_buf1_odd(b_odd)                 idec_set_v2_buf1_odd(IDE_ID_1, b_odd)
+#define ide_set_v2_buf2_odd(b_odd)                 idec_set_v2_buf2_odd(IDE_ID_1, b_odd)
+#define ide_set_v2_buf_dim(ui_bw, ui_bh, ui_lineoffset)         idec_set_v2_buf_dim(IDE_ID_1, ui_bw, ui_bh, ui_lineoffset)
+#define ide_set_v2_read_order(b_l2r, b_t2b)        idec_set_v2_read_order(IDE_ID_1, b_l2r, b_t2b)
+#define ide_set_v2_buf_op(ui_bjmode, ui_optbuf, ui_buf_num)      idec_set_v2_buf_op(IDE_ID_1, ui_bjmode, ui_optbuf, ui_buf_num)
+#define ide_ch_v2_buf(ui_optbuf)                   idec_ch_v2_buf(IDE_ID_1, ui_optbuf)
+#define ide_set_v2_src(b_sel)                     idec_set_v2_src(IDE_ID_1, b_sel)
 
-#define ide_get_v1_buf0_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v1_buf0_addr(LCD_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
-#define ide_get_v1_buf1_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v1_buf1_addr(LCD_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
-#define ide_get_v1_buf2_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v1_buf2_addr(LCD_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
-#define ide_get_v1_buf0_odd(b_odd)                 idec_get_v1_buf0_odd(LCD_ID_1, b_odd)
-#define ide_get_v1_buf1_odd(b_odd)                 idec_get_v1_buf1_odd(LCD_ID_1, b_odd)
-#define ide_get_v1_buf2_odd(b_odd)                 idec_get_v1_buf2_odd(LCD_ID_1, b_odd)
-#define ide_get_v1_buf_dim(pui_bw, pui_bh, pui_lineoffset)      idec_get_v1_buf_dim(LCD_ID_1, pui_bw, pui_bh, pui_lineoffset)
-#define ide_get_v1_buf_op(pui_bjmode, pui_optbuf, pui_bufnum)   idec_get_v1_buf_op(LCD_ID_1, pui_bjmode, pui_optbuf, pui_bufnum)
-#define ide_get_v1_read_order(pb_l2r, pb_t2b)      idec_get_v1_read_order(LCD_ID_1, pb_l2r, pb_t2b)
+#define ide_get_v1_buf0_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v1_buf0_addr(IDE_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
+#define ide_get_v1_buf1_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v1_buf1_addr(IDE_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
+#define ide_get_v1_buf2_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v1_buf2_addr(IDE_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
+#define ide_get_v1_buf0_odd(b_odd)                 idec_get_v1_buf0_odd(IDE_ID_1, b_odd)
+#define ide_get_v1_buf1_odd(b_odd)                 idec_get_v1_buf1_odd(IDE_ID_1, b_odd)
+#define ide_get_v1_buf2_odd(b_odd)                 idec_get_v1_buf2_odd(IDE_ID_1, b_odd)
+#define ide_get_v1_buf_dim(pui_bw, pui_bh, pui_lineoffset)      idec_get_v1_buf_dim(IDE_ID_1, pui_bw, pui_bh, pui_lineoffset)
+#define ide_get_v1_buf_op(pui_bjmode, pui_optbuf, pui_bufnum)   idec_get_v1_buf_op(IDE_ID_1, pui_bjmode, pui_optbuf, pui_bufnum)
+#define ide_get_v1_read_order(pb_l2r, pb_t2b)      idec_get_v1_read_order(IDE_ID_1, pb_l2r, pb_t2b)
 
-#define ide_get_v2_buf0_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v2_buf0_addr(LCD_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
-#define ide_get_v2_buf1_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v2_buf1_addr(LCD_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
-#define ide_get_v2_buf2_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v2_buf2_addr(LCD_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
-#define ide_get_v2_buf0_odd(b_odd)                 idec_get_v2_buf0_odd(LCD_ID_1, b_odd)
-#define ide_get_v2_buf1_odd(b_odd)                 idec_get_v2_buf1_odd(LCD_ID_1, b_odd)
-#define ide_get_v2_buf2_odd(b_odd)                 idec_get_v2_buf2_odd(LCD_ID_1, b_odd)
-#define ide_get_v2_buf_dim(pui_bw, pui_bh, pui_lineoffset)      idec_get_v2_buf_dim(LCD_ID_1, pui_bw, pui_bh, pui_lineoffset)
-#define ide_get_v2_buf_op(pui_bjmode, pui_optbuf, pui_bufnum)   idec_get_v2_buf_op(LCD_ID_1, pui_bjmode, pui_optbuf, pui_bufnum)
-#define ide_get_v2_read_order(pb_l2r, pb_t2b)      idec_get_v2_read_order(LCD_ID_1, pb_l2r, pb_t2b)
+#define ide_get_v2_buf0_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v2_buf0_addr(IDE_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
+#define ide_get_v2_buf1_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v2_buf1_addr(IDE_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
+#define ide_get_v2_buf2_addr(pui_y_addr, pui_cb_addr, pui_cr_addr) idec_get_v2_buf2_addr(IDE_ID_1, pui_y_addr, pui_cb_addr, pui_cr_addr)
+#define ide_get_v2_buf0_odd(b_odd)                 idec_get_v2_buf0_odd(IDE_ID_1, b_odd)
+#define ide_get_v2_buf1_odd(b_odd)                 idec_get_v2_buf1_odd(IDE_ID_1, b_odd)
+#define ide_get_v2_buf2_odd(b_odd)                 idec_get_v2_buf2_odd(IDE_ID_1, b_odd)
+#define ide_get_v2_buf_dim(pui_bw, pui_bh, pui_lineoffset)      idec_get_v2_buf_dim(IDE_ID_1, pui_bw, pui_bh, pui_lineoffset)
+#define ide_get_v2_buf_op(pui_bjmode, pui_optbuf, pui_bufnum)   idec_get_v2_buf_op(IDE_ID_1, pui_bjmode, pui_optbuf, pui_bufnum)
+#define ide_get_v2_read_order(pb_l2r, pb_t2b)      idec_get_v2_read_order(IDE_ID_1, pb_l2r, pb_t2b)
 
 // Video Window
-#define ide_set_v1_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_v1_scale_ctrl(LCD_ID_1, b_hscaleup, b_vscaleup)
-#define ide_set_v1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_v1_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_set_v1_vsf_init(ui_init0, ui_init1)      idec_set_v1_vsf_init(LCD_ID_1, ui_init0, ui_init1)
-#define ide_set_v1_win_dim(ui_win_w, ui_win_h)         idec_set_v1_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_set_v1_win_pos(ui_x, ui_y)               idec_set_v1_win_pos(LCD_ID_1, ui_x, ui_y)
-#define ide_set_v1_fmt(ui_fmt)                     idec_set_v1_fmt(LCD_ID_1, ui_fmt)
-#define ide_set_v2_hsm(hsm)                       idec_set_v2_hsm(LCD_ID_1, hsm)
+#define ide_set_v1_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_v1_scale_ctrl(IDE_ID_1, b_hscaleup, b_vscaleup)
+#define ide_set_v1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_v1_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_set_v1_vsf_init(ui_init0, ui_init1)      idec_set_v1_vsf_init(IDE_ID_1, ui_init0, ui_init1)
+#define ide_set_v1_win_dim(ui_win_w, ui_win_h)         idec_set_v1_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_set_v1_win_pos(ui_x, ui_y)               idec_set_v1_win_pos(IDE_ID_1, ui_x, ui_y)
+#define ide_set_v1_fmt(ui_fmt)                     idec_set_v1_fmt(IDE_ID_1, ui_fmt)
+#define ide_set_v2_hsm(hsm)                       idec_set_v2_hsm(IDE_ID_1, hsm)
 
-#define ide_set_v2_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_v2_scale_ctrl(LCD_ID_1, b_hscaleup, b_vscaleup)
-#define ide_set_v2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_v2_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_set_v2_vsf_init(ui_init0, ui_init1)                idec_set_v2_vsf_init(LCD_ID_1, ui_init0, ui_init1)
-#define ide_set_v1_hsm(hsm)                                 idec_set_v1_hsm(LCD_ID_1, hsm)
-#define ide_set_v2_win_dim(ui_win_w, ui_win_h)                   idec_set_v2_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_set_v2_win_pos(ui_x, ui_y)                         idec_set_v2_win_pos(LCD_ID_1, ui_x, ui_y)
-#define ide_set_v2_fmt(ui_fmt)                               idec_set_v2_fmt(LCD_ID_1, ui_fmt)
+#define ide_set_v2_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_v2_scale_ctrl(IDE_ID_1, b_hscaleup, b_vscaleup)
+#define ide_set_v2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_v2_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_set_v2_vsf_init(ui_init0, ui_init1)                idec_set_v2_vsf_init(IDE_ID_1, ui_init0, ui_init1)
+#define ide_set_v1_hsm(hsm)                                 idec_set_v1_hsm(IDE_ID_1, hsm)
+#define ide_set_v2_win_dim(ui_win_w, ui_win_h)                   idec_set_v2_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_set_v2_win_pos(ui_x, ui_y)                         idec_set_v2_win_pos(IDE_ID_1, ui_x, ui_y)
+#define ide_set_v2_fmt(ui_fmt)                               idec_set_v2_fmt(IDE_ID_1, ui_fmt)
 
-#define ide_get_v1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_v1_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_get_v1_win_dim(ui_win_w, ui_win_h)                   idec_get_v1_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_get_v1_win_pos(ui_x, ui_y)                         idec_get_v1_win_pos(LCD_ID_1, ui_x, ui_y)
-#define ide_get_v1_fmt(ui_fmt)                               idec_get_v1_fmt(LCD_ID_1, ui_fmt)
+#define ide_get_v1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_v1_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_get_v1_win_dim(ui_win_w, ui_win_h)                   idec_get_v1_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_get_v1_win_pos(ui_x, ui_y)                         idec_get_v1_win_pos(IDE_ID_1, ui_x, ui_y)
+#define ide_get_v1_fmt(ui_fmt)                               idec_get_v1_fmt(IDE_ID_1, ui_fmt)
 
-#define ide_get_v2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_v2_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_get_v2_win_dim(ui_win_w, ui_win_h)                   idec_get_v2_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_get_v2_win_pos(ui_x, ui_y)                         idec_get_v2_win_pos(LCD_ID_1, ui_x, ui_y)
-#define ide_get_v2_fmt(ui_fmt)                               idec_get_v2_fmt(LCD_ID_1, ui_fmt)
+#define ide_get_v2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_v2_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_get_v2_win_dim(ui_win_w, ui_win_h)                   idec_get_v2_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_get_v2_win_pos(ui_x, ui_y)                         idec_get_v2_win_pos(IDE_ID_1, ui_x, ui_y)
+#define ide_get_v2_fmt(ui_fmt)                               idec_get_v2_fmt(IDE_ID_1, ui_fmt)
 
 // Video color key and Blending
-#define ide_set_video_colorkey(ui_ck_y, ui_ck_cb, ui_ck_cr)       idec_set_video_colorkey(LCD_ID_1, ui_ck_y, ui_ck_cb, ui_ck_cr)
-#define ide_set_video_colorkey_sel(b_sel)                    idec_set_video_colorkey_sel(LCD_ID_1, b_sel)
-#define ide_set_video_colorkey_op(ui_ck_op)                    idec_set_video_colorkey_op(LCD_ID_1, ui_ck_op)
+#define ide_set_video_colorkey(ui_ck_y, ui_ck_cb, ui_ck_cr)       idec_set_video_colorkey(IDE_ID_1, ui_ck_y, ui_ck_cb, ui_ck_cr)
+#define ide_set_video_colorkey_sel(b_sel)                    idec_set_video_colorkey_sel(IDE_ID_1, b_sel)
+#define ide_set_video_colorkey_op(ui_ck_op)                    idec_set_video_colorkey_op(IDE_ID_1, ui_ck_op)
 
-#define ide_get_video_colorkey(ui_ck_y, ui_ck_cb, ui_ck_cr)       idec_get_video_colorkey(LCD_ID_1, ui_ck_y, ui_ck_cb, ui_ck_cr)
-#define ide_get_video_colorkey_sel(b_sel)                    idec_get_video_colorkey_sel(LCD_ID_1, b_sel)
-#define ide_get_video_colorkey_op(ui_ck_op)                    idec_get_video_colorkey_op(LCD_ID_1, ui_ck_op)
+#define ide_get_video_colorkey(ui_ck_y, ui_ck_cb, ui_ck_cr)       idec_get_video_colorkey(IDE_ID_1, ui_ck_y, ui_ck_cb, ui_ck_cr)
+#define ide_get_video_colorkey_sel(b_sel)                    idec_get_video_colorkey_sel(IDE_ID_1, b_sel)
+#define ide_get_video_colorkey_op(ui_ck_op)                    idec_get_video_colorkey_op(IDE_ID_1, ui_ck_op)
 
 
 // Video Auto Blinking
-#define ide_set_v1_blink(b_ovr, b_und, b_sel)         idec_set_v1_blink(LCD_ID_1, b_ovr, b_und, b_sel)
-#define ide_set_v1_count(ui_cnt)                       idec_set_v1_count(LCD_ID_1, ui_cnt)
-#define ide_set_v1_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v1_ovrexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_v1_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_set_v1_ovrexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_v1_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v1_undexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_v1_undexp_color(ui_y, ui_cb, ui_cr)       idec_set_v1_undexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_v2_blink(b_ovr, b_und, b_sel)         idec_set_v2_blink(LCD_ID_1, b_ovr, b_und, b_sel)
-#define ide_set_v2_count(ui_cnt)                       idec_set_v2_count(LCD_ID_1, ui_cnt)
-#define ide_set_v2_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v2_ovrexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_v2_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_set_v2_ovrexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_v2_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v2_undexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_set_v2_undexp_color(ui_y, ui_cb, ui_cr)       idec_set_v2_undexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v1_count()                            idec_get_v1_count(LCD_ID_1)
-#define ide_get_v2_count()                            idec_get_v2_count(LCD_ID_1)
-#define ide_get_v1_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v1_ovrexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v2_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v2_ovrexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v1_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v1_undexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v2_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v2_undexp_threshold(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v1_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_get_v1_ovrexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v2_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_get_v2_ovrexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v1_undexp_color(ui_y, ui_cb, ui_cr)       idec_get_v1_undexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
-#define ide_get_v2_undexp_color(ui_y, ui_cb, ui_cr)       idec_get_v2_undexp_color(LCD_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v1_blink(b_ovr, b_und, b_sel)         idec_set_v1_blink(IDE_ID_1, b_ovr, b_und, b_sel)
+#define ide_set_v1_count(ui_cnt)                       idec_set_v1_count(IDE_ID_1, ui_cnt)
+#define ide_set_v1_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v1_ovrexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v1_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_set_v1_ovrexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v1_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v1_undexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v1_undexp_color(ui_y, ui_cb, ui_cr)       idec_set_v1_undexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v2_blink(b_ovr, b_und, b_sel)         idec_set_v2_blink(IDE_ID_1, b_ovr, b_und, b_sel)
+#define ide_set_v2_count(ui_cnt)                       idec_set_v2_count(IDE_ID_1, ui_cnt)
+#define ide_set_v2_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v2_ovrexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v2_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_set_v2_ovrexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v2_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_set_v2_undexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_set_v2_undexp_color(ui_y, ui_cb, ui_cr)       idec_set_v2_undexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v1_count()                            idec_get_v1_count(IDE_ID_1)
+#define ide_get_v2_count()                            idec_get_v2_count(IDE_ID_1)
+#define ide_get_v1_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v1_ovrexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v2_ovrexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v2_ovrexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v1_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v1_undexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v2_undexp_threshold(ui_y, ui_cb, ui_cr)   idec_get_v2_undexp_threshold(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v1_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_get_v1_ovrexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v2_ovrexp_color(ui_y, ui_cb, ui_cr)       idec_get_v2_ovrexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v1_undexp_color(ui_y, ui_cb, ui_cr)       idec_get_v1_undexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
+#define ide_get_v2_undexp_color(ui_y, ui_cb, ui_cr)       idec_get_v2_undexp_color(IDE_ID_1, ui_y, ui_cb, ui_cr)
 
 //-------------------------------------------------
 // ide OSD register programm APIs
 //-------------------------------------------------
 
 // OSD control
-#define ide_set_o1_en(b_en)                           idec_set_o1_en(LCD_ID_1, b_en)
-//#define ide_set_o2_en(b_en)                           idec_setO2En(LCD_ID_1, b_en)
-#define ide_get_o1_en()                               idec_get_o1_en(LCD_ID_1)
-//#define ide_get_o2_en()                               idec_getO2En(LCD_ID_1)
+#define ide_set_o1_en(b_en)                           idec_set_o1_en(IDE_ID_1, b_en)
+//#define ide_set_o2_en(b_en)                           idec_setO2En(IDE_ID_1, b_en)
+#define ide_get_o1_en()                               idec_get_o1_en(IDE_ID_1)
+//#define ide_get_o2_en()                               idec_getO2En(IDE_ID_1)
 
 // OSD buffer
-#define ide_set_o1_buf_addr(ui_addr)                    idec_set_o1_buf_addr(LCD_ID_1, ui_addr)
-#define ide_set_o1_buf_alpha_addr(ui_addr)               idec_set_o1_buf_alpha_addr(LCD_ID_1, ui_addr)
-#define ide_set_o1_buf_dim(ui_bw, ui_bh, ui_lineoffset)   idec_set_o1_buf_dim(LCD_ID_1, ui_bw, ui_bh, ui_lineoffset)
-#define ide_set_o1_read_order(b_l2r, b_t2b)            idec_set_o1_read_order(LCD_ID_1, b_l2r, b_t2b)
+#define ide_set_o1_buf_addr(ui_addr)                    idec_set_o1_buf_addr(IDE_ID_1, ui_addr)
+#define ide_set_o1_buf_alpha_addr(ui_addr)               idec_set_o1_buf_alpha_addr(IDE_ID_1, ui_addr)
+#define ide_set_o1_buf_dim(ui_bw, ui_bh, ui_lineoffset)   idec_set_o1_buf_dim(IDE_ID_1, ui_bw, ui_bh, ui_lineoffset)
+#define ide_set_o1_read_order(b_l2r, b_t2b)            idec_set_o1_read_order(IDE_ID_1, b_l2r, b_t2b)
 
 #if 0
-#define ide_set_o2_buf_addr(ui_addr)                    idec_set_o2_buf_addr(LCD_ID_1, ui_addr)
-#define ide_set_o2_buf_dim(ui_bw, ui_bh, ui_lineoffset)   idec_set_o2_buf_dim(LCD_ID_1, ui_bw, ui_bh, ui_lineoffset)
-#define ide_set_o2_read_order(b_l2r, b_t2b)            idec_set_o2_read_order(LCD_ID_1, b_l2r, b_t2b)
+#define ide_set_o2_buf_addr(ui_addr)                    idec_set_o2_buf_addr(IDE_ID_1, ui_addr)
+#define ide_set_o2_buf_dim(ui_bw, ui_bh, ui_lineoffset)   idec_set_o2_buf_dim(IDE_ID_1, ui_bw, ui_bh, ui_lineoffset)
+#define ide_set_o2_read_order(b_l2r, b_t2b)            idec_set_o2_read_order(IDE_ID_1, b_l2r, b_t2b)
 #endif
 
-#define ide_get_o1_buf_addr(ui_addr)                    idec_get_o1_buf_addr(LCD_ID_1, ui_addr)
-#define ide_get_o1_alpha_buf_addr(ui_addr)               idec_get_o1_alpha_buf_addr(LCD_ID_1, ui_addr)
-#define ide_get_o1_buf_dim(pui_bw, pui_bh, pui_lineoffset)    idec_get_o1_buf_dim(LCD_ID_1, pui_bw, pui_bh, pui_lineoffset)
-#define ide_get_o1_read_order(pb_l2r, pb_t2b)          idec_get_o1_read_order(LCD_ID_1, pb_l2r, pb_t2b)
+#define ide_get_o1_buf_addr(ui_addr)                    idec_get_o1_buf_addr(IDE_ID_1, ui_addr)
+#define ide_get_o1_alpha_buf_addr(ui_addr)               idec_get_o1_alpha_buf_addr(IDE_ID_1, ui_addr)
+#define ide_get_o1_buf_dim(pui_bw, pui_bh, pui_lineoffset)    idec_get_o1_buf_dim(IDE_ID_1, pui_bw, pui_bh, pui_lineoffset)
+#define ide_get_o1_read_order(pb_l2r, pb_t2b)          idec_get_o1_read_order(IDE_ID_1, pb_l2r, pb_t2b)
 
 #if 0
-#define ide_get_o2_buf_addr(ui_addr)                    idec_get_o2_buf_addr(LCD_ID_1, ui_addr)
-#define ide_get_o2_buf_dim(pui_bw, pui_bh, pui_lineoffset)    idec_get_o2_buf_dim(LCD_ID_1, pui_bw, pui_bh, pui_lineoffset)
-#define ide_get_o2_read_order(pb_l2r, pb_t2b)          idec_get_o2_read_order(LCD_ID_1, pb_l2r, pb_t2b)
+#define ide_get_o2_buf_addr(ui_addr)                    idec_get_o2_buf_addr(IDE_ID_1, ui_addr)
+#define ide_get_o2_buf_dim(pui_bw, pui_bh, pui_lineoffset)    idec_get_o2_buf_dim(IDE_ID_1, pui_bw, pui_bh, pui_lineoffset)
+#define ide_get_o2_read_order(pb_l2r, pb_t2b)          idec_get_o2_read_order(IDE_ID_1, pb_l2r, pb_t2b)
 #endif
 
 // OSD Window
-#define ide_set_o1_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_o1_scale_ctrl(LCD_ID_1, b_hscaleup, b_vscaleup)
-#define ide_set_o1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_o1_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_set_o1_vsf_init(ui_init0, ui_init1)                idec_set_o1_vsf_init(LCD_ID_1, ui_init0, ui_init1)
-#define ide_set_o1_hsm(hsm)                                 idec_set_o1_hsm(LCD_ID_1, hsm)
-#define ide_set_o1_win_dim(ui_win_w, ui_win_h)                   idec_set_o1_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_set_o1_win_pos(ui_x, ui_y)                         idec_set_o1_win_pos(LCD_ID_1, ui_x, ui_y)
+#define ide_set_o1_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_o1_scale_ctrl(IDE_ID_1, b_hscaleup, b_vscaleup)
+#define ide_set_o1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_o1_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_set_o1_vsf_init(ui_init0, ui_init1)                idec_set_o1_vsf_init(IDE_ID_1, ui_init0, ui_init1)
+#define ide_set_o1_hsm(hsm)                                 idec_set_o1_hsm(IDE_ID_1, hsm)
+#define ide_set_o1_win_dim(ui_win_w, ui_win_h)                   idec_set_o1_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_set_o1_win_pos(ui_x, ui_y)                         idec_set_o1_win_pos(IDE_ID_1, ui_x, ui_y)
 //Not use since NT96650 => removed
-//#define ide_setO1PaletteSel(ui_psel)                     idec_set_o1_palette_sel(LCD_ID_1, ui_psel)
-#define ide_set_o1_palette_high_addr(ui_hi_addr)                idec_set_o1_palette_high_addr(LCD_ID_1, ui_hi_addr)
-#define ide_set_o1_fmt(ui_fmt)                               idec_set_o1_fmt(LCD_ID_1, ui_fmt)
+//#define ide_setO1PaletteSel(ui_psel)                     idec_set_o1_palette_sel(IDE_ID_1, ui_psel)
+#define ide_set_o1_palette_high_addr(ui_hi_addr)                idec_set_o1_palette_high_addr(IDE_ID_1, ui_hi_addr)
+#define ide_set_o1_fmt(ui_fmt)                               idec_set_o1_fmt(IDE_ID_1, ui_fmt)
 
 #if 0
-#define ide_set_o2_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_o2_scale_ctrl(LCD_ID_1, b_hscaleup, b_vscaleup)
-#define ide_set_o2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_o2_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_set_o2_vsf_init(ui_init0, ui_init1)                idec_set_o2_vsf_init(LCD_ID_1, ui_init0, ui_init1)
-#define ide_set_o2_win_dim(ui_win_w, ui_win_h)                   idec_set_o2_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_set_o2_win_pos(ui_x, ui_y)                         idec_set_o2_win_pos(LCD_ID_1, ui_x, ui_y)
-#define ide_set_o2_palette_sel(ui_psel)                       idec_set_o2_palette_sel(LCD_ID_1, ui_psel)
-#define ide_set_o2_palette_high_addr(ui_hi_addr)                idec_set_o2_palette_high_addr(LCD_ID_1, ui_hi_addr)
-#define ide_set_o2_fmt(ui_fmt)                               idec_set_o2_fmt(LCD_ID_1, ui_fmt)
-#define ide_set_osd_layer_swap(b_swap)                        idec_set_osd_layer_swap(LCD_ID_1, b_swap)
+#define ide_set_o2_scale_ctrl(b_hscaleup, b_vscaleup)        idec_set_o2_scale_ctrl(IDE_ID_1, b_hscaleup, b_vscaleup)
+#define ide_set_o2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_set_o2_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_set_o2_vsf_init(ui_init0, ui_init1)                idec_set_o2_vsf_init(IDE_ID_1, ui_init0, ui_init1)
+#define ide_set_o2_win_dim(ui_win_w, ui_win_h)                   idec_set_o2_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_set_o2_win_pos(ui_x, ui_y)                         idec_set_o2_win_pos(IDE_ID_1, ui_x, ui_y)
+#define ide_set_o2_palette_sel(ui_psel)                       idec_set_o2_palette_sel(IDE_ID_1, ui_psel)
+#define ide_set_o2_palette_high_addr(ui_hi_addr)                idec_set_o2_palette_high_addr(IDE_ID_1, ui_hi_addr)
+#define ide_set_o2_fmt(ui_fmt)                               idec_set_o2_fmt(IDE_ID_1, ui_fmt)
+#define ide_set_osd_layer_swap(b_swap)                        idec_set_osd_layer_swap(IDE_ID_1, b_swap)
 #endif
-//#define ide_setFDLineLayerSwap(b_swap)                        idec_set_fd_line_layer_swap(LCD_ID_1,b_swap)
+//#define ide_setFDLineLayerSwap(b_swap)                        idec_set_fd_line_layer_swap(IDE_ID_1,b_swap)
 
-#define ide_get_o1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_o1_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_get_o1_win_dim(ui_win_w, ui_win_h)                   idec_get_o1_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_get_o1_win_pos(ui_x, ui_y)                         idec_get_o1_win_pos(LCD_ID_1, ui_x, ui_y)
-#define ide_get_o1_palette_sel(ui_psel)                       idec_get_o1_palette_sel(LCD_ID_1, ui_psel)
-#define ide_get_o1_palette_high_addr(ui_hi_addr)                idec_get_o1_palette_high_addr(LCD_ID_1, ui_hi_addr)
-#define ide_get_o1_fmt(ui_fmt)                               idec_get_o1_fmt(LCD_ID_1, ui_fmt)
+#define ide_get_o1_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_o1_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_get_o1_win_dim(ui_win_w, ui_win_h)                   idec_get_o1_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_get_o1_win_pos(ui_x, ui_y)                         idec_get_o1_win_pos(IDE_ID_1, ui_x, ui_y)
+#define ide_get_o1_palette_sel(ui_psel)                       idec_get_o1_palette_sel(IDE_ID_1, ui_psel)
+#define ide_get_o1_palette_high_addr(ui_hi_addr)                idec_get_o1_palette_high_addr(IDE_ID_1, ui_hi_addr)
+#define ide_get_o1_fmt(ui_fmt)                               idec_get_o1_fmt(IDE_ID_1, ui_fmt)
 
 #if 0
-#define ide_get_o2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_o2_scale_factor(LCD_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
-#define ide_get_o2_win_dim(ui_win_w, ui_win_h)                   idec_get_o2_win_dim(LCD_ID_1, ui_win_w, ui_win_h)
-#define ide_get_o2_win_pos(ui_x, ui_y)                         idec_get_o2_win_pos(LCD_ID_1, ui_x, ui_y)
-#define ide_get_o2_palette_sel(ui_psel)                       idec_get_o2_palette_sel(LCD_ID_1, ui_psel)
-#define ide_get_o2_palette_high_addr(ui_hi_addr)                idec_get_o2_palette_high_addr(LCD_ID_1, ui_hi_addr)
-#define ide_get_o2_fmt(ui_fmt)                               idec_get_o2_fmt(LCD_ID_1, ui_fmt)
-#define ide_get_osd_layer_swap()                             idec_get_osd_layer_swap(LCD_ID_1)
+#define ide_get_o2_scale_factor(ui_hsf, b_sub, ui_vsf, b_vsub) idec_get_o2_scale_factor(IDE_ID_1, ui_hsf, b_sub, ui_vsf, b_vsub)
+#define ide_get_o2_win_dim(ui_win_w, ui_win_h)                   idec_get_o2_win_dim(IDE_ID_1, ui_win_w, ui_win_h)
+#define ide_get_o2_win_pos(ui_x, ui_y)                         idec_get_o2_win_pos(IDE_ID_1, ui_x, ui_y)
+#define ide_get_o2_palette_sel(ui_psel)                       idec_get_o2_palette_sel(IDE_ID_1, ui_psel)
+#define ide_get_o2_palette_high_addr(ui_hi_addr)                idec_get_o2_palette_high_addr(IDE_ID_1, ui_hi_addr)
+#define ide_get_o2_fmt(ui_fmt)                               idec_get_o2_fmt(IDE_ID_1, ui_fmt)
+#define ide_get_osd_layer_swap()                             idec_get_osd_layer_swap(IDE_ID_1)
 #endif
 
 // OSD color key and Blending
-#define ide_set_osd_colorkey_en(b_en)                        idec_set_osd_colorkey_en(LCD_ID_1, b_en)
-#define ide_set_osd_colorkey(ui_ck)                          ide_set_osd_colorkey(LCD_ID_1, ui_ck)
+#define ide_set_osd_colorkey_en(b_en)                        idec_set_osd_colorkey_en(IDE_ID_1, b_en)
+#define ide_set_osd_colorkey(ui_ck)                          ide_set_osd_colorkey(IDE_ID_1, ui_ck)
 //void ide_setOsdBlendOp(IDE_OSD_BLEND_OP uiOp);
 
-#define ide_get_osd_colorkey(ui_ck)                          idec_get_osd_colorkey(LCD_ID_1, ui_ck)
-#define ide_get_osd_colorkey_en(b_en)                        idec_get_osd_colorkey_en(LCD_ID_1, b_en)
+#define ide_get_osd_colorkey(ui_ck)                          idec_get_osd_colorkey(IDE_ID_1, ui_ck)
+#define ide_get_osd_colorkey_en(b_en)                        idec_get_osd_colorkey_en(IDE_ID_1, b_en)
 //void ide_getOsdBlendOp(IDE_OSD_BLEND_OP *uiOp);
 
 // OSD color Space Transform
@@ -2181,52 +1869,52 @@ void   idetv_get_coef(IDETV_CONFIGCOEF_ID config_id, UINT8 *ui_coef);
 // ide Public Functions
 //-------------------------------------------------
 
-#define ide_set_video_buf_addr(video_id, pv_buf_addr)          idec_set_video_buf_addr(LCD_ID_1, video_id, pv_buf_addr)
-#define ide_get_video_buf_addr(video_id, pv_buf_addr)          idec_get_video_buf_addr(LCD_ID_1, video_id, pv_buf_addr)
-#define ide_set_video_buf_attr(video_id, pv_buf_attr)          idec_set_video_buf_attr(LCD_ID_1, video_id, pv_buf_attr)
-#define ide_get_video_buf_attr(video_id, pv_buf_attr)          idec_get_video_buf_attr(LCD_ID_1, video_id, pv_buf_attr)
-#define ide_set_video_win_attr_ex(video_id, pv_win_attr, b_load) idec_set_video_win_attr_ex(LCD_ID_1, video_id, pv_win_attr, b_load)
-#define ide_set_video_win_attr(video_id, pv_win_attr)          idec_set_video_win_attr(LCD_ID_1, video_id, pv_win_attr)
-#define ide_set_video_vsf_init(video_id, ui_init0, ui_init1)     idec_set_video_vsf_init(LCD_ID_1, video_id, ui_init0, ui_init1)
+#define ide_set_video_buf_addr(video_id, pv_buf_addr)          idec_set_video_buf_addr(IDE_ID_1, video_id, pv_buf_addr)
+#define ide_get_video_buf_addr(video_id, pv_buf_addr)          idec_get_video_buf_addr(IDE_ID_1, video_id, pv_buf_addr)
+#define ide_set_video_buf_attr(video_id, pv_buf_attr)          idec_set_video_buf_attr(IDE_ID_1, video_id, pv_buf_attr)
+#define ide_get_video_buf_attr(video_id, pv_buf_attr)          idec_get_video_buf_attr(IDE_ID_1, video_id, pv_buf_attr)
+#define ide_set_video_win_attr_ex(video_id, pv_win_attr, b_load) idec_set_video_win_attr_ex(IDE_ID_1, video_id, pv_win_attr, b_load)
+#define ide_set_video_win_attr(video_id, pv_win_attr)          idec_set_video_win_attr(IDE_ID_1, video_id, pv_win_attr)
+#define ide_set_video_vsf_init(video_id, ui_init0, ui_init1)     idec_set_video_vsf_init(IDE_ID_1, video_id, ui_init0, ui_init1)
 
-#define ide_set_osd_buf_addr(osd_id, ui_osd_addr)               idec_set_osd_buf_addr(LCD_ID_1, osd_id, ui_osd_addr)
-#define ide_get_osd_buf_addr(osd_id, pui_osd_addr)              idec_get_osd_buf_addr(LCD_ID_1, osd_id, pui_osd_addr)
-#define ide_set_osd_buf_attr(osd_id, p_osd_buf_attr)            idec_set_osd_buf_attr(LCD_ID_1, osd_id, p_osd_buf_attr)
-#define ide_get_osd_buf_attr(osd_id, p_osd_buf_attr)            idec_get_osd_buf_attr(LCD_ID_1, osd_id, p_osd_buf_attr)
-#define ide_set_osd_win_attr_ex(osd_id, p_osd_win_attr, b_load)   idec_set_osd_win_attr_ex(LCD_ID_1, osd_id, p_osd_win_attr, b_load)
-#define ide_set_osd_win_attr(osd_id, p_osd_win_attr)            idec_set_osd_win_attr(LCD_ID_1, osd_id, p_osd_win_attr)
-#define ide_set_osd_vsf_init(osd_id, ui_init0, ui_init1)         idec_set_osd_vsf_init(LCD_ID_1, osd_id, ui_init0, ui_init1)
+#define ide_set_osd_buf_addr(osd_id, ui_osd_addr)               idec_set_osd_buf_addr(IDE_ID_1, osd_id, ui_osd_addr)
+#define ide_get_osd_buf_addr(osd_id, pui_osd_addr)              idec_get_osd_buf_addr(IDE_ID_1, osd_id, pui_osd_addr)
+#define ide_set_osd_buf_attr(osd_id, p_osd_buf_attr)            idec_set_osd_buf_attr(IDE_ID_1, osd_id, p_osd_buf_attr)
+#define ide_get_osd_buf_attr(osd_id, p_osd_buf_attr)            idec_get_osd_buf_attr(IDE_ID_1, osd_id, p_osd_buf_attr)
+#define ide_set_osd_win_attr_ex(osd_id, p_osd_win_attr, b_load)   idec_set_osd_win_attr_ex(IDE_ID_1, osd_id, p_osd_win_attr, b_load)
+#define ide_set_osd_win_attr(osd_id, p_osd_win_attr)            idec_set_osd_win_attr(IDE_ID_1, osd_id, p_osd_win_attr)
+#define ide_set_osd_vsf_init(osd_id, ui_init0, ui_init1)         idec_set_osd_vsf_init(IDE_ID_1, osd_id, ui_init0, ui_init1)
 
-#define ide_set_palette_entry(p_palette_entry)                idec_set_palette_entry(LCD_ID_1, p_palette_entry)
-#define ide_get_palette_entry(p_palette_entry)                idec_get_palette_entry(LCD_ID_1, p_palette_entry)
-#define ide_set_palette_group(ui_start, ui_number, p_palette_entry)        idec_set_palette_group(LCD_ID_1, ui_start, ui_number, p_palette_entry)
-#define ide_get_palette_group(ui_start, ui_number, p_palette_entry)        idec_get_palette_group(LCD_ID_1, ui_start, ui_number, p_palette_entry)
-#define ide_get_shadow_palette_group(ui_start, ui_number, p_palette_entry) //idec_get_shadow_palette_group(LCD_ID_1, ui_start, ui_number, p_palette_entry)
-#define ide_set_palette_group_a_cr_cb_y(ui_start, ui_number, p_palette_entry)  idec_set_palette_group_a_cr_cb_y(LCD_ID_1, ui_start, ui_number, p_palette_entry)
-#define ide_get_palette_group_a_cr_cb_y(ui_start, ui_number, p_palette_entry)  idec_get_palette_group_a_cr_cb_y(LCD_ID_1, ui_start, ui_number, p_palette_entry)
-#define ide_wait_frame_end(wait)                                 idec_wait_frame_end(LCD_ID_1, wait)
-#define ide_wait_yuv_output_done()                            idec_wait_yuv_output_done(LCD_ID_1)
+#define ide_set_palette_entry(p_palette_entry)                idec_set_palette_entry(IDE_ID_1, p_palette_entry)
+#define ide_get_palette_entry(p_palette_entry)                idec_get_palette_entry(IDE_ID_1, p_palette_entry)
+#define ide_set_palette_group(ui_start, ui_number, p_palette_entry)        idec_set_palette_group(IDE_ID_1, ui_start, ui_number, p_palette_entry)
+#define ide_get_palette_group(ui_start, ui_number, p_palette_entry)        idec_get_palette_group(IDE_ID_1, ui_start, ui_number, p_palette_entry)
+#define ide_get_shadow_palette_group(ui_start, ui_number, p_palette_entry) //idec_get_shadow_palette_group(IDE_ID_1, ui_start, ui_number, p_palette_entry)
+#define ide_set_palette_group_a_cr_cb_y(ui_start, ui_number, p_palette_entry)  idec_set_palette_group_a_cr_cb_y(IDE_ID_1, ui_start, ui_number, p_palette_entry)
+#define ide_get_palette_group_a_cr_cb_y(ui_start, ui_number, p_palette_entry)  idec_get_palette_group_a_cr_cb_y(IDE_ID_1, ui_start, ui_number, p_palette_entry)
+#define ide_wait_frame_end(wait)                                 idec_wait_frame_end(IDE_ID_1, wait)
+#define ide_wait_yuv_output_done()                            idec_wait_yuv_output_done(IDE_ID_1)
 
-#define ide_disable_video(video_id)                          idec_disable_video(LCD_ID_1, video_id)
-#define ide_enable_video(video_id)                           idec_enable_video(LCD_ID_1, video_id)
-#define ide_get_video_enable(video_id)                        idec_get_video_enable(LCD_ID_1, video_id)
+#define ide_disable_video(video_id)                          idec_disable_video(IDE_ID_1, video_id)
+#define ide_enable_video(video_id)                           idec_enable_video(IDE_ID_1, video_id)
+#define ide_get_video_enable(video_id)                        idec_get_video_enable(IDE_ID_1, video_id)
 
-#define ide_disable_osd(osd_id)                              idec_disable_osd(LCD_ID_1, osd_id)
-#define ide_enable_osd(osd_id)                               idec_enable_osd(LCD_ID_1, osd_id)
-#define ide_get_osd_enable(osd_id)                            idec_get_osd_enable(LCD_ID_1, osd_id)
-#define ide_get_pal_capability()                             idec_get_pal_capability(LCD_ID_1)
+#define ide_disable_osd(osd_id)                              idec_disable_osd(IDE_ID_1, osd_id)
+#define ide_enable_osd(osd_id)                               idec_enable_osd(IDE_ID_1, osd_id)
+#define ide_get_osd_enable(osd_id)                            idec_get_osd_enable(IDE_ID_1, osd_id)
+#define ide_get_pal_capability()                             idec_get_pal_capability(IDE_ID_1)
 
-#define ide_set_video_buffer_content(video_id, buffer_id, p_ycbcr)         idec_set_video_buffer_content(LCD_ID_1, video_id, buffer_id, p_ycbcr)
-#define ide_convert_rgb2ycbcr(p_rgb, p_ycbcr)                 idec_convert_rgb2ycbcrr(LCD_ID_1, p_rgb, p_ycbcr)
+#define ide_set_video_buffer_content(video_id, buffer_id, p_ycbcr)         idec_set_video_buffer_content(IDE_ID_1, video_id, buffer_id, p_ycbcr)
+#define ide_convert_rgb2ycbcr(p_rgb, p_ycbcr)                 idec_convert_rgb2ycbcrr(IDE_ID_1, p_rgb, p_ycbcr)
 
 //void ide_configVideoCst(IDE_VIDEOID video_id, BOOL b_en, CST_SEL SEL);
 //void ide_configOsdCst(IDE_OSDID osd_id, BOOL b_en, CST_SEL SEL);
 //void ide_config_icst(BOOL b_en, CST_SEL SEL);
-#define ide_config_icst(b_en, SEL)                          idec_config_icst(LCD_ID_1, b_en, SEL)
-#define ide_getconfig_icst(b_en, SEL)                       idec_getconfig_icst(LCD_ID_1, b_en, SEL)
-#define ide_config_output_limit(b_sel)                       idec_config_output_limit(LCD_ID_1, b_sel)
-#define ide_set_constant_window_offset(ui_x, ui_y)              idec_set_constant_window_offset(LCD_ID_1, ui_x, ui_y)
-#define ide_get_constant_window_offset(ui_x, ui_y)              idec_get_constant_window_offset(LCD_ID_1, ui_x, ui_y)
+#define ide_config_icst(b_en, SEL)                          idec_config_icst(IDE_ID_1, b_en, SEL)
+#define ide_getconfig_icst(b_en, SEL)                       idec_getconfig_icst(IDE_ID_1, b_en, SEL)
+#define ide_config_output_limit(b_sel)                       idec_config_output_limit(IDE_ID_1, b_sel)
+#define ide_set_constant_window_offset(ui_x, ui_y)              idec_set_constant_window_offset(IDE_ID_1, ui_x, ui_y)
+#define ide_get_constant_window_offset(ui_x, ui_y)              idec_get_constant_window_offset(IDE_ID_1, ui_x, ui_y)
 
 
 //-------------------------------------------------
@@ -2239,9 +1927,9 @@ void ide_attach(void);
 void ide_detach(void);
 void ide_init(void);
 #endif
-#define ide_open()          idec_open(LCD_ID_1)
-#define ide_close()         idec_close(LCD_ID_1)
-#define ide_is_opened()      idec_is_opened(LCD_ID_1)
+#define ide_open()          idec_open(IDE_ID_1)
+#define ide_close()         idec_close(IDE_ID_1)
+#define ide_is_opened()      idec_is_opened(IDE_ID_1)
 //void ide_registerMiInterruptHandler(fp_ide_interrupt_callback IntrHdl);
 #define IDE1_OSD2_EXIST     0
 //@}
@@ -2254,8 +1942,6 @@ UINT32 ide_platform_get_iffreq(IDE_ID id);
 
 void ide_platform_clk_en(IDE_ID id);
 void ide_platform_clk_dis(IDE_ID id);
-void ide_platform_set_pa(IDE_ID id, BOOL en);
-BOOL ide_platform_get_pa(IDE_ID id);
 
 
 

@@ -56,22 +56,13 @@ typedef enum {
 
 	DISPDEV_TYPE_MI,                        ///< Display mode is Memory interface
 	DISPDEV_TYPE_EMBD_TV,                   ///< Display mode is Embedded TV Encoder
-	DISPDEV_TYPE_EMBD_HDMI444,              ///< Display mode is Embedded HDMI transmitter
-	DISPDEV_TYPE_EMBD_HDMI422,              ///< Display mode is Embedded HDMI transmitter
-	DISPDEV_TYPE_EMBD_HDMI420,              ///< Display mode is Embedded HDMI transmitter
+	DISPDEV_TYPE_EMBD_HDMI,                 ///< Display mode is Embedded HDMI transmitter
 	DISPDEV_TYPE_EMBD_MIPIDSI,              ///< Display mode is Embedded MIPI DSI tx.
 
 	DISPDEV_TYPE_OUTPUT_DRAM,               ///< Display mode is output to dram via VDO2 channel
 
 	ENUM_DUMMY4WORD(DISPDEV_TYPE)
 } DISPDEV_TYPE;
-
-typedef enum {
-	HDMI_FMT_HDMI444,              ///< Display mode is Embedded HDMI transmitter
-	HDMI_FMT_HDMI422,              ///< Display mode is Embedded HDMI transmitter
-	HDMI_FMT_HDMI420,              ///< Display mode is Embedded HDMI transmitter
-	ENUM_DUMMY4WORD(HDMI_FMT)
-} HDMI_FMT;
 
 /**
     Display Engine Source clock select definition
@@ -80,24 +71,11 @@ typedef enum {
 */
 typedef enum {
 	DISPCTRL_SRCCLK_PLL1,                   ///< The display source clock from 480MHz
-	DISPCTRL_SRCCLK_PLL6,                   ///< The display source clock from PLL8
-	DISPCTRL_SRCCLK_PLL2,                   ///< The display source clock from 192MHz
-	DISPCTRL_SRCCLK_PLL9,                   ///< The display source clock from PLL9	
-	DISPCTRL_SRCCLK_PLL10,                   ///< The display source clock from PLL10
-	DISPCTRL_SRCCLK_PLL11,                   ///< The display source clock from PLL11
-	DISPCTRL_SRCCLK_PLL27,                   ///< The display source clock from PLL27
-	DISPCTRL_SRCCLK_IDE2_PLL1,
-	DISPCTRL_SRCCLK_IDE2_PLL8,
-	DISPCTRL_SRCCLK_IDE2_PLL2,
-	DISPCTRL_SRCCLK_IDE2_PLL9,
-	DISPCTRL_SRCCLK_IDE2_PLL10,
-	DISPCTRL_SRCCLK_IDE2_PLL11,
-//  DISPCTRL_SRCCLK_IDE2_PLL7,
-//  DISPCTRL_SRCCLK_IDE2_PLL12,
-	DISPCTRL_SRCCLK_IDE2_PLL27,
-	//DISPCTRL_SRCCLK_MI_ENGINE,              ///< The display source clock from Fixed MI Engine Clock Source 240MHz
+	DISPCTRL_SRCCLK_PLL6,                   ///< The display source clock from PLL6
+	DISPCTRL_SRCCLK_PLL4,                   ///< The display source clock from PLL4
+	DISPCTRL_SRCCLK_PLL9,                   ///< The display source clock from PLL9
+
 	DISPCTRL_SRCCLK_DEFAULT = DISPCTRL_SRCCLK_PLL6,///< Default display source clock selection for realchip
-	DISPCTRL_SRCCLK_IDE2_DEFAULT = DISPCTRL_SRCCLK_IDE2_PLL9,///< Default display source clock selection for realchip IDE2	
 	ENUM_DUMMY4WORD(DISPCTRL_SRCCLK)
 } DISPCTRL_SRCCLK;
 
@@ -139,13 +117,7 @@ typedef enum {
 	DISPCTRL_SET_CCA_CCON,                  ///< Set display color component adjustment C contrast
 	DISPCTRL_SET_CCA_YOFS,                  ///< Set display color component adjustment Y offset
 	DISPCTRL_SET_CCA_COFS,                  ///< Set display color component adjustment C offset
-	DISPCTRL_SET_VPI_EN,                    ///< Set display PI iflter enable/disable
-	DISPCTRL_SET_VPI_COEF,                  ///< Set display PI iflter coefficient
-	DISPCTRL_SET_MIXER,                     ///< Set display mixer.
-	DISPCTRL_SET_MIXER_POS,                 ///< Set display position
-	DISPCTRL_SET_MGEN,                      ///< Set display MG
-	DISPCTRL_SET_CHEN,                      ///< Set display CH
-	DISPCTRL_SET_PA_EN,                     ///< Set display PA enable/disable
+
 
 	/* GET control group */
 	DISPCTRL_GET_ENABLE,                    ///< Get display engine's global enable/disable.
@@ -177,12 +149,8 @@ typedef enum {
 	DISPCTRL_GET_CCA_CCON,                  ///< Get display color component adjustment C contrast
 	DISPCTRL_GET_CCA_YOFS,                  ///< Get display color component adjustment Y offset
 	DISPCTRL_GET_CCA_COFS,                  ///< Get display color component adjustment C offset
-	DISPCTRL_GET_VPI_EN,                    ///< Get display PI iflter enable/disable
-	DISPCTRL_GET_VPI_COEF,                  ///< Get display PI iflter coefficient
-	DISPCTRL_GET_MIXER,                     ///< Get display mixer.
-	DISPCTRL_GET_MIXER_POS,                 ///< Get display mixer position.
-	DISPCTRL_GET_MGEN,                      ///< Get display MG
-	DISPCTRL_GET_PA_EN,                     ///< Get display PA enable/disable
+
+
 	ENUM_DUMMY4WORD(DISPCTRL_OP)
 } DISPCTRL_OP;
 
@@ -627,31 +595,7 @@ typedef struct {
 			UINT8            uicrofs;    ///< The Cr offset (0~255)
 		} SET_CCA_COFS;
 
-		struct { // DISPCTRL_SET_VPI_EN
-			UINT8            uivpien;    ///< The PI filter Enable/Disable
-		} SET_VPI_EN;
 
-		struct { // DISPCTRL_SET_VPI_COEF
-			UINT8            uivpicoef0;    ///< The PI filter coefficient 0(0~15)
-			UINT8            uivpicoef1;    ///< The PI filter coefficient 1(0~15)
-		} SET_VPI_COEF;
-		struct { // DISPCTRL_SET_MIXER	
-			UINT8            ui_layer_idx;
-			UINT8            ui_layer_plane[3];    ///< The mixer layer  plane0~2
-			UINT8            ui_layer_xi;    ///< The mixer layer x start position
-			UINT8            ui_layer_yi;    ///< The mixer layer y start position	
-		} SET_MIXER;
-		struct { // DISPCTRL_SET_MGEN
-			UINT8            ui_mg_en;
-			UINT8            ui_mg_fmt;    ///<
-		} SET_MGEN;
-
-		struct { // DISPCTRL_SET_PA_EN
-			UINT8            uipaen;    ///< The PI filter Enable/Disable
-		} SET_PA_EN;
-		struct { // DISPCTRL_SET_CHEN
-			UINT8            uichen;    ///< The PI filter Enable/Disable
-		} SET_CHEN;
 		/* GET control group */
 
 		/**
@@ -1083,27 +1027,8 @@ typedef struct {
 			UINT8            uicbofs;    ///< The Cb offset (0~255)
 			UINT8            uicrofs;    ///< The Cr offset (0~255)
 		} GET_CCA_COFS;
-		struct { // DISPCTRL_GET_VPI_EN
-			UINT8            uivpien;    ///< The PI filter Enable/Disable
-		} GET_VPI_EN;
 
-		struct { // DISPCTRL_GET_VPI_COEF
-			UINT8            uivpicoef0;    ///< The PI filter coefficient 0(0~15)
-			UINT8            uivpicoef1;    ///< The PI filter coefficient 1(0~15)
-		} GET_VPI_COEF;
-		struct { // DISPCTRL_GET_MIXER	
-			UINT8            ui_layer_idx;
-			UINT8            ui_layer_plane[3];    ///< The mixer layer  plane0~2
-			UINT8            ui_layer_xi;    ///< The mixer layer x start position
-			UINT8            ui_layer_yi;    ///< The mixer layer y start position
-		} GET_MIXER;
-		struct { // DISPCTRL_GET_MGEN
-			UINT8            ui_mg_en;
-			UINT8            ui_mg_fmt;    ///<
-		} GET_MGEN;
-		struct { // DISPCTRL_GET_PA_EN
-			UINT8            uipaen;    ///< The PI filter Enable/Disable
-		} GET_PA_EN;
+
 	} SEL;
 } DISPCTRL_PARAM, *PDISPCTRL_PARAM;
 //@}

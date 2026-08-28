@@ -25,39 +25,6 @@
 #define __DBGFLT__  "*"     // Display everything when debug level is 2
 #endif
 
-#ifndef CHKPNT
-#define CHKPNT    printf("\033[37mCHK: %d, %s\033[0m\r\n", __LINE__, __func__)
-#endif
-	
-#ifndef DBGD
-#define DBGD(x)   printf("\033[0;35m%s=%d\033[0m\r\n", #x, x)
-#endif
-	
-#ifndef DBGH
-#define DBGH(x)   printf("\033[0;35m%s=0x%08X\033[0m\r\n", #x, x)
-#endif
-	
-#ifndef DBG_DUMP
-#define DBG_DUMP(fmtstr, args...) printf(fmtstr, ##args)
-#endif
-	
-#ifndef DBG_ERR
-#define DBG_ERR(fmtstr, args...)  printf("\033[0;31mERR:%s() \033[0m" fmtstr, __func__, ##args)
-#endif
-	
-#ifndef DBG_WRN
-#define DBG_WRN(fmtstr, args...)  printf("\033[0;33mWRN:%s() \033[0m" fmtstr, __func__, ##args)
-#endif
-	
-#if 0
-#define DBG_IND(fmtstr, args...) printf("%s(): " fmtstr, __func__, ##args)
-#else
-#ifndef DBG_IND
-#define DBG_IND(fmtstr, args...)
-#endif
-#endif
-
-
 #include "DebugModule.h"
 #elif defined __FREERTOS
 #include <stdlib.h>

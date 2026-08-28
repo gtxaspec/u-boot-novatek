@@ -5,7 +5,6 @@
 
 #include "ahci_nvt.h"
 #include <ahci.h>
-#include <linux/err.h>
 
 /*
  * Dummy implementation that can be overwritten by a board
@@ -32,7 +31,7 @@ static int nvt_ahci_bind(struct udevice *dev)
 
 static int nvt_ahci_ofdata_to_platdata(struct udevice *dev)
 {
-	struct ahci_nvt_plat_data *plat_data = dev_get_priv(dev);
+	struct ahci_nvt_plat_data *plat_data = dev_get_platdata(dev);
 
 	plat_data->base = (void __iomem *)devfdt_get_addr_index(dev, 0);
 	if (IS_ERR(plat_data->base)) {
@@ -49,7 +48,7 @@ static int nvt_ahci_ofdata_to_platdata(struct udevice *dev)
 		return PTR_ERR(plat_data->phy_va_base);
 	}
 
-	ofnode_read_u32(dev_ofnode(dev), "device-id", &plat_data->idx);
+	printf("%s: base=0x%lx, top_va_base=0x%lx, phy_va_base=0x%lx\r\n", __func__, (uintptr_t)plat_data->base, (uintptr_t)plat_data->top_va_base, (uintptr_t)plat_data->phy_va_base);
 
 	return 0;
 }
@@ -70,7 +69,6 @@ static int nvt_ahci_probe(struct udevice *dev)
 }
 
 static const struct udevice_id nvt_ahci_ids[] = {
-	{ .compatible = "snps,dwc-ahci" },
 	{ .compatible = "novatech,nvt_sata100" },
 	{ }
 };
@@ -80,7 +78,7 @@ U_BOOT_DRIVER(ahci_nvt_drv) = {
 	.id		= UCLASS_AHCI,
 	.of_match	= nvt_ahci_ids,
 	.bind		= nvt_ahci_bind,
-	.of_to_plat = nvt_ahci_ofdata_to_platdata,
-	.priv_auto = sizeof(struct ahci_nvt_plat_data),
+	.ofdata_to_platdata = nvt_ahci_ofdata_to_platdata,
+	.platdata_auto_alloc_size = sizeof(struct ahci_nvt_plat_data),
 	.probe		= nvt_ahci_probe,
 };

@@ -14,13 +14,13 @@
 #include <asm/nvt-common/rcw_macro.h>
 #include <asm/arch/IOAddress.h>
 
-#define GPIO_VERSION "1.0.02"
+#define GPIO_VERSION "1.0.00"
 
 struct nvt_gpio_bank {
 	phys_addr_t base;
 };
 
-#define GPIO_GETREG(ofs)	    INW(IOADDR_GPIO_REG_BASE+(ofs))
+#define GPIO_GETREG(ofs)	INW(IOADDR_GPIO_REG_BASE+(ofs))
 #define GPIO_SETREG(ofs, value)	OUTW(IOADDR_GPIO_REG_BASE +(ofs),(value))
 
 #define NVT_GPIO_STG_DATA_0		(0)
@@ -34,7 +34,7 @@ static int gpio_validation(unsigned pin)
 	(pin > P_GPIO(25) && pin < S_GPIO(0)) || \
 	(pin > S_GPIO(12) && pin < L_GPIO(0)) || \
 	(pin > L_GPIO(24) && pin < D_GPIO(0)) || \
-	(pin > D_GPIO(21) && pin < H_GPIO(0)) || \
+	(pin > D_GPIO(10) && pin < H_GPIO(0)) || \
 	(pin > H_GPIO(11) && pin < A_GPIO(0)) || (pin > A_GPIO(2))) {
 		debug("The gpio number is out of range\n");
 		return E_NOSPT;
@@ -143,8 +143,8 @@ static int nvt_gpio_get_function(struct udevice *dev, unsigned offset)
 static const struct dm_gpio_ops gpio_nvt_ops = {
 	.direction_input	= nvt_gpio_direction_input,
 	.direction_output	= nvt_gpio_direction_output,
-	.get_value		    = nvt_gpio_get_value,
-	.set_value		    = nvt_gpio_set_value,
+	.get_value		= nvt_gpio_get_value,
+	.set_value		= nvt_gpio_set_value,
 	.get_function		= nvt_gpio_get_function,
 };
 
@@ -158,7 +158,7 @@ static int nvt_gpio_ofdata_to_platdata(struct udevice *dev)
 {
 	struct gpio_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 
-	uc_priv->gpio_count = 288;
+	uc_priv->gpio_count = 256;
 	uc_priv->bank_name = "nvt-gpio";
 
 	return 0;
@@ -173,8 +173,8 @@ U_BOOT_DRIVER(gpio_msm) = {
 	.name	= "gpio_nvt",
 	.id	= UCLASS_GPIO,
 	.of_match = nvt_gpio_ids,
-	.of_to_plat = nvt_gpio_ofdata_to_platdata,
+	.ofdata_to_platdata = nvt_gpio_ofdata_to_platdata,
 	.probe	= nvt_gpio_probe,
 	.ops	= &gpio_nvt_ops,
-	.priv_auto = sizeof(struct nvt_gpio_bank),
+	.priv_auto_alloc_size = sizeof(struct nvt_gpio_bank),
 };

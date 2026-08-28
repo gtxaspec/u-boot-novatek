@@ -101,7 +101,7 @@ int nvt_ddr_slow_down(void)
         return 0;
 }
 
-static int do_nvt_ddr_slow_down(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
+static int do_nvt_ddr_slow_down(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	return nvt_ddr_slow_down();
 }

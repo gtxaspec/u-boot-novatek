@@ -421,15 +421,4 @@ union SDIO_DMA_CURR_ADDR_REG {
 	} bit;
 };
 
-#define SDIO_AXI0_REG_OFS       0x160
-union SDIO_AXI0_REG {
-	uint32_t reg;
-	struct {
-	unsigned int WOSTD_NUM:8;
-	unsigned int ROSTD_NUM:8;
-	unsigned int AXI_CH_DIS:1;
-	unsigned int Reserved0:15;
-	} bit;
-};
-
 #endif

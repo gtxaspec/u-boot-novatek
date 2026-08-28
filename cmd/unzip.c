@@ -6,23 +6,19 @@
 
 #include <common.h>
 #include <command.h>
-#include <env.h>
-#include <gzip.h>
-#include <part.h>
 
-static int do_unzip(struct cmd_tbl *cmdtp, int flag, int argc,
-		    char *const argv[])
+static int do_unzip(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	unsigned long src, dst;
 	unsigned long src_len = ~0UL, dst_len = ~0UL;
 
 	switch (argc) {
 		case 4:
-			dst_len = hextoul(argv[3], NULL);
+			dst_len = simple_strtoul(argv[3], NULL, 16);
 			/* fall through */
 		case 3:
-			src = hextoul(argv[1], NULL);
-			dst = hextoul(argv[2], NULL);
+			src = simple_strtoul(argv[1], NULL, 16);
+			dst = simple_strtoul(argv[2], NULL, 16);
 			break;
 		default:
 			return CMD_RET_USAGE;
@@ -43,8 +39,8 @@ U_BOOT_CMD(
 	"srcaddr dstaddr [dstsize]"
 );
 
-static int do_gzwrite(struct cmd_tbl *cmdtp, int flag,
-		      int argc, char *const argv[])
+static int do_gzwrite(cmd_tbl_t *cmdtp, int flag,
+		      int argc, char * const argv[])
 {
 	struct blk_desc *bdev;
 	int ret;
@@ -60,11 +56,11 @@ static int do_gzwrite(struct cmd_tbl *cmdtp, int flag,
 	if (ret < 0)
 		return CMD_RET_FAILURE;
 
-	addr = (unsigned char *)hextoul(argv[3], NULL);
-	length = hextoul(argv[4], NULL);
+	addr = (unsigned char *)simple_strtoul(argv[3], NULL, 16);
+	length = simple_strtoul(argv[4], NULL, 16);
 
 	if (5 < argc) {
-		writebuf = hextoul(argv[5], NULL);
+		writebuf = simple_strtoul(argv[5], NULL, 16);
 		if (6 < argc) {
 			startoffs = simple_strtoull(argv[6], NULL, 16);
 			if (7 < argc)

@@ -5,7 +5,7 @@
 
 /**
     Partition Infomation
-    This is common header used between firmware of rtos, eCos, Linux, DSP
+    This is common header used between firmware of uITRON, eCos, Linux, DSP
     so !!!!!! DO NOT modify it !!!!!!
 */
 
@@ -30,30 +30,28 @@ typedef enum {
 } nvt_file_system_t;
 
 enum {
-	EMBTYPE_UNKNOWN   = 0x00,
-	EMBTYPE_LOADER    = 0x01,  /* loader must always put in partition[0] */
-	EMBTYPE_FDT       = 0x02,  /* modelext must always put in partition[1] */
-	EMBTYPE_OBSOLETE1 = 0x03,
-	EMBTYPE_OBSOLETE2 = 0x04,
-	EMBTYPE_UBOOT     = 0x05,
-	EMBTYPE_LINUX     = 0x06,
-	EMBTYPE_DSP       = 0x07,
-	EMBTYPE_PSTORE    = 0x08,
-	EMBTYPE_FAT       = 0x09,
-	EMBTYPE_EXFAT     = 0x0A,
-	EMBTYPE_ROOTFS    = 0x0B,
-	EMBTYPE_RAMFS     = 0x0C,
-	EMBTYPE_UENV      = 0x0D, /* u-boot environment data */
-	EMBTYPE_MBR       = 0x0E, /* for emmc partition, mbr always put in partition[0] instead of loader */
-	EMBTYPE_ROOTFSL   = 0x0F, /* for emmc logical partition */
-	EMBTYPE_RTOS      = 0x10, /* freertos */
-	EMBTYPE_APP       = 0x11, /* for APP , like IQ configs */
-	EMBTYPE_TEEOS     = 0x12, /* for secure os*/
-	EMBTYPE_AI        = 0x13, /* for fastboot-ai*/
-	EMBTYPE_ATF       = 0x14, /* for ATF */
-	EMBTYPE_BANK      = 0x15, /* for dual rtos, extra partition called bank */
-	EMBTYPE_MCU       = 0x16, /* MCU firmware, such as 8051, andes */
-	EMBTYPE_FDTFAST   = 0x17, /* an extend fdt for fastboot only */
+	EMBTYPE_UNKNOWN  = 0x00,
+	EMBTYPE_LOADER   = 0x01,  /* loader must always put in partition[0] */
+	EMBTYPE_FDT      = 0x02,  /* modelext must always put in partition[1] */
+	EMBTYPE_UITRON   = 0x03,
+	EMBTYPE_ECOS     = 0x04,
+	EMBTYPE_UBOOT    = 0x05,
+	EMBTYPE_LINUX    = 0x06,
+	EMBTYPE_DSP      = 0x07,
+	EMBTYPE_PSTORE   = 0x08,
+	EMBTYPE_FAT      = 0x09,
+	EMBTYPE_EXFAT    = 0x0A,
+	EMBTYPE_ROOTFS   = 0x0B,
+	EMBTYPE_RAMFS    = 0x0C,
+	EMBTYPE_UENV     = 0x0D, /* u-boot environment data */
+	EMBTYPE_MBR      = 0x0E, /* for emmc partition, mbr always put in partition[0] instead of loader */
+	EMBTYPE_ROOTFSL  = 0x0F, /* for emmc logical partition */
+	EMBTYPE_RTOS     = 0x10, /* freertos */
+	EMBTYPE_APP      = 0x11, /* for APP , like IQ configs */
+	EMBTYPE_TEEOS    = 0x12, /* for secure os*/
+	EMBTYPE_AI       = 0x13, /* for fastboot-ai*/
+	EMBTYPE_ATF      = 0x14, /* for ATF */
+	EMBTYPE_BANK     = 0x15, /* for dual rtos, extra partition called bank */
 	EMBTYPE_SIZE,
 };
 /**

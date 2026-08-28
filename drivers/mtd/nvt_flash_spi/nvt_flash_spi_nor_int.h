@@ -111,7 +111,6 @@ enum {
  * @nr_sectors:		No.of sectors on this device
  * @e_rd_cmd:		Enum list for read commands
  * @flags:		Important param, for flash specific behaviour
- * @dtr_dummy:  Set dummy clock in dtr mode (optional)
  */
 struct spi_flash_params {
 	const char *name;
@@ -119,8 +118,7 @@ struct spi_flash_params {
 	u16 ext_jedec;
 	u32 sector_size;
 	u32 nr_sectors;
-	u8  e_rd_cmd;
-	u32 flags;
-	u8  dtr_dummy;
+	u8 e_rd_cmd;
+	u16 flags;
 };
 #endif

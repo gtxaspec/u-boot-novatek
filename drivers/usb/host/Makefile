@@ -16,7 +16,6 @@ obj-$(CONFIG_USB_R8A66597_HCD) += r8a66597-hcd.o
 obj-$(CONFIG_USB_SL811HS) += sl811-hcd.o
 obj-$(CONFIG_USB_OHCI_EP93XX) += ohci-ep93xx.o
 obj-$(CONFIG_USB_OHCI_LPC32XX) += ohci-lpc32xx.o
-obj-$(CONFIG_USB_OHCI_PCI) += ohci-pci.o
 obj-$(CONFIG_USB_OHCI_GENERIC) += ohci-generic.o
 
 # echi
@@ -26,10 +25,16 @@ obj-$(CONFIG_USB_EHCI_ATMEL) += ehci-atmel.o
 obj-$(CONFIG_USB_EHCI_FSL) += ehci-fsl.o
 obj-$(CONFIG_USB_EHCI_FARADAY) += ehci-faraday.o
 obj-$(CONFIG_USB_EHCI_GENERIC) += ehci-generic.o
-ifeq ($(CONFIG_TARGET_NS02201_A64)$(CONFIG_TARGET_NS02401_A64)$(CONFIG_TARGET_NA51102_A64)$(CONFIG_TARGET_NS02301)$(CONFIG_TARGET_NA51089)$(CONFIG_TARGET_NA51103)$(CONFIG_TARGET_NA51103_A64)$(CONFIG_TARGET_NA51055),y)
-obj-$(CONFIG_USB_EHCI_NVTIVOT) += ehci-nvtivot_a64_v2.o
-endif
 obj-$(CONFIG_USB_EHCI_EXYNOS) += ehci-exynos.o
+ifeq ($(CONFIG_TARGET_NA51090_A64),y)
+obj-$(CONFIG_USB_EHCI_NVTIVOT) += ehci-nvtivot_a64.o
+else ifeq ($(CONFIG_TARGET_NA51102_A64)$(CONFIG_TARGET_NA51103_A64),y)
+obj-$(CONFIG_USB_EHCI_NVTIVOT) += ehci-nvtivot_a64_v2.o
+else ifeq ($(CONFIG_TARGET_NA51103),y)
+obj-$(CONFIG_USB_EHCI_NVTIVOT) += ehci-nvtivot_v2.o
+else
+obj-$(CONFIG_USB_EHCI_NVTIVOT) += ehci-nvtivot.o
+endif
 obj-$(CONFIG_USB_EHCI_MXC) += ehci-mxc.o
 obj-$(CONFIG_USB_EHCI_MXS) += ehci-mxs.o
 obj-$(CONFIG_USB_EHCI_MX5) += ehci-mx5.o
@@ -39,6 +44,7 @@ obj-$(CONFIG_USB_EHCI_OMAP) += ehci-omap.o
 obj-$(CONFIG_USB_EHCI_MARVELL) += ehci-marvell.o
 obj-$(CONFIG_USB_EHCI_MSM) += ehci-msm.o
 obj-$(CONFIG_USB_EHCI_PCI) += ehci-pci.o
+obj-$(CONFIG_USB_EHCI_SPEAR) += ehci-spear.o
 obj-$(CONFIG_USB_EHCI_TEGRA) += ehci-tegra.o
 obj-$(CONFIG_USB_EHCI_VCT) += ehci-vct.o
 obj-$(CONFIG_USB_EHCI_VF) += ehci-vf.o
@@ -46,20 +52,18 @@ obj-$(CONFIG_USB_EHCI_RMOBILE) += ehci-rmobile.o
 obj-$(CONFIG_USB_EHCI_ZYNQ) += ehci-zynq.o
 
 # xhci
-obj-$(CONFIG_USB_XHCI_BRCM) += xhci-brcm.o
 obj-$(CONFIG_USB_XHCI_HCD) += xhci.o xhci-mem.o xhci-ring.o
 obj-$(CONFIG_USB_XHCI_DWC3) += xhci-dwc3.o
 obj-$(CONFIG_USB_XHCI_DWC3_OF_SIMPLE) += dwc3-of-simple.o
+obj-$(CONFIG_USB_XHCI_ROCKCHIP) += xhci-rockchip.o
+obj-$(CONFIG_USB_XHCI_ZYNQMP) += xhci-zynqmp.o
 obj-$(CONFIG_USB_XHCI_EXYNOS) += xhci-exynos5.o
 obj-$(CONFIG_USB_XHCI_FSL) += xhci-fsl.o
-obj-$(CONFIG_USB_XHCI_MTK) += xhci-mtk.o
 obj-$(CONFIG_USB_XHCI_MVEBU) += xhci-mvebu.o
 obj-$(CONFIG_USB_XHCI_OMAP) += xhci-omap.o
 obj-$(CONFIG_USB_XHCI_PCI) += xhci-pci.o
 obj-$(CONFIG_USB_XHCI_RCAR) += xhci-rcar.o
 obj-$(CONFIG_USB_XHCI_STI) += dwc3-sti-glue.o
-obj-$(CONFIG_USB_XHCI_OCTEON) += dwc3-octeon-glue.o
 obj-$(CONFIG_USB_XHCI_NVTIVOT) += xhci-nvtivot.o
-
 # designware
 obj-$(CONFIG_USB_DWC2) += dwc2.o

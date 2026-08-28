@@ -30,7 +30,7 @@
 //sync from rtos's flow_updfw.h
 typedef struct _VERSION_CTRL {
 	unsigned int fourcc;        // MAKEFOURCC 'V','E','R','C'
-	unsigned int bank_id;       // 0 or 1 indicate rtos[0] or rtos[1]
+	unsigned int bank_id;       // 0 or 1 indicate uitron[0] or uitron[1]
 	unsigned int fw_type;       // 0: debug, 1: release
 	unsigned int fw_version;    // major: 1byte, minor 2byte
 	unsigned int fw_date;       // date version
@@ -46,6 +46,44 @@ typedef struct _VERSION_CTRL {
 #define BININFO_RESV_IDX_BOOT_BANK_FROM 0x3
 #define BININFO_RESV_IDX_DATE_SEC       0x4
 
+
+static UINT32 MemCheck_CalcCheckSum16Bit(UINT32 uiAddr, UINT32 uiLen)
+{
+	UINT32 i, uiSum = 0;
+	UINT16 *puiValue = (UINT16 *)uiAddr;
+
+	for (i = 0; i < (uiLen >> 1); i++)  {
+		uiSum += (*(puiValue + i) + i);
+	}
+	uiSum &= 0x0000FFFF;
+	return uiSum;
+}
+
+static int nvt_getfdt_rtos_addr_size(ulong addr, ulong *fdt_rtos_addr, ulong *fdt_rtos_len)
+{
+	int len;
+	int nodeoffset; /* next node offset from libfdt */
+	const u32 *nodep; /* property node pointer */
+
+
+	nodeoffset = fdt_path_offset((const void *)addr, "/nvt_memory_cfg/rtos");
+	if (nodeoffset < 0) {
+		*fdt_rtos_addr = 0;
+		*fdt_rtos_len = 0;
+		return -1;
+	}
+
+	nodep = fdt_getprop((const void *)addr, nodeoffset, "reg", &len);
+	if (len == 0) {
+		*fdt_rtos_addr = 0;
+		*fdt_rtos_len = 0;
+		return -1;
+	}
+
+	*fdt_rtos_addr = be32_to_cpu(nodep[0]);
+	*fdt_rtos_len = be32_to_cpu(nodep[1]);
+	return 0;
+}
 
 int nvt_decide_dual_rtos_idx(void)
 {
@@ -92,8 +130,7 @@ int nvt_decide_dual_rtos_idx(void)
 	}
 
 	ulong rtos_addr = 0, rtos_size = 0;
-	rtos_addr = nvt_memory_cfg[MEMTYPE_RTOS].addr;
-	rtos_size = nvt_memory_cfg[MEMTYPE_RTOS].size;
+	nvt_getfdt_rtos_addr_size((ulong)nvt_fdt_buffer, &rtos_addr, &rtos_size);
 	//read uenv for VERSION_CTRL blocks
 	loff_t part_off = 0, part_size = 0;
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT)

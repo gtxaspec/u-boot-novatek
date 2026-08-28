@@ -19,7 +19,7 @@
 #include "dispcomn.h"
 #include "nvt_ide.h"
 
-#define IDEDATA_TYPE	UINT32
+
 /**
     @name Display Layer Control Group
 
@@ -207,31 +207,6 @@ typedef enum
 */
 
 /**
-    Display Layer HWC palette number selection
-
-    This definition is used for the OP Code: DISPLAYER_OP_SET_HWCPAL, DISPLAYER_OP_GET_HWCPAL
-*/
-typedef enum {
-	DISPHWC_NUM1=1  ,             ///< Number 1
-	DISPHWC_NUM2  ,             ///< Number 2
-	DISPHWC_NUM3  ,             ///< Number 3
-	DISPHWC_NUM4  ,             ///< Number 4
-	DISPHWC_NUM5  ,             ///< Number 5
-	DISPHWC_NUM6  ,             ///< Number 6
-	DISPHWC_NUM7  ,             ///< Number 7
-	DISPHWC_NUM8  ,             ///< Number 8
-	DISPHWC_NUM9  ,             ///< Number 9
-	DISPHWC_NUM10 ,             ///< Number 10
-	DISPHWC_NUM11 ,             ///< Number 11
-	DISPHWC_NUM12 ,             ///< Number 12
-	DISPHWC_NUM13 ,             ///< Number 13
-	DISPHWC_NUM14 ,             ///< Number 14
-	DISPHWC_NUM15 ,             ///< Number 15
-	ENUM_DUMMY4WORD(DISPHWCNUM)
-} DISPHWCNUM;
-
-
-/**
     Display Layer FD number selection
 
     This definition is used for the OP Code: DISPLAYER_OP_SET_FDEN, DISPLAYER_OP_GET_FDEN
@@ -267,8 +242,8 @@ typedef enum {
 	DISPLAYER_OP_SET_ENABLE = DISPCMDBASE_DISPLYR,  ///< Set specified display Layer Enable/Disable.
 	DISPLAYER_OP_SET_MODE,                  ///< Configure selected layer buffer mode such as BUF Jump mode,Buffer Number, Buffer format.
 	DISPLAYER_OP_SET_BUFSIZE,               ///< Set display Buffer Size for Video/OSD layer such as buffer Width/Height/LineOffset
-	DISPLAYER_OP_SET_VDOBUFADDR,            ///< Set display Video Buffer Address, it need 64 bytes alignment.
-	DISPLAYER_OP_SET_OSDBUFADDR,            ///< Set display OSD Buffer Address, it need 64 bytes alignment.
+	DISPLAYER_OP_SET_VDOBUFADDR,            ///< Set display Video Buffer Address
+	DISPLAYER_OP_SET_OSDBUFADDR,            ///< Set display OSD Buffer Address
 	DISPLAYER_OP_SET_ACTBUF,                ///< Set specified active buffer number when buffer is at buffer-repeat-mode.
 	DISPLAYER_OP_SET_OUTDIR,                ///< Set Buffer Output Order such as Flip / rotation
 	DISPLAYER_OP_SET_WINSIZE,               ///< Set Output Window Size and window offset. This is truely size seen on the display/panel.
@@ -284,24 +259,6 @@ typedef enum {
 	DISPLAYER_OP_SET_FDSIZE,                ///< Set the FD rect. size
 	DISPLAYER_OP_SET_FDCOLOR,               ///< Set the FD rect. color
 	DISPLAYER_OP_SET_FDLINESWAP,            ///< Set the FD & line layer swap(TRUE:Line is upper than FD / FALSE:FD is upper than Line)
-	DISPLAYER_OP_SET_YCCEN,                 ///< Set YCC enable. Before set YCC enable, buf_width need config first (32 bytes alignment).
-	DISPLAYER_OP_SET_RLDEN,                 ///< Set RLD enable. Before set RLD enable, buf_width need config first (16 bytes alignment).
-	DISPLAYER_OP_SET_RLDCTRL,               ///< Set RLD control.
-	DISPLAYER_OP_SET_AFBCEN, 				///< Set AFBC enable. Before set AFBC enable, buf_width need config first (16 bytes alignment).
-	DISPLAYER_OP_SET_AFBCCTRL,				///< Set AFBC control.
-	DISPLAYER_OP_SET_HWC_CONFIG,            ///< Set HW cursor config
-	DISPLAYER_OP_SET_HWCPAL,                ///< Set HW cursor palette.
-	DISPLAYER_OP_SET_HWCFONT,               ///< Set HW cursor font.
-	DISPLAYER_OP_SET_VPIEN,                 ///< Set PI filter enable
-	DISPLAYER_OP_SET_VPICOEF,               ///< Set PI filter coefficient
-	DISPLAYER_OP_SET_MGEN,                  ///< Set Multi-region enable.
-	DISPLAYER_OP_SET_MGADDR,                ///< Set Multi-region address.
-	DISPLAYER_OP_SET_MGDIM,                 ///< Set Multi-region window width, height, line offset
-	DISPLAYER_OP_SET_MGPOS,                 ///< Set Multi-region start x,y and end x,y
-	DISPLAYER_OP_SET_MGCTRL,                ///< Set Multi-region stx
-	DISPLAYER_OP_SET_BRI,                   ///< Set YADJ brightness
-	DISPLAYER_OP_SET_CONT,                  ///< Set YADJ contrast
-	DISPLAYER_OP_SET_HS,                    ///< Set YADJ Hue and saturation
 
 	/* GET control group */
 	DISPLAYER_OP_GET_ENABLE,                ///< Get specified layer Enable/Disable.
@@ -330,35 +287,13 @@ typedef enum {
 	DISPLAYER_OP_GET_FDCOLOR,               ///< Get the FD rect. color
 	DISPLAYER_OP_GET_FDLINESWAP,            ///< Get the FD & line layer swap
 	DISPLAYER_OP_GET_CST_FROM_RGB_TO_YUV,   ///< Get the OSD layer's YUV data of color key(RGB->YUV)(Only for OSD1)
-	DISPLAYER_OP_GET_YCCEN,                 ///< Get YCC enable
-	DISPLAYER_OP_GET_RLDEN,                 ///< Get RLD enable	
-	DISPLAYER_OP_GET_RLDCTRL,                 ///< Get RLD control
-	DISPLAYER_OP_GET_AFBCEN,                 ///< Get AFBC enable	
-	DISPLAYER_OP_GET_AFBCCTRL,              ///< Get AFBC control	
-	DISPLAYER_OP_GET_HWC_CONFIG,            ///< Get HW cursor config
-	DISPLAYER_OP_GET_HWCPAL,                ///< Get HW cursor palette.
-	DISPLAYER_OP_GET_HWCFONT,               ///< Get HW cursor font.
-	DISPLAYER_OP_GET_VPIEN,                 ///< Get PI filter enable
-	DISPLAYER_OP_GET_VPICOEF,               ///< Get PI filter coefficient
+
 	/* Macro API */
 	DISPLAYER_OP_SET_VDOBUFCONTENT,         ///< Set specified video layer buffer content to specified color. Valid for video layer only.
 
 	DISPLAYER_OP_SET_H_BILINEAR,            ///< Set the layer's horizontal scaling method
-	DISPLAYER_OP_SET_V_BILINEAR,            ///< Set the layer's vertical scaling method
-	DISPLAYER_OP_GET_H_BILINEAR,			///< Get the layer's horizontal scaling method
-	DISPLAYER_OP_GET_V_BILINEAR,			///< Get the layer's vertical scaling method
 
 	DISPLAYER_OP_SET_BUFWINSIZE,            ///< Set the layer's buffer size and window size
-	DISPLAYER_OP_SET_ALPHA,			         ///< Set the layer's alpha.
-	DISPLAYER_OP_GET_ALPHA,			         ///< Get the layer's alpha.
-	DISPLAYER_OP_GET_MGEN,					///< Get Multi-region enable.
-	DISPLAYER_OP_GET_MGADDR,				///< Get Multi-region address.
-	DISPLAYER_OP_GET_MGDIM,				    ///< Get Multi-region window width, height, line offset
-	DISPLAYER_OP_GET_MGPOS, 				///< Get Multi-region start x,y and end x,y
-	DISPLAYER_OP_GET_MGCTRL,		        ///< Get Multi-region stx
-	DISPLAYER_OP_GET_BRI,					///< Get YADJ brightness
-	DISPLAYER_OP_GET_CONT,					///< Get YADJ contrast
-	DISPLAYER_OP_GET_HS,					///< Get YADJ Hue and saturation
 
 	ENUM_DUMMY4WORD(DISPLAYER_OP)
 } DISPLAYER_OP;
@@ -443,21 +378,21 @@ typedef struct {
 		struct { // DISPLAYER_OP_SET_VDOBUFADDR
 			DISPBUFADR      buf_sel;         ///< select which of the buffer addresses would be updated for Video layer.
 
-			IDEDATA_TYPE          ui_addr_y0;       ///< Buffer 0 Starting Address for  Y/RGB565/RGB888 plane
-			IDEDATA_TYPE          ui_addr_cb0;      ///< Buffer 0 Starting Address for Cb/Alpha  plane
-			IDEDATA_TYPE          ui_addr_cr0;      ///< Buffer 0 Starting Address for Cr        plane
+			UINT32          ui_addr_y0;       ///< Buffer 0 Starting Address for  Y/RGB565/RGB888 plane
+			UINT32          ui_addr_cb0;      ///< Buffer 0 Starting Address for Cb/Alpha  plane
+			UINT32          ui_addr_cr0;      ///< Buffer 0 Starting Address for Cr        plane
 
-			IDEDATA_TYPE          ui_addr_y1;       ///< Buffer 1 Starting Address for  Y/RGB565/RGB888 plane
-			IDEDATA_TYPE          ui_addr_cb1;      ///< Buffer 1 Starting Address for Cb/Alpha  plane
-			IDEDATA_TYPE          ui_addr_cr1;      ///< Buffer 1 Starting Address for Cr        plane
+			UINT32          ui_addr_y1;       ///< Buffer 1 Starting Address for  Y/RGB565/RGB888 plane
+			UINT32          ui_addr_cb1;      ///< Buffer 1 Starting Address for Cb/Alpha  plane
+			UINT32          ui_addr_cr1;      ///< Buffer 1 Starting Address for Cr        plane
 
-			IDEDATA_TYPE          ui_addr_y2;       ///< Buffer 2 Starting Address for  Y/RGB565/RGB888 plane
-			IDEDATA_TYPE          ui_addr_cb2;      ///< Buffer 2 Starting Address for Cb/Alpha  plane
-			IDEDATA_TYPE          ui_addr_cr2;      ///< Buffer 2 Starting Address for Cr        plane
+			UINT32          ui_addr_y2;       ///< Buffer 2 Starting Address for  Y/RGB565/RGB888 plane
+			UINT32          ui_addr_cb2;      ///< Buffer 2 Starting Address for Cb/Alpha  plane
+			UINT32          ui_addr_cr2;      ///< Buffer 2 Starting Address for Cr        plane
 
-			IDEDATA_TYPE          ui_addr_y3;       ///< Buffer 3 Starting Address for  Y/RGB565/RGB888 plane
-			IDEDATA_TYPE          ui_addr_cb3;      ///< Buffer 3 Starting Address for Cb/Alpha  plane
-			IDEDATA_TYPE          ui_addr_cr3;      ///< Buffer 3 Starting Address for Cr        plane
+			UINT32          ui_addr_y3;       ///< Buffer 3 Starting Address for  Y/RGB565/RGB888 plane
+			UINT32          ui_addr_cb3;      ///< Buffer 3 Starting Address for Cb/Alpha  plane
+			UINT32          ui_addr_cr3;      ///< Buffer 3 Starting Address for Cr        plane
 
 		} SET_VDOBUFADDR;
 
@@ -476,24 +411,16 @@ typedef struct {
 		struct { // DISPLAYER_OP_SET_OSDBUFADDR
 			DISPBUFADR      buf_sel;         ///< select which of the buffer addresses would be updated for OSD layer.
 
-			IDEDATA_TYPE          ui_addr_buf0;     ///< Buffer 0 Starting Address for OSD layer
-			IDEDATA_TYPE          ui_addr_buf1;     ///< Buffer 1 Starting Address for OSD layer
-			IDEDATA_TYPE          ui_addr_buf2;     ///< Buffer 2 Starting Address for OSD layer
+			UINT32          ui_addr_buf0;     ///< Buffer 0 Starting Address for OSD layer
+			UINT32          ui_addr_buf1;     ///< Buffer 1 Starting Address for OSD layer
+			UINT32          ui_addr_buf2;     ///< Buffer 2 Starting Address for OSD layer
 
 #if 1// 96220 has no ARGB buffer format
-			IDEDATA_TYPE          ui_addr_alpha0;
-			IDEDATA_TYPE          ui_addr_alpha1;
-			IDEDATA_TYPE          ui_addr_alpha2;
+			UINT32          ui_addr_alpha0;
+			UINT32          ui_addr_alpha1;
+			UINT32          ui_addr_alpha2;
 #endif
 		} SET_OSDBUFADDR;
-
-		struct { // DISPLAYER_OP_SET_OSDBUFADDR
-			DISPBUFADR		buf_sel;		 ///< select which of the buffer addresses would be updated for OSD layer.
-
-			IDEDATA_TYPE		   ui_addr_buf0;	 ///< Buffer 0 Starting Address for OSD layer
-			IDEDATA_TYPE		   ui_addr_buf1;	 ///< Buffer 1 Starting Address for OSD layer
-
-		} SET_WBBUFADDR;
 
 		/**
 		    Set Specified Display Layer Active Buffer
@@ -650,61 +577,6 @@ typedef struct {
 		} SET_DMALEN;
 		*/
 		/**
-		    Set HWC Layer enable/disable
-
-		    This structure is used for layer operation code "DISPLAYER_OP_SET_HWC_CONFIG"
-		    to set the specified "HWC" enable/disable. This structure shuld be used like this:
-		\n  disp_lyr.SEL.SET_HWC_CONFIG.b_en = TRUE;
-		\n  disp_lyr.SEL.SET_HWC_CONFIG.ui_hwcx = 0;
-		\n  disp_lyr.SEL.SET_HWC_CONFIG.ui_hwcy = 0;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_SET_HWC_CONFIG, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set pDispObj->load to validate the configurations.
-		*/
-		struct { // DISPLAYER_OP_SET_HWC_CONFIG
-			BOOL             b_en;           ///< HWC channel enable/disable
-			UINT32           ui_hwcx;         ///< HWC  position X
-			UINT32           ui_hwcy;         ///< HWC  position Y
-			UINT8            ui_hwc_height;   ///< HWC height
-			UINT8            ui_hwc_width;    ///< HWC width
-			IDEDATA_TYPE        ui_hwc_buf;
-			UINT8            ui_hwc_fmt;
-
-		} SET_HWC_CONFIG;
-
-		/**
-		    Set HWC Layer color
-
-		    This structure is used for layer operation code "DISPLAYER_OP_SET_HWCPAL"
-		    to set the specified "HWC" color. This structure shuld be used like this:
-		\n  disp_lyr.SEL.SET_HWCPAL.ui_pal_idx = DISPHWC_NUM0;
-		\n  disp_lyr.SEL.SET_HWCPAL.ui_cr_y = 0x00;
-		\n  disp_lyr.SEL.SET_HWCPAL.ui_cr_cb = 0x80;
-		\n  disp_lyr.SEL.SET_HWCPAL.ui_cr_cr = 0x80;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_SET_HWCPAL, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set pDispObj->load to validate the configurations.
-		*/
-		struct { // DISPLAYER_OP_SET_HWCPAL
-			DISPHWCNUM        ui_pal_idx;   ///< HWC palette index
-			UINT32           ui_cr_y;       ///< HWC palettey color
-			UINT32           ui_cr_cb;      ///< HWC palette cb color
-			UINT32           ui_cr_cr;      ///< HWC palette cr color
-		} SET_HWCPAL;
-
-		/**
-		    Set HWC Layer font
-
-		    This structure is used for layer operation code "DISPLAYER_OP_SET_HWCFONT"
-		    to set the specified "HWC" font. This structure shuld be used like this:
-		\n  disp_lyr.SEL.SET_HWCFONT.ui_hwc_font_entry = 0; 0~511
-		\n  disp_lyr.SEL.SET_HWCFONT.ui_hwc_font_data = 0x00;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_SET_HWCFONT, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set pDispObj->load to validate the configurations.
-		*/
-		struct { // DISPLAYER_OP_SET_HWCPAL
-			UINT32           ui_font_entry; ///< HWC font entry
-			UINT32           ui_font_data;  ///< HWC font data
-		} SET_HWCFONT;
-		/**
 		    Set FD Layer enable/disable
 
 		    This structure is used for layer operation code "DISPLAYER_OP_SET_FDEN"
@@ -768,58 +640,13 @@ typedef struct {
 
 		    This structure is used for layer operation code "DISPLAYER_OP_SET_H_BILINEAR"
 		    to set the specified layer. This structure shuld be used like this:
-		\n  disp_lyr.SEL.SET_H_BILINEAR.b_bilinear = TRUE;
+		\n  disp_lyr.SEL.SET_H_BILINEAR.bBiliear = TRUE;
 		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_SET_H_BILINEAR, &disp_lyr);
 		    @note This control operation is VD Latached, so the user must set pDispObj->load to validate the configurations.
 		*/
 		struct { // DISPLAYER_OP_SET_H_BILINEAR
 			BOOL             b_bilinear;      ///< Horizontal bilinear method
 		} SET_H_BILINEAR;
-
-		/**
-		    Set layer's vertical scaling method
-
-		    This structure is used for layer operation code "DISPLAYER_OP_SET_V_BILINEAR"
-		    to set the specified layer. This structure shuld be used like this:
-		\n  disp_lyr.SEL.SET_V_BILINEAR.b_bilinear = TRUE;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_SET_V_BILINEAR, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set pDispObj->load to validate the configurations.
-		*/
-		struct { // DISPLAYER_OP_SET_V_BILINEAR
-			BOOL             b_bilinear;      ///< Vertical bilinear method
-		} SET_V_BILINEAR;
-
-		struct { //DISPDEV_SET_ALPHA_CTRL
-			UINT32      ui_galpha;     ///< global alpha
-			UINT32      ui_alpha0;     ///< alpha 0
-			UINT32      ui_alpha1;     ///< alpha 1
-		} SET_ALPHA;
-
-		/**
-		    Get layer's horizontal scaling method
-
-		    This structure is used for layer operation code "DISPLAYER_OP_GET_H_BILINEAR"
-		    to set the specified layer. This structure shuld be used like this:
-		\n  disp_lyr.SEL.SET_H_BILINEAR.b_bilinear = TRUE;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_GET_H_BILINEAR, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set pDispObj->load to validate the configurations.
-		*/
-		struct { // DISPLAYER_OP_GET_H_BILINEAR
-			BOOL             b_bilinear;      ///< Horizontal bilinear method
-		} GET_H_BILINEAR;
-
-		/**
-		    Get layer's vertical scaling method
-
-		    This structure is used for layer operation code "DISPLAYER_OP_GET_V_BILINEAR"
-		    to set the specified layer. This structure shuld be used like this:
-		\n  disp_lyr.SEL.GET_V_BILINEAR.b_bilinear = TRUE;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_GET_V_BILINEAR, &disp_lyr);
-		    @note This control operation is VD Latached, so the user must set pDispObj->load to validate the configurations.
-		*/
-		struct { // DISPLAYER_OP_GET_V_BILINEAR
-			BOOL             b_bilinear;      ///< Vertical bilinear method
-		} GET_V_BILINEAR;
 
 		/**
 		    Set Specified Display Layer Buffer and Window Size
@@ -862,63 +689,7 @@ typedef struct {
 			///< 1: Line ' FD (up to low)
 		} SET_FDLINESWAP;
 
-		struct { //DISPDEV_SET_YCC_EN
-			BOOL        b_yccen;      ///< Enable / Disable YCC 
-		} SET_YCCEN;
 
-		struct { //DISPDEV_SET_RLD_EN
-			BOOL        b_rlden;      ///< Enable / Disable RLD
-		} SET_RLDEN;
-		struct { //DISPDEV_SET_RLD_CTRL
-			UINT32      b_rldcnt;     ///< RLD count
-			UINT32      b_rldlen;     ///< RLD length
-			UINT32      b_rldreadsize;///< RLD read size
-			UINT32      b_rldareadsize;///< RLD read alpha size
-		} SET_RLDCTRL;
-		struct { //DISPDEV_SET_AFBC_EN
-			BOOL        b_afbcen;      ///< Enable / Disable AFBC
-		} SET_AFBCEN;
-		struct { //DISPDEV_SET_AFBC_CTRL
-			IDEDATA_TYPE      ui_addr;     ///< AFBC header address
-		} SET_AFBCCTRL;
-
-		struct { //DISPDEV_SET_MG_EN
-			UINT32      mg_layer_idx;
-			BOOL        b_mgen;     ///< MG enable
-		} SET_MGEN;
-
-		struct { //DISPDEV_SET_MG_POS
-			UINT32      mg_layer_idx;
-			UINT16      ui_sx;
-			UINT16      ui_sy;
-			UINT16      ui_ex;
-			UINT16      ui_ey;
-		} SET_MGPOS;
-		struct { //DISPDEV_SET_MGDIM
-			UINT32      mg_layer_idx;
-			UINT16      ui_width;
-			UINT16      ui_height;
-			UINT16      ui_lofs;
-		} SET_MGDIM;
-		struct { //DISPDEV_SET_MGCTRL
-			UINT32      mg_layer_idx;
-			UINT8      ui_stx;
-		} SET_MGCTRL;
-		struct { //DISPDEV_SET_MGADDR
-			UINT32      mg_layer_idx;
-			IDEDATA_TYPE      ui_yaddr;
-			IDEDATA_TYPE      ui_uvaddr;
-		} SET_MGADDR;
-
-		struct {
-			BOOL       contrast_en;
-			BOOL       brightness_en;
-			BOOL       hs_en;
-			UINT8      contrast;
-			UINT8      brightness;
-			UINT8      hue[6];
-			UINT8      sat[6];
-		}SET_YADJ;
 
 		/* GET control group */
 
@@ -978,7 +749,7 @@ typedef struct {
 			DISPACTBUF      active_buf;    ///< This field is valid only when video buffer at buffer repeat mode.
 			///< Get which of the buffer address is activated for Video layer.
 
-			UINT64    		ui_addr_y0;     ///< Buffer 0 Starting Address for  Y/RGB565 plane
+			UINT32          ui_addr_y0;     ///< Buffer 0 Starting Address for  Y/RGB565 plane
 			UINT32          ui_addr_cb0;    ///< Buffer 0 Starting Address for Cb/Alpha  plane
 			UINT32          ui_addr_cr0;    ///< Buffer 0 Starting Address for Cr        plane
 
@@ -1003,7 +774,7 @@ typedef struct {
 		struct { // DISPLAYER_OP_GET_OSDBUFADDR
 			DISPACTBUF      active_buf;      ///< select which one of the buffer address is activated for OSD layer.
 
-			UINT64          ui_addr_buf0;     ///< Buffer 0 Starting Address for OSD layer
+			UINT32          ui_addr_buf0;     ///< Buffer 0 Starting Address for OSD layer
 			UINT32          ui_addr_buf1;     ///< Buffer 1 Starting Address for OSD layer
 			UINT32          ui_addr_buf2;     ///< Buffer 2 Starting Address for OSD layer
 
@@ -1165,58 +936,6 @@ typedef struct {
 		} GET_DMALEN;
 		*/
 		/**
-		    Get HWC Layer config
-
-		    This structure is used for layer operation code "DISPLAYER_OP_GET_HWC_CONFIG"
-		    to set the specified "HWC" enable/disable. This structure shuld be used like this:
-		\n  disp_lyr.SEL.GET_HWC_CONFIG.b_en;
-		\n  disp_lyr.SEL.GET_HWC_CONFIG.ui_hwcx;
-		\n  disp_lyr.SEL.GET_HWC_CONFIG.ui_hwcy;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_GET_HWC_CONFIG, &disp_lyr);
-		*/
-		struct { // DISPLAYER_OP_GET_HWCEN
-			BOOL             b_en;           ///< HWC channel enable/disable
-			UINT32           ui_hwcx;         ///< HWC  position X
-			UINT32           ui_hwcy;         ///< HWC  position Y
-			UINT8            ui_hwc_height;
-			UINT8            ui_hwc_width;
-			IDEDATA_TYPE        ui_hwc_buf;
-			UINT8            ui_hwc_fmt;
-		} GET_HWC_CONFIG;
-
-		/**
-		    Get HWC Layer color
-
-		    This structure is used for layer operation code "DISPLAYER_OP_GET_HWCPAL"
-		    to Get the specified "HWC" color. This structure shuld be used like this:
-		\n  disp_lyr.SEL.GET_HWCPAL.ui_pal_idx = DISPHWC_NUM1;
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_GET_HWCPAL, &disp_lyr);	
-		\n  disp_lyr.SEL.GET_HWCPAL.ui_cr_y
-		\n  disp_lyr.SEL.GET_HWCPAL.ui_cr_cb
-		\n  disp_lyr.SEL.GET_HWCPAL.ui_cr_cr
-		*/
-		struct { // DISPLAYER_OP_SET_HWCPAL
-			DISPHWCNUM       ui_pal_idx;        ///< HWC palette index
-			UINT32           ui_cr_y;       ///< HWC palettey color
-			UINT32           ui_cr_cb;      ///< HWC palette cb color
-			UINT32           ui_cr_cr;      ///< HWC palette cr color
-		} GET_HWCPAL;
-
-		/**
-		    Get HWC Layer font
-
-		    This structure is used for layer operation code "DISPLAYER_OP_GET_HWCFONT"
-		    to set the specified "HWC" font. This structure shuld be used like this:
-		\n  disp_lyr.SEL.GET_HWCFONT.ui_hwc_font_entry = 0; 0~511
-		\n  pDispObj->disp_lyr_ctrl(DISPLAYER, DISPLAYER_OP_GET_HWCFONT, &disp_lyr);
-		\n  disp_lyr.SEL.GET_HWCFONT.ui_hwc_font_data
-
-		*/
-		struct { // DISPLAYER_OP_GET_HWCFONT
-			UINT32           ui_font_entry; ///< HWC font entry
-			UINT32           ui_font_data;  ///< HWC font data
-		} GET_HWCFONT;
-		/**
 		    Get FD Layer enable/disable
 
 		    This structure is used for layer operation code "DISPLAYER_OP_GET_FDEN"
@@ -1321,61 +1040,6 @@ typedef struct {
 			UINT8    b_to_v;    ///< Point of B data and output for V data (need shift to 8bit)
 			UINT8    alpha;     ///< Use for align to 4 byte (alpha here is useless)
 		} GET_CST_OF_RGB_TO_YUV;
-
-		struct { //DISPDEV_GET_YCC_EN
-			BOOL        b_yccen;      ///< Enable / Disable YCC 
-		} GET_YCCEN;
-		struct { //DISPDEV_GET_RLD_EN
-			BOOL        b_rlden;      ///< Enable / Disable RLD
-		} GET_RLDEN;
-		struct { //DISPDEV_GET_RLD_CTRL
-			UINT32      b_rldcnt;     ///< RLD count
-			UINT32      b_rldlen;     ///< RLD length
-			UINT32      b_rldreadsize;///< RLD read size
-			UINT32      b_rldareadsize;///< RLD read alpha size
-		} GET_RLDCTRL;
-		struct { //DISPDEV_GET_ALPHA_CTRL
-			UINT32      ui_galpha;     ///< global alpha
-			UINT32      ui_alpha0;     ///< alpha 0
-			UINT32      ui_alpha1;     ///< alpha 1
-		} GET_ALPHA;
-		struct { //DISPDEV_GET_MG_EN
-			UINT32      mg_layer_idx;
-			BOOL        b_mgen;     ///< MG enable
-		} GET_MGEN;
-
-		struct { //DISPDEV_GET_MG_POS
-			UINT32      mg_layer_idx;
-			UINT16      ui_sx;
-			UINT16      ui_sy;
-			UINT16      ui_ex;
-			UINT16      ui_ey;
-		} GET_MGPOS;
-		struct { //DISPDEV_GET_MGDIM
-			UINT32      mg_layer_idx;
-			UINT16      ui_width;
-			UINT16      ui_height;
-			UINT16      ui_lofs;
-		} GET_MGDIM;
-		struct { //DISPDEV_GET_MGCTRL
-			UINT32      mg_layer_idx;
-			UINT8      ui_stx;
-		} GET_MGCTRL;
-		struct { //DISPDEV_GET_MGADDR
-			UINT32      mg_layer_idx;
-			IDEDATA_TYPE      ui_yaddr;
-			IDEDATA_TYPE      ui_uvaddr;
-		} GET_MGADDR;
-		struct {
-			BOOL       contrast_en;
-			BOOL       brightness_en;
-			BOOL       hs_en;
-			UINT8      contrast;
-			UINT8      brightness;
-			UINT8      hue[6];
-			UINT8      sat[6];
-		}GET_YADJ;
-
 	} SEL;
 } DISPLAYER_PARAM, *PDISPLAYER_PARAM;
 //@}

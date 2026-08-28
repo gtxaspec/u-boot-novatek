@@ -6,6 +6,7 @@
 
 #ifndef __ARCH_GPIO_H
 #define __ARCH_GPIO_H
+
 #define C_GPIO(pin)			(pin)
 #define J_GPIO(pin)			(pin + 0x20)
 #define P_GPIO(pin)			(pin + 0x40)
