@@ -11,6 +11,7 @@
 #define __CONFIG_NS02401_H
 
 #include <linux/sizes.h>
+#include <asm/arch/IOAddress.h>
 
 /* #define CONFIG_DEBUG 1 */
 
@@ -22,7 +23,7 @@
  * High Level Configuration Options
  */
 
-#define CONFIG_SYS_NAND_BASE                            0x4F07E0000
+#define CONFIG_SYS_NAND_BASE                            IOADDR_NAND_REG_BASE
 
 #if defined(CONFIG_USB_EHCI_NVTIVOT) || defined(CONFIG_USB_EHCI_NVTIVOT_A64)
 #define CONFIG_EHCI_IS_TDI

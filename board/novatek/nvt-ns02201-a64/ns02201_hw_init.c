@@ -448,7 +448,7 @@ void nvt_ddr_scan(u32 type)
 		printf("flush->");
 		invalidate_dcache_range(JUMP_ADDR, JUMP_ADDR + roundup(sizeof(ddr_scan), ARCH_DMA_MINALIGN));
 	} else {
-		writel(0x40350e7c, 0x2f0060084);
+		writel(0x40350e7e, 0x2f0060084);
 		memcpy((void *)JUMP_ADDR, ddr_scan, sizeof(ddr_scan));
 		printf("->done\n");
 		flush_dcache_range(JUMP_ADDR, JUMP_ADDR + sizeof(ddr_scan));

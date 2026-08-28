@@ -47,7 +47,7 @@
 #include <linux/delay.h>
 #include <asm/arch/efuse_protected.h>
 
-#define ETHVERSION "1.0.0.7"
+#define ETHVERSION "1.0.0.8"
 
 #define SW_RESET_ADDRESS     (0x3800)
 #define SW_RESET_MASK        0x00000002
@@ -1525,6 +1525,15 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		reg |= (1 << 4); // select external phy
 		writel(reg, IOADDR_ETH_REG_BASE + 0x3004);
 
+		if (pin_num == 1) {
+			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP MDIO MUX 1
+			reg |= (1 << 4);
+			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+		} else {
+			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP MDIO MUX 2
+			reg |= (2 << 4);
+			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+		}
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 		if (phy_intf == PHY_INTERFACE_MODE_RGMII) {
@@ -1540,6 +1549,16 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 
 		writel(reg, IOADDR_ETH_REG_BASE + 0x3004);
 		writel(0x1FF, IOADDR_ETH_REG_BASE + 0x300C);
+
+		if (pin_num == 1) {
+			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP MDIO MUX 1
+			reg |= (1 << 4);
+			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+		} else {
+			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP MDIO MUX 2
+			reg |= (2 << 4);
+			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+		}
 
 		/*if (phy_clk > 0) {
 		    reg = readl(IOADDR_CG_REG_BASE + 0xE4);
@@ -1583,27 +1602,15 @@ static void extphy0_clk_en(phy_interface_t phy_intf, int phy_clk, int ref_clk_ou
 		reg |= (1 << 24);
 		writel(reg, IOADDR_CG_REG_BASE + 0x78);
 
+		reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
+		reg |= (1 << 8);
+		writel(reg, IOADDR_TOP_REG_BASE + 0xC);
+
 		if (pin_num == 1) {
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
-			reg |= (1 << 8);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
-
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP MDIO MUX 1
-			reg |= (1 << 4);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
-
 			reg = readl(IOADDR_TOP_REG_BASE + 0xB8); // TOP EXT PHY GPIO FUNCTION NORMAL
 			reg &= ~(1 << 9);
 			writel(reg, IOADDR_TOP_REG_BASE + 0xB8);
 		} else if (pin_num == 2) {
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP EXT PHY EN
-			reg |= (1 << 8);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
-
-			reg = readl(IOADDR_TOP_REG_BASE + 0xC); // TOP MDIO MUX 2
-			reg |= (2 << 4);
-			writel(reg, IOADDR_TOP_REG_BASE + 0xC);
-
 			reg = readl(IOADDR_TOP_REG_BASE + 0xB4); // TOP EXT PHY GPIO FUNCTION NORMAL
 			reg &= ~(1 << 0);
 			writel(reg, IOADDR_TOP_REG_BASE + 0xB4);

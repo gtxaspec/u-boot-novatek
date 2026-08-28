@@ -237,7 +237,7 @@
 // ---------------------------------------------
 
 // NAND
-#define IOADDR_NAND_REG_BASE        (IOADDR_GLOBAL_BASE+0x007E0000)
+#define IOADDR_NAND_REG_BASE        (IOADDR_GLOBAL_BASE+0x00570000)
 
 // SDIO
 #define IOADDR_SDIO_REG_BASE        (IOADDR_GLOBAL_BASE+0x007B0000)

@@ -16,7 +16,7 @@
 #include "ext_flash_table.h"
 #include <asm/nvt-common/nvt_storage.h>
 
-#define NOR_VERSION "1.0.17"
+#define NOR_VERSION "1.0.18"
 
 #ifdef CONFIG_SPI_FLASH_MTD
 static struct mtd_info sf_mtd_info;
@@ -432,8 +432,8 @@ static void nvt_parse_parameter(u32 *trace_stdtable)
 		info->flash_info->dtr_en = 0;
 
 	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "dqs", NULL);
-	if (cell > 0 && (info->chip_id == CHIP_NS02301 || \
-		info->chip_id == CHIP_NS02302 || info->chip_id == CHIP_NS02402))
+	if (cell > 0 && (info->chip_id == CHIP_NS02301 || info->chip_id == CHIP_NS02302 || \
+		info->chip_id == CHIP_NS02401 || info->chip_id == CHIP_NS02402))
 		info->flash_info->dqs_en = __be32_to_cpu(cell[0]);
 	else
 		info->flash_info->dqs_en = 0;

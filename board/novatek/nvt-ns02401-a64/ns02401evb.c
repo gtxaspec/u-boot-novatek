@@ -35,53 +35,47 @@ const char *boardinfo[] = {
 
 static struct mm_region evb_mem_map[] = {
 	{
-	    .virt = 0x0UL,
+	    .virt = 0x0UL, /* For MAU1 */
 		.phys = 0x0UL,
-		.size = 0xF0000000UL,
+		.size = 0x200000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 			 PTE_BLOCK_INNER_SHARE
 	}, {
-	    .virt = 0xf0000000UL,
-		.phys = 0xf0000000UL,
-		.size = 0x10000000UL,
+	    .virt = 0x200000000UL, /* For MAU2 */
+		.phys = 0x200000000UL,
+		.size = 0x200000000UL,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_INNER_SHARE
+	}, {
+	    .virt = 0x400000000UL, /* For Peripheral */
+		.phys = 0x400000000UL,
+		.size = 0x400000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 			 PTE_BLOCK_NON_SHARE
-			 /* TODO: Do we need these? */
-			 /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
 	}, {
-        .virt = 0x100000000UL,
-        .phys = 0x100000000UL,
-        .size = 0x100000000UL,
-        .attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
-             PTE_BLOCK_NON_SHARE
-             /* TODO: Do we need these? */
-             /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
-	}, {
-	    .virt = 0x2f0000000UL, /* For 0x2F000_0000 peri io */
-		.phys = 0x2f0000000UL,
-		.size = 0x10000000UL,
-		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
-			 PTE_BLOCK_NON_SHARE
-			 /* TODO: Do we need these? */
-			 /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
-	}, {
-	    .virt = 0x4f0000000UL, /* For 0x4F000_0000 peri io */
-		.phys = 0x4f0000000UL,
-		.size = 0x10000000UL,
-		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
-			 PTE_BLOCK_NON_SHARE
-			 /* TODO: Do we need these? */
-			 /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
-
-	}, {
-	    .virt = 0x800000000UL, /* For 0x8_0000_0000 pcie space  */
+	    .virt = 0x800000000UL, /* For ACP for MAU1 */
 		.phys = 0x800000000UL,
-		.size = 0x1000000000UL,
+		.size = 0x200000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 			 PTE_BLOCK_NON_SHARE
-			 /* TODO: Do we need these? */
-			 /* | PTE_BLOCK_PXN | PTE_BLOCK_UXN */
-
+	}, {
+	    .virt = 0xA00000000UL, /* For ACP for MAU2 */
+		.phys = 0xA00000000UL,
+		.size = 0x200000000UL,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE
+	}, {
+	    .virt = 0xC00000000UL, /* For ACP */
+		.phys = 0xC00000000UL,
+		.size = 0x400000000UL,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE
+	}, {
+	    .virt = 0x1000000000UL, /* TBD*/
+		.phys = 0x1000000000UL,
+		.size = 0x7000000000UL,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE
 	}, {
 
 		/* List terminator */

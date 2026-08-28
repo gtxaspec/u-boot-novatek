@@ -14,6 +14,7 @@
 #include <common.h>
 #include <asm/arch/efuse_protected.h>
 #include <asm/nvt-common/rcw_macro.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/IOAddress.h>
 #include <linux/delay.h>
 #include "nvt_otp_reg.h"
@@ -88,6 +89,8 @@
 extern s32 local_load(u32 uiRowAddress);
 extern s32 local_store(u32 uiRowAddress);
 
+static u32 chip_id;
+
 #define OTP_120_TIMING              0xFF6050
 #define RETRY_CNT                   3
 #define TIMING_1ST                  0xFF7050
@@ -126,7 +129,8 @@ void otp_init(void)
 {
 	UINT32  uiReg;
 
-	DBG_DUMP("otp_init[1.00.003]\r\n");
+	chip_id = nvt_get_chip_id();
+	DBG_DUMP("otp_init[1.00.003] chipid[0x%08x]\r\n", chip_id);
 	OUTREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS, OTP_120_TIMING);
 	uiReg = INREG32(KEY_MANAGER_TIMING_CONFIG_ADDRESS);
 	DBG_DUMP("otp_timing_reg= 0x%x\r\n", (int)uiReg);
@@ -136,8 +140,12 @@ void otp_init(void)
 }
 
 static s32 key_program_bit(u32 rol, u32 col, u32 macro_AB)
-{
-	return local_store(rol | (col << 5) | (macro_AB << 11));
+{	
+	if(chip_id == CHIP_NS02402) {
+		return local_store(rol | (col << 6) | (macro_AB << 11));
+	} else {
+		return local_store(rol | (col << 5) | (macro_AB << 11));
+	}
 }
 
 static s32 key_write_data(u32 addr, u32 data)
@@ -934,7 +942,7 @@ u32 otp_key_manager(u32 rowAddress)
 	s32  uiData;
 
 	OTP_RSTN_DISABLE();
-	uiData = local_load((rowAddress & 0x3F) | (DBL_BIT_EN << 11));
+	uiData = local_load((rowAddress & 0x3F) | (DBL_BIT_EN << 11));	
 	OTP_RSTN_ENABLE();
 
 	return uiData;

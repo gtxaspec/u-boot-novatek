@@ -752,7 +752,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 
 	/* Config NAND module CLKEN */
 	reg = INW(IOADDR_CG_REG_BASE + 0x74);
-	if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || (info->chip_id == CHIP_NS02402)) {
+	if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302) || \
+		(info->chip_id == CHIP_NS02401) || (info->chip_id == CHIP_NS02402)) {
 		reg |= (1);
 	} else {
 		reg |= (1 << 10);
@@ -772,7 +773,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		OUTW(IOADDR_CG_REG_BASE + 0x98, reg);
 	} else {
 		reg = INW(IOADDR_CG_REG_BASE + 0x94);
-		if ((info->chip_id == CHIP_NS02302) || (info->chip_id == CHIP_NS02402)) {
+		if ((info->chip_id == CHIP_NS02302) || (info->chip_id == CHIP_NS02401) || \
+			(info->chip_id == CHIP_NS02402)) {
 			reg |= (1);
 		} else {
 			reg |= (1 << 10);
@@ -786,7 +788,8 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 
 	/* Need use PinCtrl framework */
 	reg = INW(IOADDR_TOP_REG_BASE + 0x4);
-	if ((info->chip_id == CHIP_NS02302) || (info->chip_id == CHIP_NS02402)) {
+	if ((info->chip_id == CHIP_NS02302) || (info->chip_id == CHIP_NS02401) || \
+		(info->chip_id == CHIP_NS02402)) {
 		reg &= ~0x3;
 		if ((fdt_pinmux&0x3) == 0x1) {          // PIN_NAND_CFG_NAND_1, Quad mode
 			reg |= 0x1;
@@ -803,9 +806,15 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 
 		reg = INW(IOADDR_TOP_REG_BASE + 0xA0);
 		if ((fdt_pinmux&0x3) == 0x1) {         // PIN_NAND_CFG_NAND_1, Quad mode
-			reg &= ~(0x0000090F);              // 4-bit
+			if (info->chip_id == CHIP_NS02401)
+				reg &= ~(0x0000003F);
+			else
+				reg &= ~(0x0000090F);
 		} else if ((fdt_pinmux&0x3) == 0x2) {  // PIN_NAND_CFG_NAND_2, Octal mode
-			reg &= ~(0x00000DFF);              // 8-bit + DQS
+			if (info->chip_id == CHIP_NS02401)
+				reg &= ~(0x00003C7F);
+			else
+				reg &= ~(0x00000DFF);
 		}
 		if (fdt_pinmux & 0x4) {                // PIN_NAND_CFG_NAND_CS1
 			reg &= ~(0x200);                   // CS1
@@ -890,11 +899,18 @@ int nand_pad_reset(struct drv_nand_dev_info *info, NAND_TYPE_SEL type)
 		OUTW(IOADDR_CG_REG_BASE + 0x48, reg);
 	} else if ((info->chip_id == CHIP_NS02301) || (info->chip_id == CHIP_NS02302)  || (info->chip_id == CHIP_NS02402)) {
 		reg = INW(IOADDR_CG_REG_BASE + 0x40);
-		printf("get reg: 0x%x \n", reg);
+		NAND_DBG_GLOBAL("get reg: 0x%x \n", reg);
 		reg &= ~(0x3F000);
 		reg |= (clk_div << 12);
 		OUTW(IOADDR_CG_REG_BASE + 0x40, reg);
-		printf("dbg clkdiv: 0x%x \n", reg);
+		NAND_DBG_GLOBAL("dbg clkdiv: 0x%x \n", reg);
+	} else if (info->chip_id == CHIP_NS02401) {
+		reg = INW(IOADDR_CG_REG_BASE + 0x44);
+		NAND_DBG_GLOBAL("get reg: 0x%x \n", reg);
+		reg &= ~(0x3F0000);
+		reg |= (clk_div << 16);
+		OUTW(IOADDR_CG_REG_BASE + 0x44, reg);
+		NAND_DBG_GLOBAL("dbg clkdiv: 0x%x \n", reg);
 	} else {
 		printf("clkdiv: skip (todo) \n");
 	}
