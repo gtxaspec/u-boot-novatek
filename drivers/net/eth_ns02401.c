@@ -684,6 +684,12 @@ static int xgmac_probe_resources_novatek(struct udevice *dev)
 	}
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "pinmux", &len);
+
+	if (!cell) {
+		printf("%s: pinmux not found\n", __func__);
+		return -1;
+	}
+
 	if (len == 0) {
 		printf("%s(%d) len = 0\n", __func__, __LINE__);
 		return -1;
@@ -699,11 +705,23 @@ static int xgmac_probe_resources_novatek(struct udevice *dev)
 	}
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "sp-clk", &len);
+
+	if (!cell) {
+		printf("%s: sp-clk not found\n", __func__);
+		return -1;
+	}
+
 	if (len != 0) {
 		phy_clk = __be32_to_cpu(cell[0]);
 	}
 
 	cell = (u32 *)fdt_getprop((const void *)nvt_fdt_buffer, nodeoffset, "ref-clk-out", &len);
+
+	if (!cell) {
+		printf("%s: ref-clk-out not found\n", __func__);
+		return -1;
+	}
+
 	if (len != 0) {
 		ref_clk_out = __be32_to_cpu(cell[0]);
 	}
@@ -1712,7 +1730,7 @@ static int xgmac_get_phy_addr(struct xgmac_priv *priv, struct udevice *dev)
 static int xgmac_start(struct udevice *dev)
 {
 	struct xgmac_priv *xgmac = dev_get_priv(dev);
-	int ret, i = 0;
+	int ret = -1, i = 0;
 	u32 val, tx_fifo_sz, rx_fifo_sz, tqs, rqs, pbl;
 	ulong last_rx_desc;
 	ulong desc_pad;
@@ -1971,6 +1989,7 @@ static int xgmac_start(struct udevice *dev)
 	 */
 	pbl = tqs + 1;
 	if (pbl > 32) {
+		// coverity[assigned_value]
 		pbl = 32;
 	}
 
@@ -2088,6 +2107,7 @@ static void xgmac_stop(struct udevice *dev)
 	return;
 	debug("%s(dev=%p):\n", __func__, dev);
 
+	// coverity[unreachable], xgmac->started set to true in xgmac_start()
 	if (!xgmac->started) {
 		return;
 	}
@@ -2442,7 +2462,7 @@ static int xgmac_probe(struct udevice *dev)
 		xgmac->mii->read = xgmac_mdio_read;
 		xgmac->mii->write = xgmac_mdio_write;
 		xgmac->mii->priv = xgmac;
-		strcpy(xgmac->mii->name, dev->name);
+		strncpy(xgmac->mii->name, dev->name, sizeof(xgmac->mii->name) - 1);
 
 		ret = mdio_register(xgmac->mii);
 		if (ret < 0) {

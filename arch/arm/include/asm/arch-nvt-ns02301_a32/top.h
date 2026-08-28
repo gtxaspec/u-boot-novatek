@@ -678,7 +678,7 @@ int nvt_pinmux_capture(PIN_GROUP_CONFIG *pinmux_config, int count);
 int nvt_pinmux_update(PIN_GROUP_CONFIG *pinmux_config, int count);
 int pinmux_set_config(PINMUX_FUNC_ID id, uint32_t pinmux);
 extern void gpio_func_show(void);
-int nvt_pinmux_probe();
+int nvt_pinmux_probe(void);
 //UINT32 nvt_get_chip_id(void);
 PINMUX_LCDINIT pinmux_get_dispmode(PINMUX_FUNC_ID id);
 

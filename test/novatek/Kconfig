@@ -1,0 +1,18 @@
+menuconfig UT_NOVATEK
+    bool "Unit tests for ARCH_NOVATEK"
+    depends on UNIT_TEST && ARCH_NOVATEK
+    default n
+    help
+	  Enables the 'ut novatek' command which do ARCH_NOVATEK SOC unit tests
+
+if UT_NOVATEK
+
+
+config DEV_DEPENDENCE_EXAMPLE
+	bool "example tests with device dependense"
+	select CMD_DFU
+	default n
+	help
+	  Enables example tests with device dependense
+
+endif   # if UT_NOVATEK

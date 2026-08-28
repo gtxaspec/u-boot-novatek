@@ -13,6 +13,7 @@
 
 #include <cpu_func.h>
 #include <command.h>
+#include <cli.h>
 #include <asm/nvt-common/nvt_types.h>
 #include <asm/nvt-common/modelext/emb_partition_info.h>
 #include <asm/nvt-common/modelext/bin_info.h>
@@ -446,7 +447,7 @@ int nvt_boot_rtos_bin_auto(void)
 				printf("%s Attention!!! rtos starting address at 0x%lx with size 0x%08x (uncompressed) is larger than temp buffer address!! 0x%08lx %s\r\n",
 					   ANSI_COLOR_RED, rtos_addr, cpu_to_be32(pbfc->uiSizeUnComp), tmp_addr, ANSI_COLOR_RESET);
 				printf("%s It can't decompress %s\r\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
-				while (1);
+				cli_loop();
 			}
 #if defined(CONFIG_NVT_LINUX_SPINAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NAND)) \
             || defined(CONFIG_NVT_LINUX_SPINORNAND_BOOT) || (defined(NVT_LINUX_RAMDISK_SUPPORT) && defined(CONFIG_NVT_SPI_NOR_NAND))

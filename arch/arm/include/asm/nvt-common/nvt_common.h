@@ -20,6 +20,7 @@
 #include <common.h>
 #include <image-sparse.h>
 #include <asm/gpio.h>
+#include <ns16550.h>
 
 extern unsigned long nvt_tm0_cnt_beg;
 extern unsigned long nvt_tm0_cnt_end;
@@ -252,6 +253,11 @@ void nvt_ddr_scan(u32 type);
 void nvt_ddr_scan(void);
 #endif
 void nvt_stbc_pmc(UINT32 debug);
+
+/*** UART(serial Util ***/
+#if (defined(CONFIG_SERIAL_NVT))
+extern int nvt_serial_calc_divisor(struct ns16550 *port, int baudrate);
+#endif
 
 #if defined(CONFIG_NVT_IVOT_DUAL_RTOS)
 extern int nvt_decide_dual_rtos_idx(void);

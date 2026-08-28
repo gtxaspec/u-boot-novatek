@@ -73,6 +73,9 @@ obj-$(CONFIG_MTK_SERIAL) += serial_mtk.o
 obj-$(CONFIG_MT7620_SERIAL) += serial_mt7620.o
 obj-$(CONFIG_SIFIVE_SERIAL) += serial_sifive.o
 obj-$(CONFIG_XEN_SERIAL) += serial_xen.o
+ifeq ($(CONFIG_TARGET_NS02301),y)
+obj-$(CONFIG_SERIAL_NVT) += serial_nvt_plat_ns02301.o
+endif
 
 ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_USB_TTY) += usbtty.o

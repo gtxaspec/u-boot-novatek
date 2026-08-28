@@ -18,6 +18,9 @@
 #include <linux/err.h>
 #include <linux/types.h>
 #include <asm/io.h>
+#if (defined(CONFIG_SERIAL_NVT))
+#include "serial_nvt.h"
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -226,6 +229,10 @@ static void ns16550_setbrg(struct ns16550 *com_port, int baud_divisor)
 
 void ns16550_init(struct ns16550 *com_port, int baud_divisor)
 {
+#if (defined(CONFIG_SERIAL_NVT))
+	nvt_serial_plat_init(com_port, baud_divisor);
+#endif
+
 #if (defined(CONFIG_SPL_BUILD) && \
 		(defined(CONFIG_OMAP34XX) || defined(CONFIG_OMAP44XX)))
 	/*

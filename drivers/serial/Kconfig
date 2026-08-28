@@ -884,6 +884,12 @@ config MPC8XX_CONS
 	depends on MPC8xx
 	default y
 
+config SERIAL_NVT
+	bool "NVT serial port support"
+	depends on TARGET_NS02301
+	help
+		Generic UART driver for Novatek.
+
 config XEN_SERIAL
 	bool "XEN serial support"
 	depends on XEN

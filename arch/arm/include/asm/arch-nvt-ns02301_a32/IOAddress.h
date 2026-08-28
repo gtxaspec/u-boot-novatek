@@ -74,6 +74,12 @@
 // TRNG
 #define IOADDR_TRNG_REG_BASE        (IOADDR_GLOBAL_BASE+0x00680000)
 
+// PRTOP
+#define IOADDR_PRTOP_REG_BASE       (IOADDR_GLOBAL_BASE+0x00110000)
+
+// PRPAD
+#define IOADDR_PRPAD_REG_BASE       (IOADDR_GLOBAL_BASE+0x00130000)
+
 // ---------------------------------------------
 // System category 1
 // ---------------------------------------------
