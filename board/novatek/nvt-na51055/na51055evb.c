@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/libfdt.h>
 #include <fdt_support.h>
+#include <bootm.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 extern int nvt_mmc_init(int id);
@@ -542,4 +543,13 @@ u32 get_board_rev(void)
 int board_late_init(void)
 {
 	return 0;
+}
+
+void __weak na51055_eth_restore_trim(void)
+{
+}
+
+void board_preboot_os(void)
+{
+	na51055_eth_restore_trim();
 }

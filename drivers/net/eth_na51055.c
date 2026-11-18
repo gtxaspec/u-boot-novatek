@@ -1266,6 +1266,43 @@ static int eqos_remove_resources_core(struct udevice *dev)
 	return 0;
 }
 
+/* Signed step added to the factory TX DAC trim of the embedded PHY, from
+ * the eth node's emb-phy-driving, as the kernel driver applies it. */
+static int emb_phy_driving;
+static int emb_phy_trim = -1; /* factory value, captured once: poweron runs twice */
+
+static void eth_phy_apply_driving(void)
+{
+	u32 reg = readl((void *)(IOADDR_ETH_REG_BASE + 0x3800 + 0x378));
+	int value;
+
+	if (!emb_phy_driving)
+		return;
+	if (emb_phy_trim < 0)
+		emb_phy_trim = reg & 0x1F;
+	value = emb_phy_trim;
+	if (value & 0x10)
+		value -= 0x20;
+	value += emb_phy_driving;
+	if (value > 15)
+		value = 15;
+	if (value < -16)
+		value = -16;
+	writel((reg & ~0x1F) | (value & 0x1F), (void *)(IOADDR_ETH_REG_BASE + 0x3800 + 0x378));
+}
+
+/* Linux applies emb-phy-driving relative to the register too, so hand it
+ * the factory trim back before boot. */
+void na51055_eth_restore_trim(void)
+{
+	u32 reg;
+
+	if (emb_phy_trim < 0)
+		return;
+	reg = readl((void *)(IOADDR_ETH_REG_BASE + 0x3800 + 0x378));
+	writel((reg & ~0x1F) | emb_phy_trim, (void *)(IOADDR_ETH_REG_BASE + 0x3800 + 0x378));
+}
+
 static void eth_phy_poweron(void)
 {
 	unsigned long reg;
@@ -1287,6 +1324,7 @@ static void eth_phy_poweron(void)
 	writel(reg | (1<<0), (void *)(IOADDR_ETH_REG_BASE + 0x3800 + 0xDC));
 	reg = readl((void*)(IOADDR_ETH_REG_BASE + 0x3800 + 0x9C));
 	writel(reg & (~(1<<0)), (void *)(IOADDR_ETH_REG_BASE + 0x3800 + 0x9C));
+	eth_phy_apply_driving();
 }
 
 static void eqos_probe_hwinit(void)
@@ -1592,6 +1630,10 @@ static int eth_parse_phy_intf(unsigned long base_addr)
 	if (len != 0) {
 		rmii_ref_out = __be32_to_cpu(cell[0]);
 	}
+
+	cell = (u32*)fdt_getprop((const void*)nvt_fdt_buffer, nodeoffset, "emb-phy-driving", &len);
+	if (cell && len == 4)
+		emb_phy_driving = (int)__be32_to_cpu(cell[0]);
 
 	sprintf(path,"/phy@f02b3800");
 
